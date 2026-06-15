@@ -1,6 +1,4 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="ime_name" translatable="false">Urik</string>
-    <string name="ime_label">Teclado Urik</string>
     <string name="ime_description">Escrita por deslizamento, corretor ortográfico e compatibilidade multilíngue sem comprometer a sua privacidade. Sem telemetria. Sem recolha de dados. Tudo permanece no seu dispositivo.</string>
 
     <!-- Settings -->

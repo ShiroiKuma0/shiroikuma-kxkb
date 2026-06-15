@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="ime_name">Πληκτρολόγιο Urik</string>
-    <string name="ime_label">Πληκτρολόγιο Urik</string>
     <string name="ime_description">Πληκτρολόγηση σάρωσης, έλεγχος ορθογραφίας και πολυγλωσσική υποστήριξη με απόλυτο σεβασμό στην ιδιωτικότητά σας. Χωρίς τηλεμετρία και συλλογή δεδομένων. Όλα μένουν στη συσκευή σας.</string>
     <!-- Settings -->
     <string name="enable_keyboard_title">Ενεργοποίηση</string>

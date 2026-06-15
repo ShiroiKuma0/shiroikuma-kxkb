@@ -1,6 +1,4 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="ime_name">Urik клавиатура</string>
-    <string name="ime_label">Urik клавиатура</string>
     <string name="ime_description">Плъзгащо писане, проверка на правописа и многоезична поддръжка без компромис с поверителността. Без телеметрия. Без събиране на данни. Всичко остава на устройството ви.</string>
 
     <!-- Settings -->

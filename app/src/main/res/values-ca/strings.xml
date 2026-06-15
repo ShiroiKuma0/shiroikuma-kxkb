@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="ime_name">Teclat Urik</string>
-    <string name="ime_label">Teclat Urik</string>
     <string name="ime_description">Escriptura lliscant el dit, corrector ortogràfic i compatibilitat multilingüe sense comprometre la teva privacitat. Sense telemetria. Sense recopilar dades. Tot es queda al teu dispositiu.</string>
     <!-- Settings -->
     <string name="enable_keyboard_title">Activar</string>

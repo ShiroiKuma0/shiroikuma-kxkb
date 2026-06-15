@@ -1,5 +1,4 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="ime_label">Urik Tastatur</string>
     <string name="ime_description">Wischgesten-Eingabe, Rechtschreibprüfung und Mehrsprachigkeit ohne deine Privatsphäre zu verletzen. Keine Telemetrie. Alles bleibt auf deinem Gerät.</string>
 
     <!-- Settings -->

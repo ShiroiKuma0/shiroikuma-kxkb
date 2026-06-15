@@ -1,6 +1,4 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="ime_name">Klawiatura Urik</string>
-    <string name="ime_label">Klawiatura Urik</string>
     <string name="ime_description">Pisanie gestami, sprawdzanie pisowni i obsługa wielu języków bez naruszania prywatności. Bez telemetrii. Bez gromadzenia danych. Wszystko pozostaje na twoim urządzeniu.</string>
 
     <!-- Settings -->

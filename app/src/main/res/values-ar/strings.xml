@@ -1,6 +1,4 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="ime_name">لوحة مفاتيح أوريك</string>
-    <string name="ime_label">لوحة مفاتيح أوريك</string>
     <string name="ime_description">كتابة بالتمرير، وتصحيح الكلمات، ودعم لغات متعددة دون التعدي على خصوصيتك. لا يجمع البيانات خارج جهازك، جميع البيانات تبقى داخل جهازك.</string>
 
     <!-- Settings -->

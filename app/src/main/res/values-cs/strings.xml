@@ -1,6 +1,4 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="ime_name">Klávesnice Urik</string>
-    <string name="ime_label">Klávesnice Urik</string>
     <string name="ime_description">Psaní tahem, kontrola pravopisu, a vícejazyčná podpora bez ohrožení vašeho soukromí. Žádná telemetrie. Žádný sběr dat. Vše zůstává na vašem zařízení.</string>
 
     <!-- Settings -->

@@ -1,6 +1,4 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="ime_name">Клавіатура Urik</string>
-    <string name="ime_label">Клавіатура Urik</string>
     <string name="ime_description">Безперервний ввід, перевірка орфографії та багатомовна підтримка без шкоди для вашої конфіденційності. Без телеметрії. Без збору даних. Усе залишається на вашому пристрої.</string>
 
     <!-- Settings -->

@@ -1,7 +1,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name" translatable="false">白い熊 kxkb</string>
-    <string name="ime_name">白い熊 kxkb</string>
-    <string name="ime_label">白い熊 kxkb</string>
+    <string name="ime_name" translatable="false">白い熊 kxkb</string>
+    <string name="ime_label" translatable="false">白い熊 kxkb</string>
     <string name="ime_description">Swipe typing, spell check and multilingual support without compromising your privacy. No telemetry. No data collection. Everything stays on your device.</string>
 
     <!-- Settings -->

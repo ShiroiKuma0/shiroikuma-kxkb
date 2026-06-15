@@ -1,6 +1,4 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="ime_name">Urik キーボード</string>
-    <string name="ime_label">Urik キーボード</string>
     <string name="ime_description">スワイプ入力、スペルチェック、多言語対応をプライバシーを損なわずに実現。テレメトリなし。データ収集なし。すべてデバイス上に保存。</string>
 
     <!-- Settings -->

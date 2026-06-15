@@ -1,6 +1,4 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="ime_name" translatable="false">Urik Toetsenbord</string>
-    <string name="ime_label">Urik Toetsenbord</string>
     <string name="ime_description">Swipen typen, spellingscontrole en meertalige ondersteuning zonder je privacy in gevaar te brengen. Geen telemetrie. Geen gegevensverzameling. Alles blijft op je apparaat.</string>
 
     <!-- Settings -->
