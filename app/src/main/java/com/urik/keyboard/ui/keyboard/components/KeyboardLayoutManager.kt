@@ -1048,6 +1048,10 @@ class KeyboardLayoutManager(
                 setOnClickListener(null)
                 setOnTouchListener { view, event ->
                     if (event.action == MotionEvent.ACTION_DOWN) {
+                        // Flick keys own their whole gesture. Stop the parent keyboard view from
+                        // intercepting and cancelling the flick mid-swipe — without this, certain
+                        // keys (e.g. さ) had their flick cancelled on longer swipes, dropping input.
+                        view.parent?.requestDisallowInterceptTouchEvent(true)
                         val popup = FlickPopup(context, themeManager)
                         flickPopup?.dismiss()
                         flickPopup = popup
