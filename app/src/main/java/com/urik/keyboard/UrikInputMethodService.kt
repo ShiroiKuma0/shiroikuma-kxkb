@@ -904,12 +904,19 @@ open class UrikInputMethodService :
                 coordinateStateClear()
                 viewModel.clearShiftAndCapsState()
 
-                languageManager.switchLayoutLanguage(languageCode)
+                val switched = languageManager.switchLayoutLanguage(languageCode).isSuccess
 
                 val locale =
                     ULocale
                         .forLanguageTag(languageCode)
                 updateScriptContext(locale)
+
+                // Remember this layout language for the current app (per-app layout memory).
+                if (switched) {
+                    currentInputEditorInfo?.packageName?.let { pkg ->
+                        settingsRepository.setPerAppLayoutLanguage(pkg, languageCode)
+                    }
+                }
             } catch (e: Exception) {
                 ErrorLogger.logException(
                     component = "UrikInputMethodService",
@@ -1702,11 +1709,39 @@ open class UrikInputMethodService :
 
         applyFieldTypeFromEditorInfo(attribute)
 
+        restoreLayoutLanguageForApp(attribute?.packageName)
+
         if (inputState.isSecureField) {
             clearSecureFieldState()
         } else if (!inputState.isUrlOrEmailField && !inputState.isTerminalField) {
             val textBefore = outputBridge.safeGetTextBeforeCursor(50)
             checkAutoCapitalization(textBefore)
+        }
+    }
+
+    /**
+     * Per-app layout memory: if a layout language was previously remembered for [packageName],
+     * switch to it (no-op when it already matches or is no longer active).
+     */
+    private fun restoreLayoutLanguageForApp(packageName: String?) {
+        if (packageName.isNullOrBlank()) return
+        serviceScope.launch {
+            try {
+                val remembered = settingsRepository.getPerAppLayoutLanguage(packageName) ?: return@launch
+                if (remembered == languageManager.currentLayoutLanguage.value) return@launch
+                if (remembered !in languageManager.activeLanguages.value) return@launch
+
+                if (languageManager.switchLayoutLanguage(remembered).isSuccess) {
+                    updateScriptContext(ULocale.forLanguageTag(remembered))
+                }
+            } catch (e: Exception) {
+                ErrorLogger.logException(
+                    component = "UrikInputMethodService",
+                    severity = ErrorLogger.Severity.LOW,
+                    exception = e,
+                    context = mapOf("operation" to "restoreLayoutLanguageForApp")
+                )
+            }
         }
     }
 

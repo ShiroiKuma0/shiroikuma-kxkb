@@ -50,6 +50,7 @@ constructor(
         val ACTIVE_LANGUAGES_LIST = stringPreferencesKey("active_languages_list")
         val PRIMARY_LANGUAGE = stringPreferencesKey("primary_language")
         val PRIMARY_LAYOUT_LANGUAGE = stringPreferencesKey("primary_layout_language")
+        val PER_APP_LAYOUT_LANGUAGES = stringPreferencesKey("per_app_layout_languages")
         val HAPTIC_FEEDBACK = booleanPreferencesKey("haptic_feedback")
         val VIBRATION_STRENGTH = intPreferencesKey("vibration_strength")
         val DOUBLE_SPACE_PERIOD = booleanPreferencesKey("double_space_period")
@@ -344,6 +345,56 @@ constructor(
     } catch (e: Exception) {
         Result.failure(e)
     }
+
+    /**
+     * Per-app layout memory: the layout language last used in each app's package, so it can be
+     * restored when the user returns to that app. Stored outside [KeyboardSettings] so writes here
+     * don't perturb the settings flow.
+     */
+    suspend fun getPerAppLayoutLanguage(packageName: String): String? = try {
+        if (packageName.isBlank()) {
+            null
+        } else {
+            dataStore.data
+                .first()[PreferenceKeys.PER_APP_LAYOUT_LANGUAGES]
+                ?.let { decodePerAppLayouts(it)[packageName] }
+        }
+    } catch (e: Exception) {
+        null
+    }
+
+    suspend fun setPerAppLayoutLanguage(packageName: String, language: String): Result<Unit> = try {
+        if (packageName.isNotBlank() && language.isNotBlank()) {
+            dataStore.edit { preferences ->
+                val current =
+                    preferences[PreferenceKeys.PER_APP_LAYOUT_LANGUAGES]
+                        ?.let { decodePerAppLayouts(it) }
+                        ?: emptyMap()
+                if (current[packageName] != language) {
+                    val updated = current.toMutableMap().apply { this[packageName] = language }
+                    preferences[PreferenceKeys.PER_APP_LAYOUT_LANGUAGES] = encodePerAppLayouts(updated)
+                }
+            }
+        }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    private fun encodePerAppLayouts(map: Map<String, String>): String =
+        map.entries.joinToString("\n") { "${it.key}\t${it.value}" }
+
+    private fun decodePerAppLayouts(raw: String): Map<String, String> =
+        raw
+            .lineSequence()
+            .mapNotNull { line ->
+                val parts = line.split("\t")
+                if (parts.size == 2 && parts[0].isNotEmpty() && parts[1].isNotEmpty()) {
+                    parts[0] to parts[1]
+                } else {
+                    null
+                }
+            }.toMap()
 
     suspend fun updateHapticFeedback(enabled: Boolean): Result<Unit> = try {
         dataStore.edit { it[PreferenceKeys.HAPTIC_FEEDBACK] = enabled }
