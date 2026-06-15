@@ -87,16 +87,22 @@ land) the patched keyboard/prediction sources.
 
 ## 8. The roadmap & current status
 
-Full phased plan: **`docs/PLAN.md`**. Phases: 0 identity/icon ✅ → **1 quick wins (remove 3-language cap +
-easy typing tweaks) ← NEXT** → 2 compass/cluster layouts → 3 cluster prediction (the soul) → 4 typing
+Full phased plan: **`docs/PLAN.md`**. Phases: 0 identity/icon ✅ → 1 quick wins (remove 3-language cap +
+easy typing tweaks) ✅ → **2 compass/cluster layouts ← NEXT** → 3 cluster prediction (the soul) → 4 typing
 refinements → 5 visual layout editor → 6 per-key appearance → 7 Japanese (Mozc deferred). Cross-cutting:
 our own `.urik` dict-build tool, a cluster-prediction-testing skill, a Multiling-conversion skill.
 
-**Phase 1, first task (the explicit ASAP item):** remove the **3-active-language cap** — a single constant
-`MAX_ACTIVE_LANGUAGES = 3` in `app/src/main/java/com/urik/keyboard/settings/KeyboardSettings.kt:167` feeds
-every validation layer; raise/remove it, update the toast string `max_languages_reached`
-(`res/values/strings.xml:97`) and the assertion in `KeyboardSettingsTest.kt:540`. Switcher + UI scale
-linearly (verified); cost is only linear dictionary memory (cache-evicted).
+**Phase 1 done (all four items):** removed the 3-active-language cap (`MAX_ACTIVE_LANGUAGES =
+SUPPORTED_LANGUAGES.size` — cs/en/ru/ja coexist); Tab → real `KEYCODE_TAB` (`ActionType.TAB`/`onTab()`,
+key on the en symbols page); per-app layout-language memory (`per_app_layout_languages` DataStore key,
+recorded in `handleLanguageSwitch`, restored in `onStartInput`); code/no-predict field mode (auto-caps now
+suppressed wherever `isSuggestionsDisabled`, plus a persistent **No-prediction mode** setting
+`forceNoPredict`). Four upstream Urik bugs were also fixed: the `buildApk` configuration-cache failure
+(silently skipped the `BUILD_NUMBER` bump — now fixed, so the bump is reliable); the keyboard's non-English
+name (18 locales overrode `ime_name`/`ime_label` with "Urik …" — now `translatable="false"`, overrides
+removed); Japanese kana-kanji conversion when `ja` isn't the primary language (looked the converter up by
+primary instead of layout language); and the `さ` flick being cancelled by the parent view on longer swipes
+(flick keys now call `requestDisallowInterceptTouchEvent`).
 
 ## 9. Why Urik — evaluation summary
 

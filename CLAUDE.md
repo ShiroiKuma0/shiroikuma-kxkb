@@ -75,5 +75,14 @@ The roadmap and current status live in **`docs/PLAN.md`** and **`HANDOFF.md`** �
 ## Current status
 
 **Phase 0 complete** (identity + icon): repackaged `shiroikuma.kxkb` / `白い熊 kxkb`, fork versioning +
-signing, the 熊 launcher icon. **Next: Phase 1** — remove the 3-active-language cap + the easy typing
-tweaks. Full phased plan in `docs/PLAN.md`.
+signing, the 熊 launcher icon.
+
+**Phase 1 complete** (quick wins): removed the 3-active-language cap (cs/en/ru/ja coexist); Tab key →
+real `KEYCODE_TAB` (symbols page); per-app layout-language memory; code/no-predict field mode (auto-caps
+also suppressed in auto-detected no-predict fields + a manual "No-prediction mode" setting). Along the way
+we also fixed four upstream Urik bugs: the `buildApk` configuration-cache failure (it was silently
+skipping the `BUILD_NUMBER` bump); the keyboard's non-English name (18 locales still said "Urik …");
+Japanese kana-kanji conversion when `ja` isn't the primary language; and the `さ` flick being cancelled
+by the parent view on longer swipes.
+
+**Next: Phase 2** — compass/cluster layouts (input geometry). Full phased plan in `docs/PLAN.md`.

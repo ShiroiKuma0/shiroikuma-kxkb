@@ -35,7 +35,7 @@ dedicated keystore, `lint { checkReleaseBuilds = false }`, and the **solid Minch
 (yellow on black; foreground at safe-zone size, all densities + composites + Play-Store PNG). Code
 namespace kept `com.urik.keyboard`.
 
-## Phase 1 — Quick wins / immediate pain points  ← NEXT
+## Phase 1 — Quick wins / immediate pain points  ✅ DONE
 
 1. **Remove the 3-active-language cap** (白い熊's ASAP item): one constant
    `KeyboardSettings.kt:167 MAX_ACTIVE_LANGUAGES = 3` → effectively unlimited; update the toast string
@@ -48,7 +48,18 @@ namespace kept `com.urik.keyboard`.
    field mode (extend `InputFieldClassifier`/`SecureFieldDetector`, which already special-case
    terminal/`TYPE_NULL`/password).
 
-## Phase 2 — Compass/cluster LAYOUTS (input geometry)
+**Done:** `MAX_ACTIVE_LANGUAGES = SUPPORTED_LANGUAGES.size` (effectively unlimited). `ActionType.TAB` +
+`onTab()` + `OutputBridge.sendTab()`, key on the en symbols page. Per-app memory via a
+`per_app_layout_languages` DataStore key (recorded in `handleLanguageSwitch`, restored in `onStartInput`).
+No-predict mode: Urik already disabled suggestions/autocorrect/auto-spacing for `isSuggestionsDisabled`
+fields — we added auto-caps suppression there too, plus a persistent **No-prediction mode** setting
+(`forceNoPredict`, ORed into `isSuggestionsDisabled`). Four upstream Urik bugs fixed en route: `buildApk`
+configuration-cache incompatibility (silently skipped the `BUILD_NUMBER` bump); non-English keyboard name
+(18 locales overrode `ime_name`/`ime_label` with "Urik …"); JP kana-kanji conversion looked up the
+converter by primary language instead of layout language; and `さ` flick cancelled by the parent view
+intercepting longer swipes (flick keys now `requestDisallowInterceptTouchEvent`).
+
+## Phase 2 — Compass/cluster LAYOUTS (input geometry)  ← NEXT
 
 Author Latin/Cyrillic compass layouts (cs/en/ru) as JSON using the existing flick model
 (`model/KeyboardModels.kt` `FlickKey`, `data/KeyboardRepository.kt` parser ~290, `FlickGestureDetector.kt`,
