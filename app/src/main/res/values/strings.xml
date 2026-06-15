@@ -111,6 +111,8 @@
     <string name="typing_settings_double_space_period">Double-Space Period</string>
     <string name="typing_settings_double_space_on">Double-space inserts period</string>
     <string name="typing_settings_double_space_off">Double-space inserts space</string>
+    <string name="typing_settings_force_no_predict">No-prediction mode</string>
+    <string name="typing_settings_force_no_predict_summary">Turn off suggestions, autocorrection and auto-capitalization in every text field</string>
     <string name="typing_settings_auto_capitalization">Auto-Capitalization</string>
     <string name="typing_settings_auto_capitalization_on">Capitalize at sentence start</string>
     <string name="typing_settings_auto_capitalization_off">No automatic capitalization</string>
@@ -227,6 +229,7 @@
     <string name="error_update_haptic_feedback">Failed to update haptic feedback</string>
     <string name="error_update_vibration_strength">Failed to update vibration strength</string>
     <string name="error_update_double_space_period">Failed to update double-space period</string>
+    <string name="error_update_force_no_predict">Failed to update no-prediction mode</string>
     <string name="error_update_auto_capitalization">Failed to update auto-capitalization</string>
     <string name="error_update_swipe">Failed to update swipe typing</string>
     <string name="error_update_spacebar_cursor">Failed to update spacebar cursor control</string>

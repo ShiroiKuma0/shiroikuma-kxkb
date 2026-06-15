@@ -81,6 +81,7 @@ data class KeyboardSettings(
     val hapticFeedback: Boolean = true,
     val vibrationStrength: Int = 128,
     val doubleSpacePeriod: Boolean = true,
+    val forceNoPredict: Boolean = false,
     val autoCapitalizationEnabled: Boolean = true,
     val swipeEnabled: Boolean = true,
     val spacebarCursorControl: Boolean = true,

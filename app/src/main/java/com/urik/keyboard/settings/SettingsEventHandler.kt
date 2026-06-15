@@ -53,6 +53,10 @@ class SettingsEventHandler(private val context: Context) {
                     context.getString(R.string.error_update_double_space_period)
                 }
 
+                is SettingsEvent.Error.ForceNoPredictToggleFailed -> {
+                    context.getString(R.string.error_update_force_no_predict)
+                }
+
                 is SettingsEvent.Error.AutoCapitalizationToggleFailed -> {
                     context.getString(R.string.error_update_auto_capitalization)
                 }

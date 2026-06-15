@@ -31,6 +31,7 @@ constructor(private val settingsRepository: SettingsRepository) :
             .map { settings ->
                 TypingBehaviorUiState(
                     doubleSpacePeriod = settings.doubleSpacePeriod,
+                    forceNoPredict = settings.forceNoPredict,
                     autoCapitalizationEnabled = settings.autoCapitalizationEnabled,
                     swipeEnabled = settings.swipeEnabled,
                     spacebarCursorControl = settings.spacebarCursorControl,
@@ -53,6 +54,14 @@ constructor(private val settingsRepository: SettingsRepository) :
             settingsRepository
                 .updateDoubleSpacePeriod(enabled)
                 .onFailure { _events.emit(SettingsEvent.Error.DoubleSpacePeriodToggleFailed) }
+        }
+    }
+
+    fun updateForceNoPredict(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository
+                .updateForceNoPredict(enabled)
+                .onFailure { _events.emit(SettingsEvent.Error.ForceNoPredictToggleFailed) }
         }
     }
 
@@ -143,6 +152,7 @@ constructor(private val settingsRepository: SettingsRepository) :
 
 data class TypingBehaviorUiState(
     val doubleSpacePeriod: Boolean = true,
+    val forceNoPredict: Boolean = false,
     val autoCapitalizationEnabled: Boolean = true,
     val swipeEnabled: Boolean = true,
     val spacebarCursorControl: Boolean = true,

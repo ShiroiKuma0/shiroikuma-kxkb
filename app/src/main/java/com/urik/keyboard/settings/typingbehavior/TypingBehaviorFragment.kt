@@ -32,6 +32,7 @@ class TypingBehaviorFragment : PreferenceFragmentCompat() {
     private lateinit var eventHandler: SettingsEventHandler
 
     private lateinit var doubleSpacePref: SwitchPreferenceCompat
+    private lateinit var forceNoPredictPref: SwitchPreferenceCompat
     private lateinit var autoCapitalizationPref: SwitchPreferenceCompat
     private lateinit var resetToLettersPref: SwitchPreferenceCompat
     private lateinit var swipePref: SwitchPreferenceCompat
@@ -82,6 +83,15 @@ class TypingBehaviorFragment : PreferenceFragmentCompat() {
                 summaryOff = resources.getString(R.string.typing_settings_double_space_off)
             }
         screen.addPreference(doubleSpacePref)
+
+        forceNoPredictPref =
+            SwitchPreferenceCompat(context).apply {
+                key = "force_no_predict"
+                isPersistent = false
+                title = resources.getString(R.string.typing_settings_force_no_predict)
+                summary = resources.getString(R.string.typing_settings_force_no_predict_summary)
+            }
+        screen.addPreference(forceNoPredictPref)
 
         autoCapitalizationPref =
             SwitchPreferenceCompat(context).apply {
@@ -200,6 +210,11 @@ class TypingBehaviorFragment : PreferenceFragmentCompat() {
             true
         }
 
+        forceNoPredictPref.setOnPreferenceChangeListener { _, newValue ->
+            viewModel.updateForceNoPredict(newValue as Boolean)
+            true
+        }
+
         autoCapitalizationPref.setOnPreferenceChangeListener { _, newValue ->
             viewModel.updateAutoCapitalizationEnabled(newValue as Boolean)
             true
@@ -257,6 +272,7 @@ class TypingBehaviorFragment : PreferenceFragmentCompat() {
                 launch {
                     viewModel.uiState.collect { state ->
                         doubleSpacePref.isChecked = state.doubleSpacePeriod
+                        forceNoPredictPref.isChecked = state.forceNoPredict
                         autoCapitalizationPref.isChecked = state.autoCapitalizationEnabled
                         resetToLettersPref.isChecked = state.resetToLettersOnDismiss
                         swipePref.isChecked = state.swipeEnabled

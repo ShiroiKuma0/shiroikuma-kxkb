@@ -265,6 +265,9 @@ open class UrikInputMethodService :
     private fun invalidateComposingStateOnCursorJump() = imeStateCoordinator.invalidateComposingStateOnCursorJump()
 
     private fun checkAutoCapitalization(textBefore: String) {
+        // Code / no-predict fields suppress auto-capitalization along with suggestions and
+        // autocorrect, so typed text is left exactly as entered.
+        if (inputState.isSuggestionsDisabled) return
         viewModel.checkAndApplyAutoCapitalization(textBefore, currentSettings.autoCapitalizationEnabled)
     }
 
@@ -1755,7 +1758,8 @@ open class UrikInputMethodService :
         if (inputState.isTerminalField) viewModel.disableAutoCapForTerminalField()
         inputState.currentInputAction = c.currentInputAction
         inputState.isUrlOrEmailField = c.isUrlOrEmailField
-        inputState.isSuggestionsDisabled = c.isSuggestionsDisabled
+        // The manual "no-prediction mode" forces suggestions off in every field.
+        inputState.isSuggestionsDisabled = c.isSuggestionsDisabled || currentSettings.forceNoPredict
     }
 
     override fun onFinishInput() {

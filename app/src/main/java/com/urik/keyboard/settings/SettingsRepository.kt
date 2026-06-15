@@ -54,6 +54,7 @@ constructor(
         val HAPTIC_FEEDBACK = booleanPreferencesKey("haptic_feedback")
         val VIBRATION_STRENGTH = intPreferencesKey("vibration_strength")
         val DOUBLE_SPACE_PERIOD = booleanPreferencesKey("double_space_period")
+        val FORCE_NO_PREDICT = booleanPreferencesKey("force_no_predict")
         val AUTO_CAPITALIZATION_ENABLED = booleanPreferencesKey("auto_capitalization_enabled")
         val SWIPE_ENABLED = booleanPreferencesKey("swipe_enabled")
         val SPACEBAR_CURSOR_CONTROL = booleanPreferencesKey("spacebar_cursor_control")
@@ -109,6 +110,7 @@ constructor(
                     hapticFeedback = preferences[PreferenceKeys.HAPTIC_FEEDBACK] ?: true,
                     vibrationStrength = preferences[PreferenceKeys.VIBRATION_STRENGTH] ?: 128,
                     doubleSpacePeriod = preferences[PreferenceKeys.DOUBLE_SPACE_PERIOD] ?: true,
+                    forceNoPredict = preferences[PreferenceKeys.FORCE_NO_PREDICT] ?: false,
                     autoCapitalizationEnabled = preferences[PreferenceKeys.AUTO_CAPITALIZATION_ENABLED] ?: true,
                     swipeEnabled = preferences[PreferenceKeys.SWIPE_ENABLED] ?: true,
                     spacebarCursorControl = preferences[PreferenceKeys.SPACEBAR_CURSOR_CONTROL] ?: true,
@@ -419,6 +421,13 @@ constructor(
         Result.failure(e)
     }
 
+    suspend fun updateForceNoPredict(enabled: Boolean): Result<Unit> = try {
+        dataStore.edit { it[PreferenceKeys.FORCE_NO_PREDICT] = enabled }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
     suspend fun updateAutoCapitalizationEnabled(enabled: Boolean): Result<Unit> = try {
         dataStore.edit { it[PreferenceKeys.AUTO_CAPITALIZATION_ENABLED] = enabled }
         Result.success(Unit)
@@ -723,6 +732,7 @@ constructor(
             PreferenceKeys.CLIPBOARD_ENABLED,
             PreferenceKeys.HAPTIC_FEEDBACK,
             PreferenceKeys.DOUBLE_SPACE_PERIOD,
+            PreferenceKeys.FORCE_NO_PREDICT,
             PreferenceKeys.AUTO_CAPITALIZATION_ENABLED,
             PreferenceKeys.SWIPE_ENABLED,
             PreferenceKeys.SPACEBAR_CURSOR_CONTROL,
