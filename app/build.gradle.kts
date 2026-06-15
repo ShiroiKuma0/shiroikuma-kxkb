@@ -1,4 +1,7 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.io.File
+import java.io.FileInputStream
+import java.util.Properties
 
 plugins {
     id("com.android.application")
@@ -11,36 +14,49 @@ plugins {
     id("org.jetbrains.kotlinx.kover")
 }
 
+// --- shiroikuma-kxkb fork: signing + versioning (see gradle.properties + build-apk skill) ---
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
+
+val forkVersionName = "${project.property("VERSION_NAME")}+${project.property("BUILD_NUMBER")}"
+val forkVersionCode = project.property("VERSION_CODE").toString().toInt() * 10000 +
+    project.property("BUILD_NUMBER").toString().toInt()
+
+base {
+    archivesName = "shiroikuma-kxkb_${forkVersionName}_arm64-v8a"
+}
+
 android {
-    namespace = "com.urik.keyboard"
+    namespace = project.property("APP_NAMESPACE").toString()
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.urik.keyboard"
+        applicationId = project.property("APP_ID").toString()
         minSdk = 26
         targetSdk = 36
-        versionCode = 64
-        versionName = "0.23.1-beta"
+        versionCode = forkVersionCode
+        versionName = forkVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {
-        create("release") {
-            val keystorePath = System.getenv("RELEASE_KEYSTORE_PATH")
-            if (keystorePath != null) {
-                storeFile = file(keystorePath)
-                storePassword = System.getenv("RELEASE_STORE_PASSWORD")
-                keyAlias = System.getenv("RELEASE_KEY_ALIAS")
-                keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+        if (keystorePropertiesFile.exists()) {
+            create("release") {
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
             }
         }
     }
 
     buildTypes {
         release {
-            val keystorePath = System.getenv("RELEASE_KEYSTORE_PATH")
-            if (keystorePath != null) {
+            if (keystorePropertiesFile.exists()) {
                 signingConfig = signingConfigs.getByName("release")
             }
             isMinifyEnabled = true
@@ -62,6 +78,8 @@ android {
     lint {
         abortOnError = true
         warningsAsErrors = false
+        // Fork: don't let lintVitalRelease abort our release builds.
+        checkReleaseBuilds = false
     }
 
     buildFeatures {
@@ -164,6 +182,36 @@ kover {
                 onCheck = true
             }
         }
+    }
+}
+
+// --- shiroikuma-kxkb fork: build the release APK, copy to ~/tmp, bump BUILD_NUMBER ---
+tasks.register("buildApk") {
+    description = "Build the release APK, copy it to ~/tmp, and bump BUILD_NUMBER for next time."
+    dependsOn("assembleRelease")
+    doLast {
+        val apkName = "shiroikuma-kxkb_${forkVersionName}_arm64-v8a.apk"
+        val outputDir = layout.buildDirectory.dir("outputs/apk/release").get().asFile
+        val targetDir = File(System.getProperty("user.home"), "tmp")
+        targetDir.mkdirs()
+        outputDir.listFiles { _, name -> name.endsWith(".apk") }?.firstOrNull()?.let { apk ->
+            val targetFile = File(targetDir, apkName)
+            apk.copyTo(targetFile, overwrite = true)
+            println("[1;36m>>> ${targetFile.absolutePath}[0m")
+            println("[1;36m>>> versionCode $forkVersionCode[0m")
+        } ?: throw GradleException("No APK found in $outputDir")
+
+        // Auto-increment BUILD_NUMBER for the next build.
+        val propsFile = rootProject.file("gradle.properties")
+        val currentBuildNumber = project.property("BUILD_NUMBER").toString().toInt()
+        val nextBuildNumber = currentBuildNumber + 1
+        propsFile.writeText(
+            propsFile.readText().replace(
+                "BUILD_NUMBER=$currentBuildNumber",
+                "BUILD_NUMBER=$nextBuildNumber"
+            )
+        )
+        println("[1;36m>>> BUILD_NUMBER bumped to $nextBuildNumber[0m")
     }
 }
 

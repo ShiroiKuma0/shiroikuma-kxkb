@@ -38,6 +38,7 @@ local.properties
 *.jks
 *.keystore
 key.properties
+keystore.properties
 
 # External native build
 .externalNativeBuild
