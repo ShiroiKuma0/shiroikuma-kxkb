@@ -189,21 +189,26 @@ kover {
 tasks.register("buildApk") {
     description = "Build the release APK, copy it to ~/tmp, and bump BUILD_NUMBER for next time."
     dependsOn("assembleRelease")
+    // Capture project state at configuration time so the action is configuration-cache compatible.
+    val fvName = forkVersionName
+    val fvCode = forkVersionCode
+    val releaseApkDir = layout.buildDirectory.dir("outputs/apk/release")
+    val userHome = providers.systemProperty("user.home")
+    val propsFile = rootProject.file("gradle.properties")
+    val currentBuildNumber = project.property("BUILD_NUMBER").toString().toInt()
     doLast {
-        val apkName = "shiroikuma-kxkb_${forkVersionName}_arm64-v8a.apk"
-        val outputDir = layout.buildDirectory.dir("outputs/apk/release").get().asFile
-        val targetDir = File(System.getProperty("user.home"), "tmp")
+        val apkName = "shiroikuma-kxkb_${fvName}_arm64-v8a.apk"
+        val outputDir = releaseApkDir.get().asFile
+        val targetDir = File(userHome.get(), "tmp")
         targetDir.mkdirs()
         outputDir.listFiles { _, name -> name.endsWith(".apk") }?.firstOrNull()?.let { apk ->
             val targetFile = File(targetDir, apkName)
             apk.copyTo(targetFile, overwrite = true)
             println("[1;36m>>> ${targetFile.absolutePath}[0m")
-            println("[1;36m>>> versionCode $forkVersionCode[0m")
+            println("[1;36m>>> versionCode $fvCode[0m")
         } ?: throw GradleException("No APK found in $outputDir")
 
         // Auto-increment BUILD_NUMBER for the next build.
-        val propsFile = rootProject.file("gradle.properties")
-        val currentBuildNumber = project.property("BUILD_NUMBER").toString().toInt()
         val nextBuildNumber = currentBuildNumber + 1
         propsFile.writeText(
             propsFile.readText().replace(
