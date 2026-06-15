@@ -127,7 +127,7 @@ data class KeyboardSettings(
         get() = if (hapticFeedback) vibrationStrength else 0
 
     /**
-     * Filters languages to supported set, limits to max 3, clamps suggestion count,
+     * Filters languages to the supported set, de-duplicates, clamps suggestion count,
      * ensures primary language and layout language are active. Falls back to
      * [DEFAULT_LANGUAGE] if validation fails.
      */
@@ -164,7 +164,6 @@ data class KeyboardSettings(
     companion object {
         const val MIN_SUGGESTION_COUNT = 1
         const val MAX_SUGGESTION_COUNT = 3
-        const val MAX_ACTIVE_LANGUAGES = 3
 
         const val DEFAULT_LANGUAGE = "en"
 
@@ -176,6 +175,14 @@ data class KeyboardSettings(
                 "ar", "ca", "cs", "de", "el", "en", "es", "fa", "fr", "it",
                 "bg", "ja", "nl", "pl", "pt", "ru", "sk", "sv", "uk"
             )
+
+        /**
+         * Maximum number of simultaneously-active languages. The fork removes
+         * upstream's hard cap of 3 so the must-have set (cs/en/ru/ja) and beyond
+         * can coexist; the only real bound is the number of supported languages,
+         * since an unsupported language can never become active.
+         */
+        val MAX_ACTIVE_LANGUAGES = SUPPORTED_LANGUAGES.size
 
         /** Display names are in the system's current display locale and capitalized. */
         fun getLanguageDisplayNames(): Map<String, String> {

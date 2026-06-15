@@ -291,7 +291,7 @@ constructor(
     }
 
     /**
-     * Filters to supported languages only, limits to max 3, maintains order.
+     * Filters to supported languages only, de-duplicates, maintains order.
      * Primary layout language must be in active set. Falls back to default if validation fails.
      */
     suspend fun updateActiveLanguages(activeLanguages: List<String>, primaryLayoutLanguage: String): Result<Unit> =

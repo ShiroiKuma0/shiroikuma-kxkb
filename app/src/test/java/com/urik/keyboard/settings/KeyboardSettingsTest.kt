@@ -537,17 +537,18 @@ class KeyboardSettingsTest {
     }
 
     @Test
-    fun `validated enforces max 3 active languages`() {
+    fun `validated keeps more than three active languages (no language cap)`() {
+        // The fork removes upstream's 3-language cap so the must-have set
+        // cs/en/ru/ja (and beyond) can be active simultaneously.
         val settings =
             KeyboardSettings(
-                activeLanguages = listOf("en", "es", "de", "fr", "it"),
+                activeLanguages = listOf("cs", "en", "ru", "ja", "de"),
                 primaryLanguage = "en"
             )
 
         val validated = settings.validated()
 
-        assertEquals(3, validated.activeLanguages.size)
-        assertEquals(listOf("en", "es", "de"), validated.activeLanguages)
+        assertEquals(listOf("cs", "en", "ru", "ja", "de"), validated.activeLanguages)
     }
 
     @Test
