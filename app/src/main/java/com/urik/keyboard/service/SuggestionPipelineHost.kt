@@ -8,4 +8,7 @@ interface SuggestionPipelineHost {
     fun getKeyboardState(): KeyboardState
     fun shouldAutoCapitalize(text: String): Boolean
     fun currentLanguage(): String
+
+    /** The active layout/keyboard language, which can differ from [currentLanguage] (the primary). */
+    fun currentLayoutLanguage(): String
 }

@@ -230,6 +230,7 @@ open class UrikInputMethodService :
     override fun getKeyboardState(): KeyboardState = viewModel.state.value
     override fun shouldAutoCapitalize(text: String): Boolean = viewModel.shouldAutoCapitalize(text)
     override fun currentLanguage(): String = languageManager.currentLanguage.value
+    override fun currentLayoutLanguage(): String = languageManager.currentLayoutLanguage.value
 
     private fun setAcceleratedDeletion(active: Boolean) {
         inputState.isAcceleratedDeletion = active

@@ -128,6 +128,7 @@ class SuggestionPipelineTest {
         override fun getKeyboardState(): KeyboardState = KeyboardState()
         override fun shouldAutoCapitalize(text: String): Boolean = false
         override fun currentLanguage(): String = "en"
+        override fun currentLayoutLanguage(): String = "en"
     }
 
     @After
@@ -269,6 +270,7 @@ class SuggestionPipelineTest {
                 override fun getKeyboardState() = KeyboardState()
                 override fun shouldAutoCapitalize(text: String) = false
                 override fun currentLanguage() = "ar"
+                override fun currentLayoutLanguage() = "ar"
             }
         )
         val suggestions = listOf(
@@ -299,6 +301,7 @@ class SuggestionPipelineTest {
                 override fun getKeyboardState() = KeyboardState()
                 override fun shouldAutoCapitalize(text: String) = false
                 override fun currentLanguage() = "fa"
+                override fun currentLayoutLanguage() = "fa"
             }
         )
         val suggestions = listOf(
@@ -329,6 +332,7 @@ class SuggestionPipelineTest {
                 override fun getKeyboardState() = KeyboardState()
                 override fun shouldAutoCapitalize(text: String) = false
                 override fun currentLanguage() = "ja"
+                override fun currentLayoutLanguage() = "ja"
             }
         )
         val suggestions = listOf(
@@ -359,6 +363,7 @@ class SuggestionPipelineTest {
         override fun getKeyboardState(): KeyboardState = KeyboardState()
         override fun shouldAutoCapitalize(text: String): Boolean = false
         override fun currentLanguage(): String = "ja"
+        override fun currentLayoutLanguage(): String = "ja"
     }
 
     @Test
@@ -376,6 +381,48 @@ class SuggestionPipelineTest {
                 scriptConverterRegistry = mockScriptConverterRegistry,
                 serviceScope = kotlinx.coroutines.CoroutineScope(testDispatcher),
                 host = FakeJapanesePipelineHost()
+            )
+            japanesePipeline.setJapaneseLayout(true)
+
+            val mockConverter = mock<ScriptConverter>()
+            whenever(mockScriptConverterRegistry.forLanguage("ja")).thenReturn(mockConverter)
+            whenever(mockConverter.getCandidates("か", "ja")).thenReturn(
+                listOf(ConversionCandidate(surface = "化", reading = "か", frequency = 19992, source = "dictionary"))
+            )
+            whenever(mockSpellCheckManager.getSpellingSuggestionsWithConfidence("か")).thenReturn(emptyList())
+
+            inputState.updateDisplayBuffer("か")
+            japanesePipeline.requestSuggestions("か", InputMethod.TYPED)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertEquals(listOf("化", "か", "カ"), capturedSuggestions.take(3))
+        }
+
+    @Test
+    fun `requestJapaneseSuggestions converts using layout language when primary language differs`() =
+        runTest(testDispatcher) {
+            // Regression: with ja active but not primary (the normal case once the language cap is
+            // lifted), the converter must be looked up by the layout language ("ja"), not the primary
+            // ("en"). Previously this returned no converter, so only kana candidates were offered.
+            val japanesePipeline = SuggestionPipeline(
+                state = inputState,
+                outputBridge = outputBridge,
+                textInputProcessor = mockTextInputProcessor,
+                spellCheckManager = mockSpellCheckManager,
+                wordLearningEngine = mockWordLearningEngine,
+                wordFrequencyRepository = mockWordFrequencyRepository,
+                languageManager = mockLanguageManager,
+                caseTransformer = mockCaseTransformer,
+                scriptConverterRegistry = mockScriptConverterRegistry,
+                serviceScope = kotlinx.coroutines.CoroutineScope(testDispatcher),
+                host = object : SuggestionPipelineHost {
+                    override fun showSuggestions() = true
+                    override fun effectiveSuggestionCount() = 5
+                    override fun getKeyboardState() = KeyboardState()
+                    override fun shouldAutoCapitalize(text: String) = false
+                    override fun currentLanguage() = "en"
+                    override fun currentLayoutLanguage() = "ja"
+                }
             )
             japanesePipeline.setJapaneseLayout(true)
 

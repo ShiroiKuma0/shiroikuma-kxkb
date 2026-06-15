@@ -409,9 +409,13 @@ class SuggestionPipeline(
             try {
                 delay(suggestionDebounceDelay)
 
+                // Look up the converter by the active layout language (e.g. "ja"), not the primary
+                // language: when ja is a non-primary active language, currentLanguage() is the primary
+                // (e.g. "en"), forLanguage() returns null, and only kana candidates would be offered.
+                val conversionLanguage = host.currentLayoutLanguage()
                 val rawCandidates = scriptConverterRegistry
-                    .forLanguage(host.currentLanguage())
-                    ?.getCandidates(hiraganaBuffer, host.currentLanguage())
+                    .forLanguage(conversionLanguage)
+                    ?.getCandidates(hiraganaBuffer, conversionLanguage)
                     ?: emptyList()
                 val conversionCandidates = rawCandidates
                     .map { candidate ->
