@@ -148,6 +148,41 @@ class KeyboardRepositoryTest {
         }
     }
 
+    // \u2500\u2500 GNU compass \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+
+    @Test
+    fun `GNU layout loads all three modes as flick keys`() = runTest {
+        val letters = repository.getLayoutForMode(KeyboardMode.LETTERS, Locale.forLanguageTag("gnu"))
+        assertTrue("gnu letters must load", letters.isSuccess)
+        assertEquals("Latn", letters.getOrNull()?.script)
+        val flicks = letters.getOrNull()!!.rows.flatten().filterIsInstance<KeyboardKey.FlickKey>()
+        assertTrue("gnu must have many compass keys", flicks.size > 30)
+        assertTrue(
+            "gnu numbers (altPage) must load",
+            repository.getLayoutForMode(KeyboardMode.NUMBERS, Locale.forLanguageTag("gnu")).isSuccess
+        )
+        assertTrue(
+            "gnu symbols (altPage) must load",
+            repository.getLayoutForMode(KeyboardMode.SYMBOLS, Locale.forLanguageTag("gnu")).isSuccess
+        )
+    }
+
+    @Test
+    fun `GNU layout parses centre action, layer and chord bindings`() = runTest {
+        val flicks = repository.getLayoutForMode(KeyboardMode.LETTERS, Locale.forLanguageTag("gnu"))
+            .getOrNull()!!.rows.flatten().filterIsInstance<KeyboardKey.FlickKey>()
+
+        val esc = flicks.first { it.center == "Esc" }
+        assertTrue("Esc centre is an escape action", esc.bindings["center"] is KeyboardKey.FlickBinding.Action)
+        assertTrue("Esc up switches layer", esc.bindings["up"] is KeyboardKey.FlickBinding.Layer)
+
+        val c = flicks.first { it.center == "c" }
+        val down = c.bindings["down"]
+        assertTrue("c down is a chord", down is KeyboardKey.FlickBinding.Chord)
+        assertEquals("C-c", (down as KeyboardKey.FlickBinding.Chord).spec)
+        assertEquals("\u010D", c.right)
+    }
+
     // ── Greek ─────────────────────────────────────────────────────────────────
 
     @Test

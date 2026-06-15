@@ -174,7 +174,9 @@ data class KeyboardSettings(
         val SUPPORTED_LANGUAGES =
             setOf(
                 "ar", "ca", "cs", "de", "el", "en", "es", "fa", "fr", "it",
-                "bg", "ja", "nl", "pl", "pt", "ru", "sk", "sv", "uk"
+                "bg", "ja", "nl", "pl", "pt", "ru", "sk", "sv", "uk",
+                // GNU: a no-prediction compass "code mode" pseudo-language (no dictionary).
+                "gnu"
             )
 
         /**
@@ -189,6 +191,8 @@ data class KeyboardSettings(
         fun getLanguageDisplayNames(): Map<String, String> {
             val displayLocale = ULocale.getDefault()
             return SUPPORTED_LANGUAGES.associateWith { languageCode ->
+                // GNU is a no-prediction "code mode" pseudo-language, not a real locale.
+                if (languageCode == "gnu") return@associateWith "GNU"
                 val displayName =
                     ULocale
                         .forLanguageTag(languageCode)
