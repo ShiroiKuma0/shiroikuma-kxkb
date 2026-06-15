@@ -84,11 +84,15 @@ class FlickPopup(private val context: Context, private val themeManager: ThemeMa
 
         val theme = themeManager.currentTheme.value
         val positions = mapOf(
+            FlickGestureDetector.FlickDirection.UP_LEFT to Pair(0, 0),
             FlickGestureDetector.FlickDirection.UP to Pair(0, 1),
+            FlickGestureDetector.FlickDirection.UP_RIGHT to Pair(0, 2),
             FlickGestureDetector.FlickDirection.LEFT to Pair(1, 0),
             FlickGestureDetector.FlickDirection.NONE to Pair(1, 1),
             FlickGestureDetector.FlickDirection.RIGHT to Pair(1, 2),
-            FlickGestureDetector.FlickDirection.DOWN to Pair(2, 1)
+            FlickGestureDetector.FlickDirection.DOWN_LEFT to Pair(2, 0),
+            FlickGestureDetector.FlickDirection.DOWN to Pair(2, 1),
+            FlickGestureDetector.FlickDirection.DOWN_RIGHT to Pair(2, 2)
         )
 
         val charForDirection = mapOf(
@@ -96,7 +100,11 @@ class FlickPopup(private val context: Context, private val themeManager: ThemeMa
             FlickGestureDetector.FlickDirection.LEFT to key.left,
             FlickGestureDetector.FlickDirection.NONE to key.center,
             FlickGestureDetector.FlickDirection.RIGHT to key.right,
-            FlickGestureDetector.FlickDirection.DOWN to key.down
+            FlickGestureDetector.FlickDirection.DOWN to key.down,
+            FlickGestureDetector.FlickDirection.UP_LEFT to key.upLeft,
+            FlickGestureDetector.FlickDirection.UP_RIGHT to key.upRight,
+            FlickGestureDetector.FlickDirection.DOWN_LEFT to key.downLeft,
+            FlickGestureDetector.FlickDirection.DOWN_RIGHT to key.downRight
         )
 
         for (row in 0 until 3) {

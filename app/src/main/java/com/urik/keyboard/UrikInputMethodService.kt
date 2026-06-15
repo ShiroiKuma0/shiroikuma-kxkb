@@ -431,6 +431,7 @@ open class UrikInputMethodService :
                     onSymbolsLongPress = { handleClipboardButtonClick() },
                     onLanguageSwitch = { languageCode -> handleLanguageSwitch(languageCode) },
                     onShowInputMethodPicker = { showInputMethodPicker() },
+                    onFlickBinding = { binding -> handleFlickBinding(binding) },
                     characterVariationService = characterVariationService,
                     languageManager = languageManager,
                     themeManager = themeManager,
@@ -932,6 +933,115 @@ open class UrikInputMethodService :
         }
     }
 
+    private val virtualKeyCharMap by lazy { KeyCharacterMap.load(KeyCharacterMap.VIRTUAL_KEYBOARD) }
+
+    /** Dispatches a compass-key binding from the GNU layout (chords, function keys, layers). */
+    private fun handleFlickBinding(binding: KeyboardKey.FlickBinding) {
+        when (binding) {
+            is KeyboardKey.FlickBinding.Action -> handleGnuAction(binding.name)
+            is KeyboardKey.FlickBinding.Chord -> sendChord(binding.spec)
+            is KeyboardKey.FlickBinding.Layer -> handleLayerSwitch(binding.target)
+        }
+    }
+
+    /** GNU compass layers map onto Urik's keyboard modes: main = letters, altPages = numbers/symbols. */
+    private fun handleLayerSwitch(target: String) {
+        val mode = when (target) {
+            "alt0" -> KeyboardMode.NUMBERS
+            "alt1" -> KeyboardMode.SYMBOLS
+            "alt2" -> KeyboardMode.SYMBOLS_SECONDARY
+            else -> KeyboardMode.LETTERS
+        }
+        onModeSwitch(mode)
+    }
+
+    private fun handleGnuAction(name: String) {
+        when (name) {
+            "escape" -> sendKeyEventWithMeta(KeyEvent.KEYCODE_ESCAPE, 0)
+            "tab" -> outputBridge.sendTab()
+            "enter" -> outputBridge.sendEnter()
+            "space" -> outputBridge.sendSpace()
+            "backspace" -> handleBackspace()
+            "arrow_up" -> sendKeyEventWithMeta(KeyEvent.KEYCODE_DPAD_UP, 0)
+            "arrow_down" -> sendKeyEventWithMeta(KeyEvent.KEYCODE_DPAD_DOWN, 0)
+            "arrow_left" -> sendKeyEventWithMeta(KeyEvent.KEYCODE_DPAD_LEFT, 0)
+            "arrow_right" -> sendKeyEventWithMeta(KeyEvent.KEYCODE_DPAD_RIGHT, 0)
+            "undo" -> currentInputConnection?.performContextMenuAction(android.R.id.undo)
+            "redo" -> currentInputConnection?.performContextMenuAction(android.R.id.redo)
+            "hide" -> requestHideSelf(0)
+            "next_language" -> handleLanguageSwitch(languageManager.getNextLayoutLanguage())
+        }
+    }
+
+    /** Parses an Emacs-style chord spec ("C-c", "M-x", "S-TAB", "C-S-x", "C--") and sends it. */
+    private fun sendChord(spec: String) {
+        var s = spec
+        var meta = 0
+        while (s.length >= 2 && s[1] == '-' && (s[0] == 'C' || s[0] == 'M' || s[0] == 'S')) {
+            meta = meta or when (s[0]) {
+                'C' -> KeyEvent.META_CTRL_ON
+                'M' -> KeyEvent.META_ALT_ON
+                else -> KeyEvent.META_SHIFT_ON
+            }
+            s = s.substring(2)
+        }
+        val (keyCode, baseMeta) = resolveChordKey(s) ?: return
+        sendKeyEventWithMeta(keyCode, meta or baseMeta)
+    }
+
+    private fun resolveChordKey(token: String): Pair<Int, Int>? = when (token) {
+        "TAB" -> KeyEvent.KEYCODE_TAB to 0
+        "RET" -> KeyEvent.KEYCODE_ENTER to 0
+        "SPC" -> KeyEvent.KEYCODE_SPACE to 0
+        else -> if (token.length == 1) {
+            virtualKeyCharMap.getEvents(charArrayOf(token[0]))
+                ?.firstOrNull()
+                ?.let { it.keyCode to it.metaState }
+        } else {
+            null
+        }
+    }
+
+    /** Sends a key event with modifiers as discrete down/up events around the key (terminal-friendly). */
+    private fun sendKeyEventWithMeta(keyCode: Int, metaState: Int) {
+        val ic = currentInputConnection ?: return
+        val now = SystemClock.uptimeMillis()
+        val flags = KeyEvent.FLAG_SOFT_KEYBOARD or KeyEvent.FLAG_KEEP_TOUCH_MODE
+        fun send(action: Int, code: Int, meta: Int) {
+            ic.sendKeyEvent(KeyEvent(now, now, action, code, 0, meta, KeyCharacterMap.VIRTUAL_KEYBOARD, 0, flags))
+        }
+        val ctrl = metaState and KeyEvent.META_CTRL_ON != 0
+        val alt = metaState and KeyEvent.META_ALT_ON != 0
+        val shift = metaState and KeyEvent.META_SHIFT_ON != 0
+        var m = 0
+        if (ctrl) {
+            m = m or KeyEvent.META_CTRL_ON or KeyEvent.META_CTRL_LEFT_ON
+            send(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_CTRL_LEFT, m)
+        }
+        if (alt) {
+            m = m or KeyEvent.META_ALT_ON or KeyEvent.META_ALT_LEFT_ON
+            send(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ALT_LEFT, m)
+        }
+        if (shift) {
+            m = m or KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON
+            send(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_SHIFT_LEFT, m)
+        }
+        send(KeyEvent.ACTION_DOWN, keyCode, m)
+        send(KeyEvent.ACTION_UP, keyCode, m)
+        if (shift) {
+            m = m and (KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON).inv()
+            send(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_SHIFT_LEFT, m)
+        }
+        if (alt) {
+            m = m and (KeyEvent.META_ALT_ON or KeyEvent.META_ALT_LEFT_ON).inv()
+            send(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ALT_LEFT, m)
+        }
+        if (ctrl) {
+            m = m and (KeyEvent.META_CTRL_ON or KeyEvent.META_CTRL_LEFT_ON).inv()
+            send(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_CTRL_LEFT, m)
+        }
+    }
+
     private fun showInputMethodPicker() {
         try {
             inputMethodManager.showInputMethodPicker()
@@ -1053,6 +1163,9 @@ open class UrikInputMethodService :
                     val isJa = detectedLanguage.split("-").first() == "ja"
                     textInputProcessor.setJapaneseLayout(isJa)
                     suggestionPipeline.setJapaneseLayout(isJa)
+                    // Re-evaluate field flags so the GNU layout's forced no-prediction takes
+                    // effect immediately when switching to/from it (not only on field focus).
+                    applyFieldTypeFromEditorInfo(currentInputEditorInfo)
                 }
             }
         )
@@ -1759,7 +1872,10 @@ open class UrikInputMethodService :
         inputState.currentInputAction = c.currentInputAction
         inputState.isUrlOrEmailField = c.isUrlOrEmailField
         // The manual "no-prediction mode" forces suggestions off in every field.
-        inputState.isSuggestionsDisabled = c.isSuggestionsDisabled || currentSettings.forceNoPredict
+        // GNU is a permanent "code mode": never predict/autocorrect/auto-cap, in any field.
+        val isGnuLayout = languageManager.currentLayoutLanguage.value.substringBefore("-") == "gnu"
+        inputState.isSuggestionsDisabled =
+            c.isSuggestionsDisabled || currentSettings.forceNoPredict || isGnuLayout
     }
 
     override fun onFinishInput() {

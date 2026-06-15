@@ -6,7 +6,10 @@ import kotlin.math.atan2
 import kotlin.math.sqrt
 
 class FlickGestureDetector {
-    enum class FlickDirection { NONE, UP, DOWN, LEFT, RIGHT }
+    enum class FlickDirection {
+        NONE, UP, DOWN, LEFT, RIGHT,
+        UP_LEFT, UP_RIGHT, DOWN_LEFT, DOWN_RIGHT
+    }
 
     interface FlickListener {
         fun onFlickStart(key: KeyboardKey.FlickKey, anchorX: Float, anchorY: Float)
@@ -111,12 +114,18 @@ class FlickGestureDetector {
     }
 
     private fun computeDirection(dx: Float, dy: Float): FlickDirection {
+        // atan2(dy, dx) in screen coords: 0° = right, 90° = down, -90° = up, ±180° = left.
+        // Eight 45°-wide sectors centred on each direction.
         val angle = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble()))
         return when {
-            angle < -135 || angle >= 135 -> FlickDirection.LEFT
-            angle < -45 -> FlickDirection.UP
-            angle < 45 -> FlickDirection.RIGHT
-            else -> FlickDirection.DOWN
+            angle < -157.5 || angle >= 157.5 -> FlickDirection.LEFT
+            angle < -112.5 -> FlickDirection.UP_LEFT
+            angle < -67.5 -> FlickDirection.UP
+            angle < -22.5 -> FlickDirection.UP_RIGHT
+            angle < 22.5 -> FlickDirection.RIGHT
+            angle < 67.5 -> FlickDirection.DOWN_RIGHT
+            angle < 112.5 -> FlickDirection.DOWN
+            else -> FlickDirection.DOWN_LEFT
         }
     }
 

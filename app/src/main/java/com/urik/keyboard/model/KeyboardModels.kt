@@ -30,7 +30,9 @@ data class KeyboardLayout(
     val mode: KeyboardMode,
     val rows: List<List<KeyboardKey>>,
     val isRTL: Boolean = false,
-    val script: String = "Latn"
+    val script: String = "Latn",
+    /** Draw each flick key's direction labels at rest (compass layouts like GNU); off for the JP 12-key. */
+    val showFlickHints: Boolean = false
 )
 
 sealed class KeyboardKey {
@@ -52,7 +54,17 @@ sealed class KeyboardKey {
         val right: String?,
         val down: String?,
         val left: String?,
-        val type: KeyType
+        val type: KeyType,
+        val upLeft: String? = null,
+        val upRight: String? = null,
+        val downLeft: String? = null,
+        val downRight: String? = null,
+        /**
+         * Non-text bindings for compass positions, keyed by position name
+         * ("center"/"up"/"down"/"left"/"right"/"upLeft"/"upRight"/"downLeft"/"downRight").
+         * A position absent here commits its text field directly (the Japanese 12-key uses none).
+         */
+        val bindings: Map<String, FlickBinding> = emptyMap()
     ) : KeyboardKey()
 
     enum class KeyType {
@@ -86,6 +98,21 @@ sealed class KeyboardKey {
         HANDAKUTEN,
         EMOJI,
         TAB
+    }
+
+    /**
+     * A non-text binding for a compass key position (used by the GNU compass layout).
+     * Plain text/macro positions need no binding — their string field is committed directly.
+     */
+    sealed class FlickBinding {
+        /** A built-in editor action resolved by name, e.g. "escape", "tab", "arrow_up", "undo". */
+        data class Action(val name: String) : FlickBinding()
+
+        /** A modifier chord sent as a key event with meta state, e.g. "C-c", "M-x", "S-TAB". */
+        data class Chord(val spec: String) : FlickBinding()
+
+        /** Switch to another layer/mode, e.g. "alt0", "alpha0". */
+        data class Layer(val target: String) : FlickBinding()
     }
 }
 

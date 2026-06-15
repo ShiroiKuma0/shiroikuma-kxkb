@@ -2,6 +2,10 @@ package com.urik.keyboard.ui.keyboard.components
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.Canvas
+import android.graphics.ColorFilter
+import android.graphics.Paint
+import android.graphics.PixelFormat
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
@@ -58,6 +62,7 @@ class KeyboardLayoutManager(
     private val onSymbolsLongPress: () -> Unit,
     private val onLanguageSwitch: (String) -> Unit = {},
     private val onShowInputMethodPicker: () -> Unit = {},
+    private val onFlickBinding: (KeyboardKey.FlickBinding) -> Unit = {},
     private val characterVariationService: CharacterVariationService,
     private val languageManager: LanguageManager,
     private val themeManager: ThemeManager,
@@ -125,13 +130,13 @@ class KeyboardLayoutManager(
             override fun onFlickCommit(key: KeyboardKey.FlickKey, direction: FlickGestureDetector.FlickDirection) {
                 flickPopup?.dismiss()
                 flickPopup = null
-                val char = when (direction) {
-                    FlickGestureDetector.FlickDirection.NONE -> key.center
-                    FlickGestureDetector.FlickDirection.UP -> key.up ?: key.center
-                    FlickGestureDetector.FlickDirection.RIGHT -> key.right ?: key.center
-                    FlickGestureDetector.FlickDirection.DOWN -> key.down ?: key.center
-                    FlickGestureDetector.FlickDirection.LEFT -> key.left ?: key.center
+                val pos = effectiveFlickPosition(key, direction)
+                val binding = key.bindings[pos]
+                if (binding != null) {
+                    handleFlickBinding(binding)
+                    return
                 }
+                val char = flickCharAt(key, pos) ?: key.center
                 onKeyClick(KeyboardKey.Character(char, key.type))
             }
             override fun onFlickCancel() {
@@ -144,6 +149,110 @@ class KeyboardLayoutManager(
         })
     }
     private var flickPopup: FlickPopup? = null
+
+    private fun flickCharAt(key: KeyboardKey.FlickKey, pos: String): String? = when (pos) {
+        "center" -> key.center
+        "up" -> key.up
+        "down" -> key.down
+        "left" -> key.left
+        "right" -> key.right
+        "upLeft" -> key.upLeft
+        "upRight" -> key.upRight
+        "downLeft" -> key.downLeft
+        "downRight" -> key.downRight
+        else -> null
+    }
+
+    private fun flickHasContent(key: KeyboardKey.FlickKey, pos: String): Boolean =
+        key.bindings.containsKey(pos) || flickCharAt(key, pos) != null
+
+    /** First position with content, used so an empty diagonal falls back to the nearest cardinal. */
+    private fun firstFlickPosition(key: KeyboardKey.FlickKey, vararg candidates: String): String =
+        candidates.firstOrNull { flickHasContent(key, it) } ?: "center"
+
+    private fun effectiveFlickPosition(
+        key: KeyboardKey.FlickKey,
+        direction: FlickGestureDetector.FlickDirection
+    ): String = when (direction) {
+        FlickGestureDetector.FlickDirection.NONE -> "center"
+        FlickGestureDetector.FlickDirection.UP -> "up"
+        FlickGestureDetector.FlickDirection.DOWN -> "down"
+        FlickGestureDetector.FlickDirection.LEFT -> "left"
+        FlickGestureDetector.FlickDirection.RIGHT -> "right"
+        FlickGestureDetector.FlickDirection.UP_LEFT -> firstFlickPosition(key, "upLeft", "up", "left")
+        FlickGestureDetector.FlickDirection.UP_RIGHT -> firstFlickPosition(key, "upRight", "up", "right")
+        FlickGestureDetector.FlickDirection.DOWN_LEFT -> firstFlickPosition(key, "downLeft", "down", "left")
+        FlickGestureDetector.FlickDirection.DOWN_RIGHT -> firstFlickPosition(key, "downRight", "down", "right")
+    }
+
+    private fun handleFlickBinding(binding: KeyboardKey.FlickBinding) {
+        onFlickBinding(binding)
+    }
+
+    private fun flickHintLabels(key: KeyboardKey.FlickKey): Map<String, String> = buildMap {
+        key.up?.let { put("up", it) }
+        key.down?.let { put("down", it) }
+        key.left?.let { put("left", it) }
+        key.right?.let { put("right", it) }
+        key.upLeft?.let { put("upLeft", it) }
+        key.upRight?.let { put("upRight", it) }
+        key.downLeft?.let { put("downLeft", it) }
+        key.downRight?.let { put("downRight", it) }
+    }
+
+    /** Overlays a compass key's 8 direction labels at rest (used when the layout sets showFlickHints). */
+    private fun createFlickHintsBackground(keyBackground: Drawable, key: KeyboardKey.FlickKey): Drawable {
+        val labels = flickHintLabels(key)
+        if (labels.isEmpty()) return keyBackground
+        val hints = FlickHintsDrawable(
+            labels,
+            getKeyTextColor(key),
+            context.resources.displayMetrics.density
+        )
+        return LayerDrawable(arrayOf(keyBackground, hints))
+    }
+
+    private class FlickHintsDrawable(
+        private val labels: Map<String, String>,
+        color: Int,
+        density: Float
+    ) : Drawable() {
+        private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            this.color = color
+            textAlign = Paint.Align.CENTER
+            textSize = 9f * density
+            alpha = 165
+        }
+        private val pad = 4f * density
+
+        override fun draw(canvas: Canvas) {
+            val b = bounds
+            if (b.isEmpty) return
+            val cx = b.exactCenterX()
+            val midY = b.exactCenterY() + paint.textSize * 0.35f
+            val topY = b.top + pad + paint.textSize
+            val botY = b.bottom - pad
+            val leftX = b.left + pad + paint.textSize * 0.55f
+            val rightX = b.right - pad - paint.textSize * 0.55f
+            fun t(k: String, x: Float, y: Float) {
+                labels[k]?.let { canvas.drawText(it, x, y, paint) }
+            }
+            t("up", cx, topY)
+            t("down", cx, botY)
+            t("left", leftX, midY)
+            t("right", rightX, midY)
+            t("upLeft", leftX, topY)
+            t("upRight", rightX, topY)
+            t("downLeft", leftX, botY)
+            t("downRight", rightX, botY)
+        }
+
+        override fun setAlpha(alpha: Int) {}
+        override fun setColorFilter(colorFilter: ColorFilter?) {}
+
+        @Deprecated("Deprecated in Java")
+        override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
+    }
 
     private var backgroundJob = SupervisorJob()
     private var backgroundScope = CoroutineScope(Dispatchers.IO + backgroundJob)
@@ -879,6 +988,8 @@ class KeyboardLayoutManager(
                         ((keyIndex + 1) % 10).toString(),
                         themeManager.currentTheme.value.colors
                     )
+                } else if (key is KeyboardKey.FlickKey && effectiveLayout?.showFlickHints == true) {
+                    createFlickHintsBackground(keyBackground, key)
                 } else {
                     keyBackground
                 }

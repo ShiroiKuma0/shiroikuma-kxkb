@@ -211,6 +211,7 @@ constructor(
 
         val isRTL = layoutData.optBoolean("isRTL", false)
         val script = layoutData.optString("script", "Latn")
+        val showFlickHints = layoutData.optBoolean("showFlickHints", false)
 
         val modes = layoutData.getJSONObject("modes")
         val modeKey = mode.name.lowercase()
@@ -241,7 +242,8 @@ constructor(
             mode = mode,
             rows = rows,
             isRTL = isRTL,
-            script = script
+            script = script,
+            showFlickHints = showFlickHints
         )
     }
 
@@ -289,7 +291,30 @@ constructor(
             "spacer" -> KeyboardKey.Spacer
 
             "flick" -> {
-                val center = keyData.getString("char")
+                // A position is either a plain string (text/macro) or an object describing a
+                // non-text binding: {"text": "..."} | {"action": "...", "label": "..."} |
+                // {"chord": "C-c", "label": "..."} | {"layer": "alt0", "label": "..."}.
+                fun parseFlickPosition(raw: Any?): Pair<String?, KeyboardKey.FlickBinding?> = when (raw) {
+                    is String -> raw.takeIf { it.isNotEmpty() } to null
+                    is JSONObject -> when {
+                        raw.has("text") -> raw.getString("text").takeIf { it.isNotEmpty() } to null
+                        raw.has("action") -> {
+                            val name = raw.getString("action")
+                            raw.optString("label").ifEmpty { name } to KeyboardKey.FlickBinding.Action(name)
+                        }
+                        raw.has("chord") -> {
+                            val spec = raw.getString("chord")
+                            raw.optString("label").ifEmpty { spec } to KeyboardKey.FlickBinding.Chord(spec)
+                        }
+                        raw.has("layer") -> {
+                            val target = raw.getString("layer")
+                            raw.optString("label").ifEmpty { target } to KeyboardKey.FlickBinding.Layer(target)
+                        }
+                        else -> null to null
+                    }
+                    else -> null to null
+                }
+
                 val keyType = when (keyData.optString("keyType", "letter")) {
                     "letter" -> KeyboardKey.KeyType.LETTER
                     "number" -> KeyboardKey.KeyType.NUMBER
@@ -298,13 +323,26 @@ constructor(
                     else -> KeyboardKey.KeyType.LETTER
                 }
                 val flickObj = keyData.optJSONObject("flick")
+                val bindings = mutableMapOf<String, KeyboardKey.FlickBinding>()
+                fun pos(name: String): String? {
+                    val (label, binding) = parseFlickPosition(flickObj?.opt(name))
+                    if (binding != null) bindings[name] = binding
+                    return label
+                }
+                val center = keyData.getString("char")
+                parseFlickPosition(flickObj?.opt("center")).second?.let { bindings["center"] = it }
                 KeyboardKey.FlickKey(
                     center = center,
-                    up = flickObj?.optString("up")?.takeIf { it.isNotEmpty() },
-                    right = flickObj?.optString("right")?.takeIf { it.isNotEmpty() },
-                    down = flickObj?.optString("down")?.takeIf { it.isNotEmpty() },
-                    left = flickObj?.optString("left")?.takeIf { it.isNotEmpty() },
-                    type = keyType
+                    up = pos("up"),
+                    right = pos("right"),
+                    down = pos("down"),
+                    left = pos("left"),
+                    type = keyType,
+                    upLeft = pos("upLeft"),
+                    upRight = pos("upRight"),
+                    downLeft = pos("downLeft"),
+                    downRight = pos("downRight"),
+                    bindings = bindings
                 )
             }
 
