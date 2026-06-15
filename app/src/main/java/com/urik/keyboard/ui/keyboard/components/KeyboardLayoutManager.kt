@@ -1188,6 +1188,8 @@ class KeyboardLayoutManager(
 
                 KeyboardKey.ActionType.EMOJI -> ""
 
+                KeyboardKey.ActionType.TAB -> "⇥"
+
                 else -> {
                     "?"
                 }
@@ -1308,6 +1310,8 @@ class KeyboardLayoutManager(
                 KeyboardKey.ActionType.HANDAKUTEN -> context.getString(R.string.action_handakuten)
 
                 KeyboardKey.ActionType.EMOJI -> context.getString(R.string.action_emoji)
+
+                KeyboardKey.ActionType.TAB -> context.getString(R.string.action_tab)
             }
         }
 

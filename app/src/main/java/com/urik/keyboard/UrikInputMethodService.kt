@@ -1374,6 +1374,13 @@ open class UrikInputMethodService :
         candidateBarController.showEmojiPicker()
     }
 
+    override fun onTab() {
+        // Commit any in-progress composing word first; commitText/sendKeyEvent would
+        // otherwise replace the composing region instead of appending the tab.
+        coordinateStateClear()
+        outputBridge.sendTab()
+    }
+
     override fun onLanguageSwitch() {}
 
     private fun handleLetterInput(char: String) {

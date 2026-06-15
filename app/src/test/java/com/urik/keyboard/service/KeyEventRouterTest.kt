@@ -114,6 +114,12 @@ class KeyEventRouterTest {
     }
 
     @Test
+    fun `route Action TAB calls onTab`() {
+        router.route(KeyboardKey.Action(KeyboardKey.ActionType.TAB))
+        verify(mockHandler).onTab()
+    }
+
+    @Test
     fun `route Action ENTER calls onEnterAction`() {
         router.route(KeyboardKey.Action(KeyboardKey.ActionType.ENTER))
         verify(mockHandler).onEnterAction(android.view.inputmethod.EditorInfo.IME_ACTION_NONE)

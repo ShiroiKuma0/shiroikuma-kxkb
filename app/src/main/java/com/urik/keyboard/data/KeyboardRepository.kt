@@ -280,6 +280,7 @@ constructor(
                         "handakuten" -> KeyboardKey.ActionType.HANDAKUTEN
                         "emoji" -> KeyboardKey.ActionType.EMOJI
                         "language_switch" -> KeyboardKey.ActionType.LANGUAGE_SWITCH
+                        "tab" -> KeyboardKey.ActionType.TAB
                         else -> KeyboardKey.ActionType.ENTER
                     }
                 KeyboardKey.Action(actionType)

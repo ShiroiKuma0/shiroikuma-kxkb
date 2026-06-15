@@ -321,6 +321,14 @@ class OutputBridge(
         }
     }
 
+    fun sendTab() {
+        if (state.isRawKeyEventField) {
+            keyEventSender(KeyEvent.KEYCODE_TAB)
+        } else {
+            ic?.commitText("\t", 1)
+        }
+    }
+
     companion object {
         const val MAX_CURSOR_POSITION_CHARS = 1000
         const val MAX_COMPOSING_REASSERTIONS = 2

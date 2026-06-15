@@ -84,7 +84,8 @@ sealed class KeyboardKey {
         NEXT_CANDIDATE,
         COMMIT_CANDIDATE,
         HANDAKUTEN,
-        EMOJI
+        EMOJI,
+        TAB
     }
 }
 

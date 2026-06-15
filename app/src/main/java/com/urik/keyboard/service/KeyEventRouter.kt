@@ -23,6 +23,7 @@ interface KeyEventHandler {
     fun onCommitCandidate()
     fun onHandakuten()
     fun onEmoji()
+    fun onTab()
 }
 
 @Singleton
@@ -99,6 +100,7 @@ constructor() {
             KeyboardKey.ActionType.COMMIT_CANDIDATE -> handler?.onCommitCandidate()
             KeyboardKey.ActionType.HANDAKUTEN -> handler?.onHandakuten()
             KeyboardKey.ActionType.EMOJI -> handler?.onEmoji()
+            KeyboardKey.ActionType.TAB -> handler?.onTab()
         }
     }
 }

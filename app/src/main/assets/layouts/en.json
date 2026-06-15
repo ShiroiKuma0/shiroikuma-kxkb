@@ -490,6 +490,10 @@
           },
           {
             "type": "action",
+            "action": "tab"
+          },
+          {
+            "type": "action",
             "action": "space"
           },
           {
