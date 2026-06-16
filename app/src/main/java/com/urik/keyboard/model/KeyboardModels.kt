@@ -36,10 +36,16 @@ data class KeyboardLayout(
 )
 
 sealed class KeyboardKey {
-    /** @property value Can be multi-char for ligatures/emoji */
-    data class Character(val value: String, val type: KeyType) : KeyboardKey()
+    /**
+     * Explicit column width in "cells" (1 = a standard key). 0 = unspecified → the renderer's heuristic
+     * decides. Imported layouts set this on the bottom bar so it aligns to the grid (e.g. space = 3 cells).
+     */
+    open val width: Float get() = 0f
 
-    data class Action(val action: ActionType) : KeyboardKey()
+    /** @property value Can be multi-char for ligatures/emoji */
+    data class Character(val value: String, val type: KeyType, override val width: Float = 0f) : KeyboardKey()
+
+    data class Action(val action: ActionType, override val width: Float = 0f) : KeyboardKey()
 
     data object Spacer : KeyboardKey()
 
@@ -76,7 +82,8 @@ sealed class KeyboardKey {
          * variant — e.g. uppercase, or hiragana→katakana). Null = no explicit shifted face (the renderer
          * falls back to uppercasing for bicameral scripts).
          */
-        val shifted: FlickKey? = null
+        val shifted: FlickKey? = null,
+        override val width: Float = 0f
     ) : KeyboardKey()
 
     enum class KeyType {

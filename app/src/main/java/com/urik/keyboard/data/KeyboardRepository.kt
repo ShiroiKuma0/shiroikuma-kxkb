@@ -265,7 +265,7 @@ constructor(
                         "punctuation" -> KeyboardKey.KeyType.PUNCTUATION
                         else -> KeyboardKey.KeyType.LETTER
                     }
-                KeyboardKey.Character(char, keyType)
+                KeyboardKey.Character(char, keyType, keyData.optDouble("width", 0.0).toFloat())
             }
 
             "action" -> {
@@ -291,7 +291,7 @@ constructor(
                         "tab" -> KeyboardKey.ActionType.TAB
                         else -> KeyboardKey.ActionType.ENTER
                     }
-                KeyboardKey.Action(actionType)
+                KeyboardKey.Action(actionType, keyData.optDouble("width", 0.0).toFloat())
             }
 
             "spacer" -> KeyboardKey.Spacer
@@ -351,7 +351,8 @@ constructor(
                     bindings = bindings,
                     clusterMains = keyData.optString("cluster", ""),
                     shifted = keyData.optJSONObject("shifted")
-                        ?.let { parseKeyFromJson(it, currentAction) as? KeyboardKey.FlickKey }
+                        ?.let { parseKeyFromJson(it, currentAction) as? KeyboardKey.FlickKey },
+                    width = keyData.optDouble("width", 0.0).toFloat()
                 )
             }
 

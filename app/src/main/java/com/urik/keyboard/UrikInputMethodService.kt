@@ -970,8 +970,12 @@ open class UrikInputMethodService :
         }
     }
 
-    /** Space-menu actions column: open a settings page. */
+    /** Space-menu actions column: open a settings page, or the system IME chooser. */
     private fun handleSpaceMenuAction(action: String) {
+        if (action == "ime_picker") {
+            showInputMethodPicker()
+            return
+        }
         val intent = when (action) {
             "kxkb_ui" -> com.urik.keyboard.settings.SettingsActivity.createIntent(
                 this, com.urik.keyboard.settings.SettingsActivity.PAGE_KEYBOARD_UI

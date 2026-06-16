@@ -20,6 +20,7 @@
     { "id": "ru_6r8c", "lang": "ru", "name": "6×8", "kind": "compass", "width": "wide" },
     { "id": "ru_3p2_5r4c", "lang": "ru", "name": "3+2 narrow", "kind": "cluster", "width": "narrow" },
     { "id": "gnu_5r13c", "lang": "gnu", "name": "GNU 5×13", "kind": "compass", "width": "wide" },
+    { "id": "gnu_5r15c", "lang": "gnu", "name": "GNU 5×15", "kind": "compass", "width": "wide" },
     { "id": "ja_gojuon", "lang": "ja", "name": "五十音", "kind": "grid", "width": "wide" },
     { "id": "ja_ketai", "lang": "ja", "name": "携帯", "kind": "flick", "width": "narrow" }
   ]

@@ -1866,7 +1866,7 @@ constructor(
     }
 
     private fun spaceMenuRowHeight(cols: List<SpaceMenuColumn>): Float {
-        val rows = ((cols.maxOfOrNull { it.items.size } ?: 0) + 1).coerceAtLeast(1) // +1 for the header row
+        val rows = (cols.maxOfOrNull { it.items.size } ?: 0).coerceAtLeast(1)
         return height.toFloat() / rows
     }
 
@@ -1874,7 +1874,7 @@ constructor(
         val cols = spaceMenuColumns ?: return
         val colW = width.toFloat() / cols.size
         val c = (x / colW).toInt().coerceIn(0, cols.size - 1)
-        val r = (y / spaceMenuRowHeight(cols)).toInt() - 1 // subtract the header row
+        val r = (y / spaceMenuRowHeight(cols)).toInt()
         val next = if (r in cols[c].items.indices) c to r else null
         if (next != spaceMenuHighlight) {
             spaceMenuHighlight = next
@@ -1924,17 +1924,10 @@ constructor(
             val col = cols[c]
             val cx = c * colW + colW / 2f
 
-            // Header (2x the previous size, bold).
-            spaceMenuTextPaint.textSize = 28f * density
-            spaceMenuTextPaint.isFakeBoldText = true
-            spaceMenuTextPaint.color = fg
-            drawFittedText(canvas, col.header, cx, rowH / 2f, colW, spaceMenuTextPaint)
-            spaceMenuTextPaint.isFakeBoldText = false
-
-            // Items: each in a yellow-bordered cell; the one under the finger is filled.
+            // Items: each in a yellow-bordered cell; the one under the finger is filled. No header row.
             spaceMenuTextPaint.textSize = 32f * density
             for (i in col.items.indices) {
-                val top = (i + 1) * rowH
+                val top = i * rowH
                 val highlighted = spaceMenuHighlight == (c to i)
                 if (highlighted) {
                     spaceMenuFillPaint.color = fg

@@ -234,6 +234,33 @@ def conv_page(page):
     return {"rows": [conv_row(r) for r in page]}
 
 
+def is_space_key(k):
+    return isinstance(k, dict) and k.get("type") == "action" and k.get("action") == "space"
+
+
+# Fixed space-bar width (in cells) per locale; absent -> fill to align with the row above.
+SPACE_CELLS = {"en": 2.0, "cs": 2.0, "ru": 2.0}
+
+
+def align_bottom_row(rows, space_cells=None):
+    """Give the LAST row explicit per-key column widths: every key is 1 cell and each space bar is
+    [space_cells] cells (when set for the locale), else it fills so the bar aligns to the row above."""
+    if len(rows) < 2:
+        return
+    bottom = rows[-1]
+    spaces = [k for k in bottom if is_space_key(k)]
+    if not spaces:
+        return
+    nonspace = len(bottom) - len(spaces)
+    if space_cells is not None:
+        space_width = float(space_cells)
+    else:
+        space_width = max(1.0, (len(rows[-2]) - nonspace) / len(spaces))
+    for k in bottom:
+        if isinstance(k, dict):
+            k["width"] = round(space_width, 4) if is_space_key(k) else 1.0
+
+
 def derive_locale(in_path):
     """kxkb_<code>_... filename -> (locale, script). E.g. kxkb_cz_... -> ('cs','Latn')."""
     import os
@@ -258,6 +285,8 @@ def main():
         modes["numbers"] = conv_page(alt[0])
     if len(alt) >= 2:
         modes["symbols"] = conv_page(alt[1])
+    for mode in modes.values():
+        align_bottom_row(mode["rows"], SPACE_CELLS.get(locale))
     out = {"locale": locale, "script": script, "isRTL": False,
            "showFlickHints": True, "modes": modes}
     with open(out_path, "w", encoding="utf-8") as f:

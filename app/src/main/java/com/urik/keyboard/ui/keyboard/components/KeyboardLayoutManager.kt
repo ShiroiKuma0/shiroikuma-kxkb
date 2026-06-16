@@ -1412,9 +1412,12 @@ class KeyboardLayoutManager(
                 SpaceMenuItem(context.getString(R.string.space_menu_all_settings), false) { onMenuAction("settings") }
             )
         )
+        // Middle column: the system IME chooser at the top, then the other active languages.
         val languages = SpaceMenuColumn(
             header = context.getString(R.string.space_menu_languages),
-            items = activeLanguages.filter { it != currentLang }.map { lang ->
+            items = listOf(
+                SpaceMenuItem(context.getString(R.string.space_menu_keyboard), false) { onMenuAction("ime_picker") }
+            ) + activeLanguages.filter { it != currentLang }.map { lang ->
                 SpaceMenuItem(nativeLanguageName(lang), current = false) { onLanguageSwitch(lang) }
             }
         )
@@ -1852,6 +1855,10 @@ class KeyboardLayoutManager(
     }
 
     private fun getKeyWeight(key: KeyboardKey, rowKeys: List<KeyboardKey>): Float {
+        // An explicit per-key column width (cells) wins over the heuristics — used by imported layouts so
+        // the bottom bar aligns to the grid (shift = 1, space = 3, each key = 1, ...).
+        if (key.width > 0f) return key.width * currentKeySize.scaleFactor
+
         val isNumberModeRow = isNumberModeRow(rowKeys)
         val characterKeyCount = rowKeys.count { it is KeyboardKey.Character }
         val isSplitMode = splitGapPx > 0 && !containsSpacebar(rowKeys)

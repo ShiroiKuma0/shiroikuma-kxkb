@@ -613,11 +613,13 @@
         [
           {
             "type": "action",
-            "action": "shift"
+            "action": "shift",
+            "width": 1.0
           },
           {
             "type": "action",
-            "action": "space"
+            "action": "space",
+            "width": 2.0
           },
           {
             "type": "flick",
@@ -627,7 +629,8 @@
               "left": ";",
               "right": ":",
               "up": "…"
-            }
+            },
+            "width": 1.0
           },
           {
             "type": "flick",
@@ -637,7 +640,8 @@
               "left": "?",
               "right": "!",
               "up": "…"
-            }
+            },
+            "width": 1.0
           },
           {
             "type": "flick",
@@ -651,23 +655,28 @@
                 "layer": "alt1",
                 "label": "altGr"
               }
-            }
+            },
+            "width": 1.0
           },
           {
             "type": "action",
-            "action": "backspace"
+            "action": "backspace",
+            "width": 1.0
           },
           {
             "type": "action",
-            "action": "enter"
+            "action": "enter",
+            "width": 1.0
           },
           {
             "type": "action",
-            "action": "space"
+            "action": "space",
+            "width": 2.0
           },
           {
             "type": "action",
-            "action": "shift"
+            "action": "shift",
+            "width": 1.0
           }
         ]
       ]
@@ -1003,11 +1012,13 @@
                 "layer": "alpha0",
                 "label": "← ABC"
               }
-            }
+            },
+            "width": 1.0
           },
           {
             "type": "action",
-            "action": "space"
+            "action": "space",
+            "width": 2.0
           },
           {
             "type": "flick",
@@ -1017,7 +1028,8 @@
               "left": ";",
               "right": ":",
               "up": "…"
-            }
+            },
+            "width": 1.0
           },
           {
             "type": "flick",
@@ -1027,7 +1039,8 @@
               "left": "?",
               "right": "!",
               "up": "…"
-            }
+            },
+            "width": 1.0
           },
           {
             "type": "flick",
@@ -1041,23 +1054,28 @@
                 "layer": "alt1",
                 "label": "altGr"
               }
-            }
+            },
+            "width": 1.0
           },
           {
             "type": "action",
-            "action": "backspace"
+            "action": "backspace",
+            "width": 1.0
           },
           {
             "type": "action",
-            "action": "enter"
+            "action": "enter",
+            "width": 1.0
           },
           {
             "type": "action",
-            "action": "space"
+            "action": "space",
+            "width": 2.0
           },
           {
             "type": "action",
-            "action": "shift"
+            "action": "shift",
+            "width": 1.0
           }
         ]
       ]
@@ -1441,11 +1459,13 @@
                 "layer": "alpha0",
                 "label": "← ABC"
               }
-            }
+            },
+            "width": 1.0
           },
           {
             "type": "action",
-            "action": "space"
+            "action": "space",
+            "width": 2.0
           },
           {
             "type": "flick",
@@ -1455,7 +1475,8 @@
               "left": ";",
               "right": ":",
               "up": "…"
-            }
+            },
+            "width": 1.0
           },
           {
             "type": "flick",
@@ -1465,7 +1486,8 @@
               "left": "?",
               "right": "!",
               "up": "…"
-            }
+            },
+            "width": 1.0
           },
           {
             "type": "flick",
@@ -1479,23 +1501,28 @@
                 "layer": "alt1",
                 "label": "altGr"
               }
-            }
+            },
+            "width": 1.0
           },
           {
             "type": "action",
-            "action": "backspace"
+            "action": "backspace",
+            "width": 1.0
           },
           {
             "type": "action",
-            "action": "enter"
+            "action": "enter",
+            "width": 1.0
           },
           {
             "type": "action",
-            "action": "space"
+            "action": "space",
+            "width": 2.0
           },
           {
             "type": "action",
-            "action": "shift"
+            "action": "shift",
+            "width": 1.0
           }
         ]
       ]
