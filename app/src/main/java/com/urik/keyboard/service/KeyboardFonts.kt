@@ -62,6 +62,17 @@ object KeyboardFonts {
         return if (bold) Typeface.create(base, Typeface.BOLD) else base
     }
 
+    /** The family combined with a numeric weight 100..900 (0 / null = the family's own weight). */
+    fun weightedTypeface(context: Context, family: String, weight: Int?): Typeface {
+        val base = typeface(context, family)
+        if (weight == null || weight <= 0) return base
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            Typeface.create(base, weight.coerceIn(1, 1000), false)
+        } else {
+            Typeface.create(base, if (weight >= 600) Typeface.BOLD else Typeface.NORMAL)
+        }
+    }
+
     /** Copy a picked font file into the private fonts dir; returns its file name, or null on failure. */
     fun importFont(context: Context, uri: Uri): String? {
         val name = fileName(context, uri) ?: return null

@@ -27,7 +27,13 @@ data class AdaptiveDimensions(
     val boldKeyLabels: Boolean = false,
     val keyFontScale: Float = 1f,
     val hintScale: Float = 1f,
-    val fontFamily: String? = null
+    val fontFamily: String? = null,
+    // Per-geometry colour overrides (ARGB Int; null = use the active theme's colour).
+    val keyboardBgColor: Int? = null,
+    val keyBgColor: Int? = null,
+    val keyTextColor: Int? = null,
+    val keyBorderColor: Int? = null,
+    val labelWeight: Int? = null
 ) {
     companion object {
         private const val BASE_KEY_HEIGHT_DP = 40f

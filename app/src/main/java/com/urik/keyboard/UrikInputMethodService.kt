@@ -1,6 +1,7 @@
 package com.urik.keyboard
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.icu.lang.UScript
 import android.icu.util.ULocale
 import android.inputmethodservice.InputMethodService
@@ -312,6 +313,10 @@ open class UrikInputMethodService :
 
             lastDisplayDensity = resources.displayMetrics.density
             swipeDetector.updateDisplayMetrics(lastDisplayDensity)
+
+            // Seed the look knobs from the last cold-start cache BEFORE any view is built, so the first
+            // render after an app update / process restart is already the right size (see the helper).
+            seedLookKnobsFromCache()
 
             postureDetector = com.urik.keyboard.service.PostureDetector(this, serviceScope).also {
                 it.start()
@@ -1214,7 +1219,9 @@ open class UrikInputMethodService :
             serviceScope.launch {
                 themeManager.currentTheme.collect { theme ->
                     keyboardRootContainer?.setBackgroundColor(android.graphics.Color.TRANSPARENT)
-                    swipeKeyboardView?.setBackgroundColor(theme.colors.keyboardBackground)
+                    swipeKeyboardView?.setBackgroundColor(
+                        activeLookKnobs.keyboardBgColor ?: theme.colors.keyboardBackground
+                    )
                     window?.window?.navigationBarColor = theme.colors.keyboardBackground
                     updateSwipeKeyboard()
                 }
@@ -1299,10 +1306,42 @@ open class UrikInputMethodService :
             val language = languageManager.currentLayoutLanguage.value
             val layout = currentSettings.alternativeKeyboardLayout.name
             val resolved = settingsRepository.resolveLookKnobs(language, layout, geometry)
+            // Cache for the next cold start so the first render is already correct (see seedLookKnobsFromCache).
+            cacheLookKnobSeed(geometry, resolved)
             if (resolved != activeLookKnobs) {
                 activeLookKnobs = resolved
                 withContext(Dispatchers.Main) { reapplyLookKnobs() }
             }
+        }
+    }
+
+    /**
+     * Persist the just-resolved knobs (and the geometry they belong to) so that on the NEXT process start
+     * (e.g. after an app update kills the IME) [seedLookKnobsFromCache] can size the very first keyboard
+     * correctly — without it the first show built at DEFAULT height while the async resolve rebuilt taller
+     * a frame later, leaving the keyboard clipped ("only half") until dismissed and reopened.
+     */
+    private fun cacheLookKnobSeed(geometry: String, knobs: KeyboardLookKnobs) {
+        try {
+            getSharedPreferences(LOOK_SEED_PREFS, Context.MODE_PRIVATE).edit()
+                .putString(LOOK_SEED_LAST_GEO, geometry)
+                .putString("$LOOK_SEED_KNOBS_PREFIX$geometry", knobs.encode())
+                .apply()
+        } catch (_: Exception) {
+            // Best-effort cache; a miss just means the first render falls back to DEFAULT.
+        }
+    }
+
+    /** Seed [activeLookKnobs] synchronously from the last cold-start cache (best-effort; DEFAULT on miss). */
+    private fun seedLookKnobsFromCache() {
+        try {
+            val prefs = getSharedPreferences(LOOK_SEED_PREFS, Context.MODE_PRIVATE)
+            val geo = prefs.getString(LOOK_SEED_LAST_GEO, null) ?: return
+            val enc = prefs.getString("$LOOK_SEED_KNOBS_PREFIX$geo", null)
+            if (enc.isNullOrEmpty()) return
+            activeLookKnobs = KeyboardLookKnobs.decode(enc)
+        } catch (_: Exception) {
+            // Keep the DEFAULT seed.
         }
     }
 
@@ -1315,6 +1354,9 @@ open class UrikInputMethodService :
         swipeKeyboardView?.updateAdaptiveDimensions(look)
         if (::swipeDetector.isInitialized) swipeDetector.updateAdaptiveDimensions(look)
         applyContainerLookKnobs()
+        swipeKeyboardView?.setBackgroundColor(
+            activeLookKnobs.keyboardBgColor ?: themeManager.currentTheme.value.colors.keyboardBackground
+        )
         updateSwipeKeyboard()
     }
 
@@ -2258,6 +2300,9 @@ open class UrikInputMethodService :
 
     private companion object {
         const val DOUBLE_SHIFT_THRESHOLD_MS = 400L
+        const val LOOK_SEED_PREFS = "kxkb_look_seed"
+        const val LOOK_SEED_LAST_GEO = "last_geo"
+        const val LOOK_SEED_KNOBS_PREFIX = "knobs_"
     }
 }
 

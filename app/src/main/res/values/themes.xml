@@ -39,4 +39,25 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
     </style>
+
+    <!-- Black/yellow dialog: black fill, yellow border, yellow title/text, yellow outlined buttons. -->
+    <style name="Theme.Urik.Dialog" parent="Theme.Material3.Dark.Dialog.Alert">
+        <item name="colorPrimary">@color/kxkb_yellow</item>
+        <item name="colorSurface">@color/kxkb_black</item>
+        <item name="colorOnSurface">@color/kxkb_yellow</item>
+        <item name="colorSurfaceContainerHigh">@color/kxkb_black</item>
+        <item name="android:textColorPrimary">@color/kxkb_yellow</item>
+        <item name="android:textColorSecondary">@color/kxkb_yellow</item>
+        <item name="android:windowBackground">@drawable/kxkb_dialog_bg</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Theme.Urik.Dialog.Button</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Theme.Urik.Dialog.Button</item>
+        <item name="buttonBarNeutralButtonStyle">@style/Theme.Urik.Dialog.Button</item>
+    </style>
+
+    <style name="Theme.Urik.Dialog.Button" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:textColor">@color/kxkb_yellow</item>
+        <item name="strokeColor">@color/kxkb_yellow</item>
+        <item name="strokeWidth">1.5dp</item>
+        <item name="rippleColor">@color/kxkb_yellow_dim</item>
+    </style>
 </resources>

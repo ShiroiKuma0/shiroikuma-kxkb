@@ -934,11 +934,19 @@ class KeyboardLayoutManager(
             maxLines = 1
             gravity = Gravity.CENTER
 
-            typeface = com.urik.keyboard.service.KeyboardFonts.typeface(
-                context,
-                adaptiveDimensions?.fontFamily ?: "",
-                adaptiveDimensions?.boldKeyLabels == true
-            )
+            typeface = run {
+                val family = adaptiveDimensions?.fontFamily ?: ""
+                val weight = adaptiveDimensions?.labelWeight
+                if (weight != null && weight > 0) {
+                    com.urik.keyboard.service.KeyboardFonts.weightedTypeface(context, family, weight)
+                } else {
+                    com.urik.keyboard.service.KeyboardFonts.typeface(
+                        context,
+                        family,
+                        adaptiveDimensions?.boldKeyLabels == true
+                    )
+                }
+            }
             // Buttons default to textAllCaps=true, which forces uppercase labels regardless of the cased
             // string from getKeyLabel — so letters showed upper even unshifted. Honour the actual casing
             // (lower at rest, upper only when shift/caps-lock is engaged).
@@ -1777,21 +1785,20 @@ class KeyboardLayoutManager(
     private fun getKeyBackground(key: KeyboardKey): Drawable {
         ensureCacheValid()
         val theme = themeManager.currentTheme.value
+        // Per-geometry colour overrides (null = use the theme colour).
+        val bgOverride = adaptiveDimensions?.keyBgColor
+        val borderColor = adaptiveDimensions?.keyBorderColor ?: theme.colors.keyBorder
 
         val backgroundColor =
             when (key) {
-                is KeyboardKey.Character -> {
-                    theme.colors.keyBackgroundCharacter
+                is KeyboardKey.Character -> bgOverride ?: theme.colors.keyBackgroundCharacter
+
+                is KeyboardKey.Action -> bgOverride ?: when (key.action) {
+                    KeyboardKey.ActionType.SPACE -> theme.colors.keyBackgroundSpace
+                    else -> theme.colors.keyBackgroundAction
                 }
 
-                is KeyboardKey.Action -> {
-                    when (key.action) {
-                        KeyboardKey.ActionType.SPACE -> theme.colors.keyBackgroundSpace
-                        else -> theme.colors.keyBackgroundAction
-                    }
-                }
-
-                is KeyboardKey.FlickKey -> theme.colors.keyBackgroundCharacter
+                is KeyboardKey.FlickKey -> bgOverride ?: theme.colors.keyBackgroundCharacter
 
                 KeyboardKey.Spacer -> {
                     android.graphics.Color.TRANSPARENT
@@ -1802,7 +1809,7 @@ class KeyboardLayoutManager(
             GradientDrawable().apply {
                 setColor(backgroundColor)
                 cornerRadius = cachedCornerRadius
-                setStroke(cachedStrokeWidth, theme.colors.keyBorder)
+                setStroke(cachedStrokeWidth, borderColor)
             }
 
         val pressedDrawable =
@@ -1847,10 +1854,11 @@ class KeyboardLayoutManager(
 
     private fun getKeyTextColor(key: KeyboardKey): Int {
         val colors = themeManager.currentTheme.value.colors
+        val override = adaptiveDimensions?.keyTextColor
         return when (key) {
-            is KeyboardKey.Character -> colors.keyTextCharacter
-            is KeyboardKey.Action -> colors.keyTextAction
-            is KeyboardKey.FlickKey -> colors.keyTextCharacter
+            is KeyboardKey.Character -> override ?: colors.keyTextCharacter
+            is KeyboardKey.Action -> override ?: colors.keyTextAction
+            is KeyboardKey.FlickKey -> override ?: colors.keyTextCharacter
             KeyboardKey.Spacer -> android.graphics.Color.TRANSPARENT
         }
     }

@@ -1,12 +1,12 @@
 package com.urik.keyboard.settings.keyboardui
 
-import android.app.AlertDialog
 import android.content.Context
 import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
 import android.widget.BaseAdapter
 import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import com.urik.keyboard.R
 import com.urik.keyboard.service.FontOption
@@ -43,7 +43,7 @@ object FontPicker {
             }
         }
 
-        AlertDialog.Builder(context)
+        AlertDialog.Builder(context, R.style.Theme_Urik_Dialog)
             .setTitle(R.string.keyboard_ui_font_family)
             .setAdapter(adapter) { _, position -> onPick(fonts[position].fileName) }
             .setNeutralButton(R.string.keyboard_ui_font_import) { _, _ -> onImport() }

@@ -17,7 +17,6 @@ import androidx.preference.Preference
 import androidx.preference.PreferenceCategory
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.SeekBarPreference
-import androidx.preference.SwitchPreferenceCompat
 import com.urik.keyboard.R
 import com.urik.keyboard.service.GeometryBucket
 import com.urik.keyboard.service.KeyboardFonts
@@ -44,7 +43,11 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
     private lateinit var fontFamilyPref: Preference
     private lateinit var cornerPref: SeekBarPreference
     private lateinit var borderPref: SeekBarPreference
-    private lateinit var boldPref: SwitchPreferenceCompat
+    private lateinit var weightPref: SeekBarPreference
+    private lateinit var keyboardBgColorPref: ColorSwatchPreference
+    private lateinit var keyBgColorPref: ColorSwatchPreference
+    private lateinit var keyTextColorPref: ColorSwatchPreference
+    private lateinit var keyBorderColorPref: ColorSwatchPreference
     private var testField: EditText? = null
 
     private val importFontLauncher =
@@ -121,15 +124,7 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
             }
         cornerPref = seekBar("kb_ui_corner", R.string.keyboard_ui_corner_radius, min = 0, max = 24)
         borderPref = seekBar("kb_ui_border", R.string.keyboard_ui_border_width, min = 0, max = 8)
-        boldPref =
-            SwitchPreferenceCompat(context).apply {
-                key = "kb_ui_bold"
-                isPersistent = false
-                layoutResource = R.layout.preference_item_kxkb
-                title = resources.getString(R.string.keyboard_ui_bold_labels)
-                summaryOn = resources.getString(R.string.keyboard_ui_bold_labels_on)
-                summaryOff = resources.getString(R.string.keyboard_ui_bold_labels_off)
-            }
+        weightPref = seekBar("kb_ui_weight", R.string.keyboard_ui_label_weight, min = 100, max = 900)
 
         val textCategory =
             PreferenceCategory(context).apply {
@@ -145,6 +140,17 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                 title = resources.getString(R.string.keyboard_ui_font_family)
             }
 
+        val coloursCategory =
+            PreferenceCategory(context).apply {
+                key = "kb_ui_cat_colours"
+                title = resources.getString(R.string.keyboard_ui_category_colours)
+                layoutResource = R.layout.preference_category_kxkb
+            }
+        keyboardBgColorPref = colorPref("kb_ui_col_keyboard_bg", R.string.keyboard_ui_colour_keyboard_bg)
+        keyBgColorPref = colorPref("kb_ui_col_key_bg", R.string.keyboard_ui_colour_key_bg)
+        keyTextColorPref = colorPref("kb_ui_col_key_text", R.string.keyboard_ui_colour_key_text)
+        keyBorderColorPref = colorPref("kb_ui_col_key_border", R.string.keyboard_ui_colour_key_border)
+
         screen.addPreference(geometryCategory)
         geometryCategory.addPreference(geometryPref)
         screen.addPreference(sizeCategory)
@@ -159,10 +165,24 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         screen.addPreference(keysCategory)
         keysCategory.addPreference(cornerPref)
         keysCategory.addPreference(borderPref)
-        keysCategory.addPreference(boldPref)
+        keysCategory.addPreference(weightPref)
+        screen.addPreference(coloursCategory)
+        coloursCategory.addPreference(keyboardBgColorPref)
+        coloursCategory.addPreference(keyBgColorPref)
+        coloursCategory.addPreference(keyTextColorPref)
+        coloursCategory.addPreference(keyBorderColorPref)
 
         preferenceScreen = screen
     }
+
+    private fun colorPref(prefKey: String, titleRes: Int): ColorSwatchPreference =
+        ColorSwatchPreference(preferenceManager.context).apply {
+            key = prefKey
+            isPersistent = false
+            title = resources.getString(titleRes)
+        }
+
+    private fun hex(color: Int): String = String.format("#%08X", color)
 
     private fun handleFontImport(uri: Uri) {
         val name = KeyboardFonts.importFont(requireContext(), uri)
@@ -223,6 +243,22 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
             )
             true
         }
+        keyboardBgColorPref.setOnPreferenceClickListener {
+            ColorPicker.show(requireContext(), viewModel.uiState.value.keyboardBgColor) { viewModel.updateKeyboardBgColor(it) }
+            true
+        }
+        keyBgColorPref.setOnPreferenceClickListener {
+            ColorPicker.show(requireContext(), viewModel.uiState.value.keyBgColor) { viewModel.updateKeyBgColor(it) }
+            true
+        }
+        keyTextColorPref.setOnPreferenceClickListener {
+            ColorPicker.show(requireContext(), viewModel.uiState.value.keyTextColor) { viewModel.updateKeyTextColor(it) }
+            true
+        }
+        keyBorderColorPref.setOnPreferenceClickListener {
+            ColorPicker.show(requireContext(), viewModel.uiState.value.keyBorderColor) { viewModel.updateKeyBorderColor(it) }
+            true
+        }
         hintPref.setOnPreferenceChangeListener { _, newValue ->
             viewModel.updateHintScale(newValue as Int)
             true
@@ -239,8 +275,8 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
             viewModel.updateBorderWidth(newValue as Int)
             true
         }
-        boldPref.setOnPreferenceChangeListener { _, newValue ->
-            viewModel.updateBold(newValue as Boolean)
+        weightPref.setOnPreferenceChangeListener { _, newValue ->
+            viewModel.updateLabelWeight(newValue as Int)
             true
         }
 
@@ -258,9 +294,17 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                         fontPref.value = state.keyFontScalePct
                         hintPref.value = state.hintScalePct
                         fontFamilyPref.summary = KeyboardFonts.displayName(requireContext(), state.fontFamily)
+                        keyboardBgColorPref.summary = hex(state.keyboardBgColor)
+                        keyboardBgColorPref.color = state.keyboardBgColor
+                        keyBgColorPref.summary = hex(state.keyBgColor)
+                        keyBgColorPref.color = state.keyBgColor
+                        keyTextColorPref.summary = hex(state.keyTextColor)
+                        keyTextColorPref.color = state.keyTextColor
+                        keyBorderColorPref.summary = hex(state.keyBorderColor)
+                        keyBorderColorPref.color = state.keyBorderColor
                         cornerPref.value = state.cornerRadiusDp
                         borderPref.value = state.keyBorderWidthDp
-                        boldPref.isChecked = state.boldKeyLabels
+                        weightPref.value = state.labelWeight
                     }
                 }
                 launch {

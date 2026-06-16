@@ -73,6 +73,16 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
 
     fun updateFontFamily(family: String) = persist(current.copy(fontFamily = family))
 
+    fun updateKeyboardBgColor(c: Int) = persist(current.copy(keyboardBgColor = c))
+
+    fun updateKeyBgColor(c: Int) = persist(current.copy(keyBgColor = c))
+
+    fun updateKeyTextColor(c: Int) = persist(current.copy(keyTextColor = c))
+
+    fun updateKeyBorderColor(c: Int) = persist(current.copy(keyBorderColor = c))
+
+    fun updateLabelWeight(w: Int) = persist(current.copy(labelWeight = w))
+
     private fun persist(updated: KeyboardLookKnobs) {
         val geometry = _uiState.value.geometry
         current = updated
@@ -95,8 +105,21 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
         keyboardWidthPct = ((keyboardWidthScale ?: 1f) * 100).toInt(),
         bottomLiftDp = (bottomLiftDp ?: 0f).toInt(),
         hintScalePct = ((hintScale ?: 1f) * 100).toInt(),
-        fontFamily = fontFamily ?: ""
+        fontFamily = fontFamily ?: "",
+        keyboardBgColor = keyboardBgColor ?: DEFAULT_KEYBOARD_BG,
+        keyBgColor = keyBgColor ?: DEFAULT_KEY_BG,
+        keyTextColor = keyTextColor ?: DEFAULT_KEY_TEXT,
+        keyBorderColor = keyBorderColor ?: DEFAULT_KEY_BORDER,
+        labelWeight = labelWeight ?: if (boldKeyLabels == false) 400 else 700
     )
+
+    companion object {
+        // Effective fallbacks for the colour pickers/swatches — 白い熊's HighContrastYellow look.
+        const val DEFAULT_KEYBOARD_BG = 0xFF000000.toInt()
+        const val DEFAULT_KEY_BG = 0xFF000000.toInt()
+        const val DEFAULT_KEY_TEXT = 0xFFFFFF00.toInt()
+        const val DEFAULT_KEY_BORDER = 0xFFFFFF00.toInt()
+    }
 }
 
 data class KeyboardUiUiState(
@@ -110,5 +133,10 @@ data class KeyboardUiUiState(
     val keyboardWidthPct: Int = 100,
     val bottomLiftDp: Int = 0,
     val hintScalePct: Int = 100,
-    val fontFamily: String = ""
+    val fontFamily: String = "",
+    val keyboardBgColor: Int = 0xFF000000.toInt(),
+    val keyBgColor: Int = 0xFF000000.toInt(),
+    val keyTextColor: Int = 0xFFFFFF00.toInt(),
+    val keyBorderColor: Int = 0xFFFFFF00.toInt(),
+    val labelWeight: Int = 700
 )

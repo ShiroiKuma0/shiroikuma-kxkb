@@ -33,7 +33,14 @@ data class KeyboardLookKnobs(
     /** Lift the keyboard off the bottom edge by this many dp (0 = docked). */
     val bottomLiftDp: Float? = null,
     /** Key-label font family: "" = system, "@monospace", or an imported font file name. See KeyboardFonts. */
-    val fontFamily: String? = null
+    val fontFamily: String? = null,
+    /** Per-geometry colour overrides (ARGB Int; null = use the active theme's colour). */
+    val keyboardBgColor: Int? = null,
+    val keyBgColor: Int? = null,
+    val keyTextColor: Int? = null,
+    val keyBorderColor: Int? = null,
+    /** Key-label font weight 100..900 (null = derive from boldKeyLabels; 0 = the family's own weight). */
+    val labelWeight: Int? = null
 ) {
     fun applyTo(base: AdaptiveDimensions, density: Float): AdaptiveDimensions = base.copy(
         keyHeightPx = keyHeightScale?.let { (base.keyHeightPx * it).toInt().coerceAtLeast(1) } ?: base.keyHeightPx,
@@ -48,7 +55,12 @@ data class KeyboardLookKnobs(
         boldKeyLabels = boldKeyLabels ?: base.boldKeyLabels,
         keyFontScale = keyFontScale ?: base.keyFontScale,
         hintScale = hintScale ?: base.hintScale,
-        fontFamily = fontFamily ?: base.fontFamily
+        fontFamily = fontFamily ?: base.fontFamily,
+        keyboardBgColor = keyboardBgColor ?: base.keyboardBgColor,
+        keyBgColor = keyBgColor ?: base.keyBgColor,
+        keyTextColor = keyTextColor ?: base.keyTextColor,
+        keyBorderColor = keyBorderColor ?: base.keyBorderColor,
+        labelWeight = labelWeight ?: base.labelWeight
     )
 
     /** Returns a new set where [o]'s set (non-null) fields win and this set fills the gaps. */
@@ -62,7 +74,12 @@ data class KeyboardLookKnobs(
         hintScale = o.hintScale ?: hintScale,
         keyboardWidthScale = o.keyboardWidthScale ?: keyboardWidthScale,
         bottomLiftDp = o.bottomLiftDp ?: bottomLiftDp,
-        fontFamily = o.fontFamily ?: fontFamily
+        fontFamily = o.fontFamily ?: fontFamily,
+        keyboardBgColor = o.keyboardBgColor ?: keyboardBgColor,
+        keyBgColor = o.keyBgColor ?: keyBgColor,
+        keyTextColor = o.keyTextColor ?: keyTextColor,
+        keyBorderColor = o.keyBorderColor ?: keyBorderColor,
+        labelWeight = o.labelWeight ?: labelWeight
     )
 
     /** Compact `k=v;` encoding; null fields are omitted. Pairs with [decode] (lenient). */
@@ -77,6 +94,11 @@ data class KeyboardLookKnobs(
         keyboardWidthScale?.let { add("kw=$it") }
         bottomLiftDp?.let { add("bl=$it") }
         fontFamily?.let { add("ff=$it") }
+        keyboardBgColor?.let { add("cbg=$it") }
+        keyBgColor?.let { add("kbg=$it") }
+        keyTextColor?.let { add("ktx=$it") }
+        keyBorderColor?.let { add("kbr=$it") }
+        labelWeight?.let { add("lw=$it") }
     }.joinToString(";")
 
     companion object {
@@ -102,6 +124,11 @@ data class KeyboardLookKnobs(
             var kw: Float? = null
             var bl: Float? = null
             var ff: String? = null
+            var cbg: Int? = null
+            var kbg: Int? = null
+            var ktx: Int? = null
+            var kbr: Int? = null
+            var lw: Int? = null
             for (token in raw.split(";")) {
                 val i = token.indexOf('=')
                 if (i <= 0) continue
@@ -117,9 +144,14 @@ data class KeyboardLookKnobs(
                     "kw" -> kw = value.toFloatOrNull()
                     "bl" -> bl = value.toFloatOrNull()
                     "ff" -> ff = value
+                    "cbg" -> cbg = value.toIntOrNull()
+                    "kbg" -> kbg = value.toIntOrNull()
+                    "ktx" -> ktx = value.toIntOrNull()
+                    "kbr" -> kbr = value.toIntOrNull()
+                    "lw" -> lw = value.toIntOrNull()
                 }
             }
-            return KeyboardLookKnobs(cr, bw, bold, fs, hs, ks, hn, kw, bl, ff)
+            return KeyboardLookKnobs(cr, bw, bold, fs, hs, ks, hn, kw, bl, ff, cbg, kbg, ktx, kbr, lw)
         }
     }
 }

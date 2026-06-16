@@ -93,6 +93,12 @@
     <string name="font_monospace">Monospace</string>
     <string name="font_imported">Imported "%1$s"</string>
     <string name="font_import_failed">Couldn\'t import font (need .ttf or .otf)</string>
+    <string name="keyboard_ui_category_colours">Colours</string>
+    <string name="keyboard_ui_pick_colour">Pick a colour</string>
+    <string name="keyboard_ui_colour_keyboard_bg">Keyboard background</string>
+    <string name="keyboard_ui_colour_key_bg">Key background</string>
+    <string name="keyboard_ui_colour_key_text">Key text</string>
+    <string name="keyboard_ui_colour_key_border">Key border</string>
     <string name="keyboard_ui_category_keys">Keys</string>
     <string name="keyboard_ui_key_height">Key height (%)</string>
     <string name="keyboard_ui_width">Keyboard width (%)</string>
@@ -102,6 +108,7 @@
     <string name="keyboard_ui_hint_size">Hint size (%)</string>
     <string name="keyboard_ui_corner_radius">Corner radius (dp)</string>
     <string name="keyboard_ui_border_width">Border width (dp)</string>
+    <string name="keyboard_ui_label_weight">Label weight (100–900)</string>
     <string name="keyboard_ui_bold_labels">Bold labels</string>
     <string name="keyboard_ui_bold_labels_on">Bold key labels</string>
     <string name="keyboard_ui_bold_labels_off">Normal key labels</string>

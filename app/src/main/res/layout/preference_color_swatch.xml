@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The colour swatch shown on the right of a colour preference (filled in code per its current value). -->
+<View xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/color_swatch"
+    android:layout_width="38dp"
+    android:layout_height="38dp"
+    android:layout_gravity="center" />
