@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
 class ThemeManager(private val context: Context, private val settingsRepository: SettingsRepository) {
     private val managerScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
-    private val _currentTheme = MutableStateFlow<KeyboardTheme>(Default)
+    private val _currentTheme = MutableStateFlow<KeyboardTheme>(HighContrastYellow)
     val currentTheme: StateFlow<KeyboardTheme> = _currentTheme.asStateFlow()
 
     private var cachedMaterialYouTheme: KeyboardTheme? = null
@@ -104,6 +104,7 @@ class ThemeManager(private val context: Context, private val settingsRepository:
     fun getAllThemes(): List<KeyboardTheme> = buildList {
         add(Default)
         add(Light)
+        add(HighContrastYellow)
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
             add(generateMaterialYouTheme())
         }

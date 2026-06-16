@@ -108,9 +108,9 @@ class KeyboardThemeTest {
     }
 
     @Test
-    fun `all returns list with 15 themes`() {
+    fun `all returns list with 16 themes`() {
         val themes = KeyboardTheme.all()
-        assertEquals(15, themes.size)
+        assertEquals(16, themes.size)
     }
 
     @Test

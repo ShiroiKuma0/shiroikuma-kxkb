@@ -200,7 +200,7 @@ constructor(
                             CursorSpeed.MEDIUM
                         }
                     } ?: CursorSpeed.MEDIUM,
-                    keyboardTheme = preferences[PreferenceKeys.KEYBOARD_THEME] ?: "default",
+                    keyboardTheme = preferences[PreferenceKeys.KEYBOARD_THEME] ?: "high_contrast_yellow",
                     favoriteThemes = preferences[PreferenceKeys.FAVORITE_THEMES] ?: emptySet(),
                     alternativeKeyboardLayout =
                     preferences[PreferenceKeys.ALTERNATIVE_KEYBOARD_LAYOUT]?.let {

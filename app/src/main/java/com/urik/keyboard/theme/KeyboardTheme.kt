@@ -9,6 +9,7 @@ sealed interface KeyboardTheme {
         fun fromId(id: String): KeyboardTheme = when (id) {
             Default.id -> Default
             Light.id -> Light
+            HighContrastYellow.id -> HighContrastYellow
             Abyss.id -> Abyss
             Crimson.id -> Crimson
             Forest.id -> Forest
@@ -29,6 +30,7 @@ sealed interface KeyboardTheme {
         fun all(): List<KeyboardTheme> = buildList {
             add(Default)
             add(Light)
+            add(HighContrastYellow)
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
                 add(MaterialYou.Default)
             }
