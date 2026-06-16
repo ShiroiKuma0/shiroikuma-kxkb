@@ -146,6 +146,69 @@ class UrikDictionary(inputStream: InputStream, private val removedWords: Set<Str
         }
     }
 
+    /**
+     * Cluster prediction: enumerate dictionary words of length `allowedSets.size` whose i-th letter (accent-
+     * folded) is in `allowedSets[i]` — a constrained DAWG walk. Returns (word, dequantized frequency),
+     * ranked by frequency. The allowed sets must already be base-folded + lowercased by the caller; the
+     * arc labels are folded here so accented dictionary letters (á, č, …) match a base-letter cluster.
+     */
+    fun clusterCandidates(allowedSets: List<Set<Char>>, maxResults: Int = 8): List<Pair<String, Long>> {
+        if (allowedSets.isEmpty()) return emptyList()
+        val results = mutableListOf<Pair<String, Long>>()
+        clusterDfs(stateTableOffset, allowedSets, 0, 0, StringBuilder(), results, maxResults)
+        return results.sortedByDescending { it.second }
+    }
+
+    private fun clusterDfs(
+        stateAbsOffset: Int,
+        allowedSets: List<Set<Char>>,
+        pos: Int,
+        incomingFreqByte: Int,
+        path: StringBuilder,
+        results: MutableList<Pair<String, Long>>,
+        maxResults: Int
+    ) {
+        if (results.size >= maxResults) return
+        val stateHeader = data[stateAbsOffset].toInt() and 0xFF
+        if (pos == allowedSets.size) {
+            if ((stateHeader and 0x80) != 0) {
+                val word = path.toString()
+                if (!isRemoved(word)) results.add(word to UrikFormat.dequantizeFreq(incomingFreqByte))
+            }
+            return
+        }
+        val allowed = allowedSets[pos]
+        val arcCount = stateHeader and 0x7F
+        var arcOffset = stateAbsOffset + 1
+        repeat(arcCount) {
+            if (results.size >= maxResults) return
+            val labelHi = data[arcOffset].toInt() and 0xFF
+            val labelLo = data[arcOffset + 1].toInt() and 0xFF
+            val label = Char((labelHi shl 8) or labelLo)
+            if (foldChar(label) in allowed) {
+                val freqByte = data[arcOffset + 2].toInt() and 0xFF
+                val targetHi = data[arcOffset + 3].toInt() and 0xFF
+                val targetMid = data[arcOffset + 4].toInt() and 0xFF
+                val targetLo = data[arcOffset + 5].toInt() and 0xFF
+                val targetRel = (targetHi shl 16) or (targetMid shl 8) or targetLo
+                path.append(label)
+                clusterDfs(stateTableOffset + targetRel, allowedSets, pos + 1, freqByte, path, results, maxResults)
+                path.deleteCharAt(path.length - 1)
+            }
+            arcOffset += 6
+        }
+    }
+
+    /** Fold a single char to its base lowercase letter (ASCII fast path; NFD-strip otherwise). */
+    private fun foldChar(c: Char): Char {
+        if (c.code < 128) return c.lowercaseChar()
+        val nfd = java.text.Normalizer.normalize(c.toString(), java.text.Normalizer.Form.NFD)
+        val base = nfd.firstOrNull {
+            Character.getType(it) != Character.NON_SPACING_MARK.toInt()
+        } ?: c
+        return base.lowercaseChar()
+    }
+
     private data class ArcInfo(val freq: Int, val targetRelOffset: Int)
 
     private fun findArc(stateAbsOffset: Int, ch: Char): ArcInfo? {

@@ -561,6 +561,8 @@ constructor(
         try {
             val seenWords = mutableSetOf<String>()
             val allSuggestions = mutableListOf<SpellingSuggestion>()
+            // Cluster prediction first so it owns the words it produces (highest, frequency-ranked).
+            allSuggestions += queryClusterSuggestions(normalizedWord, languageCode, seenWords)
             allSuggestions += queryLearnedSuggestions(normalizedWord, languageCode, seenWords)
             allSuggestions += queryCompletionSuggestions(normalizedWord, languageCode, seenWords)
             allSuggestions += queryUrikSuggestions(normalizedWord, languageCode, seenWords)
@@ -725,6 +727,53 @@ constructor(
             )
             return emptyList()
         }
+    }
+
+    // Active layout's cluster bands: base-folded centre char -> the band's base-folded char set. Empty =
+    // not a cluster layout (cluster prediction off). Set by the service on each letters-layout build.
+    @Volatile
+    private var clusterBands: Map<Char, Set<Char>> = emptyMap()
+
+    /** [bands] maps a cluster key's committed centre char to its full band string (e.g. 'w' -> "mwk"). */
+    fun setClusterBands(bands: Map<Char, String>) {
+        val folded = mutableMapOf<Char, Set<Char>>()
+        for ((center, band) in bands) {
+            val key = foldToBase(center) ?: continue
+            val set = band.mapNotNull { foldToBase(it) }.toSet()
+            if (set.size > 1) folded[key] = set // only ambiguous bands (a real cluster)
+        }
+        clusterBands = folded
+    }
+
+    private fun foldToBase(c: Char): Char? =
+        wordNormalizer.stripDiacritics(c.toString()).lowercase().firstOrNull()
+
+    /**
+     * Cluster prediction: reconstruct the per-tap allowed-sets from the typed centres (each char → its
+     * cluster band, accent-folded) and enumerate dictionary words consistent with all positions, ranked by
+     * frequency. The literal (the centres themselves) is just one such candidate, so the top by frequency
+     * is the prediction and the literal competes for 2nd. Empty when the layout has no clusters or nothing
+     * the user typed is ambiguous.
+     */
+    private fun queryClusterSuggestions(
+        normalizedWord: String,
+        languageCode: String,
+        seenWords: MutableSet<String>
+    ): List<SpellingSuggestion> {
+        val bands = clusterBands
+        if (bands.isEmpty() || normalizedWord.isEmpty()) return emptyList()
+        val folded = wordNormalizer.stripDiacritics(normalizedWord).lowercase()
+        val allowedSets = folded.map { ch -> bands[ch] ?: setOf(ch) }
+        if (allowedSets.none { it.size > 1 }) return emptyList()
+        val dict = getUrikDictionary(languageCode) ?: return emptyList()
+        return dict.clusterCandidates(allowedSets, MAX_SUGGESTIONS + 2)
+            .mapNotNull { (word, freq) ->
+                val key = word.lowercase()
+                if (key in seenWords || isWordBlacklisted(word)) return@mapNotNull null
+                seenWords.add(key)
+                val freqScore = ln(freq.toDouble() + 1.0) / ln(MAX_DICT_FREQUENCY)
+                SpellingSuggestion(word, (0.55 + 0.44 * freqScore).coerceIn(0.0, 0.99), 0, "cluster")
+            }
     }
 
     private suspend fun queryUrikSuggestions(

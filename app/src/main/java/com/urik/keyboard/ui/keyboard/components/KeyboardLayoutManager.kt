@@ -63,6 +63,7 @@ class KeyboardLayoutManager(
     private val onLanguageSwitch: (String) -> Unit = {},
     private val onSwitchToLayout: (String, String) -> Unit = { _, _ -> },
     private val onMenuAction: (String) -> Unit = {},
+    private val onClusterBands: (Map<Char, String>) -> Unit = {},
     private val onShowInputMethodPicker: () -> Unit = {},
     private val onFlickBinding: (KeyboardKey.FlickBinding) -> Unit = {},
     private val characterVariationService: CharacterVariationService,
@@ -732,6 +733,7 @@ class KeyboardLayoutManager(
 
     fun createKeyboardView(layout: KeyboardLayout, state: KeyboardState): View {
         lastKeyboardState = state
+        if (layout.mode == KeyboardMode.LETTERS) publishClusterBands(layout)
         returnActiveButtonsToPool()
 
         val processedRows =
@@ -1436,6 +1438,7 @@ class KeyboardLayoutManager(
      * variant if present (e.g. katakana), else an uppercased copy for bicameral scripts, else the key itself.
      */
     private fun flickFace(key: KeyboardKey.FlickKey, state: KeyboardState): KeyboardKey.FlickKey {
+        // Keys render uppercase for both manual AND auto shift (so auto-caps shows caps, like the letter keys).
         if (!shouldCapitalize(state)) return key
         key.shifted?.let { return it }
         if (!isBicameralScript(effectiveLayout?.script ?: "Latn")) return key
@@ -1447,6 +1450,19 @@ class KeyboardLayoutManager(
             upLeft = up(key.upLeft), upRight = up(key.upRight), downLeft = up(key.downLeft), downRight = up(key.downRight),
             clusterMains = key.clusterMains.uppercase(loc)
         )
+    }
+
+    /** Extract the letters layout's cluster bands (centre char -> band, e.g. 'w' -> "mwk") for prediction. */
+    private fun publishClusterBands(layout: KeyboardLayout) {
+        val bands = mutableMapOf<Char, String>()
+        for (row in layout.rows) {
+            for (key in row) {
+                if (key is KeyboardKey.FlickKey && key.clusterMains.length > 1) {
+                    key.center.firstOrNull()?.let { bands[it] = key.clusterMains }
+                }
+            }
+        }
+        onClusterBands(bands)
     }
 
     /** Cycle to the next active layout language (globe-key tap + interim space long-press). */

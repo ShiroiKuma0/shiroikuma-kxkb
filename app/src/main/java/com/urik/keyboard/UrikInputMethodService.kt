@@ -443,6 +443,7 @@ open class UrikInputMethodService :
                     onLanguageSwitch = { languageCode -> handleLanguageSwitch(languageCode) },
                     onSwitchToLayout = { lang, layoutId -> switchToLayout(lang, layoutId) },
                     onMenuAction = { action -> handleSpaceMenuAction(action) },
+                    onClusterBands = { bands -> spellCheckManager.setClusterBands(bands) },
                     onShowInputMethodPicker = { showInputMethodPicker() },
                     onFlickBinding = { binding -> handleFlickBinding(binding) },
                     characterVariationService = characterVariationService,

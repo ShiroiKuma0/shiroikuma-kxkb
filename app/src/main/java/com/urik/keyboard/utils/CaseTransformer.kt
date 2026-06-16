@@ -55,6 +55,14 @@ constructor() {
         locale: java.util.Locale = java.util.Locale.ROOT
     ): List<String> = suggestions.map { applyCasing(it, keyboardState, isSentenceStart, locale) }
 
+    /** Re-case a plain (already display-cased) word for commit — applies the full casing incl. sentence start. */
+    fun applyCasing(
+        word: String,
+        keyboardState: KeyboardState,
+        isSentenceStart: Boolean = false,
+        locale: java.util.Locale = java.util.Locale.ROOT
+    ): String = applyCasing(SpellingSuggestion(word, 0.0, 0), keyboardState, isSentenceStart, locale)
+
     private fun capitalizeFirstLetter(word: String, locale: java.util.Locale = java.util.Locale.ROOT): String {
         if (word.isEmpty()) return word
 

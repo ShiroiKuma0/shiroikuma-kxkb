@@ -124,7 +124,25 @@ class SuggestionPipeline(
         if (state.isCurrentWordManualShifted && !keyboardState.isShiftPressed && !keyboardState.isCapsLockOn) {
             keyboardState = keyboardState.copy(isShiftPressed = true, isAutoShift = false)
         }
-        return caseTransformer.applyCasingToSuggestions(suggestions, keyboardState, isSentenceStart)
+        // The suggestion bar shows dictionary case under auto-caps — only MANUAL shift / caps-lock cases it.
+        // Auto-shift / sentence-start must NOT case the bar (that's "offering shifted candidates", which is
+        // wrong); the sentence capital is applied when the candidate is committed instead (recaseForCommit).
+        if (keyboardState.isAutoShift) {
+            keyboardState = keyboardState.copy(isShiftPressed = false, isAutoShift = false)
+        }
+        return caseTransformer.applyCasingToSuggestions(suggestions, keyboardState, isSentenceStart = false)
+    }
+
+    /** Apply the sentence-start / shift capital that the bar deliberately omits, at the moment of commit. */
+    private fun recaseForCommit(displayed: String): String {
+        if (displayed.isEmpty()) return displayed
+        val lang = host.currentLanguage().split("-").first()
+        if (lang in CASELESS_LANGUAGES) return displayed
+        var keyboardState = host.getKeyboardState()
+        if (state.isCurrentWordManualShifted && !keyboardState.isShiftPressed && !keyboardState.isCapsLockOn) {
+            keyboardState = keyboardState.copy(isShiftPressed = true, isAutoShift = false)
+        }
+        return caseTransformer.applyCasing(displayed, keyboardState, state.isCurrentWordAtSentenceStart)
     }
 
     fun showBigramPredictions() {
@@ -296,16 +314,17 @@ class SuggestionPipeline(
                 state.isActivelyEditing = true
 
                 recordWordUsage(suggestion)
+                val committed = recaseForCommit(suggestion)
 
                 outputBridge.beginBatchEdit()
                 try {
-                    outputBridge.commitText("$suggestion ")
+                    outputBridge.commitText("$committed ")
 
                     val expectedNewPosition =
                         if (state.composingRegionStart != -1) {
-                            state.composingRegionStart + suggestion.length + 1
+                            state.composingRegionStart + committed.length + 1
                         } else {
-                            actualCursorPos + suggestion.length + 1
+                            actualCursorPos + committed.length + 1
                         }
                     state.selectionStateTracker.setExpectedPositionAfterOperation(expectedNewPosition)
                     state.lastKnownCursorPosition = expectedNewPosition
