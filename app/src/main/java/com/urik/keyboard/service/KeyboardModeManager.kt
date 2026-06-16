@@ -42,6 +42,14 @@ constructor(
     fun initialize(scope: CoroutineScope, postureDetector: PostureDetector) {
         collectionJob?.cancel()
 
+        // Seed the mode WITH real dimensions synchronously, from the live posture, before the async collector
+        // below ever runs. Without this the first cold-start input view is built dimension-less (the initial
+        // _currentMode has null adaptiveDimensions) — it renders at the layout manager's default key height
+        // and only grows a frame later when the collector emits, by which point the IME window is already
+        // sized short, clipping the keyboard to "half" on the first show after a process start / app update.
+        currentPostureInfo = postureDetector.postureInfo.value
+        _currentMode.value = determineMode(latestSettings ?: KeyboardSettings(), postureDetector.postureInfo.value)
+
         collectionJob =
             scope.launch {
                 combine(
