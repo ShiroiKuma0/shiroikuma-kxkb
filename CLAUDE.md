@@ -11,6 +11,25 @@ model, glide typing, themes/resize. **Do not copy FUTO source into this repo.**
 
 The roadmap and current status live in **`docs/PLAN.md`** and **`HANDOFF.md`** — read those first.
 
+## Architecture & directive (read before touching layouts/looks)
+
+- **`~/git/shiroikuma-futokxkb` is the permanent design reference.** Study it to re-derive features and
+  conventions (its `CLAUDE.md`, the `futo-keyboard-build`/`multiling-futo-conversion`/
+  `cluster-prediction-testing` skills, and `kxkb/*.yaml` layout design data). **Re-derive in spirit; never
+  copy FUTO or AOSP source.** Full parity with futokxkb is the goal.
+- **Runtime store = authoritative, self-contained binary** (app-private). The keyboard boots and runs
+  entirely from it, with **zero dependency on any external directory**. This is non-negotiable.
+- **Git library = archival mirror + curation workbench** — a real git repo at a Library-page-settable real
+  path (All-Files-Access, in-app **JGit**, **no SAF, no Termux**), read **only in the Library tab**, never
+  on the hot path or boot. Repo unset → internal browse only.
+- **Looks compose in 3 layers:** general default → reusable look artifacts (bound per geometry) → per-key
+  particulars embedded in the layout JSON. Nullable/inherit at each layer.
+- **Design for many layouts per language (~10+), not 2-3** — the layout registry, the space-slide switcher
+  and the Library browse must all scale. Width variants are separate files grouped by family.
+
+Full detail + milestone sequence (M1 runtime base → M2 registry/import → M3 cluster prediction → M4 Library
+tab/editor/git → M5 refinements) is in **`docs/PLAN.md`**.
+
 ## Branch & remote model (same as the sister forks)
 
 - `origin` = `git@github.com:ShiroiKuma0/shiroikuma-kxkb.git` (ssh) — our fork.
@@ -85,4 +104,17 @@ skipping the `BUILD_NUMBER` bump); the keyboard's non-English name (18 locales s
 Japanese kana-kanji conversion when `ja` isn't the primary language; and the `さ` flick being cancelled
 by the parent view on longer swipes.
 
-**Next: Phase 2** — compass/cluster layouts (input geometry). Full phased plan in `docs/PLAN.md`.
+**M1 complete** (usable runtime base): per-geometry look knobs + runtime store + the full logical
+**白い熊 kxkb UI** page (Geometry / Keyboard / Keys{Primary·Secondary·Key body} / Rows{Suggestion bar·Top·
+Bottom} / Compass keys / Cluster keys / Suggestion bar); HighContrastYellow default; seamless on-keyboard
+resize; **1D space-slide menu** (Actions | Languages | Layouts); secondary-character row rendering, cluster
+main-band rendering, shifted faces (uppercase/katakana), caps-lock shift colour, space bar shows the
+language's native name, app interface-language (per-app locale) setting.
+
+**M2 core complete** (layout registry + import): `tools/gnu_yaml_to_json.py` extended (locale/script,
+`gap`/`case`/`shifted`/native-action/cluster-band/per-key `width`); imported 12 futokxkb layouts
+(cs/en/ru/gnu/ja) + `LayoutRegistry` (`assets/layouts/registry.json`) with per-language active-layout
+resolution.
+
+**Next: M3** — cluster prediction (DAWG-constrained DFS). Full architecture + milestone sequence in
+`docs/PLAN.md`.

@@ -1,109 +1,111 @@
-# Plan: re-implement the kxkb feature span on Urik (FLOSS)
+# Plan: shiroikuma-kxkb — runtime keyboard + a git-versioned, browsable Layout & Look Library
 
-This is the approved development roadmap for `shiroikuma-kxkb`. It rebuilds the features of the old
-`shiroikuma-futokxkb` (FUTO-based) fork **in spirit, not in code**, on top of Urik (GPL-3).
+The approved roadmap for `shiroikuma-kxkb`. It rebuilds the feature span of the old `shiroikuma-futokxkb`
+(FUTO-based) fork **in spirit, not in code**, on Urik (GPL-3, pure-Kotlin, View-based, no NDK).
 
-## Context
+## Context & the FLOSS constraint
 
 The previous fork was built on **FUTO Keyboard**, whose licence (FUTO Source First License 1.1) is **not
-FLOSS** — non-sublicensable, non-commercial-only, GPL-incompatible; only FUTO can relicense it. We cannot
-repackage that work as FLOSS. The only legitimate path is a clean-room re-implementation on a true-FLOSS
-base. After surveying FlorisBoard / HeliBoard / AnySoftKeyboard / Fossify / Unexpected / Thumb-Key and a
-source-level health check, **Urik** was chosen: GPL-3, clean modern pure-Kotlin (Hilt, Room+SQLCipher,
-DataStore, **View-based** UI, no NDK), ~112 test files, and it already ships **cs/en/ru/ja** dictionaries +
-layouts, a **layout-agnostic flick/compass key model**, glide typing, themes/resize. **Re-derive
-behaviours; never copy FUTO source.**
+FLOSS** and cannot be relicensed by us. So the kxkb feature span is re-implemented clean-room on **Urik**,
+which already ships cs/en/ru/ja dictionaries + layouts, a layout-agnostic flick/compass key model, glide
+typing, themes/resize.
 
-Must-have languages: **Czech, English, Russian, Japanese**. Japanese decision: **basic single-reading now,
-decide full native Mozc later** (Urik's built-in converter is single-reading only; full Mozc — BSD, ref
-`elizagamedev/android-libre-japanese-input` — is the same large native subproject on any FLOSS base).
+**`~/git/shiroikuma-futokxkb` is the permanent design reference** — study it to re-derive features and
+conventions (its `CLAUDE.md` + the `futo-keyboard-build` / `multiling-futo-conversion` /
+`cluster-prediction-testing` skills, and `kxkb/*.yaml` layout design data). **Never copy FUTO or AOSP
+source into this repo.** Re-derive in spirit. Full parity with futokxkb is the goal.
 
-## Build / deliver loop (every phase)
+Must-have languages: Czech, English, Russian, Japanese (+ the GNU `zxx` no-predict code layout). Japanese
+stays on Urik's single-reading converter for now; full native Mozc is deferred.
 
-`export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ANDROID_HOME=/home/shiroikuma/android-sdk` then
-`./gradlew buildApk` (release-signed; → `~/tmp/shiroikuma-kxkb_<ver>_arm64-v8a.apk`, bumps `BUILD_NUMBER`).
-Deliver: `adb push <apk> /sdcard/tmp/` (ask first; user installs from the file manager). Each phase ends in
-a buildable, on-device-testable APK; `./gradlew :app:test` stays green. See the `build-apk` skill.
+## The two-layer architecture (locked with 白い熊)
 
----
+The earlier "git is the source of truth" framing was **wrong** and was corrected:
 
-## Phase 0 — Identity, icon, first build  ✅ DONE
+- **The runtime store is authoritative and self-contained.** All layouts, looks and per-(geometry·app·
+  language) edits live as binary/structured data in **app-private storage** (DataStore for bindings;
+  app-private files / Room / assets for layout & look blobs). The keyboard **boots and runs entirely from
+  this, with zero dependency on any external directory.** If the git dir is absent, unmounted or
+  permission-revoked, the keyboard is unaffected. **Non-negotiable.**
+- **The git library is an archival mirror + curation workbench.** A real **git repo at a Library-page-
+  settable real path** (All-Files-Access `MANAGE_EXTERNAL_STORAGE`, `java.io.File`, **in-app JGit** — no SAF,
+  no Termux). The app **writes** to it on capture/commit and **reads** it **only in the Library tab** — to
+  browse, study prior states, restore, catalogue, and live-render the keyboard as it was at any commit.
+  Never on the hot path, never on boot. **Repo unset → browse the internal library only, no git.**
 
-Repackaged side-by-side: `APP_ID=shiroikuma.kxkb`, label `白い熊 kxkb`, fork versioning
-(`gradle.properties` + `forkVersionName`/`forkVersionCode` + `buildApk` task), release signing from a
-dedicated keystore, `lint { checkReleaseBuilds = false }`, and the **solid Minchō 熊** launcher icon
-(yellow on black; foreground at safe-zone size, all densities + composites + Play-Store PNG). Code
-namespace kept `com.urik.keyboard`.
+### Locked decisions
+1. Runtime store = authoritative binary (app-private, self-contained). Git repo = archival/curation, never
+   a runtime/boot dependency.
+2. Git engine = in-app JGit on a real path, settable on the Library page via a real-path folder chooser
+   (not SAF). In-app commit + history + live-render-per-commit + restore. (No Termux.)
+3. **Looks = 3 composed layers:** general **default** → reusable **look artifacts** (separately versioned,
+   bound per geometry) → **per-key particulars embedded in the layout JSON** (the "make this key bigger"
+   edits ride with the keyboard). Nullable/inherit at each layer.
+4. **Width variants = separate files**, grouped by family (language → kind → width); the runtime picks the
+   variant matching the current geometry width.
+5. **Capture = auto-save working copy + explicit Commit** (description + auto-bump patch; manual minor/major).
+6. **HighContrastYellow (black/yellow)** is the default theme; the square/bold/grid look comes from the
+   per-geometry look knobs.
+7. **Design for MANY layouts per language (~10+), not 2-3** — the registry, the 1D switcher and the Library
+   browse must all scale.
 
-## Phase 1 — Quick wins / immediate pain points  ✅ DONE
+## Core architecture (the spine)
 
-1. **Remove the 3-active-language cap** (白い熊's ASAP item): one constant
-   `KeyboardSettings.kt:167 MAX_ACTIVE_LANGUAGES = 3` → effectively unlimited; update the toast string
-   `max_languages_reached` (`strings.xml:97`) and the assertion in `KeyboardSettingsTest.kt:540`. All
-   validation layers read the constant; the language switcher + settings UI scale linearly (verified).
-   Now cs/en/ru/ja coexist.
-2. **Easy typing tweaks:** Tab → real `KEYCODE_TAB` (add `ActionType.TAB` + `onTab()` in
-   `KeyEventRouter`/`UrikInputMethodService`, reuse `OutputBridge`'s key-event sender); per-app layout
-   memory (store package→layout, restore in `onStartInput` via `EditorInfo.packageName`); a code/no-predict
-   field mode (extend `InputFieldClassifier`/`SecureFieldDetector`, which already special-case
-   terminal/`TYPE_NULL`/password).
+- **Geometry key.** `service/GeometryKey.kt` — one `geometryKey(posture)` builder, 6-bucket
+  `GeometryBucket` (folded/semi/unfolded × portrait/landscape). Fold state from the device HALL sensor
+  (Mate XT has no Jetpack FoldingFeature) with a screen-area fallback. Never reconstruct the key inline.
+- **Look composition.** `service/KeyboardLookKnobs.kt` (nullable knobs, `applyTo`/`overlay`/`encode`/
+  `decode`) overlaid onto `service/AdaptiveDimensions.kt` through the single `withLookKnobs()` seam in
+  `UrikInputMethodService`. Resolution: per-key (in layout) → per-geometry baseline → default. Seeded
+  synchronously from a cold-start cache so the first render after an update is correctly sized.
+- **Layout model + registry.** `model/KeyboardModels.kt` (`KeyboardKey`: Character / Action / FlickKey
+  (+ `clusterMains` band, `shifted` CaseSelector variant, per-key `width` cells) / Spacer), parsed by
+  `data/KeyboardRepository.kt::getLayoutForMode`. `data/LayoutRegistry.kt` (+ `assets/layouts/registry.json`)
+  lists per-language layouts and a per-language default; `getLayoutForMode` resolves the **active layout**
+  (`SettingsRepository ACTIVE_LAYOUT_BY_LANGUAGE`) → registry default → bundled `<lang>.json`.
+- **Runtime store (authoritative).** App-private. Per-app·geometry → active layout + language; per-
+  language·layout·geometry → bound look. Self-contained.
+- **Git archive (curation).** `org.eclipse.jgit` on a real path, in the Library tab only.
 
-**Done:** `MAX_ACTIVE_LANGUAGES = SUPPORTED_LANGUAGES.size` (effectively unlimited). `ActionType.TAB` +
-`onTab()` + `OutputBridge.sendTab()`, key on the en symbols page. Per-app memory via a
-`per_app_layout_languages` DataStore key (recorded in `handleLanguageSwitch`, restored in `onStartInput`).
-No-predict mode: Urik already disabled suggestions/autocorrect/auto-spacing for `isSuggestionsDisabled`
-fields — we added auto-caps suppression there too, plus a persistent **No-prediction mode** setting
-(`forceNoPredict`, ORed into `isSuggestionsDisabled`). Four upstream Urik bugs fixed en route: `buildApk`
-configuration-cache incompatibility (silently skipped the `BUILD_NUMBER` bump); non-English keyboard name
-(18 locales overrode `ime_name`/`ime_label` with "Urik …"); JP kana-kanji conversion looked up the
-converter by primary language instead of layout language; and `さ` flick cancelled by the parent view
-intercepting longer swipes (flick keys now `requestDisallowInterceptTouchEvent`).
+## Milestones
 
-## Phase 2 — Compass/cluster LAYOUTS (input geometry)  ← NEXT
+### M1 — Usable runtime base  ✅ DONE
+1A look-knob backbone + runtime store + Keyboard UI page; 1B HighContrastYellow default; 1C seamless
+on-keyboard resize gesture (long-press a corner, slide); 1D **space-slide menu** (slide from the space bar
+→ 3-column Actions | Languages | Layouts; release switches). Plus: per-geometry colours/fonts/weights, the
+full logical Keyboard-UI hierarchy (Geometry / Keyboard / Keys{Primary·Secondary·Key body} / Rows{Suggestion
+bar·Top·Bottom} / Compass keys / Cluster keys / Suggestion bar), secondary-character (top/bottom/side) row
+rendering, caps-lock shift colour, cluster-key main-band rendering, shifted faces (uppercase/katakana),
+space bar shows the layout language's native name, app interface-language (per-app locale) setting.
 
-Author Latin/Cyrillic compass layouts (cs/en/ru) as JSON using the existing flick model
-(`model/KeyboardModels.kt` `FlickKey`, `data/KeyboardRepository.kt` parser ~290, `FlickGestureDetector.kt`,
-`KeyboardLayoutManager.kt` flick commit ~128). Add at-rest multi-char key labels (only the centre char is
-drawn today). Optional 8-way/diagonal flicks. Add a custom-layout import path (beside
-`loadLayoutDataFromAssets` ~189) so Multiling-converted layouts can be imported.
+### M2 — Layout registry + import  ✅ (core done)
+`tools/gnu_yaml_to_json.py` extended (locale/script from filename; `gap`→spacer; `case`→normal + emitted
+`shifted` variant; native action keys; full cluster bands; per-key `width` so the bottom bar aligns to the
+grid). Imported 12 layouts (cs ×2, en ×4, ru ×2, gnu ×2, ja ×2 — ja = gojūon + ketai, replacing the bundled
+flick). Registry + per-language active-layout resolution. **Remaining:** width-variant auto-selection by
+geometry; the dead-key type; richer per-layout metadata.
 
-## Phase 3 — Cluster PREDICTION (the soul)
+### M3 — Cluster prediction (the soul)  ← NEXT
+Per-tap allowed-char-set from a cluster key; constrained DFS over the `.urik` DAWG
+(`dictionary/UrikDictionary.kt`) with accent-fold (`WordNormalizer`/NFD); inject at
+`service/SpellCheckManager.kt::queryUrikSuggestions` via `queryClusterSuggestions()`, gated on the active
+layout carrying cluster keys; feed `service/SuggestionPipeline.kt`. Space commits the top in-cluster
+prediction; the literal is 2nd. Validate on a cs/en/ru corpus; give it a `cluster-prediction-testing` skill.
 
-Add a cluster-constrained candidate enumeration to the dictionary lookup: enumerate dictionary words whose
-i-th character is in the per-tap allowed-char-set, with accent-fold (base-letter tap matches accented dict
-letters). Inject as `queryClusterSuggestions()` alongside the clean seam `queryUrikSuggestions()` in
-`SpellCheckManager.kt` (~735); reuse `scoreDictionaryCandidate` ranking + `WordNormalizer.stripDiacritics`.
-The `.urik` DAWG (`UrikDictionary.kt`/`UrikFormat.kt`) is a walkable trie — add a constrained DFS (pure
-Kotlin, ~200–400 LOC). Feed flick/cluster input into `SuggestionPipeline` (flicks bypass it today). Port the
-commit behaviour (space commits the top in-cluster prediction; literal reachable as 2nd candidate). Validate
-against a re-created cs/en/ru corpus; this is the most rebase-fragile area → its own testing skill.
+### M4 — Library tab + Keyboard Editor + git archive  (the curation layer)
+- **L1** internal Library tab — browse the runtime store grouped Language → Kind → Width, live previews,
+  Apply / Open-in-Editor / Duplicate / Export / Delete; a Look sub-tab.
+- **L2** visual Keyboard Editor — per-key edit, structural ops, alt-page, cross-layout copy, Apply /
+  Apply-as-new / Export, per-key appearance into the layout JSON, a model→JSON emitter.
+- **L3** git archive — JGit on a real-path-chooser-set repo; auto-working-copy on edit + Commit (history,
+  live-render-per-commit, revert). Unset → L1 internal browse only.
 
-## Phase 4 — Typing refinements
+### M5 — Typing refinements + full Keyboard UI parity
+Dead-key composition; force-auto-caps incl. after newline; auto-spacing; caps-lock tap-cycle; one-shot Ctrl;
+pinnable action bar; topBar candidates + Space/Tab selection; remaining v2 key types (column, cycle); the
+space-menu actions that need features (Resize / Add layout / Special keys / Keyboard editor); scoped backup.
 
-Dead-key diacritic composition; force-auto-caps incl. after newline; punctuation auto-spacing (em dash both
-sides, ellipsis/colon/semicolon followed-by-space, closing quotes strip preceding space) via
-`PunctuationLoader` + `assets/punctuation/` + `NonLetterInputHandler`; space-commits-selected / Tab-cycles
-candidates (extend the JP candidate cycling to Latin); GNU/`zxx`-style no-auto-space mode.
-
-## Phase 5 — Visual layout editor
-
-Rebuild the in-app editor (design carried from FUTO): a model→JSON serializer (inverse of
-`parseKeyFromJson`, absent today), a per-key edit screen, live preview, export/import. View-based.
-
-## Phase 6 — Per-key appearance + look knobs
-
-Per-key colour/font/border overrides (Urik themes are whole-keyboard — `theme/ThemeColors.kt`; add per-key
-overlays in `KeyboardLayoutManager` button drawables), caps-lock colour indicator, label-weight / border
-sliders.
-
-## Phase 7 — Japanese (decision point)
-
-Keep the single-reading converter (`KanaKanjiConverter.kt`/`JapaneseCandidateHandler.kt`); improve data /
-user-learning. Decide later whether to integrate full native Mozc (deferred).
-
-## Cross-cutting / tooling
-
-- **`.urik` dict build pipeline** — upstream gitignores its tooling (`buildSrc/`, `raw_dicts`); write our own
-  encoder from the documented `UrikFormat` so we can improve/rebuild cs/en/ru dicts.
-- A **cluster-prediction-testing** skill (static audit + on-device trace), plugged into `upstream-new-version`.
-- Optional: a Multiling-layout → Urik-JSON conversion skill (port of the FUTO `multiling-futo-conversion`).
+## Cross-cutting
+- `.urik` dict build pipeline (upstream gitignores its tooling) — our own encoder from `UrikFormat`.
+- The `cluster-prediction-testing` skill + a Multiling-layout conversion skill (ports of futokxkb's).
+- Per feature: read the relevant futokxkb skill/section first; reuse Urik pieces; never copy FUTO/AOSP source.
