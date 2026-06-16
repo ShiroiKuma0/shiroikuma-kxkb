@@ -24,10 +24,15 @@ data class KeyboardLookKnobs(
     val keyFontScale: Float? = null,
     /** Multiplier on the key height (1.0 = unchanged). */
     val keyHeightScale: Float? = null,
-    /** Multiplier on the inter-key spacing / gap (1.0 = unchanged, 0 = no gaps — keys abut into a grid). */
-    val keySpacingScale: Float? = null,
-    /** Multiplier on the secondary / flick-hint label size (1.0 = unchanged). */
+    /** Multipliers on the inter-key gap, per axis (1.0 = unchanged, 0 = no gap — keys abut into a grid). */
+    val keySpacingHScale: Float? = null,
+    val keySpacingVScale: Float? = null,
+    /** Multiplier on the secondary / flick-hint label size (1.0 = unchanged) — the base for both rows. */
     val hintScale: Float? = null,
+    /** General secondary-character colour / font / weight (the rows inherit these unless they override). */
+    val hintColor: Int? = null,
+    val hintFont: String? = null,
+    val hintWeight: Int? = null,
     /** Fraction of the available width the keyboard occupies (1.0 = full width; <1 narrows, centred). */
     val keyboardWidthScale: Float? = null,
     /** Lift the keyboard off the bottom edge by this many dp (0 = docked). */
@@ -39,28 +44,79 @@ data class KeyboardLookKnobs(
     val keyBgColor: Int? = null,
     val keyTextColor: Int? = null,
     val keyBorderColor: Int? = null,
+    /** Colour the Shift icon turns when caps lock is on (null = the key text colour). */
+    val capsLockShiftColor: Int? = null,
     /** Key-label font weight 100..900 (null = derive from boldKeyLabels; 0 = the family's own weight). */
-    val labelWeight: Int? = null
+    val labelWeight: Int? = null,
+    // --- Secondary-character rows (compass / cluster flick hints). Top row = up / up-diagonals,
+    //     bottom row = down / down-diagonals, with left/right on the centre line. Each row formats
+    //     independently: colour (ARGB; null = dimmed key text), size scale (× the global hint size),
+    //     font family, and distance (dp inset from that edge). ---
+    val hintTopColor: Int? = null,
+    val hintTopScale: Float? = null,
+    val hintTopFont: String? = null,
+    val hintTopMarginDp: Float? = null,
+    val hintBottomColor: Int? = null,
+    val hintBottomScale: Float? = null,
+    val hintBottomFont: String? = null,
+    val hintBottomMarginDp: Float? = null,
+    /** Horizontal insets (dp): the left column (left side + left diagonals) and the right column. */
+    val hintLeftMarginDp: Float? = null,
+    val hintRightMarginDp: Float? = null,
+    /** Cluster-key main-character horizontal offsets (dp), left and right main, individually. */
+    val clusterLeftOffsetDp: Float? = null,
+    val clusterRightOffsetDp: Float? = null,
+    // --- Suggestion / candidate bar ---
+    val suggestionBarHeightScale: Float? = null,
+    val suggestionBgColor: Int? = null,
+    val suggestionFont: String? = null,
+    val suggestionWeight: Int? = null,
+    val suggestionTextScale: Float? = null,
+    val suggestionColor: Int? = null
 ) {
     fun applyTo(base: AdaptiveDimensions, density: Float): AdaptiveDimensions = base.copy(
         keyHeightPx = keyHeightScale?.let { (base.keyHeightPx * it).toInt().coerceAtLeast(1) } ?: base.keyHeightPx,
         keyMarginHorizontalPx =
-            keySpacingScale?.let { (base.keyMarginHorizontalPx * it).toInt().coerceAtLeast(0) }
+            keySpacingHScale?.let { (base.keyMarginHorizontalPx * it).toInt().coerceAtLeast(0) }
                 ?: base.keyMarginHorizontalPx,
         keyMarginVerticalPx =
-            keySpacingScale?.let { (base.keyMarginVerticalPx * it).toInt().coerceAtLeast(0) }
+            keySpacingVScale?.let { (base.keyMarginVerticalPx * it).toInt().coerceAtLeast(0) }
                 ?: base.keyMarginVerticalPx,
         cornerRadiusPx = cornerRadiusDp?.let { (it * density).toInt().coerceAtLeast(0) } ?: base.cornerRadiusPx,
         keyBorderWidthPx = keyBorderWidthDp?.let { (it * density).toInt().coerceAtLeast(0) } ?: base.keyBorderWidthPx,
         boldKeyLabels = boldKeyLabels ?: base.boldKeyLabels,
         keyFontScale = keyFontScale ?: base.keyFontScale,
         hintScale = hintScale ?: base.hintScale,
+        hintColor = hintColor ?: base.hintColor,
+        hintFont = hintFont ?: base.hintFont,
+        hintWeight = hintWeight ?: base.hintWeight,
         fontFamily = fontFamily ?: base.fontFamily,
         keyboardBgColor = keyboardBgColor ?: base.keyboardBgColor,
         keyBgColor = keyBgColor ?: base.keyBgColor,
         keyTextColor = keyTextColor ?: base.keyTextColor,
         keyBorderColor = keyBorderColor ?: base.keyBorderColor,
-        labelWeight = labelWeight ?: base.labelWeight
+        capsLockShiftColor = capsLockShiftColor ?: base.capsLockShiftColor,
+        labelWeight = labelWeight ?: base.labelWeight,
+        hintTopColor = hintTopColor ?: base.hintTopColor,
+        hintTopScale = hintTopScale ?: base.hintTopScale,
+        hintTopFont = hintTopFont ?: base.hintTopFont,
+        hintTopMarginPx = hintTopMarginDp?.let { (it * density).toInt().coerceAtLeast(0) } ?: base.hintTopMarginPx,
+        hintBottomColor = hintBottomColor ?: base.hintBottomColor,
+        hintBottomScale = hintBottomScale ?: base.hintBottomScale,
+        hintBottomFont = hintBottomFont ?: base.hintBottomFont,
+        hintBottomMarginPx = hintBottomMarginDp?.let { (it * density).toInt().coerceAtLeast(0) } ?: base.hintBottomMarginPx,
+        hintLeftMarginPx = hintLeftMarginDp?.let { (it * density).toInt().coerceAtLeast(0) } ?: base.hintLeftMarginPx,
+        hintRightMarginPx = hintRightMarginDp?.let { (it * density).toInt().coerceAtLeast(0) } ?: base.hintRightMarginPx,
+        clusterLeftOffsetPx = clusterLeftOffsetDp?.let { (it * density).toInt() } ?: base.clusterLeftOffsetPx,
+        clusterRightOffsetPx = clusterRightOffsetDp?.let { (it * density).toInt() } ?: base.clusterRightOffsetPx,
+        suggestionBarHeightPx =
+            suggestionBarHeightScale?.let { (base.suggestionBarHeightPx * it).toInt().coerceAtLeast(1) }
+                ?: base.suggestionBarHeightPx,
+        suggestionBgColor = suggestionBgColor ?: base.suggestionBgColor,
+        suggestionFont = suggestionFont ?: base.suggestionFont,
+        suggestionWeight = suggestionWeight ?: base.suggestionWeight,
+        suggestionTextScale = suggestionTextScale ?: base.suggestionTextScale,
+        suggestionColor = suggestionColor ?: base.suggestionColor
     )
 
     /** Returns a new set where [o]'s set (non-null) fields win and this set fills the gaps. */
@@ -70,8 +126,12 @@ data class KeyboardLookKnobs(
         boldKeyLabels = o.boldKeyLabels ?: boldKeyLabels,
         keyFontScale = o.keyFontScale ?: keyFontScale,
         keyHeightScale = o.keyHeightScale ?: keyHeightScale,
-        keySpacingScale = o.keySpacingScale ?: keySpacingScale,
+        keySpacingHScale = o.keySpacingHScale ?: keySpacingHScale,
+        keySpacingVScale = o.keySpacingVScale ?: keySpacingVScale,
         hintScale = o.hintScale ?: hintScale,
+        hintColor = o.hintColor ?: hintColor,
+        hintFont = o.hintFont ?: hintFont,
+        hintWeight = o.hintWeight ?: hintWeight,
         keyboardWidthScale = o.keyboardWidthScale ?: keyboardWidthScale,
         bottomLiftDp = o.bottomLiftDp ?: bottomLiftDp,
         fontFamily = o.fontFamily ?: fontFamily,
@@ -79,7 +139,26 @@ data class KeyboardLookKnobs(
         keyBgColor = o.keyBgColor ?: keyBgColor,
         keyTextColor = o.keyTextColor ?: keyTextColor,
         keyBorderColor = o.keyBorderColor ?: keyBorderColor,
-        labelWeight = o.labelWeight ?: labelWeight
+        capsLockShiftColor = o.capsLockShiftColor ?: capsLockShiftColor,
+        labelWeight = o.labelWeight ?: labelWeight,
+        hintTopColor = o.hintTopColor ?: hintTopColor,
+        hintTopScale = o.hintTopScale ?: hintTopScale,
+        hintTopFont = o.hintTopFont ?: hintTopFont,
+        hintTopMarginDp = o.hintTopMarginDp ?: hintTopMarginDp,
+        hintBottomColor = o.hintBottomColor ?: hintBottomColor,
+        hintBottomScale = o.hintBottomScale ?: hintBottomScale,
+        hintBottomFont = o.hintBottomFont ?: hintBottomFont,
+        hintBottomMarginDp = o.hintBottomMarginDp ?: hintBottomMarginDp,
+        hintLeftMarginDp = o.hintLeftMarginDp ?: hintLeftMarginDp,
+        hintRightMarginDp = o.hintRightMarginDp ?: hintRightMarginDp,
+        clusterLeftOffsetDp = o.clusterLeftOffsetDp ?: clusterLeftOffsetDp,
+        clusterRightOffsetDp = o.clusterRightOffsetDp ?: clusterRightOffsetDp,
+        suggestionBarHeightScale = o.suggestionBarHeightScale ?: suggestionBarHeightScale,
+        suggestionBgColor = o.suggestionBgColor ?: suggestionBgColor,
+        suggestionFont = o.suggestionFont ?: suggestionFont,
+        suggestionWeight = o.suggestionWeight ?: suggestionWeight,
+        suggestionTextScale = o.suggestionTextScale ?: suggestionTextScale,
+        suggestionColor = o.suggestionColor ?: suggestionColor
     )
 
     /** Compact `k=v;` encoding; null fields are omitted. Pairs with [decode] (lenient). */
@@ -89,8 +168,12 @@ data class KeyboardLookKnobs(
         boldKeyLabels?.let { add("bold=${if (it) 1 else 0}") }
         keyFontScale?.let { add("fs=$it") }
         keyHeightScale?.let { add("hs=$it") }
-        keySpacingScale?.let { add("ks=$it") }
+        keySpacingHScale?.let { add("ksh=$it") }
+        keySpacingVScale?.let { add("ksv=$it") }
         hintScale?.let { add("hn=$it") }
+        hintColor?.let { add("hc=$it") }
+        hintFont?.let { add("hf=$it") }
+        hintWeight?.let { add("hw=$it") }
         keyboardWidthScale?.let { add("kw=$it") }
         bottomLiftDp?.let { add("bl=$it") }
         fontFamily?.let { add("ff=$it") }
@@ -98,7 +181,26 @@ data class KeyboardLookKnobs(
         keyBgColor?.let { add("kbg=$it") }
         keyTextColor?.let { add("ktx=$it") }
         keyBorderColor?.let { add("kbr=$it") }
+        capsLockShiftColor?.let { add("clc=$it") }
         labelWeight?.let { add("lw=$it") }
+        hintTopColor?.let { add("htc=$it") }
+        hintTopScale?.let { add("hts=$it") }
+        hintTopFont?.let { add("htf=$it") }
+        hintTopMarginDp?.let { add("htm=$it") }
+        hintBottomColor?.let { add("hbc=$it") }
+        hintBottomScale?.let { add("hbs=$it") }
+        hintBottomFont?.let { add("hbf=$it") }
+        hintBottomMarginDp?.let { add("hbm=$it") }
+        hintLeftMarginDp?.let { add("hlm=$it") }
+        hintRightMarginDp?.let { add("hrm=$it") }
+        clusterLeftOffsetDp?.let { add("cll=$it") }
+        clusterRightOffsetDp?.let { add("clr=$it") }
+        suggestionBarHeightScale?.let { add("sbh=$it") }
+        suggestionBgColor?.let { add("sbg=$it") }
+        suggestionFont?.let { add("sbf=$it") }
+        suggestionWeight?.let { add("sbw=$it") }
+        suggestionTextScale?.let { add("sbs=$it") }
+        suggestionColor?.let { add("sbc=$it") }
     }.joinToString(";")
 
     companion object {
@@ -119,7 +221,8 @@ data class KeyboardLookKnobs(
             var bold: Boolean? = null
             var fs: Float? = null
             var hs: Float? = null
-            var ks: Float? = null
+            var ksh: Float? = null
+            var ksv: Float? = null
             var hn: Float? = null
             var kw: Float? = null
             var bl: Float? = null
@@ -128,7 +231,29 @@ data class KeyboardLookKnobs(
             var kbg: Int? = null
             var ktx: Int? = null
             var kbr: Int? = null
+            var clc: Int? = null
             var lw: Int? = null
+            var htc: Int? = null
+            var hts: Float? = null
+            var htf: String? = null
+            var htm: Float? = null
+            var hbc: Int? = null
+            var hbs: Float? = null
+            var hbf: String? = null
+            var hbm: Float? = null
+            var hlm: Float? = null
+            var hrm: Float? = null
+            var cll: Float? = null
+            var clr: Float? = null
+            var sbh: Float? = null
+            var sbg: Int? = null
+            var sbf: String? = null
+            var sbw: Int? = null
+            var sbs: Float? = null
+            var sbc: Int? = null
+            var hc: Int? = null
+            var hf: String? = null
+            var hw: Int? = null
             for (token in raw.split(";")) {
                 val i = token.indexOf('=')
                 if (i <= 0) continue
@@ -139,7 +264,9 @@ data class KeyboardLookKnobs(
                     "bold" -> bold = value.toIntOrNull()?.let { it != 0 }
                     "fs" -> fs = value.toFloatOrNull()
                     "hs" -> hs = value.toFloatOrNull()
-                    "ks" -> ks = value.toFloatOrNull()
+                    "ks" -> value.toFloatOrNull()?.let { ksh = it; ksv = it } // legacy: one spacing -> both axes
+                    "ksh" -> ksh = value.toFloatOrNull()
+                    "ksv" -> ksv = value.toFloatOrNull()
                     "hn" -> hn = value.toFloatOrNull()
                     "kw" -> kw = value.toFloatOrNull()
                     "bl" -> bl = value.toFloatOrNull()
@@ -148,10 +275,46 @@ data class KeyboardLookKnobs(
                     "kbg" -> kbg = value.toIntOrNull()
                     "ktx" -> ktx = value.toIntOrNull()
                     "kbr" -> kbr = value.toIntOrNull()
+                    "clc" -> clc = value.toIntOrNull()
                     "lw" -> lw = value.toIntOrNull()
+                    "htc" -> htc = value.toIntOrNull()
+                    "hts" -> hts = value.toFloatOrNull()
+                    "htf" -> htf = value
+                    "htm" -> htm = value.toFloatOrNull()
+                    "hbc" -> hbc = value.toIntOrNull()
+                    "hbs" -> hbs = value.toFloatOrNull()
+                    "hbf" -> hbf = value
+                    "hbm" -> hbm = value.toFloatOrNull()
+                    "hsm" -> value.toFloatOrNull()?.let { hlm = it; hrm = it } // legacy: one side inset -> both
+                    "hlm" -> hlm = value.toFloatOrNull()
+                    "hrm" -> hrm = value.toFloatOrNull()
+                    "cll" -> cll = value.toFloatOrNull()
+                    "clr" -> clr = value.toFloatOrNull()
+                    "sbh" -> sbh = value.toFloatOrNull()
+                    "sbg" -> sbg = value.toIntOrNull()
+                    "sbf" -> sbf = value
+                    "sbw" -> sbw = value.toIntOrNull()
+                    "sbs" -> sbs = value.toFloatOrNull()
+                    "sbc" -> sbc = value.toIntOrNull()
+                    "hc" -> hc = value.toIntOrNull()
+                    "hf" -> hf = value
+                    "hw" -> hw = value.toIntOrNull()
                 }
             }
-            return KeyboardLookKnobs(cr, bw, bold, fs, hs, ks, hn, kw, bl, ff, cbg, kbg, ktx, kbr, lw)
+            return KeyboardLookKnobs(
+                cornerRadiusDp = cr, keyBorderWidthDp = bw, boldKeyLabels = bold, keyFontScale = fs,
+                keyHeightScale = hs, keySpacingHScale = ksh, keySpacingVScale = ksv, hintScale = hn,
+                hintColor = hc, hintFont = hf, hintWeight = hw,
+                keyboardWidthScale = kw, bottomLiftDp = bl, fontFamily = ff,
+                keyboardBgColor = cbg, keyBgColor = kbg, keyTextColor = ktx, keyBorderColor = kbr,
+                capsLockShiftColor = clc, labelWeight = lw,
+                hintTopColor = htc, hintTopScale = hts, hintTopFont = htf, hintTopMarginDp = htm,
+                hintBottomColor = hbc, hintBottomScale = hbs, hintBottomFont = hbf, hintBottomMarginDp = hbm,
+                hintLeftMarginDp = hlm, hintRightMarginDp = hrm,
+                clusterLeftOffsetDp = cll, clusterRightOffsetDp = clr,
+                suggestionBarHeightScale = sbh, suggestionBgColor = sbg, suggestionFont = sbf,
+                suggestionWeight = sbw, suggestionTextScale = sbs, suggestionColor = sbc
+            )
         }
     }
 }

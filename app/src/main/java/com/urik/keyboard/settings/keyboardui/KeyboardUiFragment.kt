@@ -37,9 +37,13 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
     private lateinit var heightPref: SeekBarPreference
     private lateinit var widthPref: SeekBarPreference
     private lateinit var liftPref: SeekBarPreference
-    private lateinit var spacingPref: SeekBarPreference
+    private lateinit var spacingHPref: SeekBarPreference
+    private lateinit var spacingVPref: SeekBarPreference
     private lateinit var fontPref: SeekBarPreference
     private lateinit var hintPref: SeekBarPreference
+    private lateinit var hintFontPref: Preference
+    private lateinit var hintWeightPref: SeekBarPreference
+    private lateinit var hintColorPref: ColorSwatchPreference
     private lateinit var fontFamilyPref: Preference
     private lateinit var cornerPref: SeekBarPreference
     private lateinit var borderPref: SeekBarPreference
@@ -48,7 +52,32 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
     private lateinit var keyBgColorPref: ColorSwatchPreference
     private lateinit var keyTextColorPref: ColorSwatchPreference
     private lateinit var keyBorderColorPref: ColorSwatchPreference
+    private lateinit var capsLockShiftColorPref: ColorSwatchPreference
+    private lateinit var hintTopColorPref: ColorSwatchPreference
+    private lateinit var hintTopScalePref: SeekBarPreference
+    private lateinit var hintTopFontPref: Preference
+    private lateinit var hintBottomColorPref: ColorSwatchPreference
+    private lateinit var hintBottomScalePref: SeekBarPreference
+    private lateinit var hintBottomFontPref: Preference
+    // Compass-key positions.
+    private lateinit var topRowPositionPref: SeekBarPreference
+    private lateinit var bottomRowPositionPref: SeekBarPreference
+    private lateinit var leftColumnPositionPref: SeekBarPreference
+    private lateinit var rightColumnPositionPref: SeekBarPreference
+    // Cluster-key main-character positions.
+    private lateinit var clusterLeftPref: SeekBarPreference
+    private lateinit var clusterRightPref: SeekBarPreference
+    // Suggestion / candidate bar.
+    private lateinit var suggestionHeightPref: SeekBarPreference
+    private lateinit var suggestionBgPref: ColorSwatchPreference
+    private lateinit var suggestionFontPref: Preference
+    private lateinit var suggestionWeightPref: SeekBarPreference
+    private lateinit var suggestionSizePref: SeekBarPreference
+    private lateinit var suggestionColorPref: ColorSwatchPreference
     private var testField: EditText? = null
+
+    /** Where a freshly imported font is applied — set per font picker before launching the SAF import. */
+    private var onFontImported: (String) -> Unit = {}
 
     private val importFontLauncher =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -103,91 +132,177 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                 summaryProvider = ListPreference.SimpleSummaryProvider.getInstance()
             }
 
-        val sizeCategory =
-            PreferenceCategory(context).apply {
-                key = "kb_ui_cat_size"
-                title = resources.getString(R.string.keyboard_ui_category_size)
-                layoutResource = R.layout.preference_category_kxkb
-            }
-        heightPref = seekBar("kb_ui_height", R.string.keyboard_ui_key_height, min = 50, max = 200)
-        widthPref = seekBar("kb_ui_width", R.string.keyboard_ui_width, min = 50, max = 100)
+        // --- KEYBOARD: whole-keyboard geometry, background, key spacing (per axis). ---
+        val keyboardCategory = sectionCategory("kb_ui_cat_keyboard", R.string.keyboard_ui_section_keyboard)
+        heightPref = seekBar("kb_ui_height", R.string.keyboard_ui_item_height, min = 50, max = 200)
+        widthPref = seekBar("kb_ui_width", R.string.keyboard_ui_item_width, min = 50, max = 100)
         liftPref = seekBar("kb_ui_lift", R.string.keyboard_ui_bottom_lift, min = 0, max = 200)
-        spacingPref = seekBar("kb_ui_spacing", R.string.keyboard_ui_key_spacing, min = 0, max = 200)
-        fontPref = seekBar("kb_ui_font", R.string.keyboard_ui_font_scale, min = 50, max = 200)
-        hintPref = seekBar("kb_ui_hint", R.string.keyboard_ui_hint_size, min = 50, max = 200)
+        keyboardBgColorPref = colorPref("kb_ui_col_keyboard_bg", R.string.keyboard_ui_item_background)
+        spacingHPref = seekBar("kb_ui_spacing_h", R.string.keyboard_ui_item_h_gap, min = 0, max = 300, sub = true)
+        spacingVPref = seekBar("kb_ui_spacing_v", R.string.keyboard_ui_item_v_gap, min = 0, max = 300, sub = true)
 
-        val keysCategory =
-            PreferenceCategory(context).apply {
-                key = "kb_ui_cat_keys"
-                title = resources.getString(R.string.keyboard_ui_category_keys)
-                layoutResource = R.layout.preference_category_kxkb
-            }
-        cornerPref = seekBar("kb_ui_corner", R.string.keyboard_ui_corner_radius, min = 0, max = 24)
-        borderPref = seekBar("kb_ui_border", R.string.keyboard_ui_border_width, min = 0, max = 8)
-        weightPref = seekBar("kb_ui_weight", R.string.keyboard_ui_label_weight, min = 100, max = 900)
+        // --- KEYS: by function — primary char / secondary char / key body. ---
+        val keysCategory = sectionCategory("kb_ui_cat_keys", R.string.keyboard_ui_category_keys)
+        // Primary character.
+        fontFamilyPref = fontEntry("kb_ui_font_family", R.string.keyboard_ui_item_font, sub = true)
+        weightPref = seekBar("kb_ui_weight", R.string.keyboard_ui_item_weight, min = 100, max = 900, sub = true)
+        fontPref = seekBar("kb_ui_font", R.string.keyboard_ui_item_size, min = 50, max = 200, sub = true)
+        keyTextColorPref = colorPref("kb_ui_col_key_text", R.string.keyboard_ui_item_colour, sub = true)
+        // Secondary character (general — the rows inherit these).
+        hintFontPref = fontEntry("kb_ui_hint_font", R.string.keyboard_ui_item_font, sub = true)
+        hintWeightPref = seekBar("kb_ui_hint_weight", R.string.keyboard_ui_item_weight, min = 100, max = 900, sub = true)
+        hintPref = seekBar("kb_ui_hint", R.string.keyboard_ui_item_size, min = 50, max = 200, sub = true)
+        hintColorPref = colorPref("kb_ui_hint_col", R.string.keyboard_ui_item_colour, sub = true)
+        // Key body.
+        keyBgColorPref = colorPref("kb_ui_col_key_bg", R.string.keyboard_ui_item_background, sub = true)
+        cornerPref = seekBar("kb_ui_corner", R.string.keyboard_ui_corner_radius, min = 0, max = 24, sub = true)
+        borderPref = seekBar("kb_ui_border", R.string.keyboard_ui_border_width, min = 0, max = 8, sub = true)
+        keyBorderColorPref = colorPref("kb_ui_col_key_border", R.string.keyboard_ui_item_border_colour, sub = true)
+        capsLockShiftColorPref = colorPref("kb_ui_col_caps_shift", R.string.keyboard_ui_item_caps_shift, sub = true)
 
-        val textCategory =
-            PreferenceCategory(context).apply {
-                key = "kb_ui_cat_text"
-                title = resources.getString(R.string.keyboard_ui_category_text)
-                layoutResource = R.layout.preference_category_kxkb
-            }
-        fontFamilyPref =
-            Preference(context).apply {
-                key = "kb_ui_font_family"
-                isPersistent = false
-                layoutResource = R.layout.preference_item_kxkb
-                title = resources.getString(R.string.keyboard_ui_font_family)
-            }
+        // --- ROWS: the horizontal bands, top to bottom — suggestion bar, then the secondary char rows. ---
+        val rowsCategory = sectionCategory("kb_ui_cat_rows", R.string.keyboard_ui_section_rows)
+        // Suggestion bar (the top-most row).
+        suggestionHeightPref = seekBar("kb_ui_sug_height", R.string.keyboard_ui_item_height, min = 50, max = 200, sub = true)
+        suggestionBgPref = colorPref("kb_ui_sug_bg", R.string.keyboard_ui_item_background, sub = true)
+        suggestionFontPref = fontEntry("kb_ui_sug_font", R.string.keyboard_ui_item_font, sub = true)
+        suggestionWeightPref = seekBar("kb_ui_sug_weight", R.string.keyboard_ui_item_weight, min = 100, max = 900, sub = true)
+        suggestionSizePref = seekBar("kb_ui_sug_size", R.string.keyboard_ui_item_size, min = 50, max = 200, sub = true)
+        suggestionColorPref = colorPref("kb_ui_sug_col", R.string.keyboard_ui_item_colour, sub = true)
+        hintTopColorPref = colorPref("kb_ui_hint_top_col", R.string.keyboard_ui_item_colour, sub = true)
+        hintTopScalePref = seekBar("kb_ui_hint_top_size", R.string.keyboard_ui_item_size, min = 50, max = 300, sub = true)
+        hintTopFontPref = fontEntry("kb_ui_hint_top_font", R.string.keyboard_ui_item_font, sub = true)
+        hintBottomColorPref = colorPref("kb_ui_hint_bot_col", R.string.keyboard_ui_item_colour, sub = true)
+        hintBottomScalePref = seekBar("kb_ui_hint_bot_size", R.string.keyboard_ui_item_size, min = 50, max = 300, sub = true)
+        hintBottomFontPref = fontEntry("kb_ui_hint_bot_font", R.string.keyboard_ui_item_font, sub = true)
 
-        val coloursCategory =
-            PreferenceCategory(context).apply {
-                key = "kb_ui_cat_colours"
-                title = resources.getString(R.string.keyboard_ui_category_colours)
-                layoutResource = R.layout.preference_category_kxkb
-            }
-        keyboardBgColorPref = colorPref("kb_ui_col_keyboard_bg", R.string.keyboard_ui_colour_keyboard_bg)
-        keyBgColorPref = colorPref("kb_ui_col_key_bg", R.string.keyboard_ui_colour_key_bg)
-        keyTextColorPref = colorPref("kb_ui_col_key_text", R.string.keyboard_ui_colour_key_text)
-        keyBorderColorPref = colorPref("kb_ui_col_key_border", R.string.keyboard_ui_colour_key_border)
+        // --- COMPASS KEYS: positions of the secondary-character rows / columns. ---
+        val compassCategory = sectionCategory("kb_ui_cat_compass", R.string.keyboard_ui_section_compass)
+        topRowPositionPref = seekBar("kb_ui_hint_top_dist", R.string.keyboard_ui_item_top_row_pos, min = 0, max = 60)
+        bottomRowPositionPref = seekBar("kb_ui_hint_bot_dist", R.string.keyboard_ui_item_bottom_row_pos, min = 0, max = 60)
+        leftColumnPositionPref = seekBar("kb_ui_hint_left_dist", R.string.keyboard_ui_item_left_col_pos, min = 0, max = 60)
+        rightColumnPositionPref = seekBar("kb_ui_hint_right_dist", R.string.keyboard_ui_item_right_col_pos, min = 0, max = 60)
+
+        // --- CLUSTER KEYS: individual main-character positions (rendered once cluster keys land). ---
+        val clusterCategory = sectionCategory("kb_ui_cat_cluster", R.string.keyboard_ui_section_cluster)
+        clusterLeftPref = seekBar("kb_ui_cluster_left", R.string.keyboard_ui_item_left_char_pos, min = 0, max = 48)
+        clusterRightPref = seekBar("kb_ui_cluster_right", R.string.keyboard_ui_item_right_char_pos, min = 0, max = 48)
 
         screen.addPreference(geometryCategory)
         geometryCategory.addPreference(geometryPref)
-        screen.addPreference(sizeCategory)
-        sizeCategory.addPreference(heightPref)
-        sizeCategory.addPreference(widthPref)
-        sizeCategory.addPreference(liftPref)
-        sizeCategory.addPreference(spacingPref)
-        screen.addPreference(textCategory)
-        textCategory.addPreference(fontPref)
-        textCategory.addPreference(hintPref)
-        textCategory.addPreference(fontFamilyPref)
+
+        screen.addPreference(keyboardCategory)
+        keyboardCategory.addPreference(heightPref)
+        keyboardCategory.addPreference(widthPref)
+        keyboardCategory.addPreference(liftPref)
+        keyboardCategory.addPreference(keyboardBgColorPref)
+        keyboardCategory.addPreference(subHeader(R.string.keyboard_ui_sub_key_spacing))
+        keyboardCategory.addPreference(spacingHPref)
+        keyboardCategory.addPreference(spacingVPref)
+
         screen.addPreference(keysCategory)
+        keysCategory.addPreference(subHeader(R.string.keyboard_ui_sub_primary))
+        keysCategory.addPreference(fontFamilyPref)
+        keysCategory.addPreference(weightPref)
+        keysCategory.addPreference(fontPref)
+        keysCategory.addPreference(keyTextColorPref)
+        keysCategory.addPreference(subHeader(R.string.keyboard_ui_sub_secondary))
+        keysCategory.addPreference(hintFontPref)
+        keysCategory.addPreference(hintWeightPref)
+        keysCategory.addPreference(hintPref)
+        keysCategory.addPreference(hintColorPref)
+        keysCategory.addPreference(subHeader(R.string.keyboard_ui_sub_key_body))
+        keysCategory.addPreference(keyBgColorPref)
         keysCategory.addPreference(cornerPref)
         keysCategory.addPreference(borderPref)
-        keysCategory.addPreference(weightPref)
-        screen.addPreference(coloursCategory)
-        coloursCategory.addPreference(keyboardBgColorPref)
-        coloursCategory.addPreference(keyBgColorPref)
-        coloursCategory.addPreference(keyTextColorPref)
-        coloursCategory.addPreference(keyBorderColorPref)
+        keysCategory.addPreference(keyBorderColorPref)
+        keysCategory.addPreference(capsLockShiftColorPref)
+
+        screen.addPreference(rowsCategory)
+        rowsCategory.addPreference(subHeader(R.string.keyboard_ui_section_suggestion))
+        rowsCategory.addPreference(suggestionHeightPref)
+        rowsCategory.addPreference(suggestionBgPref)
+        rowsCategory.addPreference(suggestionFontPref)
+        rowsCategory.addPreference(suggestionWeightPref)
+        rowsCategory.addPreference(suggestionSizePref)
+        rowsCategory.addPreference(suggestionColorPref)
+        rowsCategory.addPreference(subHeader(R.string.keyboard_ui_sub_top_row))
+        rowsCategory.addPreference(hintTopColorPref)
+        rowsCategory.addPreference(hintTopScalePref)
+        rowsCategory.addPreference(hintTopFontPref)
+        rowsCategory.addPreference(subHeader(R.string.keyboard_ui_sub_bottom_row))
+        rowsCategory.addPreference(hintBottomColorPref)
+        rowsCategory.addPreference(hintBottomScalePref)
+        rowsCategory.addPreference(hintBottomFontPref)
+
+        screen.addPreference(compassCategory)
+        compassCategory.addPreference(topRowPositionPref)
+        compassCategory.addPreference(bottomRowPositionPref)
+        compassCategory.addPreference(leftColumnPositionPref)
+        compassCategory.addPreference(rightColumnPositionPref)
+
+        screen.addPreference(clusterCategory)
+        clusterCategory.addPreference(clusterLeftPref)
+        clusterCategory.addPreference(clusterRightPref)
 
         preferenceScreen = screen
     }
 
-    private fun colorPref(prefKey: String, titleRes: Int): ColorSwatchPreference =
-        ColorSwatchPreference(preferenceManager.context).apply {
+    /** A top-level section header (big bold word-underlined heading with a full-width divider above it). */
+    private fun sectionCategory(prefKey: String, titleRes: Int): PreferenceCategory =
+        PreferenceCategory(preferenceManager.context).apply {
             key = prefKey
+            title = resources.getString(titleRes)
+            layoutResource = R.layout.preference_category_kxkb
+        }
+
+    /** A non-clickable sub-category heading (one level under a section), indented + word-underlined. */
+    private fun subHeader(titleRes: Int): Preference =
+        Preference(preferenceManager.context).apply {
             isPersistent = false
+            isSelectable = false
+            layoutResource = R.layout.preference_subcategory_kxkb
             title = resources.getString(titleRes)
         }
 
+    private fun fontEntry(prefKey: String, titleRes: Int, sub: Boolean = false): Preference =
+        Preference(preferenceManager.context).apply {
+            key = prefKey
+            isPersistent = false
+            layoutResource = itemLayout(sub)
+            title = resources.getString(titleRes)
+        }
+
+    private fun colorPref(prefKey: String, titleRes: Int, sub: Boolean = false): ColorSwatchPreference =
+        ColorSwatchPreference(preferenceManager.context).apply {
+            key = prefKey
+            isPersistent = false
+            layoutResource = itemLayout(sub)
+            title = resources.getString(titleRes)
+        }
+
+    private fun itemLayout(sub: Boolean) =
+        if (sub) R.layout.preference_item_kxkb_l2 else R.layout.preference_item_kxkb
+
     private fun hex(color: Int): String = String.format("#%08X", color)
+
+    /** Open the font picker for [current], applying the choice (or a fresh import) via [apply]. */
+    private fun showFontPicker(current: String, apply: (String) -> Unit) {
+        FontPicker.show(
+            requireContext(),
+            current,
+            onPick = apply,
+            onImport = {
+                onFontImported = apply
+                importFontLauncher.launch(arrayOf("*/*"))
+            }
+        )
+    }
 
     private fun handleFontImport(uri: Uri) {
         val name = KeyboardFonts.importFont(requireContext(), uri)
         if (name != null) {
-            viewModel.updateFontFamily(name)
+            onFontImported(name)
             Toast.makeText(
                 requireContext(),
                 getString(R.string.font_imported, name),
@@ -198,9 +313,9 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         }
     }
 
-    private fun seekBar(prefKey: String, titleRes: Int, min: Int, max: Int): SeekBarPreference =
+    private fun seekBar(prefKey: String, titleRes: Int, min: Int, max: Int, sub: Boolean = false): SeekBarPreference =
         SeekBarPreference(preferenceManager.context).apply {
-            layoutResource = R.layout.preference_seekbar_kxkb
+            layoutResource = if (sub) R.layout.preference_seekbar_kxkb_l2 else R.layout.preference_seekbar_kxkb
             key = prefKey
             isPersistent = false
             title = resources.getString(titleRes)
@@ -230,17 +345,16 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
             viewModel.updateBottomLift(newValue as Int)
             true
         }
-        spacingPref.setOnPreferenceChangeListener { _, newValue ->
-            viewModel.updateKeySpacing(newValue as Int)
+        spacingHPref.setOnPreferenceChangeListener { _, newValue ->
+            viewModel.updateKeySpacingH(newValue as Int)
+            true
+        }
+        spacingVPref.setOnPreferenceChangeListener { _, newValue ->
+            viewModel.updateKeySpacingV(newValue as Int)
             true
         }
         fontFamilyPref.setOnPreferenceClickListener {
-            FontPicker.show(
-                requireContext(),
-                viewModel.uiState.value.fontFamily,
-                onPick = { viewModel.updateFontFamily(it) },
-                onImport = { importFontLauncher.launch(arrayOf("*/*")) }
-            )
+            showFontPicker(viewModel.uiState.value.fontFamily) { viewModel.updateFontFamily(it) }
             true
         }
         keyboardBgColorPref.setOnPreferenceClickListener {
@@ -259,8 +373,24 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
             ColorPicker.show(requireContext(), viewModel.uiState.value.keyBorderColor) { viewModel.updateKeyBorderColor(it) }
             true
         }
+        capsLockShiftColorPref.setOnPreferenceClickListener {
+            ColorPicker.show(requireContext(), viewModel.uiState.value.capsLockShiftColor) { viewModel.updateCapsLockShiftColor(it) }
+            true
+        }
         hintPref.setOnPreferenceChangeListener { _, newValue ->
             viewModel.updateHintScale(newValue as Int)
+            true
+        }
+        hintFontPref.setOnPreferenceClickListener {
+            showFontPicker(viewModel.uiState.value.hintFont) { viewModel.updateHintFont(it) }
+            true
+        }
+        hintWeightPref.setOnPreferenceChangeListener { _, newValue ->
+            viewModel.updateHintWeight(newValue as Int)
+            true
+        }
+        hintColorPref.setOnPreferenceClickListener {
+            ColorPicker.show(requireContext(), viewModel.uiState.value.hintColor) { viewModel.updateHintColor(it) }
             true
         }
         fontPref.setOnPreferenceChangeListener { _, newValue ->
@@ -279,6 +409,78 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
             viewModel.updateLabelWeight(newValue as Int)
             true
         }
+        hintTopColorPref.setOnPreferenceClickListener {
+            ColorPicker.show(requireContext(), viewModel.uiState.value.hintTopColor) { viewModel.updateHintTopColor(it) }
+            true
+        }
+        hintTopScalePref.setOnPreferenceChangeListener { _, newValue ->
+            viewModel.updateHintTopScale(newValue as Int)
+            true
+        }
+        hintTopFontPref.setOnPreferenceClickListener {
+            showFontPicker(viewModel.uiState.value.hintTopFont) { viewModel.updateHintTopFont(it) }
+            true
+        }
+        hintBottomColorPref.setOnPreferenceClickListener {
+            ColorPicker.show(requireContext(), viewModel.uiState.value.hintBottomColor) { viewModel.updateHintBottomColor(it) }
+            true
+        }
+        hintBottomScalePref.setOnPreferenceChangeListener { _, newValue ->
+            viewModel.updateHintBottomScale(newValue as Int)
+            true
+        }
+        hintBottomFontPref.setOnPreferenceClickListener {
+            showFontPicker(viewModel.uiState.value.hintBottomFont) { viewModel.updateHintBottomFont(it) }
+            true
+        }
+        topRowPositionPref.setOnPreferenceChangeListener { _, newValue ->
+            viewModel.updateHintTopDistance(newValue as Int)
+            true
+        }
+        bottomRowPositionPref.setOnPreferenceChangeListener { _, newValue ->
+            viewModel.updateHintBottomDistance(newValue as Int)
+            true
+        }
+        leftColumnPositionPref.setOnPreferenceChangeListener { _, newValue ->
+            viewModel.updateHintLeftDistance(newValue as Int)
+            true
+        }
+        rightColumnPositionPref.setOnPreferenceChangeListener { _, newValue ->
+            viewModel.updateHintRightDistance(newValue as Int)
+            true
+        }
+        clusterLeftPref.setOnPreferenceChangeListener { _, newValue ->
+            viewModel.updateClusterLeft(newValue as Int)
+            true
+        }
+        clusterRightPref.setOnPreferenceChangeListener { _, newValue ->
+            viewModel.updateClusterRight(newValue as Int)
+            true
+        }
+        suggestionHeightPref.setOnPreferenceChangeListener { _, newValue ->
+            viewModel.updateSuggestionHeight(newValue as Int)
+            true
+        }
+        suggestionBgPref.setOnPreferenceClickListener {
+            ColorPicker.show(requireContext(), viewModel.uiState.value.suggestionBgColor) { viewModel.updateSuggestionBgColor(it) }
+            true
+        }
+        suggestionFontPref.setOnPreferenceClickListener {
+            showFontPicker(viewModel.uiState.value.suggestionFont) { viewModel.updateSuggestionFont(it) }
+            true
+        }
+        suggestionWeightPref.setOnPreferenceChangeListener { _, newValue ->
+            viewModel.updateSuggestionWeight(newValue as Int)
+            true
+        }
+        suggestionSizePref.setOnPreferenceChangeListener { _, newValue ->
+            viewModel.updateSuggestionSize(newValue as Int)
+            true
+        }
+        suggestionColorPref.setOnPreferenceClickListener {
+            ColorPicker.show(requireContext(), viewModel.uiState.value.suggestionColor) { viewModel.updateSuggestionColor(it) }
+            true
+        }
 
         viewModel.selectGeometry(geometryPref.value ?: defaultGeometry())
 
@@ -290,9 +492,14 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                         heightPref.value = state.keyHeightScalePct
                         widthPref.value = state.keyboardWidthPct
                         liftPref.value = state.bottomLiftDp
-                        spacingPref.value = state.keySpacingPct
+                        spacingHPref.value = state.keySpacingHPct
+                        spacingVPref.value = state.keySpacingVPct
                         fontPref.value = state.keyFontScalePct
                         hintPref.value = state.hintScalePct
+                        hintFontPref.summary = KeyboardFonts.displayName(requireContext(), state.hintFont)
+                        hintWeightPref.value = state.hintWeight
+                        hintColorPref.summary = hex(state.hintColor)
+                        hintColorPref.color = state.hintColor
                         fontFamilyPref.summary = KeyboardFonts.displayName(requireContext(), state.fontFamily)
                         keyboardBgColorPref.summary = hex(state.keyboardBgColor)
                         keyboardBgColorPref.color = state.keyboardBgColor
@@ -302,9 +509,33 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                         keyTextColorPref.color = state.keyTextColor
                         keyBorderColorPref.summary = hex(state.keyBorderColor)
                         keyBorderColorPref.color = state.keyBorderColor
+                        capsLockShiftColorPref.summary = hex(state.capsLockShiftColor)
+                        capsLockShiftColorPref.color = state.capsLockShiftColor
                         cornerPref.value = state.cornerRadiusDp
                         borderPref.value = state.keyBorderWidthDp
                         weightPref.value = state.labelWeight
+                        hintTopColorPref.summary = hex(state.hintTopColor)
+                        hintTopColorPref.color = state.hintTopColor
+                        hintTopScalePref.value = state.hintTopScalePct
+                        hintTopFontPref.summary = KeyboardFonts.displayName(requireContext(), state.hintTopFont)
+                        hintBottomColorPref.summary = hex(state.hintBottomColor)
+                        hintBottomColorPref.color = state.hintBottomColor
+                        hintBottomScalePref.value = state.hintBottomScalePct
+                        hintBottomFontPref.summary = KeyboardFonts.displayName(requireContext(), state.hintBottomFont)
+                        topRowPositionPref.value = state.hintTopDistanceDp
+                        bottomRowPositionPref.value = state.hintBottomDistanceDp
+                        leftColumnPositionPref.value = state.hintLeftDistanceDp
+                        rightColumnPositionPref.value = state.hintRightDistanceDp
+                        clusterLeftPref.value = state.clusterLeftDp
+                        clusterRightPref.value = state.clusterRightDp
+                        suggestionHeightPref.value = state.suggestionHeightPct
+                        suggestionBgPref.summary = hex(state.suggestionBgColor)
+                        suggestionBgPref.color = state.suggestionBgColor
+                        suggestionFontPref.summary = KeyboardFonts.displayName(requireContext(), state.suggestionFont)
+                        suggestionWeightPref.value = state.suggestionWeight
+                        suggestionSizePref.value = state.suggestionSizePct
+                        suggestionColorPref.summary = hex(state.suggestionColor)
+                        suggestionColorPref.color = state.suggestionColor
                     }
                 }
                 launch {

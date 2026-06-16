@@ -200,53 +200,87 @@ class KeyboardLayoutManager(
         key.downRight?.let { put("downRight", it) }
     }
 
-    /** Overlays a compass key's 8 direction labels at rest (used when the layout sets showFlickHints). */
+    /**
+     * Overlays a compass/cluster key's secondary characters at rest (when the layout sets showFlickHints),
+     * grouped into a **top row** (up / up-diagonals), a **bottom row** (down / down-diagonals) and the
+     * **side** chars (left / right) on the centre line. Each row paints with its own colour, size and font
+     * (from the per-geometry look knobs); the side chars share the top row's style.
+     */
     private fun createFlickHintsBackground(keyBackground: Drawable, key: KeyboardKey.FlickKey): Drawable {
         val labels = flickHintLabels(key)
         if (labels.isEmpty()) return keyBackground
+        val dims = adaptiveDimensions
+        val density = context.resources.displayMetrics.density
+        val baseHintPx = 9f * density * (dims?.hintScale ?: 1f)
+        // Default hint colour: the key text colour, dimmed to ~70% so hints read as secondary.
+        val dimmed = (getKeyTextColor(key) and 0x00FFFFFF) or 0xB4000000.toInt()
+        // Resolution per row: row override -> general secondary -> renderer default.
+        val generalColor = dims?.hintColor
+        val generalFont = dims?.hintFont
+        val generalWeight = dims?.hintWeight
+
+        fun rowPaint(color: Int?, scale: Float, font: String?) = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            this.color = color ?: generalColor ?: dimmed
+            textAlign = Paint.Align.CENTER
+            textSize = baseHintPx * scale
+            val family = font ?: generalFont ?: dims?.fontFamily ?: ""
+            typeface =
+                if (generalWeight != null && generalWeight > 0) {
+                    com.urik.keyboard.service.KeyboardFonts.weightedTypeface(context, family, generalWeight)
+                } else {
+                    com.urik.keyboard.service.KeyboardFonts.typeface(context, family)
+                }
+        }
+
+        val topPaint = rowPaint(dims?.hintTopColor, dims?.hintTopScale ?: 1f, dims?.hintTopFont)
+        val bottomPaint = rowPaint(dims?.hintBottomColor, dims?.hintBottomScale ?: 1f, dims?.hintBottomFont)
+        val pad = (4f * density).toInt()
         val hints = FlickHintsDrawable(
             labels,
-            getKeyTextColor(key),
-            context.resources.displayMetrics.density,
-            adaptiveDimensions?.hintScale ?: 1f
+            topPaint = topPaint,
+            bottomPaint = bottomPaint,
+            sidePaint = rowPaint(dims?.hintTopColor, dims?.hintTopScale ?: 1f, dims?.hintTopFont),
+            topMarginPx = dims?.hintTopMarginPx ?: pad,
+            bottomMarginPx = dims?.hintBottomMarginPx ?: pad,
+            leftMarginPx = dims?.hintLeftMarginPx ?: pad,
+            rightMarginPx = dims?.hintRightMarginPx ?: pad
         )
         return LayerDrawable(arrayOf(keyBackground, hints))
     }
 
     private class FlickHintsDrawable(
         private val labels: Map<String, String>,
-        color: Int,
-        density: Float,
-        hintScale: Float
+        private val topPaint: Paint,
+        private val bottomPaint: Paint,
+        private val sidePaint: Paint,
+        private val topMarginPx: Int,
+        private val bottomMarginPx: Int,
+        private val leftMarginPx: Int,
+        private val rightMarginPx: Int
     ) : Drawable() {
-        private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            this.color = color
-            textAlign = Paint.Align.CENTER
-            textSize = 9f * density * hintScale
-            alpha = 165
-        }
-        private val pad = 4f * density
-
         override fun draw(canvas: Canvas) {
             val b = bounds
             if (b.isEmpty) return
             val cx = b.exactCenterX()
-            val midY = b.exactCenterY() + paint.textSize * 0.35f
-            val topY = b.top + pad + paint.textSize
-            val botY = b.bottom - pad
-            val leftX = b.left + pad + paint.textSize * 0.55f
-            val rightX = b.right - pad - paint.textSize * 0.55f
-            fun t(k: String, x: Float, y: Float) {
-                labels[k]?.let { canvas.drawText(it, x, y, paint) }
+            val topY = b.top + topMarginPx + topPaint.textSize
+            val botY = (b.bottom - bottomMarginPx).toFloat()
+            val midY = b.exactCenterY() + sidePaint.textSize * 0.35f
+            fun leftX(p: Paint) = b.left + leftMarginPx + p.textSize * 0.55f
+            fun rightX(p: Paint) = b.right - rightMarginPx - p.textSize * 0.55f
+            fun t(k: String, x: Float, y: Float, p: Paint) {
+                labels[k]?.let { canvas.drawText(it, x, y, p) }
             }
-            t("up", cx, topY)
-            t("down", cx, botY)
-            t("left", leftX, midY)
-            t("right", rightX, midY)
-            t("upLeft", leftX, topY)
-            t("upRight", rightX, topY)
-            t("downLeft", leftX, botY)
-            t("downRight", rightX, botY)
+            // Top row.
+            t("up", cx, topY, topPaint)
+            t("upLeft", leftX(topPaint), topY, topPaint)
+            t("upRight", rightX(topPaint), topY, topPaint)
+            // Bottom row.
+            t("down", cx, botY, bottomPaint)
+            t("downLeft", leftX(bottomPaint), botY, bottomPaint)
+            t("downRight", rightX(bottomPaint), botY, bottomPaint)
+            // Sides (centre line).
+            t("left", leftX(sidePaint), midY, sidePaint)
+            t("right", rightX(sidePaint), midY, sidePaint)
         }
 
         override fun setAlpha(alpha: Int) {}
@@ -641,7 +675,8 @@ class KeyboardLayoutManager(
                 mode = layout.mode,
                 rows = processedRows,
                 isRTL = layout.isRTL,
-                script = layout.script
+                script = layout.script,
+                showFlickHints = layout.showFlickHints
             )
 
         val keyboardContainer =
@@ -1116,7 +1151,13 @@ class KeyboardLayoutManager(
                     val keyBackground = getKeyBackground(key)
                     val iconDrawable = ContextCompat.getDrawable(context, iconRes)
 
-                    iconDrawable?.setTint(getKeyTextColor(key))
+                    val iconTint =
+                        if (key.action == KeyboardKey.ActionType.SHIFT && state.isCapsLockOn) {
+                            adaptiveDimensions?.capsLockShiftColor ?: getKeyTextColor(key)
+                        } else {
+                            getKeyTextColor(key)
+                        }
+                    iconDrawable?.setTint(iconTint)
 
                     val baseLayer = LayerDrawable(arrayOf(keyBackground, iconDrawable)).apply {
                         setLayerInset(1, 12, 12, 12, 12)

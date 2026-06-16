@@ -63,13 +63,21 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
 
     fun updateHeightScale(pct: Int) = persist(current.copy(keyHeightScale = pct / 100f))
 
-    fun updateKeySpacing(pct: Int) = persist(current.copy(keySpacingScale = pct / 100f))
+    fun updateKeySpacingH(pct: Int) = persist(current.copy(keySpacingHScale = pct / 100f))
+
+    fun updateKeySpacingV(pct: Int) = persist(current.copy(keySpacingVScale = pct / 100f))
 
     fun updateWidth(pct: Int) = persist(current.copy(keyboardWidthScale = pct / 100f))
 
     fun updateBottomLift(dp: Int) = persist(current.copy(bottomLiftDp = dp.toFloat()))
 
     fun updateHintScale(pct: Int) = persist(current.copy(hintScale = pct / 100f))
+
+    fun updateHintColor(c: Int) = persist(current.copy(hintColor = c))
+
+    fun updateHintFont(family: String) = persist(current.copy(hintFont = family))
+
+    fun updateHintWeight(w: Int) = persist(current.copy(hintWeight = w))
 
     fun updateFontFamily(family: String) = persist(current.copy(fontFamily = family))
 
@@ -81,7 +89,45 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
 
     fun updateKeyBorderColor(c: Int) = persist(current.copy(keyBorderColor = c))
 
+    fun updateCapsLockShiftColor(c: Int) = persist(current.copy(capsLockShiftColor = c))
+
     fun updateLabelWeight(w: Int) = persist(current.copy(labelWeight = w))
+
+    fun updateHintTopColor(c: Int) = persist(current.copy(hintTopColor = c))
+
+    fun updateHintTopScale(pct: Int) = persist(current.copy(hintTopScale = pct / 100f))
+
+    fun updateHintTopFont(family: String) = persist(current.copy(hintTopFont = family))
+
+    fun updateHintTopDistance(dp: Int) = persist(current.copy(hintTopMarginDp = dp.toFloat()))
+
+    fun updateHintBottomColor(c: Int) = persist(current.copy(hintBottomColor = c))
+
+    fun updateHintBottomScale(pct: Int) = persist(current.copy(hintBottomScale = pct / 100f))
+
+    fun updateHintBottomFont(family: String) = persist(current.copy(hintBottomFont = family))
+
+    fun updateHintBottomDistance(dp: Int) = persist(current.copy(hintBottomMarginDp = dp.toFloat()))
+
+    fun updateHintLeftDistance(dp: Int) = persist(current.copy(hintLeftMarginDp = dp.toFloat()))
+
+    fun updateHintRightDistance(dp: Int) = persist(current.copy(hintRightMarginDp = dp.toFloat()))
+
+    fun updateClusterLeft(dp: Int) = persist(current.copy(clusterLeftOffsetDp = dp.toFloat()))
+
+    fun updateClusterRight(dp: Int) = persist(current.copy(clusterRightOffsetDp = dp.toFloat()))
+
+    fun updateSuggestionHeight(pct: Int) = persist(current.copy(suggestionBarHeightScale = pct / 100f))
+
+    fun updateSuggestionBgColor(c: Int) = persist(current.copy(suggestionBgColor = c))
+
+    fun updateSuggestionFont(family: String) = persist(current.copy(suggestionFont = family))
+
+    fun updateSuggestionWeight(w: Int) = persist(current.copy(suggestionWeight = w))
+
+    fun updateSuggestionSize(pct: Int) = persist(current.copy(suggestionTextScale = pct / 100f))
+
+    fun updateSuggestionColor(c: Int) = persist(current.copy(suggestionColor = c))
 
     private fun persist(updated: KeyboardLookKnobs) {
         val geometry = _uiState.value.geometry
@@ -101,16 +147,39 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
         boldKeyLabels = boldKeyLabels ?: true,
         keyFontScalePct = ((keyFontScale ?: 1f) * 100).toInt(),
         keyHeightScalePct = ((keyHeightScale ?: 1f) * 100).toInt(),
-        keySpacingPct = ((keySpacingScale ?: 1f) * 100).toInt(),
+        keySpacingHPct = ((keySpacingHScale ?: 1f) * 100).toInt(),
+        keySpacingVPct = ((keySpacingVScale ?: 1f) * 100).toInt(),
         keyboardWidthPct = ((keyboardWidthScale ?: 1f) * 100).toInt(),
         bottomLiftDp = (bottomLiftDp ?: 0f).toInt(),
         hintScalePct = ((hintScale ?: 1f) * 100).toInt(),
+        hintColor = hintColor ?: DEFAULT_HINT,
+        hintFont = hintFont ?: "",
+        hintWeight = hintWeight ?: 400,
         fontFamily = fontFamily ?: "",
         keyboardBgColor = keyboardBgColor ?: DEFAULT_KEYBOARD_BG,
         keyBgColor = keyBgColor ?: DEFAULT_KEY_BG,
         keyTextColor = keyTextColor ?: DEFAULT_KEY_TEXT,
         keyBorderColor = keyBorderColor ?: DEFAULT_KEY_BORDER,
-        labelWeight = labelWeight ?: if (boldKeyLabels == false) 400 else 700
+        capsLockShiftColor = capsLockShiftColor ?: DEFAULT_KEY_TEXT,
+        labelWeight = labelWeight ?: if (boldKeyLabels == false) 400 else 700,
+        hintTopColor = hintTopColor ?: DEFAULT_KEY_TEXT,
+        hintTopScalePct = ((hintTopScale ?: 1f) * 100).toInt(),
+        hintTopFont = hintTopFont ?: "",
+        hintTopDistanceDp = (hintTopMarginDp ?: 4f).toInt(),
+        hintBottomColor = hintBottomColor ?: DEFAULT_KEY_TEXT,
+        hintBottomScalePct = ((hintBottomScale ?: 1f) * 100).toInt(),
+        hintBottomFont = hintBottomFont ?: "",
+        hintBottomDistanceDp = (hintBottomMarginDp ?: 4f).toInt(),
+        hintLeftDistanceDp = (hintLeftMarginDp ?: 4f).toInt(),
+        hintRightDistanceDp = (hintRightMarginDp ?: 4f).toInt(),
+        clusterLeftDp = (clusterLeftOffsetDp ?: 0f).toInt(),
+        clusterRightDp = (clusterRightOffsetDp ?: 0f).toInt(),
+        suggestionHeightPct = ((suggestionBarHeightScale ?: 1f) * 100).toInt(),
+        suggestionBgColor = suggestionBgColor ?: DEFAULT_KEYBOARD_BG,
+        suggestionFont = suggestionFont ?: "",
+        suggestionWeight = suggestionWeight ?: 400,
+        suggestionSizePct = ((suggestionTextScale ?: 1f) * 100).toInt(),
+        suggestionColor = suggestionColor ?: DEFAULT_KEY_TEXT
     )
 
     companion object {
@@ -119,6 +188,9 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
         const val DEFAULT_KEY_BG = 0xFF000000.toInt()
         const val DEFAULT_KEY_TEXT = 0xFFFFFF00.toInt()
         const val DEFAULT_KEY_BORDER = 0xFFFFFF00.toInt()
+
+        // Secondary chars default to the key text colour dimmed to ~70% (matches the renderer fallback).
+        const val DEFAULT_HINT = 0xB4FFFF00.toInt()
     }
 }
 
@@ -129,14 +201,37 @@ data class KeyboardUiUiState(
     val boldKeyLabels: Boolean = true,
     val keyFontScalePct: Int = 100,
     val keyHeightScalePct: Int = 100,
-    val keySpacingPct: Int = 100,
+    val keySpacingHPct: Int = 100,
+    val keySpacingVPct: Int = 100,
     val keyboardWidthPct: Int = 100,
     val bottomLiftDp: Int = 0,
     val hintScalePct: Int = 100,
+    val hintColor: Int = 0xB4FFFF00.toInt(),
+    val hintFont: String = "",
+    val hintWeight: Int = 400,
     val fontFamily: String = "",
     val keyboardBgColor: Int = 0xFF000000.toInt(),
     val keyBgColor: Int = 0xFF000000.toInt(),
     val keyTextColor: Int = 0xFFFFFF00.toInt(),
     val keyBorderColor: Int = 0xFFFFFF00.toInt(),
-    val labelWeight: Int = 700
+    val capsLockShiftColor: Int = 0xFFFFFF00.toInt(),
+    val labelWeight: Int = 700,
+    val hintTopColor: Int = 0xFFFFFF00.toInt(),
+    val hintTopScalePct: Int = 100,
+    val hintTopFont: String = "",
+    val hintTopDistanceDp: Int = 4,
+    val hintBottomColor: Int = 0xFFFFFF00.toInt(),
+    val hintBottomScalePct: Int = 100,
+    val hintBottomFont: String = "",
+    val hintBottomDistanceDp: Int = 4,
+    val hintLeftDistanceDp: Int = 4,
+    val hintRightDistanceDp: Int = 4,
+    val clusterLeftDp: Int = 0,
+    val clusterRightDp: Int = 0,
+    val suggestionHeightPct: Int = 100,
+    val suggestionBgColor: Int = 0xFF000000.toInt(),
+    val suggestionFont: String = "",
+    val suggestionWeight: Int = 400,
+    val suggestionSizePct: Int = 100,
+    val suggestionColor: Int = 0xFFFFFF00.toInt()
 )

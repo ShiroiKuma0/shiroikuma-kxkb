@@ -27,13 +27,36 @@ data class AdaptiveDimensions(
     val boldKeyLabels: Boolean = false,
     val keyFontScale: Float = 1f,
     val hintScale: Float = 1f,
+    val hintColor: Int? = null,
+    val hintFont: String? = null,
+    val hintWeight: Int? = null,
     val fontFamily: String? = null,
     // Per-geometry colour overrides (ARGB Int; null = use the active theme's colour).
     val keyboardBgColor: Int? = null,
     val keyBgColor: Int? = null,
     val keyTextColor: Int? = null,
     val keyBorderColor: Int? = null,
-    val labelWeight: Int? = null
+    val capsLockShiftColor: Int? = null,
+    val labelWeight: Int? = null,
+    // Secondary-character row overrides (compass/cluster flick hints). null/default = renderer default.
+    val hintTopColor: Int? = null,
+    val hintTopScale: Float = 1f,
+    val hintTopFont: String? = null,
+    val hintTopMarginPx: Int? = null,
+    val hintBottomColor: Int? = null,
+    val hintBottomScale: Float = 1f,
+    val hintBottomFont: String? = null,
+    val hintBottomMarginPx: Int? = null,
+    val hintLeftMarginPx: Int? = null,
+    val hintRightMarginPx: Int? = null,
+    val clusterLeftOffsetPx: Int? = null,
+    val clusterRightOffsetPx: Int? = null,
+    // Suggestion / candidate bar overrides (height reuses suggestionBarHeightPx, scaled in applyTo).
+    val suggestionBgColor: Int? = null,
+    val suggestionFont: String? = null,
+    val suggestionWeight: Int? = null,
+    val suggestionTextScale: Float = 1f,
+    val suggestionColor: Int? = null
 ) {
     companion object {
         private const val BASE_KEY_HEIGHT_DP = 40f

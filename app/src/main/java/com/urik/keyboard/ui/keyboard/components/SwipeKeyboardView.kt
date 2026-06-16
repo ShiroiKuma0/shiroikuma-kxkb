@@ -1030,13 +1030,15 @@ constructor(
         val cellWidth =
             (barWidth - emojiWidth - suggestionDividerWidth * (capped.size - 1).coerceAtLeast(0)) / capped.size
 
-        val suggestionTextColor = themeManager!!.currentTheme.value.colors.suggestionText
+        val suggestionTextColor =
+            adaptiveDimensions?.suggestionColor ?: themeManager!!.currentTheme.value.colors.suggestionText
+        val suggestionScale = adaptiveDimensions?.suggestionTextScale ?: 1f
         capped.forEachIndexed { index, suggestion ->
             if (isDestroyed) return@forEachIndexed
 
             val btn = getOrCreateSuggestionView()
 
-            btn.setTextSize(TypedValue.COMPLEX_UNIT_SP, suggestionTextSizeSp)
+            btn.setTextSize(TypedValue.COMPLEX_UNIT_SP, suggestionTextSizeSp * suggestionScale)
             btn.setTextColor(suggestionTextColor)
 
             btn.textDirection =
@@ -1048,7 +1050,15 @@ constructor(
 
             btn.maxLines = 1
             btn.isSingleLine = true
-            btn.typeface = android.graphics.Typeface.DEFAULT
+            btn.typeface = run {
+                val family = adaptiveDimensions?.suggestionFont ?: ""
+                val weight = adaptiveDimensions?.suggestionWeight
+                if (weight != null && weight > 0) {
+                    com.urik.keyboard.service.KeyboardFonts.weightedTypeface(context, family, weight)
+                } else {
+                    com.urik.keyboard.service.KeyboardFonts.typeface(context, family)
+                }
+            }
 
             btn.contentDescription = context.getString(R.string.ime_prediction_description, suggestion)
 
@@ -1629,8 +1639,8 @@ constructor(
                     val minTouchTarget = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
                     minimumHeight = minTouchTarget
                     setBackgroundColor(
-                        themeManager!!
-                            .currentTheme.value.colors.suggestionBarBackground
+                        adaptiveDimensions?.suggestionBgColor
+                            ?: themeManager!!.currentTheme.value.colors.suggestionBarBackground
                     )
 
                     emojiButton =
