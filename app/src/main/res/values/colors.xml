@@ -11,16 +11,18 @@
     <!-- ============================================ -->
     <!-- SURFACE COLORS (inverted hierarchy) -->
     <!-- ============================================ -->
-    <color name="surface_primary">@color/delft_blue</color>
-    <color name="surface_secondary">@color/wenge</color>
-    <color name="surface_background">#2a2d3e</color>
+    <!-- App-shell chrome (MainActivity / About / feature sheet) — now black/yellow (kxkb).
+         The live keyboard is themed separately via ThemeColors, so these don't affect it. -->
+    <color name="surface_primary">@color/kxkb_black</color>
+    <color name="surface_secondary">@color/kxkb_surface_dark</color>
+    <color name="surface_background">@color/kxkb_black</color>
 
     <!-- ============================================ -->
-    <!-- CONTENT COLORS (light text on dark) -->
+    <!-- CONTENT COLORS (yellow text on black) -->
     <!-- ============================================ -->
-    <color name="content_primary">@color/sage</color>
-    <color name="content_secondary">@color/light_orange</color>
-    <color name="content_on_accent">#FFFFFF</color>
+    <color name="content_primary">@color/kxkb_yellow</color>
+    <color name="content_secondary">@color/kxkb_yellow_dim</color>
+    <color name="content_on_accent">@color/kxkb_black</color>
 
     <!-- ============================================ -->
     <!-- INTERACTIVE STATES -->
@@ -53,4 +55,12 @@
     <!-- ============================================ -->
     <!-- LEGACY COMPATIBILITY -->
     <!-- ============================================ -->
+
+    <!-- ============================================ -->
+    <!-- 白い熊 kxkb black/yellow app-shell palette (Settings, menus, dialogs) -->
+    <!-- ============================================ -->
+    <color name="kxkb_black">#000000</color>
+    <color name="kxkb_yellow">#FFFF00</color>
+    <color name="kxkb_yellow_dim">#C8C800</color>
+    <color name="kxkb_surface_dark">#0A0A00</color>
 </resources>

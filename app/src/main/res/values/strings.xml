@@ -75,7 +75,7 @@
     <string name="appearance_settings_press_highlight_on">Visual feedback shown</string>
     <string name="appearance_settings_press_highlight_off">Visual feedback hidden</string>
 
-    <string name="keyboard_ui_settings_title">Keyboard UI</string>
+    <string name="keyboard_ui_settings_title">白い熊 kxkb UI</string>
     <string name="keyboard_ui_settings_description">Per-geometry size &amp; look</string>
     <string name="keyboard_ui_geometry">Geometry</string>
     <string name="keyboard_ui_geometry_folded_port">Folded · Portrait</string>
@@ -84,6 +84,7 @@
     <string name="keyboard_ui_geometry_semi_land">Semi-folded · Landscape</string>
     <string name="keyboard_ui_geometry_unfolded_port">Unfolded · Portrait</string>
     <string name="keyboard_ui_geometry_unfolded_land">Unfolded · Landscape</string>
+    <string name="keyboard_ui_category_geometry">Geometry</string>
     <string name="keyboard_ui_category_size">Size</string>
     <string name="keyboard_ui_category_keys">Keys</string>
     <string name="keyboard_ui_key_height">Key height (%)</string>

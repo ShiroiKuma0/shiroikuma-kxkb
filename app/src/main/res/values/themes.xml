@@ -1,28 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- 白い熊 kxkb app shell: black background, yellow text, yellow accents/borders everywhere
+         (Settings, menus, dialogs). The keyboard itself is themed separately via HighContrastYellow. -->
     <style name="Theme.Urik" parent="Theme.Material3.Dark">
-        <item name="colorPrimary">@color/sage</item>
-        <item name="colorOnPrimary">@color/content_on_accent</item>
-        <item name="colorPrimaryContainer">@color/light_orange</item>
-        <item name="colorOnPrimaryContainer">@color/wenge</item>
+        <item name="colorPrimary">@color/kxkb_yellow</item>
+        <item name="colorOnPrimary">@color/kxkb_black</item>
+        <item name="colorPrimaryContainer">@color/kxkb_surface_dark</item>
+        <item name="colorOnPrimaryContainer">@color/kxkb_yellow</item>
 
-        <item name="colorSecondary">@color/battleship_gray</item>
-        <item name="colorOnSecondary">@color/content_on_accent</item>
-        <item name="colorSecondaryContainer">@color/sage</item>
-        <item name="colorOnSecondaryContainer">@color/wenge</item>
+        <item name="colorSecondary">@color/kxkb_yellow</item>
+        <item name="colorOnSecondary">@color/kxkb_black</item>
+        <item name="colorSecondaryContainer">@color/kxkb_surface_dark</item>
+        <item name="colorOnSecondaryContainer">@color/kxkb_yellow</item>
 
-        <item name="colorTertiary">@color/delft_blue</item>
-        <item name="colorOnTertiary">@color/content_on_accent</item>
+        <item name="colorTertiary">@color/kxkb_yellow</item>
+        <item name="colorOnTertiary">@color/kxkb_black</item>
 
-        <item name="colorSurface">@color/surface_primary</item>
-        <item name="colorOnSurface">@color/content_primary</item>
-        <item name="colorSurfaceVariant">@color/surface_secondary</item>
-        <item name="colorOnSurfaceVariant">@color/content_secondary</item>
+        <item name="colorSurface">@color/kxkb_black</item>
+        <item name="colorOnSurface">@color/kxkb_yellow</item>
+        <item name="colorSurfaceVariant">@color/kxkb_surface_dark</item>
+        <item name="colorOnSurfaceVariant">@color/kxkb_yellow_dim</item>
+        <item name="colorSurfaceContainer">@color/kxkb_black</item>
+        <item name="colorSurfaceContainerHigh">@color/kxkb_surface_dark</item>
+        <item name="colorSurfaceContainerHighest">@color/kxkb_surface_dark</item>
 
-        <item name="colorOutline">@color/key_border</item>
-        <item name="colorOutlineVariant">@color/battleship_gray</item>
+        <item name="colorOutline">@color/kxkb_yellow</item>
+        <item name="colorOutlineVariant">@color/kxkb_yellow_dim</item>
+        <item name="colorControlNormal">@color/kxkb_yellow</item>
 
-        <item name="android:windowBackground">@color/keyboard_background</item>
+        <item name="android:windowBackground">@color/kxkb_black</item>
+        <item name="android:colorBackground">@color/kxkb_black</item>
+        <item name="android:textColorPrimary">@color/kxkb_yellow</item>
+        <item name="android:textColorSecondary">@color/kxkb_yellow_dim</item>
+        <item name="android:textColorTertiary">@color/kxkb_yellow_dim</item>
     </style>
 
     <style name="Theme.Urik.NoActionBar" parent="Theme.Urik">

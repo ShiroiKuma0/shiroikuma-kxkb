@@ -242,8 +242,10 @@ class MainActivity : AppCompatActivity() {
                 val buttonPadding = dpToPx(16)
                 setPadding(buttonPadding, buttonPadding, buttonPadding, buttonPadding)
 
-                setBackgroundColor(ContextCompat.getColor(context, R.color.key_background_action))
-                setTextColor(ContextCompat.getColor(context, R.color.content_primary))
+                backgroundTintList = ContextCompat.getColorStateList(context, R.color.kxkb_black)
+                strokeColor = ContextCompat.getColorStateList(context, R.color.kxkb_yellow)
+                strokeWidth = dpToPx(2)
+                setTextColor(ContextCompat.getColor(context, R.color.kxkb_yellow))
 
                 setOnClickListener {
                     openKeyboardSettings()
@@ -256,8 +258,10 @@ class MainActivity : AppCompatActivity() {
                 val buttonPadding = dpToPx(16)
                 setPadding(buttonPadding, buttonPadding, buttonPadding, buttonPadding)
 
-                setBackgroundColor(ContextCompat.getColor(context, R.color.key_background_character))
-                setTextColor(ContextCompat.getColor(context, R.color.content_primary))
+                backgroundTintList = ContextCompat.getColorStateList(context, R.color.kxkb_black)
+                strokeColor = ContextCompat.getColorStateList(context, R.color.kxkb_yellow)
+                strokeWidth = dpToPx(2)
+                setTextColor(ContextCompat.getColor(context, R.color.kxkb_yellow))
 
                 setOnClickListener {
                     val intent = SettingsActivity.createIntent(context)
@@ -271,8 +275,10 @@ class MainActivity : AppCompatActivity() {
                 val buttonPadding = dpToPx(16)
                 setPadding(buttonPadding, buttonPadding, buttonPadding, buttonPadding)
 
-                setBackgroundColor(ContextCompat.getColor(context, R.color.key_background_character))
-                setTextColor(ContextCompat.getColor(context, R.color.content_primary))
+                backgroundTintList = ContextCompat.getColorStateList(context, R.color.kxkb_black)
+                strokeColor = ContextCompat.getColorStateList(context, R.color.kxkb_yellow)
+                strokeWidth = dpToPx(2)
+                setTextColor(ContextCompat.getColor(context, R.color.kxkb_yellow))
 
                 setOnClickListener {
                     val intent = Intent(context, com.urik.keyboard.settings.AboutActivity::class.java)

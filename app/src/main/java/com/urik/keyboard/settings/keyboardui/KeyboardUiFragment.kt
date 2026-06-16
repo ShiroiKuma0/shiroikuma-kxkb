@@ -62,10 +62,18 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
 
         eventHandler = SettingsEventHandler(requireContext())
 
+        val geometryCategory =
+            PreferenceCategory(context).apply {
+                key = "kb_ui_cat_geometry"
+                title = resources.getString(R.string.keyboard_ui_category_geometry)
+                layoutResource = R.layout.preference_category_kxkb_first
+            }
+
         geometryPref =
             ListPreference(context).apply {
                 key = "kb_ui_geometry"
                 isPersistent = false
+                layoutResource = R.layout.preference_item_kxkb
                 title = resources.getString(R.string.keyboard_ui_geometry)
                 entries =
                     arrayOf(
@@ -85,6 +93,7 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
             PreferenceCategory(context).apply {
                 key = "kb_ui_cat_size"
                 title = resources.getString(R.string.keyboard_ui_category_size)
+                layoutResource = R.layout.preference_category_kxkb
             }
         heightPref = seekBar("kb_ui_height", R.string.keyboard_ui_key_height, min = 50, max = 200)
         widthPref = seekBar("kb_ui_width", R.string.keyboard_ui_width, min = 50, max = 100)
@@ -97,6 +106,7 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
             PreferenceCategory(context).apply {
                 key = "kb_ui_cat_keys"
                 title = resources.getString(R.string.keyboard_ui_category_keys)
+                layoutResource = R.layout.preference_category_kxkb
             }
         cornerPref = seekBar("kb_ui_corner", R.string.keyboard_ui_corner_radius, min = 0, max = 24)
         borderPref = seekBar("kb_ui_border", R.string.keyboard_ui_border_width, min = 0, max = 8)
@@ -104,12 +114,14 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
             SwitchPreferenceCompat(context).apply {
                 key = "kb_ui_bold"
                 isPersistent = false
+                layoutResource = R.layout.preference_item_kxkb
                 title = resources.getString(R.string.keyboard_ui_bold_labels)
                 summaryOn = resources.getString(R.string.keyboard_ui_bold_labels_on)
                 summaryOff = resources.getString(R.string.keyboard_ui_bold_labels_off)
             }
 
-        screen.addPreference(geometryPref)
+        screen.addPreference(geometryCategory)
+        geometryCategory.addPreference(geometryPref)
         screen.addPreference(sizeCategory)
         sizeCategory.addPreference(heightPref)
         sizeCategory.addPreference(widthPref)
@@ -127,6 +139,7 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
 
     private fun seekBar(prefKey: String, titleRes: Int, min: Int, max: Int): SeekBarPreference =
         SeekBarPreference(preferenceManager.context).apply {
+            layoutResource = R.layout.preference_seekbar_kxkb
             key = prefKey
             isPersistent = false
             title = resources.getString(titleRes)
