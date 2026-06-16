@@ -75,6 +75,27 @@
     <string name="appearance_settings_press_highlight_on">Visual feedback shown</string>
     <string name="appearance_settings_press_highlight_off">Visual feedback hidden</string>
 
+    <string name="keyboard_ui_settings_title">Keyboard UI</string>
+    <string name="keyboard_ui_settings_description">Per-geometry size &amp; look</string>
+    <string name="keyboard_ui_geometry">Geometry</string>
+    <string name="keyboard_ui_geometry_folded_port">Folded · Portrait</string>
+    <string name="keyboard_ui_geometry_folded_land">Folded · Landscape</string>
+    <string name="keyboard_ui_geometry_semi_port">Semi-folded · Portrait</string>
+    <string name="keyboard_ui_geometry_semi_land">Semi-folded · Landscape</string>
+    <string name="keyboard_ui_geometry_unfolded_port">Unfolded · Portrait</string>
+    <string name="keyboard_ui_geometry_unfolded_land">Unfolded · Landscape</string>
+    <string name="keyboard_ui_category_size">Size</string>
+    <string name="keyboard_ui_category_keys">Keys</string>
+    <string name="keyboard_ui_key_height">Key height (%)</string>
+    <string name="keyboard_ui_key_spacing">Key spacing (%)</string>
+    <string name="keyboard_ui_font_scale">Label size (%)</string>
+    <string name="keyboard_ui_corner_radius">Corner radius (dp)</string>
+    <string name="keyboard_ui_border_width">Border width (dp)</string>
+    <string name="keyboard_ui_bold_labels">Bold labels</string>
+    <string name="keyboard_ui_bold_labels_on">Bold key labels</string>
+    <string name="keyboard_ui_bold_labels_off">Normal key labels</string>
+    <string name="error_update_keyboard_ui">Failed to update keyboard UI</string>
+
     <!-- Auto-Correct Settings -->
     <string name="autocorrect_settings_spell_check">Spell Check</string>
     <string name="autocorrect_settings_spell_check_on">Spell check enabled</string>

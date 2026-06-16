@@ -3,6 +3,10 @@ package com.urik.keyboard.service
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Rect
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import androidx.annotation.VisibleForTesting
 import androidx.window.layout.FoldingFeature
 import androidx.window.layout.WindowInfoTracker
@@ -28,6 +32,18 @@ enum class DevicePosture {
     HALF_OPENED
 }
 
+/**
+ * The device's discrete fold state. On a tri-fold (白い熊's Mate XT) Jetpack's [FoldingFeature] is absent
+ * and its single `hinge_angle` sensor can't tell semi-folded from unfolded — so this is derived from the
+ * Huawei HALL sensor (its `values[0]` bitmask: popcount = number of closed hinges) or, where there is no
+ * HALL sensor, from screen-area tiers. A non-foldable phone is always [FOLDED] (its one screen).
+ */
+enum class FoldState {
+    FOLDED,
+    SEMI_FOLDED,
+    UNFOLDED
+}
+
 data class PostureInfo(
     val sizeClass: DeviceSizeClass,
     val posture: DevicePosture,
@@ -35,7 +51,8 @@ data class PostureInfo(
     val screenWidthPx: Int,
     val screenHeightPx: Int,
     val isTablet: Boolean = false,
-    val orientation: Int = Configuration.ORIENTATION_PORTRAIT
+    val orientation: Int = Configuration.ORIENTATION_PORTRAIT,
+    val foldState: FoldState = FoldState.FOLDED
 )
 
 class PostureDetector(private val context: Context, private val scope: CoroutineScope) {
@@ -49,8 +66,75 @@ class PostureDetector(private val context: Context, private val scope: Coroutine
     private var debounceJob: Job? = null
     private var fallbackJob: Job? = null
 
+    private val sensorManager: SensorManager? by lazy {
+        context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+    }
+    // The Huawei HALL sensor (no permission); null on devices without it (→ screen-area fallback).
+    private val hallSensor: Sensor? by lazy {
+        sensorManager?.getSensorList(Sensor.TYPE_ALL)?.firstOrNull { it.stringType == "android.sensor.hall" }
+    }
+    @Volatile private var lastHallValue: Int? = null
+    private var hallRegistered = false
+    private val hallListener =
+        object : SensorEventListener {
+            override fun onSensorChanged(event: SensorEvent) {
+                val value = event.values.firstOrNull()?.toInt() ?: return
+                if (value == lastHallValue) return
+                lastHallValue = value
+                // The fold changed — re-emit posture immediately so the geometry follows live, even if
+                // the IME never receives an onConfigurationChanged for the fold.
+                _postureInfo.value = getCurrentPostureInfo()
+            }
+
+            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+        }
+
+    private fun registerHallListener() {
+        if (hallRegistered) return
+        val sm = sensorManager ?: return
+        val sensor = hallSensor ?: return
+        try {
+            sm.registerListener(hallListener, sensor, SensorManager.SENSOR_DELAY_NORMAL)
+            hallRegistered = true
+        } catch (e: Exception) {
+            // best-effort; falls back to screen-area classification
+        }
+    }
+
+    private fun unregisterHallListener() {
+        if (!hallRegistered) return
+        try {
+            sensorManager?.unregisterListener(hallListener)
+        } catch (e: Exception) {
+            // ignore
+        }
+        hallRegistered = false
+    }
+
+    /**
+     * Classify the fold state. Prefer the HALL bitmask (popcount = closed hinges: 2→folded, 1→semi,
+     * 0→unfolded — race-free, the code rides the event); fall back to screen-area tiers (calibrated to
+     * the Mate XT but sensible as size tiers anywhere) where there's no HALL sensor.
+     */
+    private fun classifyFold(widthDp: Int, heightDp: Int): FoldState {
+        lastHallValue?.let { hall ->
+            return when (Integer.bitCount(hall)) {
+                0 -> FoldState.UNFOLDED
+                1 -> FoldState.SEMI_FOLDED
+                else -> FoldState.FOLDED
+            }
+        }
+        val areaKDp2 = (widthDp.toLong() * heightDp.toLong()) / 1000
+        return when {
+            areaKDp2 < AREA_FOLDED_MAX_KDP2 -> FoldState.FOLDED
+            areaKDp2 < AREA_SEMI_MAX_KDP2 -> FoldState.SEMI_FOLDED
+            else -> FoldState.UNFOLDED
+        }
+    }
+
     fun attachToWindow(windowCtx: Context) {
         windowContext = windowCtx
+        registerHallListener()
         _postureInfo.value = getCurrentPostureInfo()
         try {
             windowInfoTracker = WindowInfoTracker.getOrCreate(windowCtx)
@@ -69,6 +153,7 @@ class PostureDetector(private val context: Context, private val scope: Coroutine
     }
 
     fun start() {
+        registerHallListener()
         ensureFallbackPolling()
     }
 
@@ -115,6 +200,7 @@ class PostureDetector(private val context: Context, private val scope: Coroutine
         debounceJob = null
         windowInfoTracker = null
         windowContext = null
+        unregisterHallListener()
     }
 
     @VisibleForTesting
@@ -163,7 +249,8 @@ class PostureDetector(private val context: Context, private val scope: Coroutine
                 screenWidthPx = widthPx,
                 screenHeightPx = heightPx,
                 isTablet = isTablet,
-                orientation = effectiveContext.resources.configuration.orientation
+                orientation = effectiveContext.resources.configuration.orientation,
+                foldState = classifyFold(widthDp, heightDp)
             )
     }
 
@@ -193,7 +280,8 @@ class PostureDetector(private val context: Context, private val scope: Coroutine
             screenWidthPx = widthPx,
             screenHeightPx = heightPx,
             isTablet = isTablet,
-            orientation = ctx.resources.configuration.orientation
+            orientation = ctx.resources.configuration.orientation,
+            foldState = classifyFold(widthDp, heightDp)
         )
     }
 
@@ -203,5 +291,10 @@ class PostureDetector(private val context: Context, private val scope: Coroutine
         const val COMPACT_WIDTH_DP = 600
         const val MEDIUM_WIDTH_DP = 840
         const val TABLET_SMALLEST_WIDTH_DP = 600
+
+        // Screen-area fold tiers in 1000·dp² (fallback when there's no HALL sensor). Calibrated to the
+        // Mate XT: folded ≈378, semi ≈769, unfolded ≈1196 — thresholds sit in the wide gaps between.
+        const val AREA_FOLDED_MAX_KDP2 = 570L
+        const val AREA_SEMI_MAX_KDP2 = 980L
     }
 }

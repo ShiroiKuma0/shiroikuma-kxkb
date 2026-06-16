@@ -13,6 +13,10 @@ class SettingsEventHandler(private val context: Context) {
                     context.getString(R.string.error_update_key_size)
                 }
 
+                is SettingsEvent.Error.KeyboardUiUpdateFailed -> {
+                    context.getString(R.string.error_update_keyboard_ui)
+                }
+
                 is SettingsEvent.Error.KeyLabelSizeUpdateFailed -> {
                     context.getString(R.string.error_update_key_label_size)
                 }

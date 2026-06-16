@@ -38,6 +38,8 @@ import com.urik.keyboard.model.KeyboardMode
 import com.urik.keyboard.model.KeyboardState
 import com.urik.keyboard.service.AdaptiveDimensions
 import com.urik.keyboard.service.AutoCorrectionEngine
+import com.urik.keyboard.service.GeometryBucket
+import com.urik.keyboard.service.geometryKey
 import com.urik.keyboard.service.AutofillStateCoordinator
 import com.urik.keyboard.service.AutofillStateTracker
 import com.urik.keyboard.service.BackspaceHandler
@@ -1098,6 +1100,8 @@ open class UrikInputMethodService :
                         if (layoutChanged) {
                             repository.cleanup()
                             viewModel.reloadLayout()
+                            // The alternative layout is part of the look combo — re-resolve.
+                            refreshLookKnobs()
                         }
 
                         withContext(Dispatchers.Main) {
@@ -1168,6 +1172,8 @@ open class UrikInputMethodService :
                     // Re-evaluate field flags so the GNU layout's forced no-prediction takes
                     // effect immediately when switching to/from it (not only on field focus).
                     applyFieldTypeFromEditorInfo(currentInputEditorInfo)
+                    // The layout language is part of the look combo — re-resolve.
+                    refreshLookKnobs()
                 }
             }
         )
@@ -1205,6 +1211,14 @@ open class UrikInputMethodService :
 
         observerJobs.add(
             serviceScope.launch {
+                // Re-resolve + re-apply the per-geometry look whenever the look store changes
+                // (e.g. the Keyboard UI sliders or the on-keyboard resize gesture wrote a knob).
+                settingsRepository.perGeometryLook.collect { refreshLookKnobs() }
+            }
+        )
+
+        observerJobs.add(
+            serviceScope.launch {
                 customKeyMappingService.mappings.collect { mappings ->
                     layoutManager.updateCustomKeyMappings(mappings)
                     updateSwipeKeyboard()
@@ -1232,6 +1246,8 @@ open class UrikInputMethodService :
 
                         updateSwipeEnabledState(config.mode)
                         updateSwipeKeyboard()
+                        // Geometry may have changed (rotate/fold) — re-resolve the per-geometry look.
+                        refreshLookKnobs()
                     } finally {
                         outputBridge.endBatchEdit()
                     }
@@ -1243,12 +1259,13 @@ open class UrikInputMethodService :
     }
 
     /**
-     * The active per-geometry "look" knob set. For now a constant (白い熊's signature: square keys +
-     * bold labels); 1A.2 resolves it per (language·layout·geometry) from the look store and caches it
-     * off the hot path.
+     * The active per-geometry "look" knob set, resolved from the look store for the current
+     * (language·layout·geometry) and cached so the hot path ([withLookKnobs]) never suspends.
+     * [refreshLookKnobs] re-resolves it off the main thread when geometry / language / layout / the
+     * store changes. Seeds to 白い熊's signature default (square keys + bold labels).
      */
-    private val activeLookKnobs: KeyboardLookKnobs
-        get() = KeyboardLookKnobs.DEFAULT
+    @Volatile
+    private var activeLookKnobs: KeyboardLookKnobs = KeyboardLookKnobs.DEFAULT
 
     /**
      * The single seam every [AdaptiveDimensions] push routes through: overlays [activeLookKnobs] onto
@@ -1256,6 +1273,37 @@ open class UrikInputMethodService :
      */
     private fun withLookKnobs(dims: AdaptiveDimensions): AdaptiveDimensions =
         activeLookKnobs.applyTo(dims, resources.displayMetrics.density)
+
+    /**
+     * Re-resolve the active look knobs from the store for the current geometry / layout language /
+     * alternative layout (off the main thread), and re-apply if they changed. Idempotent.
+     */
+    private fun refreshLookKnobs() {
+        serviceScope.launch {
+            val geometry =
+                postureDetector?.postureInfo?.value?.let { geometryKey(it) } ?: GeometryBucket.FOLDED_PORT.key
+            // Publish the live geometry so the Keyboard UI screen can follow it (rotate/fold while shown).
+            settingsRepository.setCurrentGeometry(geometry)
+            val language = languageManager.currentLayoutLanguage.value
+            val layout = currentSettings.alternativeKeyboardLayout.name
+            val resolved = settingsRepository.resolveLookKnobs(language, layout, geometry)
+            if (resolved != activeLookKnobs) {
+                activeLookKnobs = resolved
+                withContext(Dispatchers.Main) { reapplyLookKnobs() }
+            }
+        }
+    }
+
+    /** Re-push the current mode's dimensions through [withLookKnobs] to the renderer + swipe views. */
+    private fun reapplyLookKnobs() {
+        if (!::layoutManager.isInitialized) return
+        val dims = keyboardModeManager.currentMode.value.adaptiveDimensions ?: return
+        val look = withLookKnobs(dims)
+        layoutManager.updateAdaptiveDimensions(look)
+        swipeKeyboardView?.updateAdaptiveDimensions(look)
+        if (::swipeDetector.isInitialized) swipeDetector.updateAdaptiveDimensions(look)
+        updateSwipeKeyboard()
+    }
 
     private fun computeFilteredLayout(layout: KeyboardLayout): KeyboardLayout =
         computeFilteredLayout(layout, currentSettings.showNumberRow)

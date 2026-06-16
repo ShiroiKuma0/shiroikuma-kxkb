@@ -12,6 +12,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import androidx.room.withTransaction
 import com.urik.keyboard.data.database.KeyboardDatabase
 import com.urik.keyboard.model.KeyboardDisplayMode
+import com.urik.keyboard.service.KeyboardLookKnobs
 import com.urik.keyboard.settings.SettingsRepository.Companion.EXPORT_SET_DELIMITER
 import com.urik.keyboard.utils.CacheMemoryManager
 import com.urik.keyboard.utils.ErrorLogger
@@ -21,6 +22,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
@@ -51,6 +53,8 @@ constructor(
         val PRIMARY_LANGUAGE = stringPreferencesKey("primary_language")
         val PRIMARY_LAYOUT_LANGUAGE = stringPreferencesKey("primary_layout_language")
         val PER_APP_LAYOUT_LANGUAGES = stringPreferencesKey("per_app_layout_languages")
+        val PER_GEOMETRY_LOOK = stringPreferencesKey("per_geometry_look")
+        val CURRENT_GEOMETRY = stringPreferencesKey("current_geometry")
         val HAPTIC_FEEDBACK = booleanPreferencesKey("haptic_feedback")
         val VIBRATION_STRENGTH = intPreferencesKey("vibration_strength")
         val DOUBLE_SPACE_PERIOD = booleanPreferencesKey("double_space_period")
@@ -395,6 +399,100 @@ constructor(
                     parts[0] to parts[1]
                 } else {
                     null
+                }
+            }.toMap()
+
+    // --- Per-(language·layout·geometry) look store (plan 1A.2) ---
+    // A keyed map "comboKey -> encoded KeyboardLookKnobs", stored outside KeyboardSettings so writes here
+    // don't perturb the settings flow. Combo keys are "language|layout|geometry"; a per-geometry BASELINE
+    // uses the bare geometry string as its key. Reads resolve DEFAULT -> geometry baseline -> combo fork
+    // (nullable-field overlay); writes target either the combo key (an on-keyboard fork, 1C) or the
+    // geometry key (the baseline edited in the Keyboard UI screen).
+
+    /** Emits the raw look map whenever it changes, so the service can re-resolve + re-apply live. */
+    val perGeometryLook: Flow<String?> =
+        dataStore.data
+            .map { it[PreferenceKeys.PER_GEOMETRY_LOOK] }
+            .distinctUntilChanged()
+
+    /**
+     * The geometry bucket the running keyboard is currently using, published by the IME service so the
+     * Keyboard UI screen can follow it live (e.g. update the selector when the user rotates or folds).
+     */
+    val currentGeometry: Flow<String?> =
+        dataStore.data
+            .map { it[PreferenceKeys.CURRENT_GEOMETRY] }
+            .distinctUntilChanged()
+
+    suspend fun setCurrentGeometry(geometry: String) {
+        try {
+            dataStore.edit {
+                if (it[PreferenceKeys.CURRENT_GEOMETRY] != geometry) {
+                    it[PreferenceKeys.CURRENT_GEOMETRY] = geometry
+                }
+            }
+        } catch (e: Exception) {
+            // best-effort; the UI falls back to a Configuration-derived guess
+        }
+    }
+
+    private fun comboLookKey(language: String, layout: String, geometry: String): String =
+        "$language|$layout|$geometry"
+
+    /** The effective knob set for a combo: DEFAULT overlaid by the geometry baseline overlaid by the combo fork. */
+    suspend fun resolveLookKnobs(language: String, layout: String, geometry: String): KeyboardLookKnobs = try {
+        val map = dataStore.data.first()[PreferenceKeys.PER_GEOMETRY_LOOK]?.let { decodeLookMap(it) } ?: emptyMap()
+        var resolved = KeyboardLookKnobs.DEFAULT
+        map[geometry]?.let { resolved = resolved.overlay(it) }
+        map[comboLookKey(language, layout, geometry)]?.let { resolved = resolved.overlay(it) }
+        resolved
+    } catch (e: Exception) {
+        KeyboardLookKnobs.DEFAULT
+    }
+
+    /** The per-geometry baseline as stored (null = unset), for the Keyboard UI screen to read back. */
+    suspend fun getGeometryBaselineLook(geometry: String): KeyboardLookKnobs? = try {
+        dataStore.data.first()[PreferenceKeys.PER_GEOMETRY_LOOK]?.let { decodeLookMap(it)[geometry] }
+    } catch (e: Exception) {
+        null
+    }
+
+    suspend fun updateGeometryBaselineLook(geometry: String, knobs: KeyboardLookKnobs): Result<Unit> =
+        putLook(geometry, knobs)
+
+    suspend fun updateComboLook(
+        language: String,
+        layout: String,
+        geometry: String,
+        knobs: KeyboardLookKnobs
+    ): Result<Unit> = putLook(comboLookKey(language, layout, geometry), knobs)
+
+    private suspend fun putLook(key: String, knobs: KeyboardLookKnobs): Result<Unit> = try {
+        dataStore.edit { preferences ->
+            val current = preferences[PreferenceKeys.PER_GEOMETRY_LOOK]?.let { decodeLookMap(it) } ?: emptyMap()
+            val encoded = knobs.encode()
+            val updated = current.toMutableMap()
+            if (encoded.isEmpty()) updated.remove(key) else updated[key] = knobs
+            preferences[PreferenceKeys.PER_GEOMETRY_LOOK] = encodeLookMap(updated)
+        }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    private fun encodeLookMap(map: Map<String, KeyboardLookKnobs>): String =
+        map.entries.joinToString("\n") { "${it.key}\t${it.value.encode()}" }
+
+    private fun decodeLookMap(raw: String): Map<String, KeyboardLookKnobs> =
+        raw
+            .lineSequence()
+            .mapNotNull { line ->
+                val tab = line.indexOf('\t')
+                if (tab <= 0) {
+                    null
+                } else {
+                    val key = line.substring(0, tab)
+                    if (key.isEmpty()) null else key to KeyboardLookKnobs.decode(line.substring(tab + 1))
                 }
             }.toMap()
 

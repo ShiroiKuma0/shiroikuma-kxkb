@@ -10,6 +10,8 @@ sealed interface SettingsEvent {
     sealed interface Error : SettingsEvent {
         data object KeySizeUpdateFailed : Error
 
+        data object KeyboardUiUpdateFailed : Error
+
         data object KeyLabelSizeUpdateFailed : Error
 
         data object SpellCheckToggleFailed : Error

@@ -16,6 +16,7 @@ import com.urik.keyboard.R
 import com.urik.keyboard.settings.appearance.AppearanceFragment
 import com.urik.keyboard.settings.autocorrection.AutoCorrectionFragment
 import com.urik.keyboard.settings.languages.LanguagesFragment
+import com.urik.keyboard.settings.keyboardui.KeyboardUiFragment
 import com.urik.keyboard.settings.layoutinput.LayoutInputFragment
 import com.urik.keyboard.settings.learnedwords.LearnedWordsFragment
 import com.urik.keyboard.settings.privacydata.PrivacyDataFragment
@@ -63,6 +64,7 @@ class SettingsActivity : AppCompatActivity() {
                 is TypingBehaviorFragment -> getString(R.string.typing_settings_title)
                 is LayoutInputFragment -> getString(R.string.layout_settings_title)
                 is AppearanceFragment -> getString(R.string.appearance_settings_title)
+                is KeyboardUiFragment -> getString(R.string.keyboard_ui_settings_title)
                 is PrivacyDataFragment -> getString(R.string.privacy_settings_title)
                 is LearnedWordsFragment -> getString(R.string.learned_words_title)
                 else -> getString(R.string.settings_title)
@@ -162,6 +164,18 @@ class MainSettingsFragment : PreferenceFragmentCompat() {
                 summary = resources.getString(R.string.appearance_settings_description)
                 setOnPreferenceClickListener {
                     navigateToFragment(AppearanceFragment())
+                    true
+                }
+            }
+        )
+
+        screen.addPreference(
+            Preference(context).apply {
+                key = "keyboard_ui_category"
+                title = resources.getString(R.string.keyboard_ui_settings_title)
+                summary = resources.getString(R.string.keyboard_ui_settings_description)
+                setOnPreferenceClickListener {
+                    navigateToFragment(KeyboardUiFragment())
                     true
                 }
             }
