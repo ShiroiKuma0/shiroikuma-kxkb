@@ -207,7 +207,8 @@ class KeyboardLayoutManager(
         val hints = FlickHintsDrawable(
             labels,
             getKeyTextColor(key),
-            context.resources.displayMetrics.density
+            context.resources.displayMetrics.density,
+            adaptiveDimensions?.hintScale ?: 1f
         )
         return LayerDrawable(arrayOf(keyBackground, hints))
     }
@@ -215,12 +216,13 @@ class KeyboardLayoutManager(
     private class FlickHintsDrawable(
         private val labels: Map<String, String>,
         color: Int,
-        density: Float
+        density: Float,
+        hintScale: Float
     ) : Drawable() {
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             this.color = color
             textAlign = Paint.Align.CENTER
-            textSize = 9f * density
+            textSize = 9f * density * hintScale
             alpha = 165
         }
         private val pad = 4f * density

@@ -25,7 +25,13 @@ data class KeyboardLookKnobs(
     /** Multiplier on the key height (1.0 = unchanged). */
     val keyHeightScale: Float? = null,
     /** Multiplier on the inter-key spacing / gap (1.0 = unchanged, 0 = no gaps — keys abut into a grid). */
-    val keySpacingScale: Float? = null
+    val keySpacingScale: Float? = null,
+    /** Multiplier on the secondary / flick-hint label size (1.0 = unchanged). */
+    val hintScale: Float? = null,
+    /** Fraction of the available width the keyboard occupies (1.0 = full width; <1 narrows, centred). */
+    val keyboardWidthScale: Float? = null,
+    /** Lift the keyboard off the bottom edge by this many dp (0 = docked). */
+    val bottomLiftDp: Float? = null
 ) {
     fun applyTo(base: AdaptiveDimensions, density: Float): AdaptiveDimensions = base.copy(
         keyHeightPx = keyHeightScale?.let { (base.keyHeightPx * it).toInt().coerceAtLeast(1) } ?: base.keyHeightPx,
@@ -38,7 +44,8 @@ data class KeyboardLookKnobs(
         cornerRadiusPx = cornerRadiusDp?.let { (it * density).toInt().coerceAtLeast(0) } ?: base.cornerRadiusPx,
         keyBorderWidthPx = keyBorderWidthDp?.let { (it * density).toInt().coerceAtLeast(0) } ?: base.keyBorderWidthPx,
         boldKeyLabels = boldKeyLabels ?: base.boldKeyLabels,
-        keyFontScale = keyFontScale ?: base.keyFontScale
+        keyFontScale = keyFontScale ?: base.keyFontScale,
+        hintScale = hintScale ?: base.hintScale
     )
 
     /** Returns a new set where [o]'s set (non-null) fields win and this set fills the gaps. */
@@ -48,7 +55,10 @@ data class KeyboardLookKnobs(
         boldKeyLabels = o.boldKeyLabels ?: boldKeyLabels,
         keyFontScale = o.keyFontScale ?: keyFontScale,
         keyHeightScale = o.keyHeightScale ?: keyHeightScale,
-        keySpacingScale = o.keySpacingScale ?: keySpacingScale
+        keySpacingScale = o.keySpacingScale ?: keySpacingScale,
+        hintScale = o.hintScale ?: hintScale,
+        keyboardWidthScale = o.keyboardWidthScale ?: keyboardWidthScale,
+        bottomLiftDp = o.bottomLiftDp ?: bottomLiftDp
     )
 
     /** Compact `k=v;` encoding; null fields are omitted. Pairs with [decode] (lenient). */
@@ -59,6 +69,9 @@ data class KeyboardLookKnobs(
         keyFontScale?.let { add("fs=$it") }
         keyHeightScale?.let { add("hs=$it") }
         keySpacingScale?.let { add("ks=$it") }
+        hintScale?.let { add("hn=$it") }
+        keyboardWidthScale?.let { add("kw=$it") }
+        bottomLiftDp?.let { add("bl=$it") }
     }.joinToString(";")
 
     companion object {
@@ -80,6 +93,9 @@ data class KeyboardLookKnobs(
             var fs: Float? = null
             var hs: Float? = null
             var ks: Float? = null
+            var hn: Float? = null
+            var kw: Float? = null
+            var bl: Float? = null
             for (token in raw.split(";")) {
                 val i = token.indexOf('=')
                 if (i <= 0) continue
@@ -91,9 +107,12 @@ data class KeyboardLookKnobs(
                     "fs" -> fs = value.toFloatOrNull()
                     "hs" -> hs = value.toFloatOrNull()
                     "ks" -> ks = value.toFloatOrNull()
+                    "hn" -> hn = value.toFloatOrNull()
+                    "kw" -> kw = value.toFloatOrNull()
+                    "bl" -> bl = value.toFloatOrNull()
                 }
             }
-            return KeyboardLookKnobs(cr, bw, bold, fs, hs, ks)
+            return KeyboardLookKnobs(cr, bw, bold, fs, hs, ks, hn, kw, bl)
         }
     }
 }

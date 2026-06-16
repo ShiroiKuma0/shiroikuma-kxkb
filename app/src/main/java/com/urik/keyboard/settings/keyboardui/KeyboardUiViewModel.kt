@@ -65,6 +65,12 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
 
     fun updateKeySpacing(pct: Int) = persist(current.copy(keySpacingScale = pct / 100f))
 
+    fun updateWidth(pct: Int) = persist(current.copy(keyboardWidthScale = pct / 100f))
+
+    fun updateBottomLift(dp: Int) = persist(current.copy(bottomLiftDp = dp.toFloat()))
+
+    fun updateHintScale(pct: Int) = persist(current.copy(hintScale = pct / 100f))
+
     private fun persist(updated: KeyboardLookKnobs) {
         val geometry = _uiState.value.geometry
         current = updated
@@ -83,7 +89,10 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
         boldKeyLabels = boldKeyLabels ?: true,
         keyFontScalePct = ((keyFontScale ?: 1f) * 100).toInt(),
         keyHeightScalePct = ((keyHeightScale ?: 1f) * 100).toInt(),
-        keySpacingPct = ((keySpacingScale ?: 1f) * 100).toInt()
+        keySpacingPct = ((keySpacingScale ?: 1f) * 100).toInt(),
+        keyboardWidthPct = ((keyboardWidthScale ?: 1f) * 100).toInt(),
+        bottomLiftDp = (bottomLiftDp ?: 0f).toInt(),
+        hintScalePct = ((hintScale ?: 1f) * 100).toInt()
     )
 }
 
@@ -94,5 +103,8 @@ data class KeyboardUiUiState(
     val boldKeyLabels: Boolean = true,
     val keyFontScalePct: Int = 100,
     val keyHeightScalePct: Int = 100,
-    val keySpacingPct: Int = 100
+    val keySpacingPct: Int = 100,
+    val keyboardWidthPct: Int = 100,
+    val bottomLiftDp: Int = 0,
+    val hintScalePct: Int = 100
 )

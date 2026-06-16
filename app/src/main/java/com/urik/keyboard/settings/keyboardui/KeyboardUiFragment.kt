@@ -31,8 +31,11 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
 
     private lateinit var geometryPref: ListPreference
     private lateinit var heightPref: SeekBarPreference
+    private lateinit var widthPref: SeekBarPreference
+    private lateinit var liftPref: SeekBarPreference
     private lateinit var spacingPref: SeekBarPreference
     private lateinit var fontPref: SeekBarPreference
+    private lateinit var hintPref: SeekBarPreference
     private lateinit var cornerPref: SeekBarPreference
     private lateinit var borderPref: SeekBarPreference
     private lateinit var boldPref: SwitchPreferenceCompat
@@ -84,8 +87,11 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                 title = resources.getString(R.string.keyboard_ui_category_size)
             }
         heightPref = seekBar("kb_ui_height", R.string.keyboard_ui_key_height, min = 50, max = 200)
+        widthPref = seekBar("kb_ui_width", R.string.keyboard_ui_width, min = 50, max = 100)
+        liftPref = seekBar("kb_ui_lift", R.string.keyboard_ui_bottom_lift, min = 0, max = 200)
         spacingPref = seekBar("kb_ui_spacing", R.string.keyboard_ui_key_spacing, min = 0, max = 200)
         fontPref = seekBar("kb_ui_font", R.string.keyboard_ui_font_scale, min = 50, max = 200)
+        hintPref = seekBar("kb_ui_hint", R.string.keyboard_ui_hint_size, min = 50, max = 200)
 
         val keysCategory =
             PreferenceCategory(context).apply {
@@ -106,8 +112,11 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         screen.addPreference(geometryPref)
         screen.addPreference(sizeCategory)
         sizeCategory.addPreference(heightPref)
+        sizeCategory.addPreference(widthPref)
+        sizeCategory.addPreference(liftPref)
         sizeCategory.addPreference(spacingPref)
         sizeCategory.addPreference(fontPref)
+        sizeCategory.addPreference(hintPref)
         screen.addPreference(keysCategory)
         keysCategory.addPreference(cornerPref)
         keysCategory.addPreference(borderPref)
@@ -139,8 +148,20 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
             viewModel.updateHeightScale(newValue as Int)
             true
         }
+        widthPref.setOnPreferenceChangeListener { _, newValue ->
+            viewModel.updateWidth(newValue as Int)
+            true
+        }
+        liftPref.setOnPreferenceChangeListener { _, newValue ->
+            viewModel.updateBottomLift(newValue as Int)
+            true
+        }
         spacingPref.setOnPreferenceChangeListener { _, newValue ->
             viewModel.updateKeySpacing(newValue as Int)
+            true
+        }
+        hintPref.setOnPreferenceChangeListener { _, newValue ->
+            viewModel.updateHintScale(newValue as Int)
             true
         }
         fontPref.setOnPreferenceChangeListener { _, newValue ->
@@ -168,8 +189,11 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                     viewModel.uiState.collect { state ->
                         geometryPref.value = state.geometry
                         heightPref.value = state.keyHeightScalePct
+                        widthPref.value = state.keyboardWidthPct
+                        liftPref.value = state.bottomLiftDp
                         spacingPref.value = state.keySpacingPct
                         fontPref.value = state.keyFontScalePct
+                        hintPref.value = state.hintScalePct
                         cornerPref.value = state.cornerRadiusDp
                         borderPref.value = state.keyBorderWidthDp
                         boldPref.isChecked = state.boldKeyLabels

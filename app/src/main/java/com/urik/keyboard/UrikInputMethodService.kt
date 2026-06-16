@@ -1302,7 +1302,16 @@ open class UrikInputMethodService :
         layoutManager.updateAdaptiveDimensions(look)
         swipeKeyboardView?.updateAdaptiveDimensions(look)
         if (::swipeDetector.isInitialized) swipeDetector.updateAdaptiveDimensions(look)
+        applyContainerLookKnobs()
         updateSwipeKeyboard()
+    }
+
+    /** Container-level look knobs (keyboard width narrowing + bottom lift) — applied to the container. */
+    private fun applyContainerLookKnobs() {
+        val density = resources.displayMetrics.density
+        val widthScale = activeLookKnobs.keyboardWidthScale ?: 1f
+        val liftPx = ((activeLookKnobs.bottomLiftDp ?: 0f) * density).toInt()
+        adaptiveContainer?.applyLookKnobs(widthScale, liftPx)
     }
 
     private fun computeFilteredLayout(layout: KeyboardLayout): KeyboardLayout =

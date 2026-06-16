@@ -52,6 +52,20 @@ constructor(
     private var containerWidth = 0
     private var pendingModeApplication = false
 
+    // Per-geometry look knobs that affect container layout (vs. per-key dims): width narrowing + bottom lift.
+    private var lookWidthScale = 1f
+    private var lookBottomLiftPx = 0
+
+    /**
+     * Apply the container-level look knobs: [widthScale] narrows the keyboard (centred) in standard/split
+     * mode; [bottomLiftPx] lifts it off the bottom edge. Re-applies the current mode.
+     */
+    fun applyLookKnobs(widthScale: Float, bottomLiftPx: Int) {
+        lookWidthScale = widthScale.coerceIn(0.3f, 1f)
+        lookBottomLiftPx = bottomLiftPx.coerceAtLeast(0)
+        requestModeApplication()
+    }
+
     private val layoutListener =
         ViewTreeObserver.OnGlobalLayoutListener {
             val newWidth = width
@@ -128,10 +142,16 @@ constructor(
             view.layoutParams as? LayoutParams
                 ?: LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
 
-        params.width = LayoutParams.MATCH_PARENT
-        params.gravity = Gravity.BOTTOM
+        if (lookWidthScale < 1f && containerWidth > 0) {
+            params.width = (containerWidth * lookWidthScale).toInt()
+            params.gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+        } else {
+            params.width = LayoutParams.MATCH_PARENT
+            params.gravity = Gravity.BOTTOM
+        }
         params.marginStart = 0
         params.marginEnd = 0
+        params.bottomMargin = lookBottomLiftPx
         view.layoutParams = params
     }
 
@@ -157,6 +177,7 @@ constructor(
         params.gravity = Gravity.BOTTOM
         params.marginStart = 0
         params.marginEnd = 0
+        params.bottomMargin = lookBottomLiftPx
         view.layoutParams = params
     }
 
