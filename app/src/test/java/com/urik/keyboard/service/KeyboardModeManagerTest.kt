@@ -102,6 +102,10 @@ class KeyboardModeManagerTest {
         adaptiveKeyboardModesEnabled = false
     )
 
+    private fun settingsWithAdaptiveEnabled() = KeyboardSettings(
+        adaptiveKeyboardModesEnabled = true
+    )
+
     @Test
     fun `phone portrait produces standard mode`() {
         val config = manager.determineMode(defaultSettings(), phonePortrait())
@@ -128,11 +132,10 @@ class KeyboardModeManagerTest {
     }
 
     @Test
-    fun `tablet portrait auto-splits when adaptive enabled`() {
-        val config = manager.determineMode(defaultSettings(), tabletPortrait())
+    fun `tablet portrait does not auto-split (disabled in fork)`() {
+        val config = manager.determineMode(settingsWithAdaptiveEnabled(), tabletPortrait())
 
-        assertEquals(KeyboardDisplayMode.SPLIT, config.mode)
-        assertTrue(config.splitGapPx > 0)
+        assertEquals(KeyboardDisplayMode.STANDARD, config.mode)
     }
 
     @Test
@@ -143,10 +146,10 @@ class KeyboardModeManagerTest {
     }
 
     @Test
-    fun `tablet landscape auto-splits`() {
-        val config = manager.determineMode(defaultSettings(), tabletLandscape())
+    fun `tablet landscape does not auto-split (disabled in fork)`() {
+        val config = manager.determineMode(settingsWithAdaptiveEnabled(), tabletLandscape())
 
-        assertEquals(KeyboardDisplayMode.SPLIT, config.mode)
+        assertEquals(KeyboardDisplayMode.STANDARD, config.mode)
     }
 
     @Test
@@ -158,18 +161,17 @@ class KeyboardModeManagerTest {
     }
 
     @Test
-    fun `foldable half-opened auto-splits`() {
-        val config = manager.determineMode(defaultSettings(), foldableHalfOpened())
+    fun `foldable half-opened does not auto-split (disabled in fork)`() {
+        val config = manager.determineMode(settingsWithAdaptiveEnabled(), foldableHalfOpened())
 
-        assertEquals(KeyboardDisplayMode.SPLIT, config.mode)
-        assertTrue(config.splitGapPx > 0)
+        assertEquals(KeyboardDisplayMode.STANDARD, config.mode)
     }
 
     @Test
-    fun `foldable flat auto-splits`() {
-        val config = manager.determineMode(defaultSettings(), foldableFlat())
+    fun `foldable flat does not auto-split (disabled in fork)`() {
+        val config = manager.determineMode(settingsWithAdaptiveEnabled(), foldableFlat())
 
-        assertEquals(KeyboardDisplayMode.SPLIT, config.mode)
+        assertEquals(KeyboardDisplayMode.STANDARD, config.mode)
     }
 
     @Test

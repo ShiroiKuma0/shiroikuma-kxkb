@@ -362,7 +362,8 @@ class KeyboardLayoutManager(
 
     fun updateAdaptiveDimensions(dimensions: AdaptiveDimensions) {
         adaptiveDimensions = dimensions
-        splitGapPx = dimensions.splitGapPx
+        // splitGapPx is driven solely by the keyboard mode (updateSplitGapPx), not the foldable hinge —
+        // otherwise the hinge gap leaked into standard mode and split the keyboard regardless of settings.
         invalidateCalculationCache()
     }
 

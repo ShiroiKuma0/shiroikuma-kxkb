@@ -217,7 +217,7 @@ constructor(
                         }
                     } ?: AlternativeKeyboardLayout.DEFAULT,
                     adaptiveKeyboardModesEnabled =
-                    preferences[PreferenceKeys.ADAPTIVE_KEYBOARD_MODES_ENABLED] ?: true,
+                    preferences[PreferenceKeys.ADAPTIVE_KEYBOARD_MODES_ENABLED] ?: false,
                     keyboardDisplayMode =
                     preferences[PreferenceKeys.KEYBOARD_DISPLAY_MODE]?.let {
                         try {

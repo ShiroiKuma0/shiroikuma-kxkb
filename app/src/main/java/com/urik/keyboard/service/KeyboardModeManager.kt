@@ -93,15 +93,10 @@ constructor(
         return KeyboardModeConfig.standard().copy(adaptiveDimensions = dimensions)
     }
 
-    private fun shouldAutoSplit(postureInfo: PostureInfo): Boolean {
-        val hasFoldableHinge =
-            postureInfo.hingeBounds != null &&
-                postureInfo.posture in listOf(DevicePosture.HALF_OPENED, DevicePosture.FLAT)
-
-        if (hasFoldableHinge) return true
-
-        return postureInfo.isTablet
-    }
+    // Auto-split is disabled in this fork: it split the keyboard on foldables/tablets unexpectedly, and
+    // the wide compass layouts (e.g. GNU) assume a single full-width keyboard. Manual split is unaffected.
+    @Suppress("UNUSED_PARAMETER")
+    private fun shouldAutoSplit(postureInfo: PostureInfo): Boolean = false
 
     fun setManualMode(mode: KeyboardDisplayMode) {
         val postureInfo = currentPostureInfo ?: return

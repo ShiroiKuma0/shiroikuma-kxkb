@@ -96,7 +96,7 @@ data class KeyboardSettings(
     val keyboardTheme: String = "default",
     val favoriteThemes: Set<String> = emptySet(),
     val alternativeKeyboardLayout: AlternativeKeyboardLayout = AlternativeKeyboardLayout.DEFAULT,
-    val adaptiveKeyboardModesEnabled: Boolean = true,
+    val adaptiveKeyboardModesEnabled: Boolean = false,
     val keyboardDisplayMode: KeyboardDisplayMode? = null,
     val oneHandedModeEnabled: Boolean = false,
     val showLanguageSwitchKey: Boolean = false,
