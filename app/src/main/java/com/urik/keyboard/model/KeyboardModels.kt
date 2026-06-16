@@ -64,7 +64,19 @@ sealed class KeyboardKey {
          * ("center"/"up"/"down"/"left"/"right"/"upLeft"/"upRight"/"downLeft"/"downRight").
          * A position absent here commits its text field directly (the Japanese 12-key uses none).
          */
-        val bindings: Map<String, FlickBinding> = emptyMap()
+        val bindings: Map<String, FlickBinding> = emptyMap(),
+        /**
+         * Cluster keys: the full ordered band of main characters (e.g. "mwk", "ioaev") drawn as PRIMARY
+         * glyphs spread across the key's centre line. Empty = an ordinary flick key. [center] is the tap
+         * commit (the middle of the band); the neighbours also ride the left/right slides.
+         */
+        val clusterMains: String = "",
+        /**
+         * The face shown and committed when shift / caps-lock is active (a FUTO CaseSelector's shifted
+         * variant — e.g. uppercase, or hiragana→katakana). Null = no explicit shifted face (the renderer
+         * falls back to uppercasing for bicameral scripts).
+         */
+        val shifted: FlickKey? = null
     ) : KeyboardKey()
 
     enum class KeyType {

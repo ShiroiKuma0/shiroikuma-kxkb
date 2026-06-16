@@ -136,7 +136,9 @@ class KeyboardLayoutManager(
                     handleFlickBinding(binding)
                     return
                 }
-                val char = flickCharAt(key, pos) ?: key.center
+                // Commit the shifted face (uppercase / katakana) when shift or caps-lock is engaged.
+                val face = flickFace(key, lastKeyboardState)
+                val char = flickCharAt(face, pos) ?: face.center
                 onKeyClick(KeyboardKey.Character(char, key.type))
             }
             override fun onFlickCancel() {
@@ -207,8 +209,13 @@ class KeyboardLayoutManager(
      * (from the per-geometry look knobs); the side chars share the top row's style.
      */
     private fun createFlickHintsBackground(keyBackground: Drawable, key: KeyboardKey.FlickKey): Drawable {
-        val labels = flickHintLabels(key)
-        if (labels.isEmpty()) return keyBackground
+        val hints = buildFlickHintsDrawable(key, flickHintLabels(key)) ?: return keyBackground
+        return LayerDrawable(arrayOf(keyBackground, hints))
+    }
+
+    /** The secondary-character (top/bottom/side) hints drawable for [labels], or null if none. */
+    private fun buildFlickHintsDrawable(key: KeyboardKey.FlickKey, labels: Map<String, String>): Drawable? {
+        if (labels.isEmpty()) return null
         val dims = adaptiveDimensions
         val density = context.resources.displayMetrics.density
         val baseHintPx = 9f * density * (dims?.hintScale ?: 1f)
@@ -232,20 +239,84 @@ class KeyboardLayoutManager(
                 }
         }
 
-        val topPaint = rowPaint(dims?.hintTopColor, dims?.hintTopScale ?: 1f, dims?.hintTopFont)
-        val bottomPaint = rowPaint(dims?.hintBottomColor, dims?.hintBottomScale ?: 1f, dims?.hintBottomFont)
         val pad = (4f * density).toInt()
-        val hints = FlickHintsDrawable(
+        return FlickHintsDrawable(
             labels,
-            topPaint = topPaint,
-            bottomPaint = bottomPaint,
+            topPaint = rowPaint(dims?.hintTopColor, dims?.hintTopScale ?: 1f, dims?.hintTopFont),
+            bottomPaint = rowPaint(dims?.hintBottomColor, dims?.hintBottomScale ?: 1f, dims?.hintBottomFont),
             sidePaint = rowPaint(dims?.hintTopColor, dims?.hintTopScale ?: 1f, dims?.hintTopFont),
             topMarginPx = dims?.hintTopMarginPx ?: pad,
             bottomMarginPx = dims?.hintBottomMarginPx ?: pad,
             leftMarginPx = dims?.hintLeftMarginPx ?: pad,
             rightMarginPx = dims?.hintRightMarginPx ?: pad
         )
-        return LayerDrawable(arrayOf(keyBackground, hints))
+    }
+
+    /**
+     * A cluster key: its band of main characters drawn as PRIMARY glyphs across the centre (e.g. "mwk"),
+     * plus the up/down/diagonal secondary hints — but NOT left/right (those ARE the neighbour mains).
+     */
+    private fun createClusterBackground(
+        keyBackground: Drawable,
+        key: KeyboardKey.FlickKey,
+        primaryTextSp: Float
+    ): Drawable {
+        val mainsPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = getKeyTextColor(key)
+            textAlign = Paint.Align.CENTER
+            typeface = keyLabelTypeface()
+        }
+        // SP -> px exactly as the button does (includes the system font scale), so a cluster main is the
+        // SAME size as a single compass label — never proportionally smaller.
+        val basePx = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_SP, primaryTextSp, context.resources.displayMetrics
+        )
+        val layers = mutableListOf(keyBackground, ClusterMainsDrawable(key.clusterMains, mainsPaint, basePx))
+        val hintLabels = flickHintLabels(key).filterKeys { it != "left" && it != "right" }
+        buildFlickHintsDrawable(key, hintLabels)?.let { layers.add(it) }
+        return LayerDrawable(layers.toTypedArray())
+    }
+
+    /** The typeface used for key labels (family + weight/bold from the look knobs). */
+    private fun keyLabelTypeface(): android.graphics.Typeface {
+        val family = adaptiveDimensions?.fontFamily ?: ""
+        val weight = adaptiveDimensions?.labelWeight
+        return if (weight != null && weight > 0) {
+            com.urik.keyboard.service.KeyboardFonts.weightedTypeface(context, family, weight)
+        } else {
+            com.urik.keyboard.service.KeyboardFonts.typeface(context, family, adaptiveDimensions?.boldKeyLabels == true)
+        }
+    }
+
+    /** Draws each character of a cluster band centred in its own horizontal slot at (fit-to-width) primary size. */
+    private class ClusterMainsDrawable(
+        private val mains: String,
+        private val paint: Paint,
+        private val basePx: Float
+    ) : Drawable() {
+        override fun draw(canvas: Canvas) {
+            val b = bounds
+            if (b.isEmpty || mains.isEmpty()) return
+            // Always the PRIMARY size — never shrunk to fit (like FUTO): the band is packed by natural
+            // advance, centred on the key, and allowed to overflow into the neighbouring keys.
+            paint.textSize = basePx
+            paint.textAlign = Paint.Align.LEFT
+            val advances = FloatArray(mains.length) { paint.measureText(mains[it].toString()) }
+            val total = advances.sum()
+            var x = b.exactCenterX() - total / 2f
+            val fm = paint.fontMetrics
+            val cy = b.exactCenterY() - (fm.ascent + fm.descent) / 2f
+            for (i in mains.indices) {
+                canvas.drawText(mains[i].toString(), x, cy, paint)
+                x += advances[i]
+            }
+        }
+
+        override fun setAlpha(alpha: Int) {}
+        override fun setColorFilter(colorFilter: ColorFilter?) {}
+
+        @Deprecated("Deprecated in Java")
+        override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
     }
 
     private class FlickHintsDrawable(
@@ -1000,7 +1071,8 @@ class KeyboardLayoutManager(
                     KeyboardKey.ActionType.MODE_SWITCH_SYMBOLS,
                     KeyboardKey.ActionType.MODE_SWITCH_SYMBOLS_SECONDARY,
                     KeyboardKey.ActionType.MODE_SWITCH_LETTERS,
-                    KeyboardKey.ActionType.MODE_SWITCH_NUMBERS
+                    KeyboardKey.ActionType.MODE_SWITCH_NUMBERS,
+                    KeyboardKey.ActionType.SPACE
                 )
             ) {
                 TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(
@@ -1042,8 +1114,12 @@ class KeyboardLayoutManager(
                         ((keyIndex + 1) % 10).toString(),
                         themeManager.currentTheme.value.colors
                     )
+                } else if (key is KeyboardKey.FlickKey && key.clusterMains.isNotEmpty() &&
+                    effectiveLayout?.showFlickHints == true
+                ) {
+                    createClusterBackground(keyBackground, flickFace(key, state), finalTextSize)
                 } else if (key is KeyboardKey.FlickKey && effectiveLayout?.showFlickHints == true) {
-                    createFlickHintsBackground(keyBackground, key)
+                    createFlickHintsBackground(keyBackground, flickFace(key, state))
                 } else {
                     keyBackground
                 }
@@ -1124,7 +1200,7 @@ class KeyboardLayoutManager(
                             R.drawable.shift_48px
                         }
 
-                        KeyboardKey.ActionType.SPACE -> R.drawable.space_bar_48px
+                        // SPACE shows the layout language's native name (set in getKeyLabel), not an icon.
 
                         KeyboardKey.ActionType.BACKSPACE -> R.drawable.backspace_48px
 
@@ -1195,22 +1271,21 @@ class KeyboardLayoutManager(
             touchDispatcher.attachListeners(button, key)
 
             if (key is KeyboardKey.Action && key.action == KeyboardKey.ActionType.LANGUAGE_SWITCH) {
-                setOnClickListener {
-                    val nextLang = languageManager.getNextLayoutLanguage()
-                    onLanguageSwitch(nextLang)
-
-                    val displayName =
-                        com.urik.keyboard.settings.KeyboardSettings
-                            .getLanguageDisplayNames()[nextLang] ?: nextLang
-                    android.widget.Toast
-                        .makeText(context, displayName, android.widget.Toast.LENGTH_SHORT)
-                        .show()
-                }
+                setOnClickListener { cycleToNextLanguage() }
                 setOnLongClickListener {
                     performContextualHaptic(key)
                     if (activeLanguages.size > 1) {
                         showLanguagePickerPopup(this, activeLanguages)
                     }
+                    true
+                }
+            }
+
+            // Interim (until the space-slide switcher, 1D): long-press the space bar cycles language.
+            if (key is KeyboardKey.Action && key.action == KeyboardKey.ActionType.SPACE) {
+                setOnLongClickListener {
+                    performContextualHaptic(key)
+                    cycleToNextLanguage()
                     true
                 }
             }
@@ -1306,6 +1381,53 @@ class KeyboardLayoutManager(
         return java.util.Locale.forLanguageTag(lang)
     }
 
+    /**
+     * The current layout language's name in its OWN language, for the space bar — e.g. ja → "日本語",
+     * ru → "Русский", en → "English". "gnu" is a pseudo-language (code mode) → "GNU".
+     */
+    private fun layoutLanguageDisplayName(): String {
+        val code = languageManager.currentLayoutLanguage.value
+        if (code == "gnu") return "GNU"
+        return try {
+            val loc = android.icu.util.ULocale.forLanguageTag(code)
+            val name = loc.getDisplayName(loc)
+            if (name.isNullOrEmpty() || name.length <= 2) {
+                code.uppercase(java.util.Locale.ROOT)
+            } else {
+                name.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.ROOT) else it.toString() }
+            }
+        } catch (_: Exception) {
+            code.uppercase(java.util.Locale.ROOT)
+        }
+    }
+
+    /**
+     * The face a flick/cluster key shows and commits given the shift state: the explicit [FlickKey.shifted]
+     * variant if present (e.g. katakana), else an uppercased copy for bicameral scripts, else the key itself.
+     */
+    private fun flickFace(key: KeyboardKey.FlickKey, state: KeyboardState): KeyboardKey.FlickKey {
+        if (!shouldCapitalize(state)) return key
+        key.shifted?.let { return it }
+        if (!isBicameralScript(effectiveLayout?.script ?: "Latn")) return key
+        val loc = getCurrentLocale()
+        fun up(s: String?) = s?.uppercase(loc)
+        return key.copy(
+            center = key.center.uppercase(loc),
+            up = up(key.up), right = up(key.right), down = up(key.down), left = up(key.left),
+            upLeft = up(key.upLeft), upRight = up(key.upRight), downLeft = up(key.downLeft), downRight = up(key.downRight),
+            clusterMains = key.clusterMains.uppercase(loc)
+        )
+    }
+
+    /** Cycle to the next active layout language (globe-key tap + interim space long-press). */
+    fun cycleToNextLanguage() {
+        val nextLang = languageManager.getNextLayoutLanguage()
+        onLanguageSwitch(nextLang)
+        val displayName =
+            com.urik.keyboard.settings.KeyboardSettings.getLanguageDisplayNames()[nextLang] ?: nextLang
+        android.widget.Toast.makeText(context, displayName, android.widget.Toast.LENGTH_SHORT).show()
+    }
+
     private fun getKeyLabel(key: KeyboardKey, state: KeyboardState): String = when (key) {
         is KeyboardKey.Character -> {
             val script = effectiveLayout?.script ?: "Latn"
@@ -1365,13 +1487,16 @@ class KeyboardLayoutManager(
 
                 KeyboardKey.ActionType.TAB -> "⇥"
 
+                KeyboardKey.ActionType.SPACE -> layoutLanguageDisplayName()
+
                 else -> {
                     "?"
                 }
             }
         }
 
-        is KeyboardKey.FlickKey -> key.center
+        // Cluster keys draw their whole band themselves (ClusterMainsDrawable), so the single label is empty.
+        is KeyboardKey.FlickKey -> flickFace(key, state).let { if (it.clusterMains.isNotEmpty()) "" else it.center }
 
         KeyboardKey.Spacer -> {
             ""

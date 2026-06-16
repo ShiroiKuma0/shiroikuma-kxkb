@@ -146,12 +146,12 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         // Primary character.
         fontFamilyPref = fontEntry("kb_ui_font_family", R.string.keyboard_ui_item_font, sub = true)
         weightPref = seekBar("kb_ui_weight", R.string.keyboard_ui_item_weight, min = 100, max = 900, sub = true)
-        fontPref = seekBar("kb_ui_font", R.string.keyboard_ui_item_size, min = 50, max = 200, sub = true)
+        fontPref = seekBar("kb_ui_font", R.string.keyboard_ui_item_size, min = 50, max = 400, sub = true)
         keyTextColorPref = colorPref("kb_ui_col_key_text", R.string.keyboard_ui_item_colour, sub = true)
         // Secondary character (general — the rows inherit these).
         hintFontPref = fontEntry("kb_ui_hint_font", R.string.keyboard_ui_item_font, sub = true)
         hintWeightPref = seekBar("kb_ui_hint_weight", R.string.keyboard_ui_item_weight, min = 100, max = 900, sub = true)
-        hintPref = seekBar("kb_ui_hint", R.string.keyboard_ui_item_size, min = 50, max = 200, sub = true)
+        hintPref = seekBar("kb_ui_hint", R.string.keyboard_ui_item_size, min = 50, max = 400, sub = true)
         hintColorPref = colorPref("kb_ui_hint_col", R.string.keyboard_ui_item_colour, sub = true)
         // Key body.
         keyBgColorPref = colorPref("kb_ui_col_key_bg", R.string.keyboard_ui_item_background, sub = true)
@@ -167,13 +167,13 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         suggestionBgPref = colorPref("kb_ui_sug_bg", R.string.keyboard_ui_item_background, sub = true)
         suggestionFontPref = fontEntry("kb_ui_sug_font", R.string.keyboard_ui_item_font, sub = true)
         suggestionWeightPref = seekBar("kb_ui_sug_weight", R.string.keyboard_ui_item_weight, min = 100, max = 900, sub = true)
-        suggestionSizePref = seekBar("kb_ui_sug_size", R.string.keyboard_ui_item_size, min = 50, max = 200, sub = true)
+        suggestionSizePref = seekBar("kb_ui_sug_size", R.string.keyboard_ui_item_size, min = 50, max = 400, sub = true)
         suggestionColorPref = colorPref("kb_ui_sug_col", R.string.keyboard_ui_item_colour, sub = true)
         hintTopColorPref = colorPref("kb_ui_hint_top_col", R.string.keyboard_ui_item_colour, sub = true)
-        hintTopScalePref = seekBar("kb_ui_hint_top_size", R.string.keyboard_ui_item_size, min = 50, max = 300, sub = true)
+        hintTopScalePref = seekBar("kb_ui_hint_top_size", R.string.keyboard_ui_item_size, min = 50, max = 400, sub = true)
         hintTopFontPref = fontEntry("kb_ui_hint_top_font", R.string.keyboard_ui_item_font, sub = true)
         hintBottomColorPref = colorPref("kb_ui_hint_bot_col", R.string.keyboard_ui_item_colour, sub = true)
-        hintBottomScalePref = seekBar("kb_ui_hint_bot_size", R.string.keyboard_ui_item_size, min = 50, max = 300, sub = true)
+        hintBottomScalePref = seekBar("kb_ui_hint_bot_size", R.string.keyboard_ui_item_size, min = 50, max = 400, sub = true)
         hintBottomFontPref = fontEntry("kb_ui_hint_bot_font", R.string.keyboard_ui_item_font, sub = true)
 
         // --- COMPASS KEYS: positions of the secondary-character rows / columns. ---

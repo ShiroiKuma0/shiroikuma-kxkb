@@ -123,7 +123,10 @@ constructor(
 
         val layoutIdentifier =
             when (alternativeLayout) {
-                com.urik.keyboard.settings.AlternativeKeyboardLayout.DEFAULT -> locale.toLanguageTag()
+                com.urik.keyboard.settings.AlternativeKeyboardLayout.DEFAULT ->
+                    // The registry picks the active layout for this language (one of possibly many);
+                    // falls back to the bundled <lang>.json when the language has no registry default.
+                    LayoutRegistry.load(context).defaultFor(locale.toLanguageTag()) ?: locale.toLanguageTag()
                 com.urik.keyboard.settings.AlternativeKeyboardLayout.QWERTY -> "en"
                 com.urik.keyboard.settings.AlternativeKeyboardLayout.AZERTY -> "azerty"
                 com.urik.keyboard.settings.AlternativeKeyboardLayout.QWERTZ -> "qwertz"
@@ -342,7 +345,10 @@ constructor(
                     upRight = pos("upRight"),
                     downLeft = pos("downLeft"),
                     downRight = pos("downRight"),
-                    bindings = bindings
+                    bindings = bindings,
+                    clusterMains = keyData.optString("cluster", ""),
+                    shifted = keyData.optJSONObject("shifted")
+                        ?.let { parseKeyFromJson(it, currentAction) as? KeyboardKey.FlickKey }
                 )
             }
 

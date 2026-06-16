@@ -1,0 +1,26 @@
+{
+  "_comment": "Layout registry: per-language available layouts (kxkb). `defaults` is the active layout used for a language until the user picks another (1D switcher). Designed to scale to many layouts per language. ja offers only the two imported (gojūon + ketai).",
+  "defaults": {
+    "en": "en_3p2_5r9c",
+    "cs": "cs_3p2_5r9c",
+    "ru": "ru_6r8c",
+    "ja": "ja_gojuon",
+    "gnu": "gnu_5r13c"
+  },
+  "layouts": [
+    { "id": "en", "lang": "en", "name": "QWERTY", "kind": "qwerty", "width": "std" },
+    { "id": "en_3p2_5r9c", "lang": "en", "name": "3+2 wide", "kind": "compass", "width": "wide" },
+    { "id": "en_3p2_5r4c", "lang": "en", "name": "3+2 narrow", "kind": "cluster", "width": "narrow" },
+    { "id": "en_column_5r13c", "lang": "en", "name": "Column wide", "kind": "column", "width": "wide" },
+    { "id": "en_column_3r10c", "lang": "en", "name": "Column narrow", "kind": "column", "width": "narrow" },
+    { "id": "cs", "lang": "cs", "name": "Default", "kind": "qwertz", "width": "std" },
+    { "id": "cs_3p2_5r9c", "lang": "cs", "name": "3+2 wide", "kind": "compass", "width": "wide" },
+    { "id": "cs_3p2_5r4c", "lang": "cs", "name": "3+2 narrow", "kind": "cluster", "width": "narrow" },
+    { "id": "ru", "lang": "ru", "name": "Default", "kind": "jcuken", "width": "std" },
+    { "id": "ru_6r8c", "lang": "ru", "name": "6×8", "kind": "compass", "width": "wide" },
+    { "id": "ru_3p2_5r4c", "lang": "ru", "name": "3+2 narrow", "kind": "cluster", "width": "narrow" },
+    { "id": "gnu_5r13c", "lang": "gnu", "name": "GNU 5×13", "kind": "compass", "width": "wide" },
+    { "id": "ja_gojuon", "lang": "ja", "name": "五十音", "kind": "grid", "width": "wide" },
+    { "id": "ja_ketai", "lang": "ja", "name": "携帯", "kind": "flick", "width": "narrow" }
+  ]
+}

@@ -1,0 +1,981 @@
+{
+  "locale": "ja",
+  "script": "Hira",
+  "isRTL": false,
+  "showFlickHints": true,
+  "modes": {
+    "letters": {
+      "rows": [
+        [
+          {
+            "type": "flick",
+            "char": "S-Tab",
+            "flick": {
+              "center": {
+                "chord": "S-TAB",
+                "label": "S-Tab"
+              }
+            }
+          },
+          {
+            "type": "flick",
+            "char": "あ",
+            "flick": {
+              "up": "う",
+              "down": "お",
+              "left": "い",
+              "right": "え"
+            },
+            "shifted": {
+              "type": "flick",
+              "char": "ア",
+              "flick": {
+                "up": "ウ",
+                "down": "オ",
+                "left": "イ",
+                "right": "エ"
+              }
+            }
+          },
+          {
+            "type": "flick",
+            "char": "か",
+            "flick": {
+              "up": "く",
+              "down": "こ",
+              "left": "き",
+              "right": "け"
+            },
+            "shifted": {
+              "type": "flick",
+              "char": "カ",
+              "flick": {
+                "up": "ク",
+                "down": "コ",
+                "left": "キ",
+                "right": "ケ"
+              }
+            }
+          },
+          {
+            "type": "flick",
+            "char": "さ",
+            "flick": {
+              "up": "す",
+              "down": "そ",
+              "left": "し",
+              "right": "せ"
+            },
+            "shifted": {
+              "type": "flick",
+              "char": "サ",
+              "flick": {
+                "up": "ス",
+                "down": "ソ",
+                "left": "シ",
+                "right": "セ"
+              }
+            }
+          },
+          {
+            "type": "action",
+            "action": "backspace"
+          }
+        ],
+        [
+          {
+            "type": "flick",
+            "char": "←",
+            "flick": {
+              "center": {
+                "action": "arrow_left",
+                "label": "←"
+              }
+            }
+          },
+          {
+            "type": "flick",
+            "char": "た",
+            "flick": {
+              "up": "つ",
+              "down": "と",
+              "left": "ち",
+              "right": "て"
+            },
+            "shifted": {
+              "type": "flick",
+              "char": "タ",
+              "flick": {
+                "up": "ツ",
+                "down": "ト",
+                "left": "チ",
+                "right": "テ"
+              }
+            }
+          },
+          {
+            "type": "flick",
+            "char": "な",
+            "flick": {
+              "up": "ぬ",
+              "down": "の",
+              "left": "に",
+              "right": "ね"
+            },
+            "shifted": {
+              "type": "flick",
+              "char": "ナ",
+              "flick": {
+                "up": "ヌ",
+                "down": "ノ",
+                "left": "ニ",
+                "right": "ネ"
+              }
+            }
+          },
+          {
+            "type": "flick",
+            "char": "は",
+            "flick": {
+              "up": "ふ",
+              "down": "ほ",
+              "left": "ひ",
+              "right": "へ"
+            },
+            "shifted": {
+              "type": "flick",
+              "char": "ハ",
+              "flick": {
+                "up": "フ",
+                "down": "ホ",
+                "left": "ヒ",
+                "right": "ヘ"
+              }
+            }
+          },
+          {
+            "type": "flick",
+            "char": "→",
+            "flick": {
+              "center": {
+                "action": "arrow_right",
+                "label": "→"
+              }
+            }
+          }
+        ],
+        [
+          {
+            "type": "action",
+            "action": "tab"
+          },
+          {
+            "type": "flick",
+            "char": "ま",
+            "flick": {
+              "up": "む",
+              "down": "も",
+              "left": "み",
+              "right": "め"
+            },
+            "shifted": {
+              "type": "flick",
+              "char": "マ",
+              "flick": {
+                "up": "ム",
+                "down": "モ",
+                "left": "ミ",
+                "right": "メ"
+              }
+            }
+          },
+          {
+            "type": "flick",
+            "char": "や",
+            "flick": {
+              "up": "ゆ",
+              "down": "よ",
+              "left": "ゃ",
+              "right": "ゅ",
+              "downRight": "ょ"
+            },
+            "shifted": {
+              "type": "flick",
+              "char": "ヤ",
+              "flick": {
+                "up": "ユ",
+                "down": "ヨ",
+                "left": "ャ",
+                "right": "ュ",
+                "downRight": "ョ"
+              }
+            }
+          },
+          {
+            "type": "flick",
+            "char": "ら",
+            "flick": {
+              "up": "る",
+              "down": "ろ",
+              "left": "り",
+              "right": "れ"
+            },
+            "shifted": {
+              "type": "flick",
+              "char": "ラ",
+              "flick": {
+                "up": "ル",
+                "down": "ロ",
+                "left": "リ",
+                "right": "レ"
+              }
+            }
+          },
+          {
+            "type": "action",
+            "action": "space"
+          }
+        ],
+        [
+          {
+            "type": "action",
+            "action": "language_switch"
+          },
+          {
+            "type": "flick",
+            "char": "。"
+          },
+          {
+            "type": "flick",
+            "char": "わ",
+            "flick": {
+              "up": "ん",
+              "down": "・",
+              "left": "を",
+              "right": "ー"
+            },
+            "shifted": {
+              "type": "flick",
+              "char": "ワ",
+              "flick": {
+                "up": "ン",
+                "down": "・",
+                "left": "ヲ",
+                "right": "ー"
+              }
+            }
+          },
+          {
+            "type": "flick",
+            "char": "、",
+            "flick": {
+              "up": "？",
+              "down": "…",
+              "right": "！"
+            }
+          },
+          {
+            "type": "action",
+            "action": "enter"
+          }
+        ],
+        [
+          {
+            "type": "flick",
+            "char": "⚙",
+            "flick": {
+              "center": {
+                "action": "key_settings",
+                "label": "⚙"
+              }
+            }
+          },
+          {
+            "type": "flick",
+            "cluster": "?!@%",
+            "char": "@",
+            "flick": {
+              "left": "!",
+              "right": "%"
+            }
+          },
+          {
+            "type": "flick",
+            "cluster": ";.,",
+            "char": ".",
+            "flick": {
+              "left": ";",
+              "right": ",",
+              "up": ":",
+              "down": "…"
+            }
+          },
+          {
+            "type": "action",
+            "action": "tab"
+          },
+          {
+            "type": "action",
+            "action": "space"
+          },
+          {
+            "type": "flick",
+            "char": "⏎",
+            "flick": {
+              "center": {
+                "action": "enter",
+                "label": "⏎"
+              },
+              "up": {
+                "layer": "alt1",
+                "label": "altGr"
+              }
+            }
+          },
+          {
+            "type": "flick",
+            "char": "Ctrl",
+            "flick": {
+              "center": {
+                "action": "ctrl",
+                "label": "Ctrl"
+              },
+              "up": {
+                "layer": "alt0",
+                "label": "sym"
+              }
+            }
+          },
+          {
+            "type": "action",
+            "action": "shift"
+          },
+          {
+            "type": "action",
+            "action": "backspace"
+          }
+        ]
+      ]
+    },
+    "numbers": {
+      "rows": [
+        [
+          {
+            "type": "flick",
+            "char": "1"
+          },
+          {
+            "type": "flick",
+            "char": "2"
+          },
+          {
+            "type": "flick",
+            "char": "3"
+          },
+          {
+            "type": "flick",
+            "char": "4"
+          },
+          {
+            "type": "flick",
+            "char": "5"
+          },
+          {
+            "type": "flick",
+            "char": "6"
+          },
+          {
+            "type": "flick",
+            "char": "7"
+          },
+          {
+            "type": "flick",
+            "char": "8"
+          },
+          {
+            "type": "flick",
+            "char": "9"
+          },
+          {
+            "type": "flick",
+            "char": "0"
+          }
+        ],
+        [
+          {
+            "type": "flick",
+            "char": "㌔"
+          },
+          {
+            "type": "flick",
+            "char": "㌕"
+          },
+          {
+            "type": "flick",
+            "char": "㌖"
+          },
+          {
+            "type": "flick",
+            "char": "㍾"
+          },
+          {
+            "type": "flick",
+            "char": "㍽"
+          },
+          {
+            "type": "flick",
+            "char": "㍼"
+          },
+          {
+            "type": "flick",
+            "char": "㍻"
+          },
+          {
+            "type": "flick",
+            "char": "㋿"
+          },
+          {
+            "type": "flick",
+            "char": "@"
+          },
+          {
+            "type": "flick",
+            "char": "〇"
+          }
+        ],
+        [
+          {
+            "type": "flick",
+            "char": "｟"
+          },
+          {
+            "type": "flick",
+            "char": "｠"
+          },
+          {
+            "type": "flick",
+            "char": "《"
+          },
+          {
+            "type": "flick",
+            "char": "》"
+          },
+          {
+            "type": "flick",
+            "char": "【"
+          },
+          {
+            "type": "flick",
+            "char": "】"
+          },
+          {
+            "type": "flick",
+            "char": "『"
+          },
+          {
+            "type": "flick",
+            "char": "』"
+          },
+          {
+            "type": "flick",
+            "char": "「"
+          },
+          {
+            "type": "flick",
+            "char": "」"
+          }
+        ],
+        [
+          {
+            "type": "flick",
+            "char": "¥"
+          },
+          {
+            "type": "flick",
+            "char": "€"
+          },
+          {
+            "type": "flick",
+            "char": "°"
+          },
+          {
+            "type": "flick",
+            "char": "…"
+          },
+          {
+            "type": "flick",
+            "char": "<"
+          },
+          {
+            "type": "flick",
+            "char": ">"
+          },
+          {
+            "type": "flick",
+            "char": "'"
+          },
+          {
+            "type": "flick",
+            "char": "\""
+          },
+          {
+            "type": "flick",
+            "char": "〜"
+          },
+          {
+            "type": "flick",
+            "char": "…"
+          }
+        ],
+        [
+          {
+            "type": "flick",
+            "char": "{"
+          },
+          {
+            "type": "flick",
+            "char": "}"
+          },
+          {
+            "type": "flick",
+            "char": "["
+          },
+          {
+            "type": "flick",
+            "char": "]"
+          },
+          {
+            "type": "flick",
+            "char": ":"
+          },
+          {
+            "type": "flick",
+            "char": ";"
+          },
+          {
+            "type": "flick",
+            "char": "..."
+          },
+          {
+            "type": "flick",
+            "char": "🎙",
+            "flick": {
+              "center": {
+                "action": "voice",
+                "label": "🎙"
+              }
+            }
+          },
+          {
+            "type": "flick",
+            "char": "?"
+          },
+          {
+            "type": "flick",
+            "char": "!"
+          }
+        ],
+        [
+          {
+            "type": "flick",
+            "char": "⚙",
+            "flick": {
+              "center": {
+                "action": "key_settings",
+                "label": "⚙"
+              }
+            }
+          },
+          {
+            "type": "flick",
+            "cluster": "?!@%",
+            "char": "@",
+            "flick": {
+              "left": "!",
+              "right": "%"
+            }
+          },
+          {
+            "type": "flick",
+            "cluster": ";.,",
+            "char": ".",
+            "flick": {
+              "left": ";",
+              "right": ",",
+              "up": ":",
+              "down": "…"
+            }
+          },
+          {
+            "type": "action",
+            "action": "tab"
+          },
+          {
+            "type": "action",
+            "action": "space"
+          },
+          {
+            "type": "flick",
+            "char": "⏎",
+            "flick": {
+              "center": {
+                "action": "enter",
+                "label": "⏎"
+              },
+              "up": {
+                "layer": "alt1",
+                "label": "altGr"
+              }
+            }
+          },
+          {
+            "type": "flick",
+            "char": "← ABC",
+            "flick": {
+              "center": {
+                "layer": "alpha0",
+                "label": "← ABC"
+              }
+            }
+          },
+          {
+            "type": "action",
+            "action": "shift"
+          },
+          {
+            "type": "action",
+            "action": "backspace"
+          }
+        ]
+      ]
+    },
+    "symbols": {
+      "rows": [
+        [
+          {
+            "type": "flick",
+            "char": "①"
+          },
+          {
+            "type": "flick",
+            "char": "②"
+          },
+          {
+            "type": "flick",
+            "char": "③"
+          },
+          {
+            "type": "flick",
+            "char": "④"
+          },
+          {
+            "type": "flick",
+            "char": "⑤"
+          },
+          {
+            "type": "flick",
+            "char": "⑥"
+          },
+          {
+            "type": "flick",
+            "char": "⑦"
+          },
+          {
+            "type": "flick",
+            "char": "⑧"
+          },
+          {
+            "type": "flick",
+            "char": "⑨"
+          },
+          {
+            "type": "flick",
+            "char": "⑩"
+          }
+        ],
+        [
+          {
+            "type": "flick",
+            "char": "¹"
+          },
+          {
+            "type": "flick",
+            "char": "²"
+          },
+          {
+            "type": "flick",
+            "char": "³"
+          },
+          {
+            "type": "flick",
+            "char": "₂"
+          },
+          {
+            "type": "flick",
+            "char": "½"
+          },
+          {
+            "type": "flick",
+            "char": "⅓"
+          },
+          {
+            "type": "flick",
+            "char": "⅔"
+          },
+          {
+            "type": "flick",
+            "char": "¼"
+          },
+          {
+            "type": "flick",
+            "char": "¾"
+          },
+          {
+            "type": "flick",
+            "char": "⓪"
+          }
+        ],
+        [
+          {
+            "type": "flick",
+            "char": "⑪"
+          },
+          {
+            "type": "flick",
+            "char": "⑫"
+          },
+          {
+            "type": "flick",
+            "char": "⑬"
+          },
+          {
+            "type": "flick",
+            "char": "⑭"
+          },
+          {
+            "type": "flick",
+            "char": "⑮"
+          },
+          {
+            "type": "flick",
+            "char": "⑯"
+          },
+          {
+            "type": "flick",
+            "char": "⑰"
+          },
+          {
+            "type": "flick",
+            "char": "⑱"
+          },
+          {
+            "type": "flick",
+            "char": "⑲"
+          },
+          {
+            "type": "flick",
+            "char": "⑳"
+          }
+        ],
+        [
+          {
+            "type": "flick",
+            "char": "㉑"
+          },
+          {
+            "type": "flick",
+            "char": "㉒"
+          },
+          {
+            "type": "flick",
+            "char": "㉓"
+          },
+          {
+            "type": "flick",
+            "char": "㉔"
+          },
+          {
+            "type": "flick",
+            "char": "㉕"
+          },
+          {
+            "type": "flick",
+            "char": "㉖"
+          },
+          {
+            "type": "flick",
+            "char": "㉗"
+          },
+          {
+            "type": "flick",
+            "char": "㉘"
+          },
+          {
+            "type": "flick",
+            "char": "㉙"
+          },
+          {
+            "type": "flick",
+            "char": "㉚"
+          }
+        ],
+        [
+          {
+            "type": "flick",
+            "char": "㉛"
+          },
+          {
+            "type": "flick",
+            "char": "㉜"
+          },
+          {
+            "type": "flick",
+            "char": "㉝"
+          },
+          {
+            "type": "flick",
+            "char": "㉞"
+          },
+          {
+            "type": "flick",
+            "char": "㉟"
+          },
+          {
+            "type": "flick",
+            "char": "㊱"
+          },
+          {
+            "type": "flick",
+            "char": "㊲"
+          },
+          {
+            "type": "flick",
+            "char": "㊳"
+          },
+          {
+            "type": "flick",
+            "char": "㊴"
+          },
+          {
+            "type": "flick",
+            "char": "㊵"
+          }
+        ],
+        [
+          {
+            "type": "flick",
+            "char": "㊶"
+          },
+          {
+            "type": "flick",
+            "char": "㊷"
+          },
+          {
+            "type": "flick",
+            "char": "㊸"
+          },
+          {
+            "type": "flick",
+            "char": "㊹"
+          },
+          {
+            "type": "flick",
+            "char": "㊺"
+          },
+          {
+            "type": "flick",
+            "char": "㊻"
+          },
+          {
+            "type": "flick",
+            "char": "㊼"
+          },
+          {
+            "type": "flick",
+            "char": "㊽"
+          },
+          {
+            "type": "flick",
+            "char": "㊾"
+          },
+          {
+            "type": "flick",
+            "char": "㊿"
+          }
+        ],
+        [
+          {
+            "type": "flick",
+            "char": "⚙",
+            "flick": {
+              "center": {
+                "action": "key_settings",
+                "label": "⚙"
+              }
+            }
+          },
+          {
+            "type": "flick",
+            "cluster": "?!@%",
+            "char": "@",
+            "flick": {
+              "left": "!",
+              "right": "%"
+            }
+          },
+          {
+            "type": "flick",
+            "cluster": ";.,",
+            "char": ".",
+            "flick": {
+              "left": ";",
+              "right": ",",
+              "up": ":",
+              "down": "…"
+            }
+          },
+          {
+            "type": "action",
+            "action": "tab"
+          },
+          {
+            "type": "action",
+            "action": "space"
+          },
+          {
+            "type": "flick",
+            "char": "⏎",
+            "flick": {
+              "center": {
+                "action": "enter",
+                "label": "⏎"
+              },
+              "up": {
+                "layer": "alt1",
+                "label": "altGr"
+              }
+            }
+          },
+          {
+            "type": "flick",
+            "char": "← ABC",
+            "flick": {
+              "center": {
+                "layer": "alpha0",
+                "label": "← ABC"
+              }
+            }
+          },
+          {
+            "type": "action",
+            "action": "shift"
+          },
+          {
+            "type": "action",
+            "action": "backspace"
+          }
+        ]
+      ]
+    }
+  }
+}

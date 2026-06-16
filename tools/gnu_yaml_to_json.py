@@ -46,6 +46,17 @@ ICON_LABEL = {
     "action_left": "←", "action_right": "→",
 }
 DOLLAR = {"$shift": "shift", "$delete": "backspace", "$space": "space"}
+# !code/<X> -> a native Urik action key (keeps shift-state / spacebar-slide / backspace-accel / Tab etc.)
+CODE_NATIVE = {
+    "key_shift": "shift", "key_delete": "backspace", "key_space": "space",
+    "key_enter": "enter", "key_tab": "tab", "key_language_switch": "language_switch",
+}
+# The action names conv_string_key emits as a native {"type":"action"} key (rest become flick centres).
+NATIVE_ACTIONS = set(CODE_NATIVE.values())
+
+# File language code (kxkb_<code>_...) -> Urik layout locale + script.
+LOCALE_MAP = {"cz": "cs", "en": "en", "ru": "ru", "ja": "ja", "gnu": "gnu"}
+SCRIPT_MAP = {"cs": "Latn", "en": "Latn", "gnu": "Latn", "ru": "Cyrl", "ja": "Hira"}
 
 
 def split_spec(s):
@@ -69,6 +80,8 @@ def conv_spec_string(s):
         return None
     if "!code/" in s or s.startswith("!icon/"):
         label, code = split_spec(s)
+        if code in CODE_NATIVE:
+            return {"action": CODE_NATIVE[code], "label": label}
         if code in CODE_LAYER:
             return {"layer": CODE_LAYER[code], "label": label}
         if code in CODE_ACTION:
@@ -120,13 +133,21 @@ def conv_compass(k):
 
 
 def conv_cluster(k):
+    """A cluster band -> a flick key carrying the WHOLE main string ("cluster"), drawn as primary glyphs
+    across the centre. Tap commits the middle char; the immediate neighbours ride the left/right slides
+    (full multi-char slide precision is the cluster-prediction milestone)."""
     out = {"type": "flick"}
     flick = {}
     main = k.get("main", "")
-    if len(main) >= 3:
-        out["char"], flick["left"], flick["right"] = main[1], main[0], main[2]
-    elif len(main) == 2:
-        out["char"], flick["right"] = main[0], main[1]
+    n = len(main)
+    if n:
+        out["cluster"] = main
+        center = n // 2
+        out["char"] = main[center]
+        if center - 1 >= 0:
+            flick["left"] = main[center - 1]
+        if center + 1 < n:
+            flick["right"] = main[center + 1]
     else:
         out["char"] = main
     for d in DIRS:
@@ -146,7 +167,7 @@ def conv_string_key(s):
     if isinstance(c, str):
         return {"type": "flick", "char": c}
     # native action keys keep Urik's special handling (shift state, spacebar cursor, backspace accel)
-    if c.get("action") in ("shift", "backspace", "space"):
+    if c.get("action") in NATIVE_ACTIONS:
         return {"type": "action", "action": c["action"]}
     return {"type": "flick", "char": c.get("label", ""), "flick": {"center": c}}
 
@@ -170,10 +191,23 @@ def conv_key(k):
     if isinstance(k, str):
         return conv_string_key(k)
     t = k.get("type")
+    if t == "gap":
+        return {"type": "spacer"}
     if t == "compass":
         return conv_compass(k)
     if t == "case":
-        return conv_compass(k["normal"])  # shiftedManually deferred
+        # Normal = the at-rest face; shiftedManually = the face shown (and committed) when shifted/caps.
+        def conv_variant(v):
+            if v is None:
+                return None
+            return conv_key(v) if isinstance(v, dict) and "type" in v else conv_compass(v)
+        base = conv_variant(k.get("normal"))
+        if base is None:
+            return None
+        sh = conv_variant(k.get("shiftedManually") or k.get("shifted"))
+        if sh is not None:
+            base["shifted"] = sh
+        return base
     if t == "cluster":
         return conv_cluster(k)
     if t == "macro":
@@ -200,8 +234,23 @@ def conv_page(page):
     return {"rows": [conv_row(r) for r in page]}
 
 
+def derive_locale(in_path):
+    """kxkb_<code>_... filename -> (locale, script). E.g. kxkb_cz_... -> ('cs','Latn')."""
+    import os
+    base = os.path.basename(in_path)
+    parts = base.split("_")
+    code = parts[1] if len(parts) > 1 else "en"
+    locale = LOCALE_MAP.get(code, code)
+    return locale, SCRIPT_MAP.get(locale, "Latn")
+
+
 def main():
     in_path, out_path = sys.argv[1], sys.argv[2]
+    locale, script = derive_locale(in_path)
+    if len(sys.argv) > 3:
+        locale = sys.argv[3]
+    if len(sys.argv) > 4:
+        script = sys.argv[4]
     data = yaml.safe_load(open(in_path, encoding="utf-8"))
     modes = {"letters": {"rows": [conv_row(r) for r in data["rows"]]}}
     alt = data.get("altPages", [])
@@ -209,7 +258,7 @@ def main():
         modes["numbers"] = conv_page(alt[0])
     if len(alt) >= 2:
         modes["symbols"] = conv_page(alt[1])
-    out = {"locale": "gnu", "script": "Latn", "isRTL": False,
+    out = {"locale": locale, "script": script, "isRTL": False,
            "showFlickHints": True, "modes": modes}
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, indent=2)
