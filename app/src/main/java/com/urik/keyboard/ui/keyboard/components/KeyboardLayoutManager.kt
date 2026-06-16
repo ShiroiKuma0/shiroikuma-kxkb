@@ -581,9 +581,9 @@ class KeyboardLayoutManager(
         }
 
         val density = context.resources.displayMetrics.density
-        cachedCornerRadius = 8f * density
-        cachedStrokeWidth = (1 * density).toInt()
-        cachedStrokeWidthThick = (2 * density).toInt()
+        cachedCornerRadius = dims?.cornerRadiusPx?.toFloat() ?: (8f * density)
+        cachedStrokeWidth = dims?.keyBorderWidthPx ?: (1 * density).toInt()
+        cachedStrokeWidthThick = dims?.keyBorderWidthPx?.let { it * 2 } ?: (2 * density).toInt()
         cacheValid = true
     }
 
@@ -618,7 +618,7 @@ class KeyboardLayoutManager(
         }
         val baseTextSize = keyHeight * ratio / context.resources.displayMetrics.density
         val adjusted = baseTextSize.coerceIn(minSize, maxSize)
-        adjusted * currentKeyLabelSize.scaleFactor
+        adjusted * currentKeyLabelSize.scaleFactor * (dims?.keyFontScale ?: 1f)
     }
 
     fun createKeyboardView(layout: KeyboardLayout, state: KeyboardState): View {
@@ -932,7 +932,7 @@ class KeyboardLayoutManager(
             maxLines = 1
             gravity = Gravity.CENTER
 
-            typeface = Typeface.DEFAULT
+            typeface = if (adaptiveDimensions?.boldKeyLabels == true) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
 
             minHeight = 0
             minimumHeight = 0

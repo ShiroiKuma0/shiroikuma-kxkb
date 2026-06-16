@@ -36,6 +36,7 @@ import com.urik.keyboard.model.KeyboardKey
 import com.urik.keyboard.model.KeyboardLayout
 import com.urik.keyboard.model.KeyboardMode
 import com.urik.keyboard.model.KeyboardState
+import com.urik.keyboard.service.AdaptiveDimensions
 import com.urik.keyboard.service.AutoCorrectionEngine
 import com.urik.keyboard.service.AutofillStateCoordinator
 import com.urik.keyboard.service.AutofillStateTracker
@@ -51,6 +52,7 @@ import com.urik.keyboard.service.InputFieldClassifier
 import com.urik.keyboard.service.InputStateManager
 import com.urik.keyboard.service.JapaneseCandidateHandler
 import com.urik.keyboard.service.KeyEventHandler
+import com.urik.keyboard.service.KeyboardLookKnobs
 import com.urik.keyboard.service.KeyEventRouter
 import com.urik.keyboard.service.LanguageManager
 import com.urik.keyboard.service.LetterInputHandler
@@ -637,7 +639,7 @@ open class UrikInputMethodService :
             val initialMode = keyboardModeManager.currentMode.value
             val initialDims = initialMode.adaptiveDimensions
             if (initialDims != null) {
-                layoutManager.updateAdaptiveDimensions(initialDims)
+                layoutManager.updateAdaptiveDimensions(withLookKnobs(initialDims))
             } else {
                 layoutManager.updateSplitGapPx(initialMode.splitGapPx)
             }
@@ -784,7 +786,7 @@ open class UrikInputMethodService :
 
         swipeKeyboardView = swipeView
         keyboardModeManager.currentMode.value.adaptiveDimensions?.let {
-            swipeView.updateAdaptiveDimensions(it)
+            swipeView.updateAdaptiveDimensions(withLookKnobs(it))
         }
         layoutManager.setSwipeKeyboardView(swipeView)
         updateSwipeKeyboard()
@@ -1220,9 +1222,10 @@ open class UrikInputMethodService :
 
                         val dims = config.adaptiveDimensions
                         if (dims != null) {
-                            layoutManager.updateAdaptiveDimensions(dims)
-                            swipeKeyboardView?.updateAdaptiveDimensions(dims)
-                            swipeDetector.updateAdaptiveDimensions(dims)
+                            val look = withLookKnobs(dims)
+                            layoutManager.updateAdaptiveDimensions(look)
+                            swipeKeyboardView?.updateAdaptiveDimensions(look)
+                            swipeDetector.updateAdaptiveDimensions(look)
                         } else {
                             layoutManager.updateSplitGapPx(config.splitGapPx)
                         }
@@ -1238,6 +1241,21 @@ open class UrikInputMethodService :
 
         observeSettings()
     }
+
+    /**
+     * The active per-geometry "look" knob set. For now a constant (白い熊's signature: square keys +
+     * bold labels); 1A.2 resolves it per (language·layout·geometry) from the look store and caches it
+     * off the hot path.
+     */
+    private val activeLookKnobs: KeyboardLookKnobs
+        get() = KeyboardLookKnobs.DEFAULT
+
+    /**
+     * The single seam every [AdaptiveDimensions] push routes through: overlays [activeLookKnobs] onto
+     * the mode's base dimensions before they reach the renderer / swipe views.
+     */
+    private fun withLookKnobs(dims: AdaptiveDimensions): AdaptiveDimensions =
+        activeLookKnobs.applyTo(dims, resources.displayMetrics.density)
 
     private fun computeFilteredLayout(layout: KeyboardLayout): KeyboardLayout =
         computeFilteredLayout(layout, currentSettings.showNumberRow)

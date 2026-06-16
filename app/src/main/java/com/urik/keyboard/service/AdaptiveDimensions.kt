@@ -20,7 +20,12 @@ data class AdaptiveDimensions(
     val keyTextBaseRatio: Float,
     val keyTextMinSp: Float,
     val keyTextMaxSp: Float,
-    val suggestionBarHeightPx: Int
+    val suggestionBarHeightPx: Int,
+    // Per-geometry "look" overrides overlaid by KeyboardLookKnobs. null/default = renderer default.
+    val cornerRadiusPx: Int? = null,
+    val keyBorderWidthPx: Int? = null,
+    val boldKeyLabels: Boolean = false,
+    val keyFontScale: Float = 1f
 ) {
     companion object {
         private const val BASE_KEY_HEIGHT_DP = 40f
