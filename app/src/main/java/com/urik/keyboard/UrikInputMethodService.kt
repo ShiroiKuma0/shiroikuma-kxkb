@@ -442,6 +442,7 @@ open class UrikInputMethodService :
                     onSymbolsLongPress = { handleClipboardButtonClick() },
                     onLanguageSwitch = { languageCode -> handleLanguageSwitch(languageCode) },
                     onSwitchToLayout = { lang, layoutId -> switchToLayout(lang, layoutId) },
+                    onMenuAction = { action -> handleSpaceMenuAction(action) },
                     onShowInputMethodPicker = { showInputMethodPicker() },
                     onFlickBinding = { binding -> handleFlickBinding(binding) },
                     characterVariationService = characterVariationService,
@@ -967,6 +968,21 @@ open class UrikInputMethodService :
                 withContext(Dispatchers.Main) { updateSwipeKeyboard() }
             }
         }
+    }
+
+    /** Space-menu actions column: open a settings page. */
+    private fun handleSpaceMenuAction(action: String) {
+        val intent = when (action) {
+            "kxkb_ui" -> com.urik.keyboard.settings.SettingsActivity.createIntent(
+                this, com.urik.keyboard.settings.SettingsActivity.PAGE_KEYBOARD_UI
+            )
+            "languages" -> com.urik.keyboard.settings.SettingsActivity.createIntent(
+                this, com.urik.keyboard.settings.SettingsActivity.PAGE_LANGUAGES
+            )
+            else -> com.urik.keyboard.settings.SettingsActivity.createIntent(this)
+        }
+        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        startActivity(intent)
     }
 
     private val virtualKeyCharMap by lazy { KeyCharacterMap.load(KeyCharacterMap.VIRTUAL_KEYBOARD) }

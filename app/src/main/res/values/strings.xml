@@ -91,6 +91,10 @@
     <string name="keyboard_ui_section_keyboard">Keyboard</string>
     <string name="space_menu_languages">Languages</string>
     <string name="space_menu_layouts">Layouts</string>
+    <string name="space_menu_actions">Actions</string>
+    <string name="space_menu_kxkb_ui">白い熊 kxkb UI</string>
+    <string name="space_menu_languages_action">Languages</string>
+    <string name="space_menu_all_settings">All settings</string>
     <string name="keyboard_ui_app_language">App language</string>
     <string name="keyboard_ui_app_language_system">System default</string>
     <string name="keyboard_ui_section_rows">Rows</string>

@@ -62,6 +62,7 @@ class KeyboardLayoutManager(
     private val onSymbolsLongPress: () -> Unit,
     private val onLanguageSwitch: (String) -> Unit = {},
     private val onSwitchToLayout: (String, String) -> Unit = { _, _ -> },
+    private val onMenuAction: (String) -> Unit = {},
     private val onShowInputMethodPicker: () -> Unit = {},
     private val onFlickBinding: (KeyboardKey.FlickBinding) -> Unit = {},
     private val characterVariationService: CharacterVariationService,
@@ -1403,6 +1404,14 @@ class KeyboardLayoutManager(
      */
     fun buildSpaceMenu(): List<SpaceMenuColumn> {
         val currentLang = languageManager.currentLayoutLanguage.value
+        val actions = SpaceMenuColumn(
+            header = context.getString(R.string.space_menu_actions),
+            items = listOf(
+                SpaceMenuItem(context.getString(R.string.space_menu_kxkb_ui), false) { onMenuAction("kxkb_ui") },
+                SpaceMenuItem(context.getString(R.string.space_menu_languages_action), false) { onMenuAction("languages") },
+                SpaceMenuItem(context.getString(R.string.space_menu_all_settings), false) { onMenuAction("settings") }
+            )
+        )
         val languages = SpaceMenuColumn(
             header = context.getString(R.string.space_menu_languages),
             items = activeLanguages.filter { it != currentLang }.map { lang ->
@@ -1416,7 +1425,7 @@ class KeyboardLayoutManager(
                 SpaceMenuItem(entry.name, current = false) { onSwitchToLayout(currentLang, entry.id) }
             }
         )
-        return listOf(languages, layouts).filter { it.items.isNotEmpty() }
+        return listOf(actions, languages, layouts).filter { it.items.isNotEmpty() }
     }
 
     /**

@@ -46,6 +46,19 @@ class SettingsActivity : AppCompatActivity() {
                 .beginTransaction()
                 .replace(R.id.settings_container, MainSettingsFragment())
                 .commit()
+            val page: PreferenceFragmentCompat? =
+                when (intent.getStringExtra(EXTRA_OPEN_PAGE)) {
+                    PAGE_KEYBOARD_UI -> KeyboardUiFragment()
+                    PAGE_LANGUAGES -> LanguagesFragment()
+                    else -> null
+                }
+            page?.let {
+                supportFragmentManager
+                    .beginTransaction()
+                    .replace(R.id.settings_container, it)
+                    .addToBackStack(null)
+                    .commit()
+            }
         }
     }
 
@@ -99,7 +112,15 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     companion object {
+        const val EXTRA_OPEN_PAGE = "open_page"
+        const val PAGE_KEYBOARD_UI = "keyboard_ui"
+        const val PAGE_LANGUAGES = "languages"
+
         fun createIntent(context: Context): Intent = Intent(context, SettingsActivity::class.java)
+
+        /** Open straight to a sub-page (used by the space-slide menu's actions column). */
+        fun createIntent(context: Context, page: String): Intent =
+            createIntent(context).putExtra(EXTRA_OPEN_PAGE, page)
     }
 }
 
