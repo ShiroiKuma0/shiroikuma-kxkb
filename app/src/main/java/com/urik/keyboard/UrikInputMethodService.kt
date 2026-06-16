@@ -441,6 +441,7 @@ open class UrikInputMethodService :
                     onAcceleratedDeletionChanged = { active -> setAcceleratedDeletion(active) },
                     onSymbolsLongPress = { handleClipboardButtonClick() },
                     onLanguageSwitch = { languageCode -> handleLanguageSwitch(languageCode) },
+                    onSwitchToLayout = { lang, layoutId -> switchToLayout(lang, layoutId) },
                     onShowInputMethodPicker = { showInputMethodPicker() },
                     onFlickBinding = { binding -> handleFlickBinding(binding) },
                     characterVariationService = characterVariationService,
@@ -949,6 +950,21 @@ open class UrikInputMethodService :
                     exception = e,
                     context = mapOf("operation" to "handleLanguageSwitch")
                 )
+            }
+        }
+    }
+
+    /** 1D space-menu: set the active layout for [language] and reload (switching language first if needed). */
+    fun switchToLayout(language: String, layoutId: String) {
+        serviceScope.launch {
+            settingsRepository.setActiveLayoutForLanguage(language, layoutId)
+            if (languageManager.currentLayoutLanguage.value != language) {
+                handleLanguageSwitch(language)
+            } else {
+                repository.cleanup()
+                viewModel.reloadLayout()
+                refreshLookKnobs()
+                withContext(Dispatchers.Main) { updateSwipeKeyboard() }
             }
         }
     }

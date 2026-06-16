@@ -53,6 +53,7 @@ constructor(
         val PRIMARY_LANGUAGE = stringPreferencesKey("primary_language")
         val PRIMARY_LAYOUT_LANGUAGE = stringPreferencesKey("primary_layout_language")
         val PER_APP_LAYOUT_LANGUAGES = stringPreferencesKey("per_app_layout_languages")
+        val ACTIVE_LAYOUT_BY_LANGUAGE = stringPreferencesKey("active_layout_by_language")
         val PER_GEOMETRY_LOOK = stringPreferencesKey("per_geometry_look")
         val CURRENT_GEOMETRY = stringPreferencesKey("current_geometry")
         val HAPTIC_FEEDBACK = booleanPreferencesKey("haptic_feedback")
@@ -379,6 +380,31 @@ constructor(
                 if (current[packageName] != language) {
                     val updated = current.toMutableMap().apply { this[packageName] = language }
                     preferences[PreferenceKeys.PER_APP_LAYOUT_LANGUAGES] = encodePerAppLayouts(updated)
+                }
+            }
+        }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    /** The active layout id chosen for [language] (1D switcher), or null = use the registry default. */
+    suspend fun getActiveLayoutForLanguage(language: String): String? = try {
+        if (language.isBlank()) null
+        else dataStore.data.first()[PreferenceKeys.ACTIVE_LAYOUT_BY_LANGUAGE]
+            ?.let { decodePerAppLayouts(it)[language] }
+    } catch (e: Exception) {
+        null
+    }
+
+    suspend fun setActiveLayoutForLanguage(language: String, layoutId: String): Result<Unit> = try {
+        if (language.isNotBlank() && layoutId.isNotBlank()) {
+            dataStore.edit { preferences ->
+                val current = preferences[PreferenceKeys.ACTIVE_LAYOUT_BY_LANGUAGE]
+                    ?.let { decodePerAppLayouts(it) } ?: emptyMap()
+                if (current[language] != layoutId) {
+                    preferences[PreferenceKeys.ACTIVE_LAYOUT_BY_LANGUAGE] =
+                        encodePerAppLayouts(current.toMutableMap().apply { this[language] = layoutId })
                 }
             }
         }

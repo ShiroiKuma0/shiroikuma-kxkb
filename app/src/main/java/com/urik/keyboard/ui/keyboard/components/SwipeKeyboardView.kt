@@ -65,6 +65,15 @@ constructor(
     private var suggestionVerticalPadding = 0
     private var spellCheckManager: SpellCheckManager? = null
     private var keyboardLayoutManager: KeyboardLayoutManager? = null
+
+    // Space-slide menu (1D): an up-slide on the space bar opens a Languages | Layouts grid; the cell under
+    // the finger highlights; release switches. Drawn as an overlay in dispatchDraw.
+    private var spaceMenuColumns: List<SpaceMenuColumn>? = null
+    private var spaceMenuHighlight: Pair<Int, Int>? = null
+    private var touchDownKey: KeyboardKey? = null
+    private val spaceMenuTextPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+    private val spaceMenuFillPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+    private val spaceMenuLinePaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
     private var swipeDetector: SwipeDetector? = null
     private var themeManager: ThemeManager? = null
     private var languageManager: LanguageManager? = null
@@ -1737,7 +1746,9 @@ constructor(
     }
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
-        if (!isDestroyed && confirmationOverlay == null && (gestureHandler.isActive || isSwipeActive)) {
+        if (!isDestroyed && confirmationOverlay == null &&
+            (gestureHandler.isActive || isSwipeActive || spaceMenuColumns != null)
+        ) {
             return onTouchEvent(ev)
         }
         return super.dispatchTouchEvent(ev)
@@ -1767,6 +1778,7 @@ constructor(
                 gestureHandler.cancel()
 
                 val key = layoutEngine.findKeyAt(ev.x, ev.y)
+                touchDownKey = key
                 gestureHandler.handleDown(key as? KeyboardKey.Action, ev.x, ev.y)
 
                 swipeDetector?.handleTouchEvent(ev) { x, y -> layoutEngine.findKeyAt(x, y) }
@@ -1774,6 +1786,24 @@ constructor(
             }
 
             MotionEvent.ACTION_MOVE -> {
+                // Any slide that starts on the space bar opens the layout/language menu (handled from here on
+                // in onTouchEvent). A plain tap on space (no slide) still types a space.
+                if (spaceMenuColumns == null && !gestureHandler.isActive && !popupActive &&
+                    (touchDownKey as? KeyboardKey.Action)?.action == KeyboardKey.ActionType.SPACE
+                ) {
+                    val dx = ev.x - touchStartPoint.x
+                    val dy = ev.y - touchStartPoint.y
+                    val threshold =
+                        (adaptiveDimensions?.gestureThresholdDp ?: 20f) * resources.displayMetrics.density
+                    if (kotlin.math.sqrt(dx * dx + dy * dy) > threshold) {
+                        if (openSpaceMenu(ev.x, ev.y)) {
+                            parent?.requestDisallowInterceptTouchEvent(true)
+                            keyboardLayoutManager?.cancelAllPendingCallbacks()
+                            keyboardLayoutManager?.triggerHapticFeedback()
+                            return true
+                        }
+                    }
+                }
                 if (!gestureHandler.isActive && !popupActive) {
                     val justActivated = gestureHandler.handleMove(ev.x, ev.y)
                     if (justActivated) {
@@ -1824,10 +1854,140 @@ constructor(
         return false
     }
 
+    // ---- Space-slide menu (1D) ----
+
+    private fun openSpaceMenu(x: Float, y: Float): Boolean {
+        val cols = keyboardLayoutManager?.buildSpaceMenu()?.takeIf { it.isNotEmpty() } ?: return false
+        spaceMenuColumns = cols
+        spaceMenuHighlight = null
+        updateSpaceMenuHighlight(x, y)
+        invalidate()
+        return true
+    }
+
+    private fun spaceMenuRowHeight(cols: List<SpaceMenuColumn>): Float {
+        val rows = ((cols.maxOfOrNull { it.items.size } ?: 0) + 1).coerceAtLeast(1) // +1 for the header row
+        return height.toFloat() / rows
+    }
+
+    private fun updateSpaceMenuHighlight(x: Float, y: Float) {
+        val cols = spaceMenuColumns ?: return
+        val colW = width.toFloat() / cols.size
+        val c = (x / colW).toInt().coerceIn(0, cols.size - 1)
+        val r = (y / spaceMenuRowHeight(cols)).toInt() - 1 // subtract the header row
+        val next = if (r in cols[c].items.indices) c to r else null
+        if (next != spaceMenuHighlight) {
+            spaceMenuHighlight = next
+            if (next != null) keyboardLayoutManager?.triggerHapticFeedback()
+            invalidate()
+        }
+    }
+
+    private fun commitSpaceMenu() {
+        val cols = spaceMenuColumns ?: return
+        val (c, r) = spaceMenuHighlight ?: return
+        cols.getOrNull(c)?.items?.getOrNull(r)?.onSelect?.invoke()
+    }
+
+    private fun closeSpaceMenu() {
+        spaceMenuColumns = null
+        spaceMenuHighlight = null
+        invalidate()
+    }
+
+    override fun dispatchDraw(canvas: android.graphics.Canvas) {
+        super.dispatchDraw(canvas)
+        spaceMenuColumns?.let { drawSpaceMenu(canvas, it) }
+    }
+
+    private fun drawSpaceMenu(canvas: android.graphics.Canvas, cols: List<SpaceMenuColumn>) {
+        val theme = themeManager?.currentTheme?.value ?: return
+        val bg = theme.colors.keyboardBackground
+        val fg = theme.colors.keyTextCharacter
+        val density = resources.displayMetrics.density
+        val w = width.toFloat()
+        val h = height.toFloat()
+
+        // Near-opaque backdrop over the keyboard.
+        spaceMenuFillPaint.color = (bg and 0x00FFFFFF.toInt()) or 0xF2000000.toInt()
+        canvas.drawRect(0f, 0f, w, h, spaceMenuFillPaint)
+
+        val colW = w / cols.size
+        val rowH = spaceMenuRowHeight(cols)
+        spaceMenuTextPaint.textAlign = android.graphics.Paint.Align.CENTER
+        spaceMenuLinePaint.style = android.graphics.Paint.Style.STROKE
+        spaceMenuLinePaint.color = fg
+        spaceMenuLinePaint.strokeWidth = 2f * density
+        val inset = 2f * density
+
+        for (c in cols.indices) {
+            val col = cols[c]
+            val cx = c * colW + colW / 2f
+
+            // Header (2x the previous size, bold).
+            spaceMenuTextPaint.textSize = 28f * density
+            spaceMenuTextPaint.isFakeBoldText = true
+            spaceMenuTextPaint.color = fg
+            drawFittedText(canvas, col.header, cx, rowH / 2f, colW, spaceMenuTextPaint)
+            spaceMenuTextPaint.isFakeBoldText = false
+
+            // Items: each in a yellow-bordered cell; the one under the finger is filled.
+            spaceMenuTextPaint.textSize = 32f * density
+            for (i in col.items.indices) {
+                val top = (i + 1) * rowH
+                val highlighted = spaceMenuHighlight == (c to i)
+                if (highlighted) {
+                    spaceMenuFillPaint.color = fg
+                    canvas.drawRect(c * colW + inset, top + inset, (c + 1) * colW - inset, top + rowH - inset, spaceMenuFillPaint)
+                    spaceMenuTextPaint.color = bg
+                } else {
+                    spaceMenuTextPaint.color = fg
+                }
+                canvas.drawRect(c * colW + inset, top + inset, (c + 1) * colW - inset, top + rowH - inset, spaceMenuLinePaint)
+                drawFittedText(canvas, col.items[i].label, cx, top + rowH / 2f, colW, spaceMenuTextPaint)
+            }
+        }
+    }
+
+    private fun drawFittedText(
+        canvas: android.graphics.Canvas,
+        text: String,
+        cx: Float,
+        cy: Float,
+        colW: Float,
+        paint: android.graphics.Paint
+    ) {
+        val base = paint.textSize
+        val maxW = colW * 0.9f
+        val textW = paint.measureText(text)
+        if (textW > maxW) paint.textSize = base * (maxW / textW)
+        val fm = paint.fontMetrics
+        canvas.drawText(text, cx, cy - (fm.ascent + fm.descent) / 2f, paint)
+        paint.textSize = base
+    }
+
     @Suppress("ReturnCount")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         requireInitialized()
         if (isDestroyed) return false
+
+        // Space-slide menu owns the whole gesture once open: slide highlights, release applies (or closes
+        // with no action if released outside any item / back on the space bar).
+        if (spaceMenuColumns != null) {
+            when (event.action) {
+                MotionEvent.ACTION_MOVE -> updateSpaceMenuHighlight(event.x, event.y)
+                MotionEvent.ACTION_UP -> {
+                    commitSpaceMenu()
+                    closeSpaceMenu()
+                    parent?.requestDisallowInterceptTouchEvent(false)
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    closeSpaceMenu()
+                    parent?.requestDisallowInterceptTouchEvent(false)
+                }
+            }
+            return true
+        }
 
         if (confirmationOverlay != null) {
             return false

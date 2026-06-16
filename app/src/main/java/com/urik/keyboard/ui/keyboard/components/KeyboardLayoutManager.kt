@@ -61,6 +61,7 @@ class KeyboardLayoutManager(
     private val onAcceleratedDeletionChanged: (Boolean) -> Unit,
     private val onSymbolsLongPress: () -> Unit,
     private val onLanguageSwitch: (String) -> Unit = {},
+    private val onSwitchToLayout: (String, String) -> Unit = { _, _ -> },
     private val onShowInputMethodPicker: () -> Unit = {},
     private val onFlickBinding: (KeyboardKey.FlickBinding) -> Unit = {},
     private val characterVariationService: CharacterVariationService,
@@ -1281,14 +1282,6 @@ class KeyboardLayoutManager(
                 }
             }
 
-            // Interim (until the space-slide switcher, 1D): long-press the space bar cycles language.
-            if (key is KeyboardKey.Action && key.action == KeyboardKey.ActionType.SPACE) {
-                setOnLongClickListener {
-                    performContextualHaptic(key)
-                    cycleToNextLanguage()
-                    true
-                }
-            }
 
             if (key is KeyboardKey.FlickKey) {
                 setOnClickListener(null)
@@ -1385,8 +1378,11 @@ class KeyboardLayoutManager(
      * The current layout language's name in its OWN language, for the space bar — e.g. ja → "日本語",
      * ru → "Русский", en → "English". "gnu" is a pseudo-language (code mode) → "GNU".
      */
-    private fun layoutLanguageDisplayName(): String {
-        val code = languageManager.currentLayoutLanguage.value
+    private fun layoutLanguageDisplayName(): String =
+        nativeLanguageName(languageManager.currentLayoutLanguage.value)
+
+    /** A language code's name in its own language (ja -> "日本語", ru -> "Русский", gnu -> "GNU"). */
+    private fun nativeLanguageName(code: String): String {
         if (code == "gnu") return "GNU"
         return try {
             val loc = android.icu.util.ULocale.forLanguageTag(code)
@@ -1399,6 +1395,28 @@ class KeyboardLayoutManager(
         } catch (_: Exception) {
             code.uppercase(java.util.Locale.ROOT)
         }
+    }
+
+    /**
+     * The space-slide menu model: a Languages column (the OTHER active languages → switch language) and a
+     * Layouts column (the current language's registry layouts → switch the variant). Built fresh on open.
+     */
+    fun buildSpaceMenu(): List<SpaceMenuColumn> {
+        val currentLang = languageManager.currentLayoutLanguage.value
+        val languages = SpaceMenuColumn(
+            header = context.getString(R.string.space_menu_languages),
+            items = activeLanguages.filter { it != currentLang }.map { lang ->
+                SpaceMenuItem(nativeLanguageName(lang), current = false) { onLanguageSwitch(lang) }
+            }
+        )
+        val registry = com.urik.keyboard.data.LayoutRegistry.load(context)
+        val layouts = SpaceMenuColumn(
+            header = context.getString(R.string.space_menu_layouts),
+            items = registry.forLanguage(currentLang).map { entry ->
+                SpaceMenuItem(entry.name, current = false) { onSwitchToLayout(currentLang, entry.id) }
+            }
+        )
+        return listOf(languages, layouts).filter { it.items.isNotEmpty() }
     }
 
     /**

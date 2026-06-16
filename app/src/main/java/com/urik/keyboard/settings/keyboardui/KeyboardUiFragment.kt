@@ -34,6 +34,7 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
     private lateinit var eventHandler: SettingsEventHandler
 
     private lateinit var geometryPref: ListPreference
+    private lateinit var localePref: ListPreference
     private lateinit var heightPref: SeekBarPreference
     private lateinit var widthPref: SeekBarPreference
     private lateinit var liftPref: SeekBarPreference
@@ -134,6 +135,20 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
 
         // --- KEYBOARD: whole-keyboard geometry, background, key spacing (per axis). ---
         val keyboardCategory = sectionCategory("kb_ui_cat_keyboard", R.string.keyboard_ui_section_keyboard)
+        localePref =
+            ListPreference(context).apply {
+                key = "kb_ui_app_locale"
+                isPersistent = false
+                layoutResource = R.layout.preference_item_kxkb
+                title = resources.getString(R.string.keyboard_ui_app_language)
+                entries =
+                    arrayOf(
+                        resources.getString(R.string.keyboard_ui_app_language_system),
+                        "English", "日本語", "Русский", "Čeština"
+                    )
+                entryValues = arrayOf("", "en", "ja", "ru", "cs")
+                summaryProvider = ListPreference.SimpleSummaryProvider.getInstance()
+            }
         heightPref = seekBar("kb_ui_height", R.string.keyboard_ui_item_height, min = 50, max = 200)
         widthPref = seekBar("kb_ui_width", R.string.keyboard_ui_item_width, min = 50, max = 100)
         liftPref = seekBar("kb_ui_lift", R.string.keyboard_ui_bottom_lift, min = 0, max = 200)
@@ -192,6 +207,7 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         geometryCategory.addPreference(geometryPref)
 
         screen.addPreference(keyboardCategory)
+        keyboardCategory.addPreference(localePref)
         keyboardCategory.addPreference(heightPref)
         keyboardCategory.addPreference(widthPref)
         keyboardCategory.addPreference(liftPref)
@@ -331,6 +347,16 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
 
         geometryPref.setOnPreferenceChangeListener { _, newValue ->
             viewModel.selectGeometry(newValue as String)
+            true
+        }
+        // App interface language — independent of the phone locale and the keyboard's layout language.
+        localePref.value = androidx.appcompat.app.AppCompatDelegate.getApplicationLocales().toLanguageTags()
+        localePref.setOnPreferenceChangeListener { _, newValue ->
+            val tag = newValue as String
+            val locales =
+                if (tag.isEmpty()) androidx.core.os.LocaleListCompat.getEmptyLocaleList()
+                else androidx.core.os.LocaleListCompat.forLanguageTags(tag)
+            androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(locales)
             true
         }
         heightPref.setOnPreferenceChangeListener { _, newValue ->

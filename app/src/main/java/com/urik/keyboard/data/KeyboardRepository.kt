@@ -123,10 +123,13 @@ constructor(
 
         val layoutIdentifier =
             when (alternativeLayout) {
-                com.urik.keyboard.settings.AlternativeKeyboardLayout.DEFAULT ->
-                    // The registry picks the active layout for this language (one of possibly many);
-                    // falls back to the bundled <lang>.json when the language has no registry default.
-                    LayoutRegistry.load(context).defaultFor(locale.toLanguageTag()) ?: locale.toLanguageTag()
+                com.urik.keyboard.settings.AlternativeKeyboardLayout.DEFAULT -> {
+                    // Per-language active layout (1D switcher) -> registry default -> bundled <lang>.json.
+                    val lang = locale.toLanguageTag()
+                    val registry = LayoutRegistry.load(context)
+                    settingsRepository.getActiveLayoutForLanguage(lang)?.takeIf { registry.has(it) }
+                        ?: registry.defaultFor(lang) ?: lang
+                }
                 com.urik.keyboard.settings.AlternativeKeyboardLayout.QWERTY -> "en"
                 com.urik.keyboard.settings.AlternativeKeyboardLayout.AZERTY -> "azerty"
                 com.urik.keyboard.settings.AlternativeKeyboardLayout.QWERTZ -> "qwertz"

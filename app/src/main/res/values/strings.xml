@@ -89,6 +89,10 @@
     <string name="keyboard_ui_category_text">Text</string>
     <!-- Reorganized hierarchy: sections, sub-categories and contextual short item names. -->
     <string name="keyboard_ui_section_keyboard">Keyboard</string>
+    <string name="space_menu_languages">Languages</string>
+    <string name="space_menu_layouts">Layouts</string>
+    <string name="keyboard_ui_app_language">App language</string>
+    <string name="keyboard_ui_app_language_system">System default</string>
     <string name="keyboard_ui_section_rows">Rows</string>
     <string name="keyboard_ui_sub_primary">Primary character</string>
     <string name="keyboard_ui_sub_secondary">Secondary character</string>
