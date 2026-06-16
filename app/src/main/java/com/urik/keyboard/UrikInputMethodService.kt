@@ -75,6 +75,8 @@ import com.urik.keyboard.theme.ThemeManager
 import com.urik.keyboard.ui.keyboard.KeyboardViewModel
 import com.urik.keyboard.ui.keyboard.components.ClipboardPanel
 import com.urik.keyboard.ui.keyboard.components.KeyboardLayoutManager
+import com.urik.keyboard.ui.keyboard.components.ResizeOverlayView
+import com.urik.keyboard.ui.keyboard.components.ResizeValues
 import com.urik.keyboard.ui.keyboard.components.SwipeDetector
 import com.urik.keyboard.ui.keyboard.components.SwipeKeyboardView
 import com.urik.keyboard.utils.BackspaceUtils
@@ -799,6 +801,7 @@ open class UrikInputMethodService :
             swipeView.updateAdaptiveDimensions(withLookKnobs(it))
         }
         layoutManager.setSwipeKeyboardView(swipeView)
+        wireResizeOverlay(swipeView.keyboardResizeOverlay)
         updateSwipeKeyboard()
         observeViewModel()
 
@@ -1321,6 +1324,49 @@ open class UrikInputMethodService :
         val widthScale = activeLookKnobs.keyboardWidthScale ?: 1f
         val liftPx = ((activeLookKnobs.bottomLiftDp ?: 0f) * density).toInt()
         adaptiveContainer?.applyLookKnobs(widthScale, liftPx)
+    }
+
+    /** Wire the seamless resize overlay (1C) to the look store: live-apply on drag, persist on release. */
+    private fun wireResizeOverlay(overlay: ResizeOverlayView) {
+        overlay.handleColor = themeManager.currentTheme.value.colors.swipePrimary
+        overlay.longPressMs = currentSettings.longPressDuration.durationMs
+        overlay.onHaptic = { if (::layoutManager.isInitialized) layoutManager.triggerHapticFeedback() }
+        overlay.onBegin = {
+            ResizeValues(
+                activeLookKnobs.keyHeightScale ?: 1f,
+                activeLookKnobs.keyboardWidthScale ?: 1f,
+                activeLookKnobs.bottomLiftDp ?: 0f
+            )
+        }
+        overlay.onApply = { v -> liveResize(v.heightScale, v.widthScale, v.bottomLiftDp) }
+        overlay.onCommit = { v -> commitResize(v.heightScale, v.widthScale, v.bottomLiftDp) }
+    }
+
+    /** In-memory live apply of a resize drag (no persistence). */
+    private fun liveResize(height: Float, width: Float, liftDp: Float) {
+        activeLookKnobs =
+            activeLookKnobs.copy(keyHeightScale = height, keyboardWidthScale = width, bottomLiftDp = liftDp)
+        reapplyLookKnobs()
+    }
+
+    /**
+     * Commit a resize: snap-to-dock dead zone, then persist into the SAME per-geometry baseline the Keyboard
+     * UI sliders edit (merged so other knobs survive) — so resize and the sliders stay consistent rather than
+     * a per-combo fork shadowing them.
+     */
+    private fun commitResize(height: Float, width: Float, liftDp: Float) {
+        val w = if (width >= 0.98f) 1f else width
+        val lift = if (liftDp <= 5f) 0f else liftDp
+        liveResize(height, w, lift)
+        serviceScope.launch {
+            val geometry =
+                postureDetector?.postureInfo?.value?.let { geometryKey(it) } ?: GeometryBucket.FOLDED_PORT.key
+            val existing = settingsRepository.getGeometryBaselineLook(geometry) ?: KeyboardLookKnobs()
+            settingsRepository.updateGeometryBaselineLook(
+                geometry,
+                existing.copy(keyHeightScale = height, keyboardWidthScale = w, bottomLiftDp = lift)
+            )
+        }
     }
 
     private fun computeFilteredLayout(layout: KeyboardLayout): KeyboardLayout =

@@ -96,6 +96,11 @@ constructor(
 
     private val swipeOverlay = SwipeOverlayView(context)
 
+    private val resizeOverlay = ResizeOverlayView(context)
+
+    /** The seamless on-keyboard resize overlay (top of stack, aligned to the keyboard); wired by the service. */
+    val keyboardResizeOverlay: ResizeOverlayView get() = resizeOverlay
+
     private var suggestionBar: LinearLayout? = null
 
     private var emojiButton: TextView? = null
@@ -283,6 +288,14 @@ constructor(
     init {
         addView(
             swipeOverlay,
+            LayoutParams(
+                LayoutParams.MATCH_PARENT,
+                LayoutParams.MATCH_PARENT
+            )
+        )
+        // Topmost child so its top-left grip owns the primary finger before any key sees the DOWN.
+        addView(
+            resizeOverlay,
             LayoutParams(
                 LayoutParams.MATCH_PARENT,
                 LayoutParams.MATCH_PARENT
@@ -1577,8 +1590,9 @@ constructor(
         }
         suggestionBar = null
 
-        if (childCount > 1) {
-            for (i in childCount - 2 downTo 0) {
+        // Keep the two persistent top overlays (swipe trail + resize), rebuild everything below them.
+        if (childCount > 2) {
+            for (i in childCount - 3 downTo 0) {
                 removeViewAt(i)
             }
         }
@@ -1593,7 +1607,7 @@ constructor(
 
             addView(
                 keyboardView,
-                childCount - 1,
+                childCount - 2,
                 LayoutParams(
                     LayoutParams.MATCH_PARENT,
                     LayoutParams.WRAP_CONTENT

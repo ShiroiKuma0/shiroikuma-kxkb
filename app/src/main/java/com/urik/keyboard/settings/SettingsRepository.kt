@@ -439,12 +439,17 @@ constructor(
     private fun comboLookKey(language: String, layout: String, geometry: String): String =
         "$language|$layout|$geometry"
 
-    /** The effective knob set for a combo: DEFAULT overlaid by the geometry baseline overlaid by the combo fork. */
+    /**
+     * The effective knob set for a combo: DEFAULT overlaid by the per-geometry baseline. The per-combo fork
+     * layer is currently NOT resolved — both the Keyboard UI sliders and the on-keyboard resize write the
+     * geometry baseline, so resolving forks would let stale ones shadow the baseline. (The combo machinery is
+     * retained for a future per-(language·layout) override model.)
+     */
+    @Suppress("UNUSED_PARAMETER")
     suspend fun resolveLookKnobs(language: String, layout: String, geometry: String): KeyboardLookKnobs = try {
         val map = dataStore.data.first()[PreferenceKeys.PER_GEOMETRY_LOOK]?.let { decodeLookMap(it) } ?: emptyMap()
         var resolved = KeyboardLookKnobs.DEFAULT
         map[geometry]?.let { resolved = resolved.overlay(it) }
-        map[comboLookKey(language, layout, geometry)]?.let { resolved = resolved.overlay(it) }
         resolved
     } catch (e: Exception) {
         KeyboardLookKnobs.DEFAULT
