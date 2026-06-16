@@ -636,6 +636,9 @@ open class UrikInputMethodService :
                 layoutParams.gravity = Gravity.BOTTOM
                 actualWindow.attributes = layoutParams
                 actualWindow.navigationBarColor = themeManager.currentTheme.value.colors.keyboardBackground
+                // Transparent IME window so the bottom-lift gap (part of the input-view area) shows the
+                // app through, rather than the window's default opaque background.
+                actualWindow.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
             }
 
             val initialMode = keyboardModeManager.currentMode.value
@@ -692,7 +695,9 @@ open class UrikInputMethodService :
                             ViewGroup.LayoutParams.WRAP_CONTENT
                         )
 
-                    setBackgroundColor(themeManager.currentTheme.value.colors.keyboardBackground)
+                    // Transparent root: only the keyboard view (opaque) and the clipboard panel cover
+                    // their areas, so the bottom-lift gap and narrowed sides show the app through.
+                    setBackgroundColor(android.graphics.Color.TRANSPARENT)
 
                     ViewCompat.setOnApplyWindowInsetsListener(this) { view, insets ->
                         val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -761,6 +766,9 @@ open class UrikInputMethodService :
                     emojiSearchManager,
                     recentEmojiProvider
                 )
+                // The keyboard view carries the opaque background so the container/root can stay
+                // transparent — that makes the bottom-lift gap (and narrowed sides) see-through.
+                setBackgroundColor(themeManager.currentTheme.value.colors.keyboardBackground)
                 setOnKeyClickListener { key ->
                     inputState.clearBigramPredictions()
                     keyEventRouter.route(key)
@@ -1202,7 +1210,8 @@ open class UrikInputMethodService :
         observerJobs.add(
             serviceScope.launch {
                 themeManager.currentTheme.collect { theme ->
-                    keyboardRootContainer?.setBackgroundColor(theme.colors.keyboardBackground)
+                    keyboardRootContainer?.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                    swipeKeyboardView?.setBackgroundColor(theme.colors.keyboardBackground)
                     window?.window?.navigationBarColor = theme.colors.keyboardBackground
                     updateSwipeKeyboard()
                 }

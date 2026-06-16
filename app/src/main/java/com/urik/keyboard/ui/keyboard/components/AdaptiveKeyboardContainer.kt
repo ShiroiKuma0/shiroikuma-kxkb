@@ -371,7 +371,9 @@ constructor(
     private fun updateThemeColors() {
         val colors = themeManager?.currentTheme?.value?.colors ?: return
 
-        setBackgroundColor(colors.keyboardBackground)
+        // Transparent container so the bottom-lift gap + narrowed sides show the app through; the
+        // keyboard view itself carries the opaque background. The one-handed toggle bar stays opaque.
+        setBackgroundColor(android.graphics.Color.TRANSPARENT)
         modeToggleBar?.setBackgroundColor(colors.keyboardBackground)
         updateToggleButtonStates()
     }
