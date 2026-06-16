@@ -26,7 +26,8 @@ data class AdaptiveDimensions(
     val keyBorderWidthPx: Int? = null,
     val boldKeyLabels: Boolean = false,
     val keyFontScale: Float = 1f,
-    val hintScale: Float = 1f
+    val hintScale: Float = 1f,
+    val fontFamily: String? = null
 ) {
     companion object {
         private const val BASE_KEY_HEIGHT_DP = 40f

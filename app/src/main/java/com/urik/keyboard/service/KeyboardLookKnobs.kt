@@ -31,7 +31,9 @@ data class KeyboardLookKnobs(
     /** Fraction of the available width the keyboard occupies (1.0 = full width; <1 narrows, centred). */
     val keyboardWidthScale: Float? = null,
     /** Lift the keyboard off the bottom edge by this many dp (0 = docked). */
-    val bottomLiftDp: Float? = null
+    val bottomLiftDp: Float? = null,
+    /** Key-label font family: "" = system, "@monospace", or an imported font file name. See KeyboardFonts. */
+    val fontFamily: String? = null
 ) {
     fun applyTo(base: AdaptiveDimensions, density: Float): AdaptiveDimensions = base.copy(
         keyHeightPx = keyHeightScale?.let { (base.keyHeightPx * it).toInt().coerceAtLeast(1) } ?: base.keyHeightPx,
@@ -45,7 +47,8 @@ data class KeyboardLookKnobs(
         keyBorderWidthPx = keyBorderWidthDp?.let { (it * density).toInt().coerceAtLeast(0) } ?: base.keyBorderWidthPx,
         boldKeyLabels = boldKeyLabels ?: base.boldKeyLabels,
         keyFontScale = keyFontScale ?: base.keyFontScale,
-        hintScale = hintScale ?: base.hintScale
+        hintScale = hintScale ?: base.hintScale,
+        fontFamily = fontFamily ?: base.fontFamily
     )
 
     /** Returns a new set where [o]'s set (non-null) fields win and this set fills the gaps. */
@@ -58,7 +61,8 @@ data class KeyboardLookKnobs(
         keySpacingScale = o.keySpacingScale ?: keySpacingScale,
         hintScale = o.hintScale ?: hintScale,
         keyboardWidthScale = o.keyboardWidthScale ?: keyboardWidthScale,
-        bottomLiftDp = o.bottomLiftDp ?: bottomLiftDp
+        bottomLiftDp = o.bottomLiftDp ?: bottomLiftDp,
+        fontFamily = o.fontFamily ?: fontFamily
     )
 
     /** Compact `k=v;` encoding; null fields are omitted. Pairs with [decode] (lenient). */
@@ -72,6 +76,7 @@ data class KeyboardLookKnobs(
         hintScale?.let { add("hn=$it") }
         keyboardWidthScale?.let { add("kw=$it") }
         bottomLiftDp?.let { add("bl=$it") }
+        fontFamily?.let { add("ff=$it") }
     }.joinToString(";")
 
     companion object {
@@ -96,6 +101,7 @@ data class KeyboardLookKnobs(
             var hn: Float? = null
             var kw: Float? = null
             var bl: Float? = null
+            var ff: String? = null
             for (token in raw.split(";")) {
                 val i = token.indexOf('=')
                 if (i <= 0) continue
@@ -110,9 +116,10 @@ data class KeyboardLookKnobs(
                     "hn" -> hn = value.toFloatOrNull()
                     "kw" -> kw = value.toFloatOrNull()
                     "bl" -> bl = value.toFloatOrNull()
+                    "ff" -> ff = value
                 }
             }
-            return KeyboardLookKnobs(cr, bw, bold, fs, hs, ks, hn, kw, bl)
+            return KeyboardLookKnobs(cr, bw, bold, fs, hs, ks, hn, kw, bl, ff)
         }
     }
 }

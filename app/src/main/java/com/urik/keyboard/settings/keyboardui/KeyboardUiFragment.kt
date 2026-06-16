@@ -1,21 +1,26 @@
 package com.urik.keyboard.settings.keyboardui
 
+import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.preference.ListPreference
+import androidx.preference.Preference
 import androidx.preference.PreferenceCategory
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.SeekBarPreference
 import androidx.preference.SwitchPreferenceCompat
 import com.urik.keyboard.R
 import com.urik.keyboard.service.GeometryBucket
+import com.urik.keyboard.service.KeyboardFonts
 import com.urik.keyboard.settings.SettingsEventHandler
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -36,10 +41,16 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
     private lateinit var spacingPref: SeekBarPreference
     private lateinit var fontPref: SeekBarPreference
     private lateinit var hintPref: SeekBarPreference
+    private lateinit var fontFamilyPref: Preference
     private lateinit var cornerPref: SeekBarPreference
     private lateinit var borderPref: SeekBarPreference
     private lateinit var boldPref: SwitchPreferenceCompat
     private var testField: EditText? = null
+
+    private val importFontLauncher =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            uri?.let { handleFontImport(it) }
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -120,6 +131,20 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                 summaryOff = resources.getString(R.string.keyboard_ui_bold_labels_off)
             }
 
+        val textCategory =
+            PreferenceCategory(context).apply {
+                key = "kb_ui_cat_text"
+                title = resources.getString(R.string.keyboard_ui_category_text)
+                layoutResource = R.layout.preference_category_kxkb
+            }
+        fontFamilyPref =
+            Preference(context).apply {
+                key = "kb_ui_font_family"
+                isPersistent = false
+                layoutResource = R.layout.preference_item_kxkb
+                title = resources.getString(R.string.keyboard_ui_font_family)
+            }
+
         screen.addPreference(geometryCategory)
         geometryCategory.addPreference(geometryPref)
         screen.addPreference(sizeCategory)
@@ -127,14 +152,30 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         sizeCategory.addPreference(widthPref)
         sizeCategory.addPreference(liftPref)
         sizeCategory.addPreference(spacingPref)
-        sizeCategory.addPreference(fontPref)
-        sizeCategory.addPreference(hintPref)
+        screen.addPreference(textCategory)
+        textCategory.addPreference(fontPref)
+        textCategory.addPreference(hintPref)
+        textCategory.addPreference(fontFamilyPref)
         screen.addPreference(keysCategory)
         keysCategory.addPreference(cornerPref)
         keysCategory.addPreference(borderPref)
         keysCategory.addPreference(boldPref)
 
         preferenceScreen = screen
+    }
+
+    private fun handleFontImport(uri: Uri) {
+        val name = KeyboardFonts.importFont(requireContext(), uri)
+        if (name != null) {
+            viewModel.updateFontFamily(name)
+            Toast.makeText(
+                requireContext(),
+                getString(R.string.font_imported, name),
+                Toast.LENGTH_SHORT
+            ).show()
+        } else {
+            Toast.makeText(requireContext(), R.string.font_import_failed, Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun seekBar(prefKey: String, titleRes: Int, min: Int, max: Int): SeekBarPreference =
@@ -173,6 +214,15 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
             viewModel.updateKeySpacing(newValue as Int)
             true
         }
+        fontFamilyPref.setOnPreferenceClickListener {
+            FontPicker.show(
+                requireContext(),
+                viewModel.uiState.value.fontFamily,
+                onPick = { viewModel.updateFontFamily(it) },
+                onImport = { importFontLauncher.launch(arrayOf("*/*")) }
+            )
+            true
+        }
         hintPref.setOnPreferenceChangeListener { _, newValue ->
             viewModel.updateHintScale(newValue as Int)
             true
@@ -207,6 +257,7 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                         spacingPref.value = state.keySpacingPct
                         fontPref.value = state.keyFontScalePct
                         hintPref.value = state.hintScalePct
+                        fontFamilyPref.summary = KeyboardFonts.displayName(requireContext(), state.fontFamily)
                         cornerPref.value = state.cornerRadiusDp
                         borderPref.value = state.keyBorderWidthDp
                         boldPref.isChecked = state.boldKeyLabels

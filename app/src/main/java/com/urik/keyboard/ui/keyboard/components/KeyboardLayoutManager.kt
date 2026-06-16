@@ -934,7 +934,11 @@ class KeyboardLayoutManager(
             maxLines = 1
             gravity = Gravity.CENTER
 
-            typeface = if (adaptiveDimensions?.boldKeyLabels == true) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+            typeface = com.urik.keyboard.service.KeyboardFonts.typeface(
+                context,
+                adaptiveDimensions?.fontFamily ?: "",
+                adaptiveDimensions?.boldKeyLabels == true
+            )
             // Buttons default to textAllCaps=true, which forces uppercase labels regardless of the cased
             // string from getKeyLabel — so letters showed upper even unshifted. Honour the actual casing
             // (lower at rest, upper only when shift/caps-lock is engaged).

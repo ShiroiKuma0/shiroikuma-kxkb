@@ -71,6 +71,8 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
 
     fun updateHintScale(pct: Int) = persist(current.copy(hintScale = pct / 100f))
 
+    fun updateFontFamily(family: String) = persist(current.copy(fontFamily = family))
+
     private fun persist(updated: KeyboardLookKnobs) {
         val geometry = _uiState.value.geometry
         current = updated
@@ -92,7 +94,8 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
         keySpacingPct = ((keySpacingScale ?: 1f) * 100).toInt(),
         keyboardWidthPct = ((keyboardWidthScale ?: 1f) * 100).toInt(),
         bottomLiftDp = (bottomLiftDp ?: 0f).toInt(),
-        hintScalePct = ((hintScale ?: 1f) * 100).toInt()
+        hintScalePct = ((hintScale ?: 1f) * 100).toInt(),
+        fontFamily = fontFamily ?: ""
     )
 }
 
@@ -106,5 +109,6 @@ data class KeyboardUiUiState(
     val keySpacingPct: Int = 100,
     val keyboardWidthPct: Int = 100,
     val bottomLiftDp: Int = 0,
-    val hintScalePct: Int = 100
+    val hintScalePct: Int = 100,
+    val fontFamily: String = ""
 )
