@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Questions, ideas & general discussion
+    url: https://github.com/ShiroiKuma0/shiroikuma-kxkb/discussions
+    about: Ask usage questions or talk about the fork here instead of opening an issue.

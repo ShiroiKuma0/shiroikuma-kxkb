@@ -1,9 +1,8 @@
 ---
 name: Bug Report
-about: Report a bug in Urik Keyboard
+about: Report a bug in 白い熊 kxkb
 title: "[BUG] "
 labels: bug
-assignees: urikdev
 
 ---
 

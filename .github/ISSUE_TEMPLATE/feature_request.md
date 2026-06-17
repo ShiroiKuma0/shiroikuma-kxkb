@@ -1,9 +1,8 @@
 ---
 name: Feature request
-about: Suggest a new feature for Urik Keyboard
+about: Suggest a new feature for 白い熊 kxkb
 title: "[FEATURE]"
 labels: enhancement
-assignees: urikdev
 
 ---
 

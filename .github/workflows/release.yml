@@ -66,12 +66,12 @@ jobs:
 
       - name: Rename APK
         run: |
-          mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/Urik-${{ steps.get_version.outputs.VERSION }}.apk
+          mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/shiroikuma-kxkb-${{ steps.get_version.outputs.VERSION }}.apk
 
       - name: Generate SHA256
         run: |
           cd app/build/outputs/apk/release
-          sha256sum Urik-${{ steps.get_version.outputs.VERSION }}.apk > SHA256.txt
+          sha256sum shiroikuma-kxkb-${{ steps.get_version.outputs.VERSION }}.apk > SHA256.txt
           cat SHA256.txt
 
       - name: Cleanup keystore
@@ -83,7 +83,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            app/build/outputs/apk/release/Urik-${{ steps.get_version.outputs.VERSION }}.apk
+            app/build/outputs/apk/release/shiroikuma-kxkb-${{ steps.get_version.outputs.VERSION }}.apk
             app/build/outputs/apk/release/SHA256.txt
           draft: true
           generate_release_notes: true
