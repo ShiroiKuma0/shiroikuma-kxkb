@@ -321,12 +321,22 @@ constructor(
                     else -> null to null
                 }
 
-                val keyType = when (keyData.optString("keyType", "letter")) {
+                val keyType = when (keyData.optString("keyType", "")) {
                     "letter" -> KeyboardKey.KeyType.LETTER
                     "number" -> KeyboardKey.KeyType.NUMBER
                     "symbol" -> KeyboardKey.KeyType.SYMBOL
                     "punctuation" -> KeyboardKey.KeyType.PUNCTUATION
-                    else -> KeyboardKey.KeyType.LETTER
+                    else -> {
+                        // No explicit type: a sentence-punctuation centre (". , : ; ! ?") is a punctuation
+                        // key, so it routes to the non-letter handler (auto-spacing, no auto-shift) rather
+                        // than being treated as a letter. Everything else defaults to letter as before.
+                        val c = keyData.optString("char").firstOrNull()
+                        if (c != null && c in SENTENCE_PUNCTUATION_CHARS) {
+                            KeyboardKey.KeyType.PUNCTUATION
+                        } else {
+                            KeyboardKey.KeyType.LETTER
+                        }
+                    }
                 }
                 val flickObj = keyData.optJSONObject("flick")
                 val bindings = mutableMapOf<String, KeyboardKey.FlickBinding>()
@@ -539,6 +549,8 @@ constructor(
     }
 
     private companion object {
+        // Flick-key centres that are sentence punctuation are typed as PUNCTUATION when no keyType is given.
+        val SENTENCE_PUNCTUATION_CHARS = setOf('.', ',', ':', ';', '!', '?')
         const val LAYOUT_CACHE_SIZE = 20
         const val MAX_LAYOUT_RETRIES = 3
         const val LAYOUT_ERROR_COOLDOWN_MS = 60000L

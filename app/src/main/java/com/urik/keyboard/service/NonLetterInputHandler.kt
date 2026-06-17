@@ -39,6 +39,36 @@ class NonLetterInputHandler(
             try {
                 inputState.lastSpaceTime = 0
 
+                // Auto-spacing: once a word is committed it carries a trailing space ("word "). Typing
+                // closing punctuation then eats that space, attaches the mark to the word, and re-adds a
+                // trailing space — "word " + "." -> "word. ". Only when nothing is composing (the word is
+                // already out) and there really is a word-then-space before the cursor.
+                if (char.length == 1 && inputState.displayBuffer.isEmpty() && char.single() in CLOSING_PUNCTUATION) {
+                    val before = outputBridge.safeGetTextBeforeCursor(2)
+                    if (before.length >= 2 && before.last() == ' ' && !before[before.length - 2].isWhitespace()) {
+                        val single = char.single()
+                        outputBridge.beginBatchEdit()
+                        try {
+                            outputBridge.deleteSurroundingText(1, 0)
+                            outputBridge.commitText("$char ", 1)
+                            inputState.lastAutocorrection = null
+                            if (inputState.postCommitReplacementState != null) {
+                                inputState.postCommitReplacementState = null
+                                candidateBarController.clearSuggestions()
+                            }
+                            swipeSpaceManager.clearAutoSpaceFlag()
+                            if (isSentenceEndingPunctuation(single) && !inputState.requiresDirectCommit) {
+                                onDisableCapsLockAfterPunctuation()
+                                onCheckAutoCapitalization(outputBridge.safeGetTextBeforeCursor(50))
+                            }
+                            suggestionPipeline.showBigramPredictions()
+                        } finally {
+                            outputBridge.endBatchEdit()
+                        }
+                        return@launch
+                    }
+                }
+
                 if (char.length == 1) {
                     val textBeforeCursor = outputBridge.safeGetTextBeforeCursor(1)
                     if (swipeSpaceManager.shouldRemoveSpaceForPunctuation(char.single(), textBeforeCursor)) {
@@ -211,4 +241,9 @@ class NonLetterInputHandler(
 
     private fun isSentenceEndingPunctuation(char: Char): Boolean =
         UCharacter.hasBinaryProperty(char.code, UProperty.S_TERM)
+
+    private companion object {
+        // Punctuation that attaches to the preceding word, eating an auto-space before it.
+        private val CLOSING_PUNCTUATION = setOf('.', ',', '?', '!', ':', ';')
+    }
 }
