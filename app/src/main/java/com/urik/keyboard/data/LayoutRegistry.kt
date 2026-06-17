@@ -36,6 +36,11 @@ class LayoutRegistry private constructor(
         fun load(context: Context): LayoutRegistry =
             cached ?: synchronized(this) { cached ?: parse(context).also { cached = it } }
 
+        /** Drop the cache so a freshly saved/deleted custom layout is reflected on the next [load]. */
+        fun invalidate() {
+            synchronized(this) { cached = null }
+        }
+
         private fun parse(context: Context): LayoutRegistry =
             try {
                 val json =
@@ -60,9 +65,11 @@ class LayoutRegistry private constructor(
                         )
                     }
                 }
+                // Append the user's custom layouts (edited/duplicated) so they show up everywhere too.
+                list.addAll(CustomLayoutStore.customEntries(context))
                 LayoutRegistry(defaults, list)
             } catch (_: Exception) {
-                LayoutRegistry(emptyMap(), emptyList())
+                LayoutRegistry(emptyMap(), CustomLayoutStore.customEntries(context))
             }
     }
 }

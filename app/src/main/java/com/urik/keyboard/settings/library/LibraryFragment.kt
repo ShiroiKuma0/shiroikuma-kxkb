@@ -9,6 +9,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -16,6 +17,7 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.urik.keyboard.R
+import com.urik.keyboard.data.CustomLayoutStore
 import com.urik.keyboard.data.KeyboardRepository
 import com.urik.keyboard.data.LayoutEntry
 import com.urik.keyboard.data.LayoutRegistry
@@ -56,6 +58,7 @@ class LibraryFragment : Fragment() {
     private lateinit var registry: LayoutRegistry
     private lateinit var listContainer: LinearLayout
     private lateinit var previewContainer: LinearLayout
+    private var rootFrame: android.widget.FrameLayout? = null
     private var look = LibraryLook()
 
     // The real keyboard renderer, with no-op callbacks (the preview is non-interactive).
@@ -94,11 +97,47 @@ class LibraryFragment : Fragment() {
             )
             visibility = View.GONE
         }
-        return LinearLayout(requireContext()).apply {
+        val content = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.BLACK)
             addView(scroll)
             addView(previewContainer)
+        }
+        return FrameLayout(requireContext()).apply {
+            addView(
+                content,
+                FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+            )
+            rootFrame = this
+        }
+    }
+
+    /** A toast-style "flash" in 白い熊's look (black box, yellow text, yellow border) — replaces system toasts. */
+    private fun flash(message: String) {
+        val root = rootFrame ?: return
+        val tv = TextView(requireContext()).apply {
+            text = message
+            setTextColor(0xFFFFFF00.toInt())
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+            setPadding(dp(16), dp(10), dp(16), dp(10))
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(0xFF000000.toInt())
+                setStroke(dp(2), 0xFFFFFF00.toInt())
+                cornerRadius = dp(8).toFloat()
+            }
+            alpha = 0f
+        }
+        root.addView(
+            tv,
+            FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            ).apply { topMargin = dp(24) }
+        )
+        tv.animate().alpha(1f).setDuration(150).withEndAction {
+            tv.postDelayed({
+                tv.animate().alpha(0f).setDuration(200).withEndAction { root.removeView(tv) }
+            }, 1400)
         }
     }
 
@@ -114,6 +153,7 @@ class LibraryFragment : Fragment() {
 
     private fun rebuild() {
         lifecycleScope.launch {
+            registry = LayoutRegistry.load(requireContext())
             look = settingsRepository.getLibraryLook()
             val langs = registry.entries.map { it.lang }.distinct()
             val active = langs.associateWith { lang ->
@@ -239,18 +279,56 @@ class LibraryFragment : Fragment() {
                 layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
             }
         )
-        addView(
-            Button(requireContext()).apply {
-                text = getString(R.string.library_activate)
-                setTextColor(0xFFFFFF00.toInt())
-                background = android.graphics.drawable.GradientDrawable().apply {
-                    setColor(0xFF000000.toInt())
-                    setStroke(dp(2), 0xFFFFFF00.toInt())
-                    cornerRadius = dp(4).toFloat()
-                }
-                setOnClickListener { activate(entry) }
+        addView(pillButton(getString(R.string.library_duplicate)) { duplicate(entry) })
+        if (CustomLayoutStore.hasLayout(requireContext(), entry.id)) {
+            addView(pillButton(getString(R.string.library_delete)) { delete(entry) })
+        }
+        addView(pillButton(getString(R.string.library_activate)) { activate(entry) })
+    }
+
+    /** A black-box, yellow-text, yellow-border action button (matches 白い熊's look). */
+    private fun pillButton(label: String, onClick: () -> Unit): Button = Button(requireContext()).apply {
+        text = label
+        setTextColor(0xFFFFFF00.toInt())
+        background = android.graphics.drawable.GradientDrawable().apply {
+            setColor(0xFF000000.toInt())
+            setStroke(dp(2), 0xFFFFFF00.toInt())
+            cornerRadius = dp(4).toFloat()
+        }
+        layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { marginStart = dp(6) }
+        setOnClickListener { onClick() }
+    }
+
+    /** Copy a layout into the editable custom store (it then appears in the Library and is activatable). */
+    private fun duplicate(entry: LayoutEntry) {
+        lifecycleScope.launch {
+            val raw = CustomLayoutStore.rawJson(requireContext(), entry.id)
+            if (raw == null) {
+                flash(getString(R.string.library_duplicate_failed))
+                return@launch
             }
-        )
+            val newId = CustomLayoutStore.freshId(requireContext(), entry.id)
+            val newEntry = entry.copy(id = newId, name = "${entry.name} copy")
+            CustomLayoutStore.saveLayout(requireContext(), newEntry, raw)
+            rebuild()
+            flash(getString(R.string.library_duplicated_toast, newEntry.name))
+        }
+    }
+
+    /** Remove a custom layout (and reset any language that had it active back to the registry default). */
+    private fun delete(entry: LayoutEntry) {
+        lifecycleScope.launch {
+            CustomLayoutStore.deleteLayout(requireContext(), entry.id)
+            if (settingsRepository.getActiveLayoutForLanguage(entry.lang) == entry.id) {
+                registry = LayoutRegistry.load(requireContext())
+                registry.defaultFor(entry.lang)?.let { settingsRepository.setActiveLayoutForLanguage(entry.lang, it) }
+            }
+            previewContainer.visibility = View.GONE
+            rebuild()
+            flash(getString(R.string.library_deleted_toast, entry.name))
+        }
     }
 
     private fun activate(entry: LayoutEntry) {
@@ -258,13 +336,9 @@ class LibraryFragment : Fragment() {
             val result = settingsRepository.setActiveLayoutForLanguage(entry.lang, entry.id)
             if (result.isSuccess) {
                 rebuild()
-                Toast.makeText(
-                    requireContext(),
-                    getString(R.string.library_applied_toast, entry.name, langDisplay(entry.lang)),
-                    Toast.LENGTH_SHORT
-                ).show()
+                flash(getString(R.string.library_applied_toast, entry.name, langDisplay(entry.lang)))
             } else {
-                Toast.makeText(requireContext(), R.string.library_apply_failed, Toast.LENGTH_SHORT).show()
+                flash(getString(R.string.library_apply_failed))
             }
         }
     }

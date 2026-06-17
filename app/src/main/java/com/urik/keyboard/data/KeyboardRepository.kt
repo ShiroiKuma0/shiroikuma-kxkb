@@ -213,6 +213,9 @@ constructor(
     }
 
     private fun loadLayoutDataFromAssets(context: Context, localeTag: String): JSONObject {
+        // A user's custom (edited/duplicated) layout overrides the bundled asset of the same id.
+        CustomLayoutStore.customLayoutText(context, localeTag)?.let { return JSONObject(it) }
+
         val filename = "$localeTag.json"
 
         return context.assets.open("layouts/$filename").bufferedReader().use { reader ->

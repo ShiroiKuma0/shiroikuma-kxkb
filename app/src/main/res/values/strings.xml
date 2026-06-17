@@ -84,6 +84,11 @@
     <string name="library_applied_toast">Applied “%1$s” for %2$s</string>
     <string name="library_apply_failed">Could not apply layout</string>
     <string name="library_activate">Activate</string>
+    <string name="library_duplicate">Duplicate</string>
+    <string name="library_duplicate_failed">Could not duplicate layout</string>
+    <string name="library_duplicated_toast">Duplicated as “%1$s”</string>
+    <string name="library_delete">Delete</string>
+    <string name="library_deleted_toast">Deleted “%1$s”</string>
     <string name="space_menu_library">Layout library</string>
     <string name="library_section">Layout library</string>
     <string name="library_sub_separators">Separators</string>
