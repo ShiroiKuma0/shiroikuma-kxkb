@@ -1,121 +1,128 @@
-# Urik
+<div align="center">
 
-[![CI](https://github.com/urikdev/Urik/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/urikdev/Urik/actions/workflows/ci.yml)
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Release](https://img.shields.io/github/v/release/urikdev/Urik?include_prereleases)](https://github.com/urikdev/Urik/releases)
-[![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/urikdev/Urik/total)](https://github.com/urikdev/Urik/releases)
+<img src="app/src/main/ic_launcher-playstore.png" width="120" alt="白い熊 kxkb app icon" />
 
-Privacy-focused Android keyboard with swipe typing, custom layouts, and password manager support. No tracking, 100% on-device, and fully open source.
+# 白い熊 kxkb
 
-<p float="left" align="middle">
-  <img src="https://urik.io/screenshots/notracking.webp" width="200">
-  <img src="https://urik.io/screenshots/multilingual.webp" width="200">
-  <img src="https://urik.io/screenshots/swipe.webp" width="200">
-  <img src="https://urik.io/screenshots/customize.webp" width="200">
-</p>
+**An offline, privacy-respecting keyboard — supercharged for power users.**
 
-## Status
+A true-**FLOSS** fork of [Urik](https://github.com/urikdev/Urik) (GPL-3.0) with **major additions**:
+cluster-word prediction in any language, a per-geometry look-and-theme system, live on-keyboard
+resizing, an instant spacebar switcher, imported multi-letter / compass layouts, and a FUTO-style
+candidate line.
 
-**Beta Software** - In open beta testing.
-<p><a href="https://play.google.com/store/apps/details?id=com.urik.keyboard" target="_blank"><img src="https://raw.githubusercontent.com/pioug/google-play-badges/06ccd9252af1501613da2ca28eaffe31307a4e6d/svg/English.svg" alt="Google Play Open Beta"></a></p>
-<p><a href="https://f-droid.org/packages/com.urik.keyboard/" target="_blank"><img src="https://f-droid.org/badge/get-it-on.png" alt="Get it on F-Droid" style="width: 280px"></a></p>
+Installs **side-by-side** with the official Urik and with any other keyboard (package
+`shiroikuma.kxkb`).
 
+**📥 Latest release: [`0.23.1+72`](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases)
 
-## Features
+</div>
 
-**Input**
-- Swipe typing with geometric path matching and vertex detection
-- One-handed and split modes with coordinate transformation
-- Adaptive layout for tablets and foldables
-- Long-press for character variations and custom key mapping
-- Long-press comma key to switch keyboards (IME picker)
-- Spacebar swipe for cursor control
-- Backspace swipe to delete previous word
-- Optional number row
-- QWERTZ, AZERTY, Dvorak, Colemak, Workman, Bds and Hcesar layouts
-- Hardware keyboard detection
+---
 
-**Intelligence**
-- Local bigram model for next-word prediction
-- On-device spell checking using URIK (Ultra-compressed Ranked Input Korpus) — a custom binary dictionary format with Levenshtein automaton traversal
-- Autocorrect with configurable pause-on-misspell; skips URLs, emails, and punctuation
-- Word learning with encrypted SQLCipher database
-- User-specific word frequency tracking
-- 19 supported languages with dedicated language toggle button
-- Merged dictionaries mode for multilingual typing sessions
-- Emoji search with keyword support
+## 🔮 Cluster-word prediction — in any language
 
-**Integration**
-- Inline autofill support for password managers (Android 11+)
-- Clipboard history with encrypted storage
+Type whole words on **multi-letter cluster keys** and let the keyboard figure out the word you
+meant. A constrained walk over Urik’s `.urik` dictionary trie, with **accent-folding**, makes
+prediction work even for languages with **no neural model and lots of diacritics** (Czech, Russian,
+…). Each tap is ambiguous over a small band of letters; the keyboard enumerates every dictionary
+word consistent with what you tapped and ranks them by frequency.
 
-**Customization**
-- 15+ built-in themes with favorites and Material You dynamic theming (Android 12+)
-- Custom long-press symbol and key assignments
-- Haptic feedback strength slider
-- Auto-capitalization toggle
-- Configurable key size, key label size, spacebar size, and cursor speed
-- Manage learned words: browse, search, and delete entries
-- WCAG AA contrast and TalkBack support
+- **Space commits** the highlighted candidate — both the word you’re typing *and* the next-word
+  (bigram) prediction.
+- **Tab cycles** the highlight across the candidates the bar is showing; **long-press Space**
+  inserts a literal space when you don’t want the prediction.
+- A **▾ expandable pane** opens a scrollable grid of the full long tail (tens of candidates).
 
-**Privacy**
-- No telemetry, analytics, or network permissions
-- Local on-device processing
-- Encrypted local storage for user data (AES-256 + Android Keystore)
-- Biometric authentication for accessing learned words
-- Dictionary export and import for backup or migration
-- Bigram predictions and word frequencies remain local-only (not exported)
+---
 
-## Privacy
+## ⌨️ New kinds of keys, and many layouts
 
-All processing happens on-device. No data leaves your phone. User dictionary and learned words are stored in an encrypted local database.
+Far more than one letter per button, and far more than two layouts per language:
 
-We answer to our users, not investors. 
+- **Cluster keys** pack several letters into one key.
+- **Compass / 8-way keys** flick in eight directions for extra characters — including a full
+  **GNU** compass layout and Emacs-style modifier chords.
+- **Column** layouts for compact one-letter-per-key typing.
+- A **layout registry** designed for *many* layouts per language (cs / en / ru / ja / gnu), with
+  **width variants** grouped by family and per-language active-layout memory.
+- **Secondary characters** ride on the keys (top row, bottom row, the flick sides), each with its
+  own font, weight, size, colour and spacing.
 
-## Requirements
+---
 
-- Android 8.0 or higher (API level 26+)
+## 🎨 Per-geometry look — theme every pixel
 
-## Building from Source
+A bold **black-and-yellow, square-key** high-contrast look ships as the default. Everything is
+adjustable and **saved per geometry** (portrait / landscape / folded-inner / folded-outer):
+
+- Recolour the **keyboard, keys, key text, borders, the caps-lock Shift glyph and the suggestion
+  bar** with a full **RGBA picker**.
+- Choose fonts — **system, monospace or your own imported font files** — via a glyph picker.
+- Tune **key height, width, corner radius, border width, label weight, font scale, horizontal /
+  vertical key spacing** and the secondary-character formatting.
+- A **logical settings page** (Geometry / Keyboard / Keys / Rows / Compass keys / Cluster keys /
+  Suggestion bar) instead of a flat list.
+
+---
+
+## 📐 Resize and reshape it live
+
+Drag hot-points **on the keyboard itself** — height, bottom-lift, width — and watch it change
+**underneath your finger** in real time. Every change persists for that geometry. A see-through
+bottom-lift lets the app show through the gap below the keys.
+
+---
+
+## 🌀 One swipe to switch
+
+**Slide the spacebar in any direction** for an instant 3-column menu: quick **actions**
+(open the kxkb settings, the languages list, all settings, the system keyboard chooser), your other
+**active languages**, and the **layouts** available in the current language — release on an item to
+pick it, release outside to dismiss.
+
+---
+
+## ✍️ Power-user touches
+
+- **No three-language cap** — Czech, English, Russian and Japanese coexist, all active at once.
+- **Per-app layout-language memory** — each app reopens in the language you last used there.
+- **Code / no-prediction field mode** — auto-detected raw-input fields turn off prediction and
+  auto-caps, plus a manual toggle.
+- **A real `Tab` key** that emits `KEYCODE_TAB` for shell / editor completion.
+- **Punctuation auto-spacing** — `word ` + `.` becomes `word. ` (eat the space, attach the mark,
+  re-space) for `.` `,` `:` `;` `!` `?`.
+- The spacebar shows the **current language’s native name** (English, 日本語, GNU, …).
+- **App interface language** setting, independent of the phone locale.
+
+---
+
+## Built on Urik
+
+This project is a fork of [Urik](https://github.com/urikdev/Urik) (package `shiroikuma.kxkb`, so it
+coexists with the official build). Urik is a privacy-focused, 100%-on-device Android keyboard with
+swipe typing, an encrypted learned-word store, the `.urik` dictionary format, themes and adaptive
+layouts. All upstream work and the project’s mission belong to the Urik team — see the
+[upstream repository](https://github.com/urikdev/Urik) for issues, contributing and the canonical
+source. The code remains under the **[GNU GPL v3](LICENSE)**.
+
+The fork tracks upstream: `main` follows the latest Urik release tag, and all of our work lives on
+the `custom` branch (rebased onto each new upstream release). The installed version is
+`<urik-version>+<our-build>` (e.g. `0.23.1+72`).
+
+## Building
+
 ```bash
-git clone https://github.com/urikdev/Urik.git
-cd Urik
-./gradlew assembleDebug
+git clone https://github.com/ShiroiKuma0/shiroikuma-kxkb.git
+cd shiroikuma-kxkb
+export JAVA_HOME=/path/to/jdk-21 ANDROID_HOME=/path/to/android-sdk
+./gradlew :app:assembleDebug      # fast debug build
+./gradlew buildApk                # signed release build
 ```
 
-Requirements: Android Studio Panda+, JDK 17+, Android SDK 36+
+Requirements: JDK 21, Android SDK 36, minSdk 26 (Android 8.0+). No NDK.
 
-## Contributing
+## Changelog
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-## Security
-
-Report vulnerabilities via [SECURITY.md](SECURITY.md).
-
-## Dictionary Data
-
-Spell checking uses word frequency lists from [FrequencyWords](https://github.com/hermitdave/FrequencyWords) by hermitdave, derived from the OpenSubtitles corpus.
-
-- License: CC-BY-SA-4.0
-- Modifications: Filtered top-N by frequency per language, compiled to URIK binary format at build time
-
-## Emoji Annotations
-
-Emoji search uses multilingual keyword annotations from [Unicode CLDR](https://github.com/unicode-org/cldr-json) (Common Locale Data Repository).
-
-- License: Unicode License V3
-- Modifications: Extracted emoji annotations, converted to searchable JSON format
-
-## Japanese Conversion Data
-
-Kana-to-kanji conversion uses dictionary data from [Mozc](https://github.com/google/mozc) by Google LLC.
-
-- License: BSD 3-Clause
-- Modifications: Extracted reading/surface/frequency triples; converted cost values to frequency scores; filtered single-character hiragana entries (covered by the spell-check dictionary)
-
-## License
-
-GNU General Public License v3.0
-
-<p align="center"><a href="https://www.buymeacoffee.com/urikdevelopment" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a></p>
+See **[CHANGELOG.md](CHANGELOG.md)** for the full, specific list of everything this fork adds on top
+of stock Urik.
