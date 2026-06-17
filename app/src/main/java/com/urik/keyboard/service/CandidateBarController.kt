@@ -13,6 +13,16 @@ class CandidateBarController(private val viewProvider: () -> SwipeKeyboardView?)
         viewProvider()?.clearSuggestions()
     }
 
+    /** Move the cluster-candidate highlight (Tab) without rebuilding the bar. */
+    fun setSelectedSuggestion(index: Int) {
+        viewProvider()?.setSelectedSuggestion(index)
+    }
+
+    /** Toggle the Space-commits-candidate highlight (on for cluster layouts). */
+    fun setSuggestionSelectionEnabled(enabled: Boolean) {
+        viewProvider()?.setSuggestionSelectionEnabled(enabled)
+    }
+
     fun showDegradedIndicator(degraded: Boolean) {
         viewProvider()?.showDegradedIndicator(degraded)
     }

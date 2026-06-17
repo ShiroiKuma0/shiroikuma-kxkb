@@ -54,6 +54,23 @@ class InputStateManager(
 
     @Volatile
     var pendingSuggestions: List<String> = emptyList()
+        internal set(value) {
+            field = value
+            // A fresh suggestion set always re-selects the best (top) candidate for Space-to-commit.
+            selectedCandidate = 0
+        }
+
+    /**
+     * Index of the highlighted candidate in [pendingSuggestions] — the one Space commits in cluster typing.
+     * Resets to 0 (the best candidate) on every new suggestion set; Tab advances it. See [clusterLayoutActive].
+     */
+    @Volatile
+    var selectedCandidate: Int = 0
+        internal set
+
+    /** True while a cluster-key layout is active, gating Space-commits-candidate / Tab-advances behaviour. */
+    @Volatile
+    var clusterLayoutActive: Boolean = false
         internal set
 
     @Volatile

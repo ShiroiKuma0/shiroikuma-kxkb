@@ -22,7 +22,7 @@ class SpaceInputHandler(
     private val onCheckAutoCapitalization: (textBefore: String) -> Unit,
     private val onJapaneseSpaceNextCandidate: () -> Unit = {}
 ) {
-    fun handle() {
+    fun handle(literalSpace: Boolean = false) {
         serviceScope.launch {
             try {
                 if (inputState.requiresDirectCommit) {
@@ -59,12 +59,30 @@ class SpaceInputHandler(
 
                 inputState.lastSpaceTime = currentTime
 
+                // Cluster typing: a plain Space commits the highlighted candidate (the best one by default,
+                // advanced by Tab) — both the current word's predictions AND the empty-buffer next-word
+                // (bigram) predictions. Long-press Space (literalSpace) skips this and falls through to a
+                // literal space — the escape for when you want a space, not the word.
+                if (!literalSpace &&
+                    inputState.clusterLayoutActive &&
+                    inputState.pendingSuggestions.isNotEmpty()
+                ) {
+                    val idx = inputState.selectedCandidate.coerceIn(0, inputState.pendingSuggestions.size - 1)
+                    suggestionPipeline.coordinateSuggestionSelection(
+                        inputState.pendingSuggestions[idx],
+                        onCheckAutoCapitalization
+                    )
+                    return@launch
+                }
+
                 if (inputState.spellConfirmationState == SpellConfirmationState.AWAITING_CONFIRMATION) {
                     suggestionPipeline.confirmAndLearnWord(onCheckAutoCapitalization)
                     return@launch
                 }
 
-                if (inputState.displayBuffer.isNotEmpty() &&
+                if (!literalSpace &&
+                    !inputState.clusterLayoutActive &&
+                    inputState.displayBuffer.isNotEmpty() &&
                     onGetCurrentSettings().spellCheckEnabled &&
                     inputState.displayBuffer.length >= TextProcessingConstants.MIN_SPELL_CHECK_LENGTH
                 ) {

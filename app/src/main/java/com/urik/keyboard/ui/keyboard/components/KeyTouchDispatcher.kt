@@ -521,10 +521,10 @@ internal class KeyTouchDispatcher(
                 }
             }
 
-            if (key is KeyboardKey.Action &&
-                key.action == KeyboardKey.ActionType.SPACE &&
-                getLongPressPunctuationMode() == LongPressPunctuationMode.SPACEBAR
-            ) {
+            if (key is KeyboardKey.Action && key.action == KeyboardKey.ActionType.SPACE) {
+                // Always attach: the long-press runnable itself decides what to do (literal-space escape
+                // during cluster typing, or the punctuation popup in SPACEBAR mode) and only consumes the
+                // tap when it actually acted, so a plain held Space still types in every other case.
                 setOnTouchListener(spaceLongPressTouchListener)
             }
 

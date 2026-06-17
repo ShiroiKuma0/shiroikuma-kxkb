@@ -64,6 +64,9 @@ class KeyboardLayoutManager(
     private val onSwitchToLayout: (String, String) -> Unit = { _, _ -> },
     private val onMenuAction: (String) -> Unit = {},
     private val onClusterBands: (Map<Char, String>) -> Unit = {},
+    // Long-press Space (held, not slid): returns true if the host consumed it (e.g. a literal-space escape
+    // during cluster typing), false to fall back to the default long-press behaviour (punctuation popup).
+    private val onSpaceLongPress: () -> Boolean = { false },
     private val onShowInputMethodPicker: () -> Unit = {},
     private val onFlickBinding: (KeyboardKey.FlickBinding) -> Unit = {},
     private val characterVariationService: CharacterVariationService,
@@ -965,13 +968,13 @@ class KeyboardLayoutManager(
                     onShowInputMethodPicker()
                 }
 
-            is KeyboardKey.Action if
-            key.action == KeyboardKey.ActionType.SPACE &&
-                longPressPunctuationMode == LongPressPunctuationMode.SPACEBAR ->
+            is KeyboardKey.Action if key.action == KeyboardKey.ActionType.SPACE ->
                 buttonLongPressRunnables[button] = Runnable {
-                    longPressConsumedButtons.add(button)
-                    performContextualHaptic(KeyboardKey.Action(KeyboardKey.ActionType.SPACE))
-                    handleSpaceLongPress(button)
+                    // Consume the tap only when the long-press actually did something (literal-space escape
+                    // during cluster typing, or the punctuation popup) — otherwise a held Space still types.
+                    if (handleSpaceLongPress(button)) {
+                        longPressConsumedButtons.add(button)
+                    }
                 }
 
             is KeyboardKey.Action if
@@ -1668,9 +1671,15 @@ class KeyboardLayoutManager(
         }
     }
 
-    private fun handleSpaceLongPress(view: View) {
+    private fun handleSpaceLongPress(view: View): Boolean {
+        // Cluster typing: let the host insert a literal space (the escape from committing a candidate).
+        if (onSpaceLongPress()) {
+            performContextualHaptic(KeyboardKey.Action(KeyboardKey.ActionType.SPACE))
+            return true
+        }
+
         if (longPressPunctuationMode != LongPressPunctuationMode.SPACEBAR) {
-            return
+            return false
         }
 
         performContextualHaptic(KeyboardKey.Action(KeyboardKey.ActionType.SPACE))
@@ -1696,6 +1705,7 @@ class KeyboardLayoutManager(
                 }
             }
         }
+        return true
     }
 
     private fun handlePunctuationLongPress(key: KeyboardKey.Character, view: View) {

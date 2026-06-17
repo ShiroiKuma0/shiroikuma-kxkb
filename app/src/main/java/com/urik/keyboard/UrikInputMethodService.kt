@@ -435,7 +435,12 @@ open class UrikInputMethodService :
                 KeyboardLayoutManager(
                     context = this,
                     onKeyClick = { key ->
-                        inputState.clearBigramPredictions()
+                        // In cluster typing, Space commits the highlighted next-word (bigram) candidate —
+                        // so don't let the generic bigram-dismiss wipe pendingSuggestions before the space
+                        // handler runs. Every other key (and non-cluster layouts) still dismisses them.
+                        val preserveBigrams = inputState.clusterLayoutActive &&
+                            key is KeyboardKey.Action && key.action == KeyboardKey.ActionType.SPACE
+                        if (!preserveBigrams) inputState.clearBigramPredictions()
                         keyEventRouter.route(key)
                     },
                     onAcceleratedDeletionChanged = { active -> setAcceleratedDeletion(active) },
@@ -443,7 +448,13 @@ open class UrikInputMethodService :
                     onLanguageSwitch = { languageCode -> handleLanguageSwitch(languageCode) },
                     onSwitchToLayout = { lang, layoutId -> switchToLayout(lang, layoutId) },
                     onMenuAction = { action -> handleSpaceMenuAction(action) },
-                    onClusterBands = { bands -> spellCheckManager.setClusterBands(bands) },
+                    onClusterBands = { bands ->
+                        spellCheckManager.setClusterBands(bands)
+                        // A cluster layout enables Space-commits-candidate / Tab-advances + the bar highlight.
+                        inputState.clusterLayoutActive = bands.isNotEmpty()
+                        candidateBarController.setSuggestionSelectionEnabled(bands.isNotEmpty())
+                    },
+                    onSpaceLongPress = { handleSpaceLongPressLiteral() },
                     onShowInputMethodPicker = { showInputMethodPicker() },
                     onFlickBinding = { binding -> handleFlickBinding(binding) },
                     characterVariationService = characterVariationService,
@@ -1015,7 +1026,9 @@ open class UrikInputMethodService :
     private fun handleGnuAction(name: String) {
         when (name) {
             "escape" -> sendKeyEventWithMeta(KeyEvent.KEYCODE_ESCAPE, 0)
-            "tab" -> outputBridge.sendTab()
+            // Route through onTab so a flick-bound Tab ("tap" key) advances the cluster candidate selection
+            // when one is pending, and only falls back to a literal KEYCODE_TAB otherwise.
+            "tab" -> onTab()
             "enter" -> outputBridge.sendEnter()
             "space" -> outputBridge.sendSpace()
             "backspace" -> handleBackspace()
@@ -1708,10 +1721,32 @@ open class UrikInputMethodService :
     }
 
     override fun onTab() {
+        // Cluster typing: Tab ("tap") advances the highlighted candidate that Space will commit, rather
+        // than emitting a literal tab. Falls back to a real KEYCODE_TAB when there's nothing to cycle.
+        if (inputState.clusterLayoutActive && inputState.pendingSuggestions.isNotEmpty()) {
+            val n = inputState.pendingSuggestions.size
+            inputState.selectedCandidate = (inputState.selectedCandidate + 1) % n
+            candidateBarController.setSelectedSuggestion(inputState.selectedCandidate)
+            return
+        }
         // Commit any in-progress composing word first; commitText/sendKeyEvent would
         // otherwise replace the composing region instead of appending the tab.
         coordinateStateClear()
         outputBridge.sendTab()
+    }
+
+    /**
+     * Long-press Space (held, not slid) while cluster candidates are pending: insert a literal space,
+     * committing the typed buffer as-is instead of the highlighted candidate. Returns true when consumed.
+     */
+    private fun handleSpaceLongPressLiteral(): Boolean {
+        if (inputState.clusterLayoutActive &&
+            (inputState.displayBuffer.isNotEmpty() || inputState.pendingSuggestions.isNotEmpty())
+        ) {
+            spaceInputHandler.handle(literalSpace = true)
+            return true
+        }
+        return false
     }
 
     override fun onLanguageSwitch() {}

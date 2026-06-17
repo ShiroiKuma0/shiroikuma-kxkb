@@ -54,6 +54,9 @@ constructor(
     private val touchCoordinateTransformer = TouchCoordinateTransformer(this)
     private val suggestionViewPool = mutableListOf<TextView>()
     private val activeSuggestionViews = mutableListOf<TextView>()
+    // Cluster typing: highlight the candidate that Space will commit (Tab advances it). Off for plain layouts.
+    private var selectedSuggestionIndex = 0
+    private var suggestionSelectionEnabled = false
     private val dividerViewPool = mutableListOf<View>()
     private val activeDividerViews = mutableListOf<View>()
     private val suggestionMeasurePaint = android.text.TextPaint()
@@ -964,7 +967,43 @@ constructor(
     fun updateSuggestions(suggestions: List<String>) {
         requireInitialized()
         if (isDestroyed) return
+        // A new suggestion set re-selects the best (top) candidate.
+        selectedSuggestionIndex = 0
         updateSuggestionBarContent(suggestions)
+    }
+
+    /** Move the cluster-candidate highlight (Tab) without rebuilding the bar. */
+    fun setSelectedSuggestion(index: Int) {
+        selectedSuggestionIndex = index
+        applySuggestionHighlights()
+    }
+
+    /** Enable/disable the Space-commits-candidate highlight (on for cluster layouts, off otherwise). */
+    fun setSuggestionSelectionEnabled(enabled: Boolean) {
+        if (suggestionSelectionEnabled == enabled) return
+        suggestionSelectionEnabled = enabled
+        applySuggestionHighlights()
+    }
+
+    private fun applySuggestionHighlights() {
+        if (isDestroyed) return
+        activeSuggestionViews.forEachIndexed { i, view ->
+            view.background =
+                if (suggestionSelectionEnabled && i == selectedSuggestionIndex) suggestionHighlightDrawable() else null
+        }
+    }
+
+    private fun suggestionHighlightDrawable(): android.graphics.drawable.Drawable {
+        val accent = adaptiveDimensions?.suggestionColor
+            ?: themeManager?.currentTheme?.value?.colors?.suggestionText
+            ?: android.graphics.Color.YELLOW
+        val density = context.resources.displayMetrics.density
+        return android.graphics.drawable.GradientDrawable().apply {
+            shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+            cornerRadius = 6f * density
+            setStroke((2f * density).toInt(), accent)
+            setColor(android.graphics.Color.TRANSPARENT)
+        }
     }
 
     fun showDegradedIndicator(degraded: Boolean) {
@@ -1135,6 +1174,7 @@ constructor(
                 bar.addView(divider, dividerParams)
             }
         }
+        applySuggestionHighlights()
     }
 
     private data class SuggestionFit(
@@ -1199,6 +1239,7 @@ constructor(
                 view.setOnLongClickListener(null)
                 view.letterSpacing = 0f
                 view.ellipsize = null
+                view.background = null
                 if (suggestionViewPool.size < 10) {
                     suggestionViewPool.add(view)
                 }
