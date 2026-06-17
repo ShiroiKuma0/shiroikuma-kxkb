@@ -1327,6 +1327,9 @@ open class UrikInputMethodService :
 
                         updateSwipeEnabledState(config.mode)
                         updateSwipeKeyboard()
+                        // A dims change (e.g. posture settling a frame after cold start) can grow the
+                        // keyboard past the already-sized window — re-measure so the bottom isn't clipped.
+                        forceInputViewRemeasure()
                         // Geometry may have changed (rotate/fold) — re-resolve the per-geometry look.
                         refreshLookKnobs()
                     } finally {
@@ -1422,6 +1425,24 @@ open class UrikInputMethodService :
             activeLookKnobs.keyboardBgColor ?: themeManager.currentTheme.value.colors.keyboardBackground
         )
         updateSwipeKeyboard()
+        forceInputViewRemeasure()
+    }
+
+    /**
+     * Force the IME window to re-measure to the current keyboard height. On a cold start (esp. the first
+     * show after an app update, and on foldables where posture/look settle a frame late) the keyboard can
+     * grow after the window was already sized short, leaving the bottom row clipped; a posted requestLayout
+     * once the window is established makes the framework resize the window to fit.
+     */
+    private fun forceInputViewRemeasure() {
+        val root = keyboardRootContainer ?: return
+        root.post {
+            if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                swipeKeyboardView?.requestLayout()
+                adaptiveContainer?.requestLayout()
+                root.requestLayout()
+            }
+        }
     }
 
     /** Container-level look knobs (keyboard width narrowing + bottom lift) — applied to the container. */
