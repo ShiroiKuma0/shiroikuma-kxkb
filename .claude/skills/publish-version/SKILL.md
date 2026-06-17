@@ -26,7 +26,7 @@ after building).
 ```bash
 APK=$(ls -t ~/tmp/shiroikuma-kxkb_*.apk 2>/dev/null | head -1)
 VERSION=$(basename "$APK" | sed -E 's/^shiroikuma-kxkb_(.+)_arm64-v8a\.apk$/\1/')   # e.g. 0.23.1+72
-TAG="v$VERSION"
+TAG="$VERSION"   # the tag is the bare version, no "v" prefix (e.g. 0.23.1+72)
 ```
 
 If `$APK` is empty, stop and tell the user there's no built APK to publish (run `build-apk` first).
@@ -75,20 +75,30 @@ If `$APK` is empty, stop and tell the user there's no built APK to publish (run 
    ```
 
 5. **Tag and release.** Annotated tag at `HEAD`, then a GitHub release targeting `custom` with the
-   APK attached and the new CHANGELOG section as the notes:
+   APK attached and the new CHANGELOG section as the notes. **Always pin the repo with
+   `-R ShiroiKuma0/shiroikuma-kxkb`** — the working copy has an `upstream` remote
+   (`urikdev/Urik`), and bare `gh release` will otherwise 404 against upstream. Write the notes to a
+   real file under `~/tmp` (do **not** rely on `$TMPDIR`, which is unset when the sandbox is off):
    ```bash
+   REPO=ShiroiKuma0/shiroikuma-kxkb
    git tag -a "$TAG" -m "白い熊 kxkb $VERSION"
    git push origin "$TAG"
-   gh release create "$TAG" "$APK" \
+   NOTES="$HOME/tmp/kxkb_release_notes.md"
+   # the current version's CHANGELOG section, heading line dropped (to the next "## " or EOF):
+   sed -n "/^## ${VERSION} —/,/^## [0-9]/p" CHANGELOG.md | sed '/^## [0-9]/d' | tail -n +2 > "$NOTES"
+   gh release create "$TAG" "$APK" -R "$REPO" \
      --target custom \
      --title "白い熊 kxkb $VERSION" \
-     --notes-file <(sed -n '/^## <new-version>/,/^## /p' CHANGELOG.md | sed '$d')
+     --notes-file "$NOTES"
+   rm -f "$NOTES"
    ```
-   (Or pass `--notes` with the section text directly.) Keep the APK asset name as built
-   (`shiroikuma-kxkb_<VERSION>_arm64-v8a.apk`).
+   Keep the APK asset name as built (`shiroikuma-kxkb_<VERSION>_arm64-v8a.apk`).
 
-6. **Report** the release URL (`gh release view "$TAG" --json url -q .url`) and confirm the default
-   branch is `custom`.
+6. **Report** the release URL and confirm the default branch:
+   ```bash
+   gh release view "$TAG" -R ShiroiKuma0/shiroikuma-kxkb --json url -q .url
+   gh repo view ShiroiKuma0/shiroikuma-kxkb --json defaultBranchRef -q .defaultBranchRef.name
+   ```
 
 ## Notes
 

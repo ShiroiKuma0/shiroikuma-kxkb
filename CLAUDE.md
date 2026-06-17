@@ -46,6 +46,9 @@ tab/editor/git → M5 refinements) is in **`docs/PLAN.md`**.
   `AskUserQuestion`) how to transfer it: scp to skhw (first) / adb push to `/sdcard/tmp/` / no.
 - **`upstream-new-version`** — check upstream Urik for a newer release tag, advance `main`, rebase
   `custom`, reset `BUILD_NUMBER`, build the new `+1`.
+- **`publish-version`** — publish the latest tested APK as a GitHub release of the fork: tag
+  `v<version>`, attach the APK, refresh the README badge + `CHANGELOG.md`, keep the default branch on
+  `custom`. Pin `gh` with `-R ShiroiKuma0/shiroikuma-kxkb` (the `upstream` remote otherwise wins).
 - *(Planned, once cluster prediction is built — see `docs/PLAN.md`:)* a `cluster-prediction-testing`
   analogue, and a Multiling-layout conversion skill.
 
