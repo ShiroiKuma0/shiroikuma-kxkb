@@ -18,6 +18,7 @@ import com.urik.keyboard.settings.autocorrection.AutoCorrectionFragment
 import com.urik.keyboard.settings.languages.LanguagesFragment
 import com.urik.keyboard.settings.keyboardui.KeyboardUiFragment
 import com.urik.keyboard.settings.layoutinput.LayoutInputFragment
+import com.urik.keyboard.settings.library.LibraryFragment
 import com.urik.keyboard.settings.learnedwords.LearnedWordsFragment
 import com.urik.keyboard.settings.privacydata.PrivacyDataFragment
 import com.urik.keyboard.settings.typingbehavior.TypingBehaviorFragment
@@ -42,21 +43,26 @@ class SettingsActivity : AppCompatActivity() {
         setupFragmentTitleUpdates()
 
         if (savedInstanceState == null) {
-            supportFragmentManager
-                .beginTransaction()
-                .replace(R.id.settings_container, MainSettingsFragment())
-                .commit()
-            val page: PreferenceFragmentCompat? =
+            val page: androidx.fragment.app.Fragment? =
                 when (intent.getStringExtra(EXTRA_OPEN_PAGE)) {
                     PAGE_KEYBOARD_UI -> KeyboardUiFragment()
                     PAGE_LANGUAGES -> LanguagesFragment()
+                    PAGE_LIBRARY -> LibraryFragment()
                     else -> null
                 }
-            page?.let {
+            if (page != null) {
+                // Deep-linked from the space-slide menu: show only the page (no settings list beneath it),
+                // so Back / Up returns straight to the app + keyboard rather than into the settings tree.
                 supportFragmentManager
                     .beginTransaction()
-                    .replace(R.id.settings_container, it)
-                    .addToBackStack(null)
+                    .replace(R.id.settings_container, page)
+                    .commit()
+                supportFragmentManager.executePendingTransactions()
+                updateToolbarTitle()
+            } else {
+                supportFragmentManager
+                    .beginTransaction()
+                    .replace(R.id.settings_container, MainSettingsFragment())
                     .commit()
             }
         }
@@ -78,6 +84,7 @@ class SettingsActivity : AppCompatActivity() {
                 is LayoutInputFragment -> getString(R.string.layout_settings_title)
                 is AppearanceFragment -> getString(R.string.appearance_settings_title)
                 is KeyboardUiFragment -> getString(R.string.keyboard_ui_settings_title)
+                is LibraryFragment -> getString(R.string.library_settings_title)
                 is PrivacyDataFragment -> getString(R.string.privacy_settings_title)
                 is LearnedWordsFragment -> getString(R.string.learned_words_title)
                 else -> getString(R.string.settings_title)
@@ -115,6 +122,7 @@ class SettingsActivity : AppCompatActivity() {
         const val EXTRA_OPEN_PAGE = "open_page"
         const val PAGE_KEYBOARD_UI = "keyboard_ui"
         const val PAGE_LANGUAGES = "languages"
+        const val PAGE_LIBRARY = "library"
 
         fun createIntent(context: Context): Intent = Intent(context, SettingsActivity::class.java)
 
@@ -204,6 +212,18 @@ class MainSettingsFragment : PreferenceFragmentCompat() {
 
         screen.addPreference(
             Preference(context).apply {
+                key = "library_category"
+                title = resources.getString(R.string.library_settings_title)
+                summary = resources.getString(R.string.library_settings_description)
+                setOnPreferenceClickListener {
+                    navigateToFragment(LibraryFragment())
+                    true
+                }
+            }
+        )
+
+        screen.addPreference(
+            Preference(context).apply {
                 key = "privacy_data_category"
                 title = resources.getString(R.string.privacy_settings_title)
                 summary = resources.getString(R.string.privacy_settings_description)
@@ -241,7 +261,7 @@ class MainSettingsFragment : PreferenceFragmentCompat() {
         preferenceScreen = screen
     }
 
-    private fun navigateToFragment(fragment: PreferenceFragmentCompat) {
+    private fun navigateToFragment(fragment: androidx.fragment.app.Fragment) {
         parentFragmentManager
             .beginTransaction()
             .replace(R.id.settings_container, fragment)

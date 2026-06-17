@@ -75,6 +75,23 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
     private lateinit var suggestionWeightPref: SeekBarPreference
     private lateinit var suggestionSizePref: SeekBarPreference
     private lateinit var suggestionColorPref: ColorSwatchPreference
+    // Library screen look (app-wide, not per-geometry).
+    private lateinit var libSepColorPref: ColorSwatchPreference
+    private lateinit var libSepThicknessPref: SeekBarPreference
+    private lateinit var libRowSpacingPref: SeekBarPreference
+    private lateinit var libIndentPref: SeekBarPreference
+    private lateinit var libHeadingFontPref: Preference
+    private lateinit var libHeadingWeightPref: SeekBarPreference
+    private lateinit var libHeadingSizePref: SeekBarPreference
+    private lateinit var libHeadingColorPref: ColorSwatchPreference
+    private lateinit var libNameFontPref: Preference
+    private lateinit var libNameWeightPref: SeekBarPreference
+    private lateinit var libNameSizePref: SeekBarPreference
+    private lateinit var libNameColorPref: ColorSwatchPreference
+    private lateinit var libBadgeFontPref: Preference
+    private lateinit var libBadgeWeightPref: SeekBarPreference
+    private lateinit var libBadgeSizePref: SeekBarPreference
+    private lateinit var libBadgeColorPref: ColorSwatchPreference
     private var testField: EditText? = null
 
     /** Where a freshly imported font is applied — set per font picker before launching the SAF import. */
@@ -260,6 +277,47 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         screen.addPreference(clusterCategory)
         clusterCategory.addPreference(clusterLeftPref)
         clusterCategory.addPreference(clusterRightPref)
+
+        val libraryCategory = sectionCategory("kb_ui_library_section", R.string.library_section)
+        libSepColorPref = colorPref("lib_sep_color", R.string.keyboard_ui_item_colour, sub = true)
+        libSepThicknessPref = seekBar("lib_sep_thickness", R.string.library_item_thickness, 0, 8, sub = true)
+        libRowSpacingPref = seekBar("lib_row_spacing", R.string.library_item_row_spacing, 0, 24, sub = true)
+        libIndentPref = seekBar("lib_indent", R.string.library_item_indent, 0, 96, sub = true)
+        libHeadingFontPref = fontEntry("lib_heading_font", R.string.keyboard_ui_item_font, sub = true)
+        libHeadingWeightPref = seekBar("lib_heading_weight", R.string.keyboard_ui_item_weight, 100, 900, sub = true)
+        libHeadingSizePref = seekBar("lib_heading_size", R.string.keyboard_ui_item_size, 8, 48, sub = true)
+        libHeadingColorPref = colorPref("lib_heading_color", R.string.keyboard_ui_item_colour, sub = true)
+        libNameFontPref = fontEntry("lib_name_font", R.string.keyboard_ui_item_font, sub = true)
+        libNameWeightPref = seekBar("lib_name_weight", R.string.keyboard_ui_item_weight, 100, 900, sub = true)
+        libNameSizePref = seekBar("lib_name_size", R.string.keyboard_ui_item_size, 8, 48, sub = true)
+        libNameColorPref = colorPref("lib_name_color", R.string.keyboard_ui_item_colour, sub = true)
+        libBadgeFontPref = fontEntry("lib_badge_font", R.string.keyboard_ui_item_font, sub = true)
+        libBadgeWeightPref = seekBar("lib_badge_weight", R.string.keyboard_ui_item_weight, 100, 900, sub = true)
+        libBadgeSizePref = seekBar("lib_badge_size", R.string.keyboard_ui_item_size, 8, 48, sub = true)
+        libBadgeColorPref = colorPref("lib_badge_color", R.string.keyboard_ui_item_colour, sub = true)
+
+        screen.addPreference(libraryCategory)
+        libraryCategory.addPreference(subHeader(R.string.library_sub_separators))
+        libraryCategory.addPreference(libSepColorPref)
+        libraryCategory.addPreference(libSepThicknessPref)
+        libraryCategory.addPreference(subHeader(R.string.library_sub_spacing))
+        libraryCategory.addPreference(libRowSpacingPref)
+        libraryCategory.addPreference(libIndentPref)
+        libraryCategory.addPreference(subHeader(R.string.library_sub_heading))
+        libraryCategory.addPreference(libHeadingFontPref)
+        libraryCategory.addPreference(libHeadingWeightPref)
+        libraryCategory.addPreference(libHeadingSizePref)
+        libraryCategory.addPreference(libHeadingColorPref)
+        libraryCategory.addPreference(subHeader(R.string.library_sub_name))
+        libraryCategory.addPreference(libNameFontPref)
+        libraryCategory.addPreference(libNameWeightPref)
+        libraryCategory.addPreference(libNameSizePref)
+        libraryCategory.addPreference(libNameColorPref)
+        libraryCategory.addPreference(subHeader(R.string.library_sub_badge))
+        libraryCategory.addPreference(libBadgeFontPref)
+        libraryCategory.addPreference(libBadgeWeightPref)
+        libraryCategory.addPreference(libBadgeSizePref)
+        libraryCategory.addPreference(libBadgeColorPref)
 
         preferenceScreen = screen
     }
@@ -508,6 +566,44 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
             true
         }
 
+        libSepColorPref.setOnPreferenceClickListener {
+            ColorPicker.show(requireContext(), viewModel.libraryState.value.separatorColor) { viewModel.updateLibSeparatorColor(it) }
+            true
+        }
+        libSepThicknessPref.setOnPreferenceChangeListener { _, v -> viewModel.updateLibSeparatorThickness(v as Int); true }
+        libRowSpacingPref.setOnPreferenceChangeListener { _, v -> viewModel.updateLibRowSpacing(v as Int); true }
+        libIndentPref.setOnPreferenceChangeListener { _, v -> viewModel.updateLibIndent(v as Int); true }
+        libHeadingFontPref.setOnPreferenceClickListener {
+            showFontPicker(viewModel.libraryState.value.headingFont) { viewModel.updateLibHeadingFont(it) }
+            true
+        }
+        libHeadingWeightPref.setOnPreferenceChangeListener { _, v -> viewModel.updateLibHeadingWeight(v as Int); true }
+        libHeadingSizePref.setOnPreferenceChangeListener { _, v -> viewModel.updateLibHeadingSize(v as Int); true }
+        libHeadingColorPref.setOnPreferenceClickListener {
+            ColorPicker.show(requireContext(), viewModel.libraryState.value.headingColor) { viewModel.updateLibHeadingColor(it) }
+            true
+        }
+        libNameFontPref.setOnPreferenceClickListener {
+            showFontPicker(viewModel.libraryState.value.nameFont) { viewModel.updateLibNameFont(it) }
+            true
+        }
+        libNameWeightPref.setOnPreferenceChangeListener { _, v -> viewModel.updateLibNameWeight(v as Int); true }
+        libNameSizePref.setOnPreferenceChangeListener { _, v -> viewModel.updateLibNameSize(v as Int); true }
+        libNameColorPref.setOnPreferenceClickListener {
+            ColorPicker.show(requireContext(), viewModel.libraryState.value.nameColor) { viewModel.updateLibNameColor(it) }
+            true
+        }
+        libBadgeFontPref.setOnPreferenceClickListener {
+            showFontPicker(viewModel.libraryState.value.badgeFont) { viewModel.updateLibBadgeFont(it) }
+            true
+        }
+        libBadgeWeightPref.setOnPreferenceChangeListener { _, v -> viewModel.updateLibBadgeWeight(v as Int); true }
+        libBadgeSizePref.setOnPreferenceChangeListener { _, v -> viewModel.updateLibBadgeSize(v as Int); true }
+        libBadgeColorPref.setOnPreferenceClickListener {
+            ColorPicker.show(requireContext(), viewModel.libraryState.value.badgeColor) { viewModel.updateLibBadgeColor(it) }
+            true
+        }
+
         viewModel.selectGeometry(geometryPref.value ?: defaultGeometry())
 
         viewLifecycleOwner.lifecycleScope.launch {
@@ -566,6 +662,30 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                 }
                 launch {
                     viewModel.events.collect { event -> eventHandler.handle(event) }
+                }
+                launch {
+                    viewModel.libraryState.collect { lib ->
+                        libSepColorPref.summary = hex(lib.separatorColor)
+                        libSepColorPref.color = lib.separatorColor
+                        libSepThicknessPref.value = lib.separatorThicknessDp
+                        libRowSpacingPref.value = lib.rowSpacingDp
+                        libIndentPref.value = lib.indentDp
+                        libHeadingFontPref.summary = KeyboardFonts.displayName(requireContext(), lib.headingFont)
+                        libHeadingWeightPref.value = lib.headingWeight
+                        libHeadingSizePref.value = lib.headingSizeSp
+                        libHeadingColorPref.summary = hex(lib.headingColor)
+                        libHeadingColorPref.color = lib.headingColor
+                        libNameFontPref.summary = KeyboardFonts.displayName(requireContext(), lib.nameFont)
+                        libNameWeightPref.value = lib.nameWeight
+                        libNameSizePref.value = lib.nameSizeSp
+                        libNameColorPref.summary = hex(lib.nameColor)
+                        libNameColorPref.color = lib.nameColor
+                        libBadgeFontPref.summary = KeyboardFonts.displayName(requireContext(), lib.badgeFont)
+                        libBadgeWeightPref.value = lib.badgeWeight
+                        libBadgeSizePref.value = lib.badgeSizeSp
+                        libBadgeColorPref.summary = hex(lib.badgeColor)
+                        libBadgeColorPref.color = lib.badgeColor
+                    }
                 }
             }
         }

@@ -1429,7 +1429,11 @@ class KeyboardLayoutManager(
         val registry = com.urik.keyboard.data.LayoutRegistry.load(context)
         val layouts = SpaceMenuColumn(
             header = context.getString(R.string.space_menu_layouts),
-            items = registry.forLanguage(currentLang).map { entry ->
+            // The Layout library sits on top of the layouts column (it's about layouts), then the current
+            // language's switchable variants.
+            items = listOf(
+                SpaceMenuItem(context.getString(R.string.space_menu_library), current = false) { onMenuAction("library") }
+            ) + registry.forLanguage(currentLang).map { entry ->
                 SpaceMenuItem(entry.name, current = false) { onSwitchToLayout(currentLang, entry.id) }
             }
         )

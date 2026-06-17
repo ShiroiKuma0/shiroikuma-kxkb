@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.urik.keyboard.service.GeometryBucket
 import com.urik.keyboard.service.KeyboardLookKnobs
+import com.urik.keyboard.service.LibraryLook
 import com.urik.keyboard.settings.SettingsEvent
 import com.urik.keyboard.settings.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -35,6 +36,11 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
     /** The stored baseline (nullable fields) for the selected geometry, edited field-by-field. */
     private var current = KeyboardLookKnobs()
 
+    // The app-wide Library-screen look, edited on the same page (not per-geometry).
+    private val _libraryState = MutableStateFlow(LibraryLook().toLibraryUiState())
+    val libraryState: StateFlow<LibraryUiState> = _libraryState.asStateFlow()
+    private var currentLibrary = LibraryLook()
+
     init {
         // Follow the geometry the running keyboard is actually using (published by the IME service),
         // so rotating/folding while the keyboard is shown moves the selector + sliders to that bucket.
@@ -43,7 +49,56 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
                 if (live != null && live != _uiState.value.geometry) selectGeometry(live)
             }
         }
+        viewModelScope.launch {
+            currentLibrary = settingsRepository.getLibraryLook()
+            _libraryState.value = currentLibrary.toLibraryUiState()
+        }
     }
+
+    fun updateLibSeparatorColor(c: Int) = persistLibrary(currentLibrary.copy(separatorColor = c))
+    fun updateLibSeparatorThickness(dp: Int) = persistLibrary(currentLibrary.copy(separatorThicknessDp = dp))
+    fun updateLibRowSpacing(dp: Int) = persistLibrary(currentLibrary.copy(rowSpacingDp = dp))
+    fun updateLibIndent(dp: Int) = persistLibrary(currentLibrary.copy(indentDp = dp))
+    fun updateLibHeadingFont(f: String) = persistLibrary(currentLibrary.copy(headingFont = f))
+    fun updateLibHeadingWeight(w: Int) = persistLibrary(currentLibrary.copy(headingWeight = w))
+    fun updateLibHeadingSize(sp: Int) = persistLibrary(currentLibrary.copy(headingSizeSp = sp))
+    fun updateLibHeadingColor(c: Int) = persistLibrary(currentLibrary.copy(headingColor = c))
+    fun updateLibNameFont(f: String) = persistLibrary(currentLibrary.copy(nameFont = f))
+    fun updateLibNameWeight(w: Int) = persistLibrary(currentLibrary.copy(nameWeight = w))
+    fun updateLibNameSize(sp: Int) = persistLibrary(currentLibrary.copy(nameSizeSp = sp))
+    fun updateLibNameColor(c: Int) = persistLibrary(currentLibrary.copy(nameColor = c))
+    fun updateLibBadgeFont(f: String) = persistLibrary(currentLibrary.copy(badgeFont = f))
+    fun updateLibBadgeWeight(w: Int) = persistLibrary(currentLibrary.copy(badgeWeight = w))
+    fun updateLibBadgeSize(sp: Int) = persistLibrary(currentLibrary.copy(badgeSizeSp = sp))
+    fun updateLibBadgeColor(c: Int) = persistLibrary(currentLibrary.copy(badgeColor = c))
+
+    private fun persistLibrary(updated: LibraryLook) {
+        currentLibrary = updated
+        _libraryState.value = updated.toLibraryUiState()
+        viewModelScope.launch {
+            settingsRepository.updateLibraryLook(updated)
+                .onFailure { _events.emit(SettingsEvent.Error.KeyboardUiUpdateFailed) }
+        }
+    }
+
+    private fun LibraryLook.toLibraryUiState() = LibraryUiState(
+        separatorColor = separatorColor ?: LibraryLook.DEF_SEPARATOR_COLOR,
+        separatorThicknessDp = separatorThicknessDp ?: LibraryLook.DEF_SEPARATOR_THICKNESS,
+        rowSpacingDp = rowSpacingDp ?: LibraryLook.DEF_ROW_SPACING,
+        indentDp = indentDp ?: LibraryLook.DEF_INDENT,
+        headingFont = headingFont ?: "",
+        headingWeight = headingWeight ?: LibraryLook.DEF_HEADING_WEIGHT,
+        headingSizeSp = headingSizeSp ?: LibraryLook.DEF_HEADING_SIZE,
+        headingColor = headingColor ?: LibraryLook.DEF_HEADING_COLOR,
+        nameFont = nameFont ?: "",
+        nameWeight = nameWeight ?: LibraryLook.DEF_NAME_WEIGHT,
+        nameSizeSp = nameSizeSp ?: LibraryLook.DEF_NAME_SIZE,
+        nameColor = nameColor ?: LibraryLook.DEF_NAME_COLOR,
+        badgeFont = badgeFont ?: "",
+        badgeWeight = badgeWeight ?: LibraryLook.DEF_BADGE_WEIGHT,
+        badgeSizeSp = badgeSizeSp ?: LibraryLook.DEF_BADGE_SIZE,
+        badgeColor = badgeColor ?: LibraryLook.DEF_BADGE_COLOR
+    )
 
     fun selectGeometry(geometry: String) {
         viewModelScope.launch {
@@ -234,4 +289,23 @@ data class KeyboardUiUiState(
     val suggestionWeight: Int = 400,
     val suggestionSizePct: Int = 100,
     val suggestionColor: Int = 0xFFFFFF00.toInt()
+)
+
+data class LibraryUiState(
+    val separatorColor: Int = LibraryLook.DEF_SEPARATOR_COLOR,
+    val separatorThicknessDp: Int = LibraryLook.DEF_SEPARATOR_THICKNESS,
+    val rowSpacingDp: Int = LibraryLook.DEF_ROW_SPACING,
+    val indentDp: Int = LibraryLook.DEF_INDENT,
+    val headingFont: String = "",
+    val headingWeight: Int = LibraryLook.DEF_HEADING_WEIGHT,
+    val headingSizeSp: Int = LibraryLook.DEF_HEADING_SIZE,
+    val headingColor: Int = LibraryLook.DEF_HEADING_COLOR,
+    val nameFont: String = "",
+    val nameWeight: Int = LibraryLook.DEF_NAME_WEIGHT,
+    val nameSizeSp: Int = LibraryLook.DEF_NAME_SIZE,
+    val nameColor: Int = LibraryLook.DEF_NAME_COLOR,
+    val badgeFont: String = "",
+    val badgeWeight: Int = LibraryLook.DEF_BADGE_WEIGHT,
+    val badgeSizeSp: Int = LibraryLook.DEF_BADGE_SIZE,
+    val badgeColor: Int = LibraryLook.DEF_BADGE_COLOR
 )

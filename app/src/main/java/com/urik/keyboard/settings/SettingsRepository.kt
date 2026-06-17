@@ -55,6 +55,7 @@ constructor(
         val PER_APP_LAYOUT_LANGUAGES = stringPreferencesKey("per_app_layout_languages")
         val ACTIVE_LAYOUT_BY_LANGUAGE = stringPreferencesKey("active_layout_by_language")
         val PER_GEOMETRY_LOOK = stringPreferencesKey("per_geometry_look")
+        val LIBRARY_LOOK = stringPreferencesKey("library_look")
         val CURRENT_GEOMETRY = stringPreferencesKey("current_geometry")
         val HAPTIC_FEEDBACK = booleanPreferencesKey("haptic_feedback")
         val VIBRATION_STRENGTH = intPreferencesKey("vibration_strength")
@@ -482,6 +483,29 @@ constructor(
     }
 
     /** The per-geometry baseline as stored (null = unset), for the Keyboard UI screen to read back. */
+    /** The app-wide Library-screen look (separator / spacing / per-category fonts). Defaults inherit. */
+    suspend fun getLibraryLook(): com.urik.keyboard.service.LibraryLook = try {
+        com.urik.keyboard.service.LibraryLook.decode(
+            dataStore.data.first()[PreferenceKeys.LIBRARY_LOOK] ?: ""
+        )
+    } catch (e: Exception) {
+        com.urik.keyboard.service.LibraryLook()
+    }
+
+    suspend fun updateLibraryLook(look: com.urik.keyboard.service.LibraryLook): Result<Unit> = try {
+        dataStore.edit { preferences ->
+            val encoded = look.encode()
+            if (encoded.isEmpty()) {
+                preferences.remove(PreferenceKeys.LIBRARY_LOOK)
+            } else {
+                preferences[PreferenceKeys.LIBRARY_LOOK] = encoded
+            }
+        }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
     suspend fun getGeometryBaselineLook(geometry: String): KeyboardLookKnobs? = try {
         dataStore.data.first()[PreferenceKeys.PER_GEOMETRY_LOOK]?.let { decodeLookMap(it)[geometry] }
     } catch (e: Exception) {

@@ -1004,6 +1004,9 @@ open class UrikInputMethodService :
             "languages" -> com.urik.keyboard.settings.SettingsActivity.createIntent(
                 this, com.urik.keyboard.settings.SettingsActivity.PAGE_LANGUAGES
             )
+            "library" -> com.urik.keyboard.settings.SettingsActivity.createIntent(
+                this, com.urik.keyboard.settings.SettingsActivity.PAGE_LIBRARY
+            )
             else -> com.urik.keyboard.settings.SettingsActivity.createIntent(this)
         }
         intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
