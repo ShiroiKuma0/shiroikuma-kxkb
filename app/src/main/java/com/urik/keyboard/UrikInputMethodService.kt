@@ -796,6 +796,15 @@ open class UrikInputMethodService :
                 }
                 setOnSwipeWordListener { validatedWord -> handleSwipeWord(validatedWord) }
                 setOnSuggestionClickListener { suggestion -> handleSuggestionSelected(suggestion) }
+                setOnExpandRequestedListener {
+                    // Build the full (tens-of) candidate list off the main thread, then show the pane.
+                    serviceScope.launch(kotlinx.coroutines.Dispatchers.Default) {
+                        val list = suggestionPipeline.expandedClusterCandidates()
+                        withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            swipeKeyboardView?.showCandidatesPane(list)
+                        }
+                    }
+                }
                 setOnSuggestionLongPressListener { suggestion ->
                     handleSuggestionRemoval(
                         suggestion
@@ -1724,10 +1733,12 @@ open class UrikInputMethodService :
         // Cluster typing: Tab ("tap") advances the highlighted candidate that Space will commit, rather
         // than emitting a literal tab. Falls back to a real KEYCODE_TAB when there's nothing to cycle.
         if (inputState.clusterLayoutActive && inputState.pendingSuggestions.isNotEmpty()) {
-            val n = inputState.pendingSuggestions.size
-            inputState.selectedCandidate = (inputState.selectedCandidate + 1) % n
-            candidateBarController.setSelectedSuggestion(inputState.selectedCandidate)
-            return
+            // Advance over exactly the candidates the bar is showing (as many as fit), wrapping around.
+            val idx = candidateBarController.advanceSelection()
+            if (idx >= 0) {
+                inputState.selectedCandidate = idx
+                return
+            }
         }
         // Commit any in-progress composing word first; commitText/sendKeyEvent would
         // otherwise replace the composing region instead of appending the tab.
@@ -1985,6 +1996,9 @@ open class UrikInputMethodService :
 
     override fun onFinishInputView(finishingInput: Boolean) {
         super.onFinishInputView(finishingInput)
+
+        // Don't leave the expandable candidates pane open across a field/keyboard dismissal.
+        swipeKeyboardView?.hideCandidatesPane()
 
         if (::layoutManager.isInitialized) {
             layoutManager.stopAcceleratedBackspace()

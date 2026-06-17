@@ -57,6 +57,13 @@ constructor(
     // Cluster typing: highlight the candidate that Space will commit (Tab advances it). Off for plain layouts.
     private var selectedSuggestionIndex = 0
     private var suggestionSelectionEnabled = false
+    // How many candidates actually fit in the bar this render — Tab cycles over exactly these.
+    private var visibleSuggestionCount = 0
+    // Expandable "many candidates" pane (tens of cluster candidates), opened from the bar's ▾ button.
+    private var candidatesPaneContainer: LinearLayout? = null
+    private var isShowingCandidatesPane = false
+    private var onExpandRequestedListener: (() -> Unit)? = null
+    private var expandButton: TextView? = null
     private val dividerViewPool = mutableListOf<View>()
     private val activeDividerViews = mutableListOf<View>()
     private val suggestionMeasurePaint = android.text.TextPaint()
@@ -666,6 +673,7 @@ constructor(
     fun showEmojiPicker() {
         if (isDestroyed || isShowingEmojiPicker) return
 
+        hideCandidatesPane()
         setupEmojiPickerViews()
 
         val baseContext = context
@@ -978,6 +986,15 @@ constructor(
         applySuggestionHighlights()
     }
 
+    /** Tab: advance the highlight to the next visible candidate (wrapping). Returns the new index, or -1. */
+    fun advanceSelection(): Int {
+        val n = visibleSuggestionCount
+        if (!suggestionSelectionEnabled || n <= 0) return -1
+        selectedSuggestionIndex = (selectedSuggestionIndex + 1) % n
+        applySuggestionHighlights()
+        return selectedSuggestionIndex
+    }
+
     /** Enable/disable the Space-commits-candidate highlight (on for cluster layouts, off otherwise). */
     fun setSuggestionSelectionEnabled(enabled: Boolean) {
         if (suggestionSelectionEnabled == enabled) return
@@ -1003,6 +1020,150 @@ constructor(
             cornerRadius = 6f * density
             setStroke((2f * density).toInt(), accent)
             setColor(android.graphics.Color.TRANSPARENT)
+        }
+    }
+
+    /** Set by the host: opening the expandable pane asks it for the full (tens-of) candidate list. */
+    fun setOnExpandRequestedListener(listener: () -> Unit) {
+        onExpandRequestedListener = listener
+    }
+
+    private fun suggestionAccentColor(): Int = adaptiveDimensions?.suggestionColor
+        ?: themeManager?.currentTheme?.value?.colors?.suggestionText
+        ?: android.graphics.Color.YELLOW
+
+    private fun chipBorderDrawable(accent: Int, density: Float): android.graphics.drawable.Drawable =
+        android.graphics.drawable.GradientDrawable().apply {
+            shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+            cornerRadius = 6f * density
+            setStroke((1.5f * density).toInt(), accent)
+            setColor(android.graphics.Color.TRANSPARENT)
+        }
+
+    private fun suggestionTypeface(): android.graphics.Typeface {
+        val family = adaptiveDimensions?.suggestionFont ?: ""
+        val weight = adaptiveDimensions?.suggestionWeight
+        return if (weight != null && weight > 0) {
+            com.urik.keyboard.service.KeyboardFonts.weightedTypeface(context, family, weight)
+        } else {
+            com.urik.keyboard.service.KeyboardFonts.typeface(context, family)
+        }
+    }
+
+    /** The bar's ▾ button: detached + restyled each rebuild, re-added before the emoji button when relevant. */
+    private fun getOrCreateExpandButton(): TextView {
+        val btn = expandButton ?: TextView(context).apply {
+            text = "▾"
+            gravity = Gravity.CENTER
+            contentDescription = "More candidates"
+            setOnClickListener { onExpandRequestedListener?.invoke() }
+        }
+        (btn.parent as? ViewGroup)?.removeView(btn)
+        val density = context.resources.displayMetrics.density
+        btn.setTextColor(suggestionAccentColor())
+        btn.setTextSize(TypedValue.COMPLEX_UNIT_SP, (suggestionTextSizeSp.takeIf { it > 0 } ?: 18f) * 1.1f)
+        val pad = (8 * density).toInt()
+        btn.setPadding(pad, 0, pad, 0)
+        btn.layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            0f
+        )
+        expandButton = btn
+        return btn
+    }
+
+    /** Overlay the keyboard with a scrollable flow of every candidate; tap commits, ▴ collapses. */
+    fun showCandidatesPane(candidates: List<String>) {
+        if (isDestroyed || candidates.isEmpty()) return
+        hideCandidatesPane()
+
+        val density = context.resources.displayMetrics.density
+        val accent = suggestionAccentColor()
+        val bg = adaptiveDimensions?.keyboardBgColor
+            ?: themeManager?.currentTheme?.value?.colors?.keyboardBackground
+            ?: android.graphics.Color.BLACK
+        val textSize = suggestionTextSizeSp.takeIf { it > 0 } ?: 18f
+        val typeface = suggestionTypeface()
+
+        val flow = FlowLayout(context).apply {
+            horizontalSpacing = (8 * density).toInt()
+            verticalSpacing = (8 * density).toInt()
+            val p = (10 * density).toInt()
+            setPadding(p, p, p, p)
+        }
+        candidates.forEach { word ->
+            val chip = TextView(context).apply {
+                text = word
+                setTextColor(accent)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, textSize)
+                setTypeface(typeface)
+                maxLines = 1
+                val hp = (12 * density).toInt()
+                val vp = (8 * density).toInt()
+                setPadding(hp, vp, hp, vp)
+                background = chipBorderDrawable(accent, density)
+                setOnClickListener {
+                    hideCandidatesPane()
+                    onSuggestionClickListener?.invoke(word)
+                }
+            }
+            flow.addView(chip)
+        }
+
+        val scroll = android.widget.ScrollView(context).apply {
+            isFillViewport = true
+            addView(
+                flow,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            )
+        }
+
+        val collapse = TextView(context).apply {
+            text = "▴"
+            setTextColor(accent)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, textSize * 1.2f)
+            gravity = Gravity.CENTER
+            contentDescription = "Close candidates"
+            val p = (8 * density).toInt()
+            setPadding(p, p, p, p)
+            setOnClickListener { hideCandidatesPane() }
+        }
+        val header = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.END
+            addView(collapse)
+        }
+
+        val container = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(bg)
+            addView(
+                header,
+                LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            )
+            addView(
+                scroll,
+                LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
+            )
+        }
+        candidatesPaneContainer = container
+        isShowingCandidatesPane = true
+        findKeyboardView()?.visibility = GONE
+        addView(container, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+    }
+
+    fun hideCandidatesPane() {
+        if (!isShowingCandidatesPane && candidatesPaneContainer == null) return
+        isShowingCandidatesPane = false
+        candidatesPaneContainer?.let { removeView(it) }
+        candidatesPaneContainer = null
+        if (!isDestroyed) {
+            findKeyboardView()?.visibility = VISIBLE
+            requestLayout()
         }
     }
 
@@ -1047,6 +1208,14 @@ constructor(
                 bar.addView(spacer)
             }
 
+            // The ▾ expand button (open the many-candidates pane) sits just left of the emoji button,
+            // only in cluster typing when there are candidates to expand to.
+            if (suggestionSelectionEnabled && suggestions.isNotEmpty()) {
+                bar.addView(getOrCreateExpandButton())
+            } else {
+                expandButton?.let { (it.parent as? ViewGroup)?.removeView(it) }
+            }
+
             emojiBtn?.let { btn ->
                 if (btn.parent != null) {
                     (btn.parent as? ViewGroup)?.removeView(btn)
@@ -1070,46 +1239,51 @@ constructor(
     }
 
     private fun populateSuggestions(bar: LinearLayout, suggestions: List<String>) {
-        val capped = suggestions.take(3)
-        val emojiWidth = emojiButton?.let { it.measuredWidth.takeIf { w -> w > 0 } } ?: 0
-        val barWidth =
-            bar.width.takeIf { it > 0 }
-                ?: context.resources.displayMetrics.widthPixels
-        val cellWidth =
-            (barWidth - emojiWidth - suggestionDividerWidth * (capped.size - 1).coerceAtLeast(0)) / capped.size
+        // FUTO-style candidate line: lay candidates out at their natural width, left to right, showing as
+        // many as fit in the bar (reserving room for the ▾ + emoji buttons at the right). Tab cycles these.
+        val density = context.resources.displayMetrics.density
+        val emojiWidth = emojiButton?.let { it.measuredWidth.takeIf { w -> w > 0 } } ?: (44 * density).toInt()
+        val expandWidth = if (suggestionSelectionEnabled) (40 * density).toInt() else 0
+        val barWidth = bar.width.takeIf { it > 0 } ?: context.resources.displayMetrics.widthPixels
+        val available = (barWidth - emojiWidth - expandWidth - (16 * density).toInt())
+            .coerceAtLeast((100 * density).toInt())
 
         val suggestionTextColor =
             adaptiveDimensions?.suggestionColor ?: themeManager!!.currentTheme.value.colors.suggestionText
         val suggestionScale = adaptiveDimensions?.suggestionTextScale ?: 1f
-        capped.forEachIndexed { index, suggestion ->
-            if (isDestroyed) return@forEachIndexed
+        val tf = suggestionTypeface()
+        val chipHPad = (12 * density).toInt()
+        val chipGap = (6 * density).toInt()
+        val isRtl = currentLayout?.isRTL == true
+
+        suggestionMeasurePaint.letterSpacing = 0f
+        suggestionMeasurePaint.textSize = suggestionTextSizeSp * suggestionScale * density
+        suggestionMeasurePaint.typeface = tf
+
+        var used = 0
+        var shown = 0
+        for (suggestion in suggestions) {
+            if (isDestroyed) break
+            val textW = suggestionMeasurePaint.measureText(suggestion).toInt()
+            val chipW = (textW + chipHPad * 2).coerceAtMost(available)
+            val needed = chipW + if (shown > 0) chipGap else 0
+            if (shown > 0 && used + needed > available) break
+            used += needed
 
             val btn = getOrCreateSuggestionView()
-
             btn.setTextSize(TypedValue.COMPLEX_UNIT_SP, suggestionTextSizeSp * suggestionScale)
             btn.setTextColor(suggestionTextColor)
-
-            btn.textDirection =
-                if (currentLayout?.isRTL == true) {
-                    TEXT_DIRECTION_RTL
-                } else {
-                    TEXT_DIRECTION_LTR
-                }
-
+            btn.textDirection = if (isRtl) TEXT_DIRECTION_RTL else TEXT_DIRECTION_LTR
             btn.maxLines = 1
             btn.isSingleLine = true
-            btn.typeface = run {
-                val family = adaptiveDimensions?.suggestionFont ?: ""
-                val weight = adaptiveDimensions?.suggestionWeight
-                if (weight != null && weight > 0) {
-                    com.urik.keyboard.service.KeyboardFonts.weightedTypeface(context, family, weight)
-                } else {
-                    com.urik.keyboard.service.KeyboardFonts.typeface(context, family)
-                }
-            }
-
+            btn.letterSpacing = 0f
+            btn.ellipsize = android.text.TextUtils.TruncateAt.END
+            btn.maxWidth = available
+            btn.typeface = tf
+            btn.gravity = Gravity.CENTER
+            btn.setPadding(chipHPad, suggestionVerticalPadding, chipHPad, suggestionVerticalPadding)
+            btn.text = suggestion
             btn.contentDescription = context.getString(R.string.ime_prediction_description, suggestion)
-
             ViewCompat.setAccessibilityDelegate(
                 btn,
                 object : AccessibilityDelegateCompat() {
@@ -1119,61 +1293,22 @@ constructor(
                     }
                 }
             )
-
-            suggestionMeasurePaint.letterSpacing = 0f
-            val isCenterCandidate = capped.size >= 3 && index == 1
-            val fitted =
-                fitSuggestionText(
-                    suggestionMeasurePaint,
-                    suggestion,
-                    cellWidth,
-                    suggestionMaxPadding,
-                    suggestionMinPadding,
-                    isCenterCandidate
-                )
-            btn.setPadding(
-                fitted.horizontalPadding,
-                suggestionVerticalPadding,
-                fitted.horizontalPadding,
-                suggestionVerticalPadding
-            )
-            btn.letterSpacing = fitted.letterSpacing
-            btn.ellipsize = fitted.ellipsize
-            btn.text = suggestion
-
             btn.setTag(R.id.suggestion_text, suggestion)
             btn.setOnClickListener(suggestionClickListener)
             btn.setOnLongClickListener(suggestionLongClickListener)
-
             activeSuggestionViews.add(btn)
 
-            btn.gravity = Gravity.CENTER
-
-            val layoutParams = LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)
-            bar.addView(btn, layoutParams)
-
-            if (index < capped.size - 1) {
-                val divider = getOrCreateDividerView()
-
-                divider.setBackgroundColor(
-                    themeManager!!
-                        .currentTheme.value.colors.keyBorder
-                )
-
-                val dividerParams =
-                    LinearLayout
-                        .LayoutParams(
-                            context.resources.displayMetrics.density.toInt(),
-                            LayoutParams.MATCH_PARENT
-                        ).apply {
-                            marginStart = suggestionDividerMargin
-                            marginEnd = suggestionDividerMargin
-                        }
-
-                activeDividerViews.add(divider)
-                bar.addView(divider, dividerParams)
-            }
+            val lp = LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT, 0f)
+            if (shown > 0) lp.marginStart = chipGap
+            bar.addView(btn, lp)
+            shown++
         }
+        visibleSuggestionCount = shown
+        if (selectedSuggestionIndex >= shown) selectedSuggestionIndex = 0
+        // Left-align the chips; the weighted spacer pushes the ▾ + emoji buttons to the right edge.
+        bar.addView(View(context).apply {
+            layoutParams = LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, 1f)
+        })
         applySuggestionHighlights()
     }
 
@@ -1419,6 +1554,7 @@ constructor(
         isShowingAutofillSuggestions = false
         autofillIndicatorIcon?.visibility = GONE
         emojiButton?.visibility = VISIBLE
+        hideCandidatesPane()
         updateSuggestionBarContent(emptyList())
         safeMappingPost()
     }
@@ -1592,7 +1728,10 @@ constructor(
         if (isDestroyed) return null
 
         val overlayViews =
-            setOf(swipeOverlay, suggestionBar, emojiPickerContainer, emojiSearchContainer, confirmationOverlay)
+            setOf(
+                swipeOverlay, suggestionBar, emojiPickerContainer, emojiSearchContainer,
+                confirmationOverlay, candidatesPaneContainer
+            )
         for (i in 0 until childCount) {
             val child = getChildAt(i)
             if (child !in overlayViews && child is ViewGroup) {
@@ -2230,6 +2369,12 @@ constructor(
 
         returnEmojiViewsToPool()
         emojiViewPool.clear()
+
+        candidatesPaneContainer?.let { (it.parent as? ViewGroup)?.removeView(it) }
+        candidatesPaneContainer = null
+        isShowingCandidatesPane = false
+        onExpandRequestedListener = null
+        expandButton = null
 
         suggestionBar?.let { bar ->
             bar.removeAllViews()

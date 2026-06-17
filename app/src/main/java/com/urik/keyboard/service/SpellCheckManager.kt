@@ -545,7 +545,8 @@ constructor(
                     }.awaitAll()
                     .flatten()
 
-            mergeAndRankSuggestions(allLanguageSuggestions, MAX_SUGGESTIONS, effectiveLanguage)
+            val cap = if (clusterActive) CLUSTER_BAR_POOL else MAX_SUGGESTIONS
+            mergeAndRankSuggestions(allLanguageSuggestions, cap, effectiveLanguage)
         } catch (e: Exception) {
             ErrorLogger.logException(
                 component = "SpellCheckManager",
@@ -734,6 +735,9 @@ constructor(
     @Volatile
     private var clusterBands: Map<Char, Set<Char>> = emptyMap()
 
+    /** True while a cluster layout is active — the bar then carries a larger pool ([CLUSTER_BAR_POOL]). */
+    val clusterActive: Boolean get() = clusterBands.isNotEmpty()
+
     /** [bands] maps a cluster key's committed centre char to its full band string (e.g. 'w' -> "mwk"). */
     fun setClusterBands(bands: Map<Char, String>) {
         val folded = mutableMapOf<Char, Set<Char>>()
@@ -755,6 +759,22 @@ constructor(
      * is the prediction and the literal competes for 2nd. Empty when the layout has no clusters or nothing
      * the user typed is ambiguous.
      */
+    /**
+     * Expanded cluster candidates for the on-demand "more candidates" pane — the same constrained DAWG walk
+     * as [queryClusterSuggestions] but with a large cap, returning just the words (frequency-ranked). Run
+     * only when the pane opens, so the per-keystroke path stays cheap.
+     */
+    fun clusterCandidatesFor(word: String, languageCode: String, maxResults: Int): List<String> {
+        val bands = clusterBands
+        if (bands.isEmpty() || word.isEmpty()) return emptyList()
+        val folded = wordNormalizer.stripDiacritics(word).lowercase()
+        val allowedSets = folded.map { ch -> bands[ch] ?: setOf(ch) }
+        if (allowedSets.none { it.size > 1 }) return emptyList()
+        val dict = getUrikDictionary(languageCode) ?: return emptyList()
+        return dict.clusterCandidates(allowedSets, maxResults)
+            .mapNotNull { (w, _) -> if (isWordBlacklisted(w)) null else w }
+    }
+
     private fun queryClusterSuggestions(
         normalizedWord: String,
         languageCode: String,
@@ -766,7 +786,7 @@ constructor(
         val allowedSets = folded.map { ch -> bands[ch] ?: setOf(ch) }
         if (allowedSets.none { it.size > 1 }) return emptyList()
         val dict = getUrikDictionary(languageCode) ?: return emptyList()
-        return dict.clusterCandidates(allowedSets, MAX_SUGGESTIONS + 2)
+        return dict.clusterCandidates(allowedSets, CLUSTER_BAR_POOL)
             .mapNotNull { (word, freq) ->
                 val key = word.lowercase()
                 if (key in seenWords || isWordBlacklisted(word)) return@mapNotNull null
@@ -1400,6 +1420,9 @@ constructor(
 
         const val MAX_EDIT_DISTANCE = 2
         const val MAX_SUGGESTIONS = 5
+
+        /** Candidate pool size for cluster layouts — the bar shows as many of these as fit; Tab cycles them. */
+        const val CLUSTER_BAR_POOL = 16
         const val MIN_COMPLETION_LENGTH = 4
         const val FAT_FINGER_MIN_WORD_LENGTH = 4
         const val APOSTROPHE_BOOST = 0.30

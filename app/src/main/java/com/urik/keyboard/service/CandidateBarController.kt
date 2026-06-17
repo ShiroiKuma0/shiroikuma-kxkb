@@ -18,6 +18,9 @@ class CandidateBarController(private val viewProvider: () -> SwipeKeyboardView?)
         viewProvider()?.setSelectedSuggestion(index)
     }
 
+    /** Tab: advance the highlight to the next visible candidate; returns the new index, or -1 if none. */
+    fun advanceSelection(): Int = viewProvider()?.advanceSelection() ?: -1
+
     /** Toggle the Space-commits-candidate highlight (on for cluster layouts). */
     fun setSuggestionSelectionEnabled(enabled: Boolean) {
         viewProvider()?.setSuggestionSelectionEnabled(enabled)

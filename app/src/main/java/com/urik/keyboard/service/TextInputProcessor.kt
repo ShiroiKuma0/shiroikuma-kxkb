@@ -152,7 +152,10 @@ constructor(
 
             val spellCheckEnabled = currentSettings.spellCheckEnabled
             val suggestionsEnabled = currentSettings.showSuggestions
-            val maxSuggestions = currentSettings.effectiveSuggestionCount
+            // Cluster layouts carry a larger pool so the bar can show as many candidates as fit (Tab cycles them).
+            val maxSuggestions =
+                if (spellCheckManager.clusterActive) SpellCheckManager.CLUSTER_BAR_POOL
+                else currentSettings.effectiveSuggestionCount
 
             val requiresSpellCheck =
                 spellCheckEnabled && graphemeCount >= TextProcessingConstants.MIN_SPELL_CHECK_LENGTH

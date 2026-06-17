@@ -133,6 +133,20 @@ class SuggestionPipeline(
         return caseTransformer.applyCasingToSuggestions(suggestions, keyboardState, isSentenceStart = false)
     }
 
+    /**
+     * The full candidate list for the expandable "more candidates" pane. For a typed word it re-queries the
+     * cluster DAWG for many candidates; for the empty-buffer next-word state it returns the current bigram
+     * list. Cased like the bar (dictionary case under auto-caps; the commit re-cases on selection).
+     */
+    fun expandedClusterCandidates(maxResults: Int = 48): List<String> {
+        val buffer = state.displayBuffer
+        if (buffer.isEmpty()) return state.pendingSuggestions
+        val lang = host.currentLanguage().split("-").first()
+        val words = spellCheckManager.clusterCandidatesFor(buffer, lang, maxResults)
+        if (words.isEmpty()) return state.pendingSuggestions
+        return capitalizeSuggestions(words.map { SpellingSuggestion(it, 0.0, 0, "cluster") }).distinct()
+    }
+
     /** Apply the sentence-start / shift capital that the bar deliberately omits, at the moment of commit. */
     private fun recaseForCommit(displayed: String): String {
         if (displayed.isEmpty()) return displayed
@@ -157,11 +171,13 @@ class SuggestionPipeline(
         serviceScope.launch {
             try {
                 val currentLanguage = languageManager.currentLanguage.value
+                val bigramCount =
+                    if (state.clusterLayoutActive) SpellCheckManager.CLUSTER_BAR_POOL else host.effectiveSuggestionCount()
                 val allPredictions =
                     wordFrequencyRepository.getBigramPredictions(
                         state.lastCommittedWord,
                         currentLanguage,
-                        host.effectiveSuggestionCount()
+                        bigramCount
                     )
 
                 val predictions = allPredictions.filter { !spellCheckManager.isWordBlacklisted(it) }
