@@ -8,6 +8,7 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -15,45 +16,89 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.urik.keyboard.R
+import com.urik.keyboard.data.KeyboardRepository
 import com.urik.keyboard.data.LayoutEntry
 import com.urik.keyboard.data.LayoutRegistry
+import com.urik.keyboard.model.KeyboardState
+import com.urik.keyboard.service.AdaptiveDimensions
+import com.urik.keyboard.service.CharacterVariationService
+import com.urik.keyboard.service.GeometryBucket
 import com.urik.keyboard.service.KeyboardFonts
+import com.urik.keyboard.service.KeyboardLookKnobs
+import com.urik.keyboard.service.LanguageManager
 import com.urik.keyboard.service.LibraryLook
+import com.urik.keyboard.service.PostureDetector
 import com.urik.keyboard.settings.SettingsRepository
+import com.urik.keyboard.theme.ThemeManager
+import com.urik.keyboard.utils.CacheMemoryManager
+import com.urik.keyboard.ui.keyboard.components.KeyboardLayoutManager
 import dagger.hilt.android.AndroidEntryPoint
 import java.util.Locale
 import javax.inject.Inject
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
- * The Library — browse every layout in the registry, grouped under a big underlined language heading, and
- * tap one to make it the active layout for that language. The change applies the next time the keyboard is
- * shown (the active layout is resolved per-language on input start). The whole list look (separators,
- * spacing, indent, per-category fonts/sizes/colours) is settable on the kxkb UI page ([LibraryLook]).
+ * The Library — browse every layout grouped under a per-language heading. Tapping a layout renders it as a
+ * true live keyboard (the real renderer + the resolved look knobs) in a panel at the bottom, without
+ * switching to it; an "Activate" button there makes it that language's active layout while staying here.
+ * The list look (separators, spacing, indent, per-category fonts) is settable on the kxkb UI page.
  */
 @AndroidEntryPoint
 class LibraryFragment : Fragment() {
     @Inject lateinit var settingsRepository: SettingsRepository
+    @Inject lateinit var keyboardRepository: KeyboardRepository
+    @Inject lateinit var themeManager: ThemeManager
+    @Inject lateinit var characterVariationService: CharacterVariationService
+    @Inject lateinit var languageManager: LanguageManager
+    @Inject lateinit var cacheMemoryManager: CacheMemoryManager
 
     private lateinit var registry: LayoutRegistry
     private lateinit var listContainer: LinearLayout
+    private lateinit var previewContainer: LinearLayout
     private var look = LibraryLook()
+
+    // The real keyboard renderer, with no-op callbacks (the preview is non-interactive).
+    private val layoutManager by lazy {
+        KeyboardLayoutManager(
+            context = requireContext(),
+            onKeyClick = {},
+            onAcceleratedDeletionChanged = {},
+            onSymbolsLongPress = {},
+            characterVariationService = characterVariationService,
+            languageManager = languageManager,
+            themeManager = themeManager,
+            cacheMemoryManager = cacheMemoryManager
+        )
+    }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         registry = LayoutRegistry.load(requireContext())
         listContainer = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.BLACK)
             val p = dp(12)
             setPadding(p, p, p, p)
         }
-        return ScrollView(requireContext()).apply {
+        val scroll = ScrollView(requireContext()).apply {
             isFillViewport = true
-            setBackgroundColor(Color.BLACK)
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f)
             addView(
                 listContainer,
                 ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
             )
+        }
+        previewContainer = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            visibility = View.GONE
+        }
+        return LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.BLACK)
+            addView(scroll)
+            addView(previewContainer)
         }
     }
 
@@ -62,7 +107,6 @@ class LibraryFragment : Fragment() {
         rebuild()
     }
 
-    /** Re-read the look + active layouts, then rebuild the whole list (also called after Apply / on resume). */
     override fun onResume() {
         super.onResume()
         rebuild()
@@ -106,7 +150,7 @@ class LibraryFragment : Fragment() {
             setPadding(dp(look.indentDp ?: LibraryLook.DEF_INDENT), dp(spacing), dp(8), dp(spacing))
             isClickable = true
             isFocusable = true
-            setOnClickListener { apply(entry) }
+            setOnClickListener { preview(entry) }
         }
         val nameWeight = look.nameWeight ?: LibraryLook.DEF_NAME_WEIGHT
         val name = TextView(requireContext()).apply {
@@ -138,7 +182,78 @@ class LibraryFragment : Fragment() {
         setBackgroundColor(look.separatorColor ?: LibraryLook.DEF_SEPARATOR_COLOR)
     }
 
-    private fun apply(entry: LayoutEntry) {
+    /** Render the tapped layout as a true keyboard in the bottom panel, without activating it. */
+    private fun preview(entry: LayoutEntry) {
+        lifecycleScope.launch {
+            val layout = keyboardRepository.loadLayoutById(entry.id) ?: return@launch
+            val settings = settingsRepository.settings.first()
+            val density = resources.displayMetrics.density
+            val posture = PostureDetector(requireContext(), lifecycleScope).postureInfo.value
+            // Resolve the look for the geometry the live keyboard is actually using (the IME publishes it).
+            // The fold-aware IME bucket can differ from the settings Activity's Configuration bucket, and
+            // the whole per-geometry look (spacing, square keys, colours, borders) hangs off it.
+            val geometry = settingsRepository.currentGeometry.first()
+                ?: GeometryBucket.fromConfiguration(resources.configuration).key
+            val knobs = settingsRepository.resolveLookKnobs(entry.lang, entry.id, geometry)
+            // Render at the live keyboard's actual height when the IME has published one (its on-keyboard
+            // resize lives in a per-combo fork that a different previewed layout wouldn't otherwise pick up).
+            val baseDims = AdaptiveDimensions.compute(posture, settings.keySize, density)
+            val liveHeightScale = settingsRepository.getCurrentKeyHeightScale()
+            val dims = knobs.applyTo(baseDims, density).let { d ->
+                if (liveHeightScale != null) {
+                    d.copy(keyHeightPx = (baseDims.keyHeightPx * liveHeightScale).toInt().coerceAtLeast(1))
+                } else {
+                    d
+                }
+            }
+
+            layoutManager.updateKeySize(settings.keySize)
+            layoutManager.updateKeyLabelSize(settings.keyLabelSize)
+            layoutManager.updateSpaceBarSize(settings.spaceBarSize)
+            layoutManager.updateNumberHints(settings.showNumberHints)
+            layoutManager.updateAdaptiveDimensions(dims)
+            val keyboardView = layoutManager.createKeyboardView(layout, KeyboardState())
+            val bg = knobs.keyboardBgColor ?: themeManager.currentTheme.value.colors.keyboardBackground
+            keyboardView.setBackgroundColor(bg)
+
+            previewContainer.removeAllViews()
+            previewContainer.setBackgroundColor(bg)
+            previewContainer.addView(previewHeader(entry))
+            previewContainer.addView(keyboardView)
+            previewContainer.visibility = View.VISIBLE
+        }
+    }
+
+    /** The "<name>   [Activate]" bar above the live preview. */
+    private fun previewHeader(entry: LayoutEntry): View = LinearLayout(requireContext()).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        val p = dp(10)
+        setPadding(p, p, p, dp(4))
+        addView(
+            TextView(requireContext()).apply {
+                text = "${entry.name} · ${langDisplay(entry.lang)}"
+                setTextColor(0xFFFFFF00.toInt())
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            }
+        )
+        addView(
+            Button(requireContext()).apply {
+                text = getString(R.string.library_activate)
+                setTextColor(0xFFFFFF00.toInt())
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    setColor(0xFF000000.toInt())
+                    setStroke(dp(2), 0xFFFFFF00.toInt())
+                    cornerRadius = dp(4).toFloat()
+                }
+                setOnClickListener { activate(entry) }
+            }
+        )
+    }
+
+    private fun activate(entry: LayoutEntry) {
         lifecycleScope.launch {
             val result = settingsRepository.setActiveLayoutForLanguage(entry.lang, entry.id)
             if (result.isSuccess) {

@@ -23,8 +23,8 @@ import com.urik.keyboard.theme.KeyboardTheme
  * Uses same dimension calculations as KeyboardLayoutManager for consistency.
  */
 class KeyboardPreviewRenderer(private val context: Context) {
-    fun createPreviewView(layout: KeyboardLayout, theme: KeyboardTheme): View {
-        val rowsToRender = layout.rows.takeLast(2)
+    fun createPreviewView(layout: KeyboardLayout, theme: KeyboardTheme, full: Boolean = false): View {
+        val rowsToRender = if (full) layout.rows else layout.rows.takeLast(2)
 
         val keySize = KeySize.MEDIUM
         val basePadding = context.resources.getDimensionPixelSize(R.dimen.key_margin_horizontal)

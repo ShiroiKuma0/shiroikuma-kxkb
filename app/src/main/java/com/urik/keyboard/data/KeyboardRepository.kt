@@ -155,6 +155,26 @@ constructor(
         }
     }
 
+    /**
+     * Load an arbitrary registry layout by its id (`layouts/<id>.json`), off the active-layout path — for
+     * the Library preview. Cached by id+mode; returns null only if it can't be parsed at all.
+     */
+    suspend fun loadLayoutById(
+        id: String,
+        mode: KeyboardMode = KeyboardMode.LETTERS,
+        currentAction: KeyboardKey.ActionType = KeyboardKey.ActionType.ENTER
+    ): KeyboardLayout? = withContext(Dispatchers.IO) {
+        val cacheKey = "preview_${id}_${mode.name}_${currentAction.name}"
+        layoutCache.getIfPresent(cacheKey)?.let { return@withContext it }
+        return@withContext try {
+            loadLayoutFromAssets(mode, id, currentAction, Locale.getDefault()).also {
+                layoutCache.put(cacheKey, it)
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     private suspend fun loadLayoutFromAssets(
         mode: KeyboardMode,
         layoutIdentifier: String,

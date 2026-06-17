@@ -57,6 +57,7 @@ constructor(
         val PER_GEOMETRY_LOOK = stringPreferencesKey("per_geometry_look")
         val LIBRARY_LOOK = stringPreferencesKey("library_look")
         val CURRENT_GEOMETRY = stringPreferencesKey("current_geometry")
+        val CURRENT_KEY_HEIGHT_SCALE = stringPreferencesKey("current_key_height_scale")
         val HAPTIC_FEEDBACK = booleanPreferencesKey("haptic_feedback")
         val VIBRATION_STRENGTH = intPreferencesKey("vibration_strength")
         val DOUBLE_SPACE_PERIOD = booleanPreferencesKey("double_space_period")
@@ -461,6 +462,25 @@ constructor(
         } catch (e: Exception) {
             // best-effort; the UI falls back to a Configuration-derived guess
         }
+    }
+
+    /** Published by the IME as it resolves its look — the keyHeightScale the live keyboard is actually using
+     *  (null = renderer default), so the Library preview can render at the real on-screen height. */
+    suspend fun setCurrentKeyHeightScale(scale: Float?) {
+        try {
+            dataStore.edit {
+                if (scale == null) it.remove(PreferenceKeys.CURRENT_KEY_HEIGHT_SCALE)
+                else it[PreferenceKeys.CURRENT_KEY_HEIGHT_SCALE] = scale.toString()
+            }
+        } catch (e: Exception) {
+            // best-effort
+        }
+    }
+
+    suspend fun getCurrentKeyHeightScale(): Float? = try {
+        dataStore.data.first()[PreferenceKeys.CURRENT_KEY_HEIGHT_SCALE]?.toFloatOrNull()
+    } catch (e: Exception) {
+        null
     }
 
     private fun comboLookKey(language: String, layout: String, geometry: String): String =

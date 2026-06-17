@@ -1370,6 +1370,8 @@ open class UrikInputMethodService :
             val resolved = settingsRepository.resolveLookKnobs(language, layout, geometry)
             // Cache for the next cold start so the first render is already correct (see seedLookKnobsFromCache).
             cacheLookKnobSeed(geometry, resolved)
+            // Publish the live key-height scale so the Library preview can match the real on-screen height.
+            settingsRepository.setCurrentKeyHeightScale(resolved.keyHeightScale)
             if (resolved != activeLookKnobs) {
                 activeLookKnobs = resolved
                 withContext(Dispatchers.Main) { reapplyLookKnobs() }
