@@ -1134,10 +1134,24 @@ open class UrikInputMethodService :
         sendKeyEventWithMeta(keyCode, meta or baseMeta)
     }
 
-    private fun resolveChordKey(token: String): Pair<Int, Int>? = when (token) {
+    private fun resolveChordKey(token: String): Pair<Int, Int>? = when (token.uppercase()) {
         "TAB" -> KeyEvent.KEYCODE_TAB to 0
-        "RET" -> KeyEvent.KEYCODE_ENTER to 0
-        "SPC" -> KeyEvent.KEYCODE_SPACE to 0
+        "RET", "RETURN", "ENTER" -> KeyEvent.KEYCODE_ENTER to 0
+        "SPC", "SPACE" -> KeyEvent.KEYCODE_SPACE to 0
+        // Named special keys (Emacs notation), so chords like "M-C-RIGHT" send Alt-Ctrl-Right rather than
+        // falling through to the single-char path (which read "RIGHT" as 'R', or returned null for it).
+        "RIGHT" -> KeyEvent.KEYCODE_DPAD_RIGHT to 0
+        "LEFT" -> KeyEvent.KEYCODE_DPAD_LEFT to 0
+        "UP" -> KeyEvent.KEYCODE_DPAD_UP to 0
+        "DOWN" -> KeyEvent.KEYCODE_DPAD_DOWN to 0
+        "ESC", "ESCAPE" -> KeyEvent.KEYCODE_ESCAPE to 0
+        "DEL", "BACKSPACE", "BS" -> KeyEvent.KEYCODE_DEL to 0
+        "DELETE", "DELETECHAR" -> KeyEvent.KEYCODE_FORWARD_DEL to 0
+        "HOME" -> KeyEvent.KEYCODE_MOVE_HOME to 0
+        "END" -> KeyEvent.KEYCODE_MOVE_END to 0
+        "PRIOR", "PAGEUP", "PGUP" -> KeyEvent.KEYCODE_PAGE_UP to 0
+        "NEXT", "PAGEDOWN", "PGDN" -> KeyEvent.KEYCODE_PAGE_DOWN to 0
+        "INSERT", "INS" -> KeyEvent.KEYCODE_INSERT to 0
         else -> if (token.length == 1) {
             virtualKeyCharMap.getEvents(charArrayOf(token[0]))
                 ?.firstOrNull()

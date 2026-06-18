@@ -136,7 +136,8 @@
     <string name="editor_apply_active">Apply</string>
     <string name="editor_applied_toast">Applied — “%1$s” is active.</string>
     <string name="editor_export_yaml">Export YAML</string>
-    <string name="editor_export_yaml_note">Showing raw JSON (real YAML emitter is a later step).</string>
+    <string name="editor_share">Share</string>
+    <string name="editor_export_failed">Export failed: %1$s</string>
     <string name="editor_copy">Copy</string>
     <string name="editor_copied_toast">Copied to clipboard.</string>
     <string name="editor_apply_as_new">Apply as new layout</string>

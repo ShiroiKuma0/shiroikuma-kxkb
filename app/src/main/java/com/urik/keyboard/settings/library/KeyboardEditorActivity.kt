@@ -5,13 +5,16 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.Rect
 import android.os.Bundle
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.SeekBar
@@ -25,6 +28,7 @@ import com.google.android.material.appbar.MaterialToolbar
 import com.urik.keyboard.R
 import com.urik.keyboard.data.CustomLayoutStore
 import com.urik.keyboard.data.KeyboardRepository
+import com.urik.keyboard.data.KeyboardYamlEmitter
 import com.urik.keyboard.data.LayoutEntry
 import com.urik.keyboard.data.LayoutRegistry
 import com.urik.keyboard.model.KeyboardKey
@@ -346,13 +350,12 @@ class KeyboardEditorActivity : AppCompatActivity() {
             val bg = knobs.keyboardBgColor ?: themeManager.currentTheme.value.colors.keyboardBackground
             keyboardView.setBackgroundColor(bg)
 
-            // Build the identity map from the loaded layout (authored row/col order), then make each
-            // rendered key Button open the per-key editor at the matching (row,col).
+            // Build the identity map from the loaded layout (authored row/col order). The renderer tags each
+            // key Button with that very KeyboardKey instance, so a tap can be resolved to (row,col).
             val coords = IdentityHashMap<KeyboardKey, Pair<Int, Int>>()
             layout.rows.forEachIndexed { r, row ->
                 row.forEachIndexed { c, key -> coords[key] = r to c }
             }
-            wireTaps(keyboardView, coords)
 
             previewContainer.removeAllViews()
             previewContainer.addView(
@@ -363,28 +366,47 @@ class KeyboardEditorActivity : AppCompatActivity() {
                     setPadding(dp(2), dp(2), 0, dp(4))
                 }
             )
-            previewContainer.addView(keyboardView)
+            // A transparent overlay on top of the preview captures every tap and maps it — by screen position
+            // — to the key Button underneath, then to its (row,col). Per-button onClick doesn't work here:
+            // flick/compass keys have their own touch handling (input normally goes through the IME's touch
+            // dispatcher, which the editor preview lacks), so only plain Buttons (actions) ever fired onClick.
+            val frame = FrameLayout(this@KeyboardEditorActivity).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+                addView(keyboardView)
+                addView(
+                    View(this@KeyboardEditorActivity).apply {
+                        layoutParams = FrameLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
+                        )
+                        setOnTouchListener { _, e ->
+                            if (e.actionMasked == MotionEvent.ACTION_UP) {
+                                val key = findButtonAt(keyboardView, e.rawX, e.rawY)
+                                    ?.getTag(R.id.key_data) as? KeyboardKey
+                                key?.let { coords[it] }?.let { editKey(it.first, it.second) }
+                            }
+                            true
+                        }
+                    }
+                )
+            }
+            previewContainer.addView(frame)
         }
     }
 
-    /**
-     * Walk [view]'s tree; for any Button tagged with a [KeyboardKey] we know the (row,col) of, override its
-     * click to open the per-key editor on that cell. Each layout-key instance maps to exactly one Button
-     * (the renderer tags the live instance), so a plain identity lookup is unambiguous.
-     */
-    private fun wireTaps(view: View, coords: IdentityHashMap<KeyboardKey, Pair<Int, Int>>) {
-        if (view is Button) {
-            val key = view.getTag(R.id.key_data) as? KeyboardKey
-            val rc = key?.let { coords[it] }
-            if (rc != null) {
-                view.isClickable = true
-                view.setOnClickListener { editKey(rc.first, rc.second) }
-                view.setOnLongClickListener { editKey(rc.first, rc.second); true }
+    /** The deepest key Button whose on-screen bounds contain the (rawX,rawY) tap, searched top child first. */
+    private fun findButtonAt(view: View, rawX: Float, rawY: Float): Button? {
+        if (view is ViewGroup) {
+            for (i in view.childCount - 1 downTo 0) {
+                findButtonAt(view.getChildAt(i), rawX, rawY)?.let { return it }
             }
         }
-        if (view is ViewGroup) {
-            for (i in 0 until view.childCount) wireTaps(view.getChildAt(i), coords)
+        if (view is Button) {
+            val r = Rect()
+            if (view.getGlobalVisibleRect(r) && r.contains(rawX.toInt(), rawY.toInt())) return view
         }
+        return null
     }
 
     /**
@@ -616,12 +638,21 @@ class KeyboardEditorActivity : AppCompatActivity() {
         }
     }
 
-    /** Stub: show the layout JSON in a scrollable dialog with Copy (real YAML emitter is a later step). */
+    /**
+     * Emit the layout as futokxkb-style YAML ([KeyboardYamlEmitter]) and fire a share chooser on a cache
+     * file via the existing FileProvider. A preview dialog shows the YAML with Share + Copy; Share writes
+     * `cacheDir/export/<id>.yaml` and sends an `ACTION_SEND`/`ACTION_VIEW` chooser, Copy is the fallback.
+     */
     private fun exportYaml() {
         commitTopBar()
-        val json = working.toString(2)
+        val yaml = try {
+            KeyboardYamlEmitter.emit(working)
+        } catch (e: Exception) {
+            flash(getString(R.string.editor_export_failed, e.message ?: ""))
+            return
+        }
         val text = TextView(this).apply {
-            text = json
+            text = yaml
             setTextColor(YELLOW)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
             typeface = android.graphics.Typeface.MONOSPACE
@@ -630,15 +661,41 @@ class KeyboardEditorActivity : AppCompatActivity() {
         val scroll = ScrollView(this).apply { addView(text) }
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.editor_export_yaml))
-            .setMessage(getString(R.string.editor_export_yaml_note))
             .setView(scroll)
-            .setPositiveButton(getString(R.string.editor_copy)) { _, _ ->
+            .setPositiveButton(getString(R.string.editor_share)) { _, _ -> shareYaml(yaml) }
+            .setNeutralButton(getString(R.string.editor_copy)) { _, _ ->
                 val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                cm.setPrimaryClip(ClipData.newPlainText(entry.name, json))
+                cm.setPrimaryClip(ClipData.newPlainText(entry.name, yaml))
                 flash(getString(R.string.editor_copied_toast))
             }
             .setNegativeButton(getString(R.string.editor_cancel), null)
             .show()
+    }
+
+    /** Write [yaml] to `cacheDir/export/<id>.yaml` and fire a share chooser via the app's FileProvider. */
+    private fun shareYaml(yaml: String) {
+        try {
+            val dir = java.io.File(cacheDir, "export").apply { mkdirs() }
+            val safeName = entry.id.replace(Regex("[^A-Za-z0-9_.-]"), "_")
+            val file = java.io.File(dir, "$safeName.yaml")
+            file.writeText(yaml)
+            val uri = androidx.core.content.FileProvider.getUriForFile(
+                this, "$packageName.fileprovider", file
+            )
+            val send = Intent(Intent.ACTION_SEND).apply {
+                type = "text/yaml"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_TITLE, "$safeName.yaml")
+                putExtra(Intent.EXTRA_TEXT, yaml)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(send, getString(R.string.editor_export_yaml)))
+        } catch (e: Exception) {
+            // Sharing failed (no file access / no chooser target) → fall back to the clipboard.
+            val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            cm.setPrimaryClip(ClipData.newPlainText(entry.name, yaml))
+            flash(getString(R.string.editor_copied_toast))
+        }
     }
 
     /** Save the current working JSON as a brand-new custom layout (mirrors LibraryFragment.duplicate). */

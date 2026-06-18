@@ -141,11 +141,21 @@ class KeyEditActivity : AppCompatActivity() {
      */
     private fun resolveKey(): JSONObject? = try {
         val rows = working.getJSONObject("modes").getJSONObject(path[0]).getJSONArray("rows")
-        var obj = rows.getJSONArray(path[1].toInt()).getJSONObject(path[2].toInt())
-        for (i in 3 until path.size) {
-            obj = drillInto(obj, path[i])
+        val row = rows.getJSONArray(path[1].toInt())
+        val c = path[2].toInt()
+        if (c < 0 || c >= row.length()) {
+            null
+        } else {
+            // Most top-level cells are bare strings ("a") or binding objects, not full key objects — coerce
+            // (string|binding|absent → {type:character,char:…}) and write back so the editor can edit them and
+            // changes persist. Without this, getJSONObject(c) threw on a string cell and the screen just closed.
+            var obj = asKeyObject(row.opt(c))
+            row.put(c, obj)
+            for (i in 3 until path.size) {
+                obj = drillInto(obj, path[i])
+            }
+            obj
         }
-        obj
     } catch (_: Exception) {
         null
     }
@@ -428,9 +438,9 @@ class KeyEditActivity : AppCompatActivity() {
         val specField = labelledField(getString(R.string.keyedit_spec), specInit)
         val pickRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            addView(pill(getString(R.string.keyedit_special_key)) { specialKeyStub(specField) }
+            addView(pill(getString(R.string.keyedit_special_key)) { specialKeyPicker(specField) }
                 .apply { (layoutParams as? LinearLayout.LayoutParams)?.marginEnd = dp(6) })
-            addView(pill(getString(R.string.keyedit_icon)) { iconStub(specField) })
+            addView(pill(getString(R.string.keyedit_icon)) { iconPicker(specField) })
         }
         fieldsContainer.addView(pickRow)
         val hintField = labelledField(getString(R.string.keyedit_hint), keyObj.optString("hint"))
@@ -454,16 +464,52 @@ class KeyEditActivity : AppCompatActivity() {
         }
     }
 
-    private fun specialKeyStub(target: EditText) {
-        promptText(getString(R.string.keyedit_special_key), getString(R.string.keyedit_special_key_hint)) {
-            target.setText("!action/$it")
-        }
+    /**
+     * Special-key picker: a scrollable list of every [KeyboardKey.ActionType] with a friendly label. Picking
+     * one sets the spec field to `!action/<ENUM_NAME>`, so the base-key commit path re-emits an action key.
+     */
+    private fun specialKeyPicker(target: EditText) {
+        val labels = SPECIAL_KEYS.map { it.second }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.keyedit_special_key))
+            .setItems(labels) { _, which ->
+                target.setText("!action/" + SPECIAL_KEYS[which].first.name)
+            }
+            .setNegativeButton(getString(R.string.keyedit_cancel), null)
+            .show()
     }
 
-    private fun iconStub(target: EditText) {
-        promptText(getString(R.string.keyedit_icon), getString(R.string.keyedit_icon_hint)) {
-            target.setText("!icon/$it")
+    /**
+     * Icon picker: a grid of the renderable icon glyphs (the converter's ICON_LABEL values). Picking one
+     * inserts the glyph itself as the spec — i.e. a plain character key that displays that glyph.
+     */
+    private fun iconPicker(target: EditText) {
+        val grid = android.widget.GridView(this).apply {
+            numColumns = 6
+            setPadding(dp(12), dp(8), dp(12), dp(8))
+            adapter = object : ArrayAdapter<String>(
+                this@KeyEditActivity, android.R.layout.simple_list_item_1, ICON_GLYPHS
+            ) {
+                override fun getView(position: Int, convertView: View?, parent: ViewGroup): View =
+                    TextView(this@KeyEditActivity).apply {
+                        text = ICON_GLYPHS[position]
+                        setTextColor(YELLOW)
+                        gravity = Gravity.CENTER
+                        setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
+                        setPadding(dp(6), dp(10), dp(6), dp(10))
+                    }
+            }
         }
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(getString(R.string.keyedit_icon))
+            .setView(grid)
+            .setNegativeButton(getString(R.string.keyedit_cancel), null)
+            .create()
+        grid.setOnItemClickListener { _, _, position, _ ->
+            target.setText(ICON_GLYPHS[position])
+            dialog.dismiss()
+        }
+        dialog.show()
     }
 
     // -- compass / cluster / column --
@@ -1185,6 +1231,41 @@ class KeyEditActivity : AppCompatActivity() {
             listOf("Regular", "FunctionalKey", "Grow", "Custom1", "Custom2", "Custom3", "Custom4")
         private val STYLE_OPTIONS = listOf("Action", "Functional", "Spacebar")
         private val MOREKEY_OPTIONS = listOf("OnlyExplicit", "All")
+
+        // Special-key picker: every ActionType paired with a friendly label. Picking sets `!action/<NAME>`.
+        private val SPECIAL_KEYS: List<Pair<KeyboardKey.ActionType, String>> = listOf(
+            KeyboardKey.ActionType.SHIFT to "Shift",
+            KeyboardKey.ActionType.BACKSPACE to "Backspace",
+            KeyboardKey.ActionType.SPACE to "Space",
+            KeyboardKey.ActionType.ENTER to "Enter",
+            KeyboardKey.ActionType.SEARCH to "Search",
+            KeyboardKey.ActionType.SEND to "Send",
+            KeyboardKey.ActionType.DONE to "Done",
+            KeyboardKey.ActionType.GO to "Go",
+            KeyboardKey.ActionType.NEXT to "Next",
+            KeyboardKey.ActionType.PREVIOUS to "Previous",
+            KeyboardKey.ActionType.MODE_SWITCH_LETTERS to "To letters",
+            KeyboardKey.ActionType.MODE_SWITCH_NUMBERS to "To numbers",
+            KeyboardKey.ActionType.MODE_SWITCH_SYMBOLS to "To symbols",
+            KeyboardKey.ActionType.MODE_SWITCH_SYMBOLS_SECONDARY to "To symbols₂",
+            KeyboardKey.ActionType.CAPS_LOCK to "Caps lock",
+            KeyboardKey.ActionType.LANGUAGE_SWITCH to "Language switch",
+            KeyboardKey.ActionType.DAKUTEN to "Dakuten",
+            KeyboardKey.ActionType.SMALL_KANA to "Small kana",
+            KeyboardKey.ActionType.NEXT_CANDIDATE to "Next candidate",
+            KeyboardKey.ActionType.COMMIT_CANDIDATE to "Commit candidate",
+            KeyboardKey.ActionType.HANDAKUTEN to "Handakuten",
+            KeyboardKey.ActionType.EMOJI to "Emoji",
+            KeyboardKey.ActionType.TAB to "Tab"
+        )
+
+        // Icon picker glyphs — the converter's ICON_LABEL value set (gnu_yaml_to_json.py): renderable text
+        // glyphs for space/tab/enter/settings/shift/delete + edit/undo/redo/hide/voice/arrows/cut/copy/paste.
+        private val ICON_GLYPHS: List<String> = listOf(
+            "␣", "⇥", "⏎", "⚙", "⇧", "⌫",
+            "↶", "↷", "⌄", "🎙", "↑", "↓",
+            "←", "→", "✂", "⧉", "⎘", "全"
+        )
 
         fun intentFor(context: Context, entry: LayoutEntry, path: List<String>): Intent =
             Intent(context, KeyEditActivity::class.java).apply {
