@@ -435,6 +435,9 @@ open class UrikInputMethodService :
                 KeyboardLayoutManager(
                     context = this,
                     onKeyClick = { key ->
+                        // Any non-cycle key ends an in-progress multitap cycle (cycle taps arrive via
+                        // onCycleTap, not here, so this never clobbers the cycle itself).
+                        resetCycle()
                         // In cluster typing, Space commits the highlighted next-word (bigram) candidate —
                         // so don't let the generic bigram-dismiss wipe pendingSuggestions before the space
                         // handler runs. Every other key (and non-cluster layouts) still dismisses them.
@@ -457,6 +460,7 @@ open class UrikInputMethodService :
                     onSpaceLongPress = { handleSpaceLongPressLiteral() },
                     onShowInputMethodPicker = { showInputMethodPicker() },
                     onFlickBinding = { binding -> handleFlickBinding(binding) },
+                    onCycleTap = { taps -> handleCycleTap(taps) },
                     characterVariationService = characterVariationService,
                     languageManager = languageManager,
                     themeManager = themeManager,
@@ -665,7 +669,9 @@ open class UrikInputMethodService :
             val initialMode = keyboardModeManager.currentMode.value
             val initialDims = initialMode.adaptiveDimensions
             if (initialDims != null) {
-                layoutManager.updateAdaptiveDimensions(withLookKnobs(initialDims))
+                val initialLook = withLookKnobs(initialDims)
+                layoutManager.updateAdaptiveDimensions(initialLook)
+                layoutManager.updateSplitGapPx(initialLook.splitGapPx)
             } else {
                 layoutManager.updateSplitGapPx(initialMode.splitGapPx)
             }
@@ -769,6 +775,30 @@ open class UrikInputMethodService :
     }
 
     override fun onEvaluateFullscreenMode(): Boolean = false
+
+    /**
+     * Tell the app how to lay out around the keyboard. When split, set [contentTopInsets] to the bottom of the
+     * input view so the app lays out FULL-SCREEN BEHIND the (floating) keyboard instead of resizing above it —
+     * that's what makes the see-through gap reveal the app in every orientation (FUTO-style; the app "jumps"
+     * under the keyboard when you split and back above when you un-split). The opaque keys cover the app; only
+     * the centre gap shows through. Un-split → the framework default (app resizes above the keyboard).
+     */
+    override fun onComputeInsets(outInsets: Insets) {
+        super.onComputeInsets(outInsets)
+        val splitGap = keyboardModeManager.currentMode.value.adaptiveDimensions
+            ?.let { withLookKnobs(it).splitGapPx } ?: 0
+        val root = keyboardRootContainer
+        if (splitGap > 0 && root != null && root.height > 0) {
+            // Floating keyboard recipe: report NO occupied content/visible height so the app lays out
+            // full-screen behind the keyboard (it "jumps" under), and mark the keyboard area touchable so the
+            // keys still receive input. The opaque keys cover the app; only the centre gap shows through.
+            val h = root.height
+            outInsets.contentTopInsets = h
+            outInsets.visibleTopInsets = h
+            outInsets.touchableInsets = Insets.TOUCHABLE_INSETS_REGION
+            outInsets.touchableRegion.set(0, 0, root.width, h)
+        }
+    }
 
     private fun createSwipeKeyboardView(): View? = try {
         if (!::viewModel.isInitialized || !::layoutManager.isInitialized) {
@@ -1022,6 +1052,32 @@ open class UrikInputMethodService :
             is KeyboardKey.FlickBinding.Chord -> sendChord(binding.spec)
             is KeyboardKey.FlickBinding.Layer -> handleLayerSwitch(binding.target)
         }
+    }
+
+    // Multitap (cycle) state: consecutive taps of the same cycle key step through its entries, replacing the
+    // previously committed one. Any other key tap (onKeyClick) or a new input field (onStartInput) resets it.
+    private var activeCycleTaps: List<String>? = null
+    private var cycleIndex = 0
+    private var cycleCommittedLen = 0
+
+    private fun handleCycleTap(taps: List<String>) {
+        if (taps.isEmpty()) return
+        if (activeCycleTaps == taps) {
+            outputBridge.deleteSurroundingText(cycleCommittedLen, 0)
+            cycleIndex = (cycleIndex + 1) % taps.size
+        } else {
+            activeCycleTaps = taps
+            cycleIndex = 0
+        }
+        val entry = taps[cycleIndex]
+        outputBridge.commitText(entry, 1)
+        cycleCommittedLen = entry.length
+    }
+
+    private fun resetCycle() {
+        activeCycleTaps = null
+        cycleIndex = 0
+        cycleCommittedLen = 0
     }
 
     /** GNU compass layers map onto Urik's keyboard modes: main = letters, altPages = numbers/symbols. */
@@ -1281,9 +1337,9 @@ open class UrikInputMethodService :
             serviceScope.launch {
                 themeManager.currentTheme.collect { theme ->
                     keyboardRootContainer?.setBackgroundColor(android.graphics.Color.TRANSPARENT)
-                    swipeKeyboardView?.setBackgroundColor(
-                        activeLookKnobs.keyboardBgColor ?: theme.colors.keyboardBackground
-                    )
+                    val gap = keyboardModeManager.currentMode.value.adaptiveDimensions
+                        ?.let { withLookKnobs(it).splitGapPx } ?: 0
+                    applySwipeKeyboardBackground(gap)
                     window?.window?.navigationBarColor = theme.colors.keyboardBackground
                     updateSwipeKeyboard()
                 }
@@ -1319,6 +1375,7 @@ open class UrikInputMethodService :
                         if (dims != null) {
                             val look = withLookKnobs(dims)
                             layoutManager.updateAdaptiveDimensions(look)
+                            layoutManager.updateSplitGapPx(look.splitGapPx)
                             swipeKeyboardView?.updateAdaptiveDimensions(look)
                             swipeDetector.updateAdaptiveDimensions(look)
                         } else {
@@ -1418,14 +1475,29 @@ open class UrikInputMethodService :
         val dims = keyboardModeManager.currentMode.value.adaptiveDimensions ?: return
         val look = withLookKnobs(dims)
         layoutManager.updateAdaptiveDimensions(look)
+        layoutManager.updateSplitGapPx(look.splitGapPx)
         swipeKeyboardView?.updateAdaptiveDimensions(look)
         if (::swipeDetector.isInitialized) swipeDetector.updateAdaptiveDimensions(look)
         applyContainerLookKnobs()
-        swipeKeyboardView?.setBackgroundColor(
-            activeLookKnobs.keyboardBgColor ?: themeManager.currentTheme.value.colors.keyboardBackground
-        )
+        applySwipeKeyboardBackground(look.splitGapPx)
         updateSwipeKeyboard()
         forceInputViewRemeasure()
+    }
+
+    /**
+     * Background of the whole keyboard view. When split (gap > 0) it's the see-through split background (a
+     * centre strip is transparent so the app shows through the gap); the suggestion bar's own opaque
+     * background covers the strip behind it. Otherwise a plain fill.
+     */
+    private fun applySwipeKeyboardBackground(splitGapPx: Int) {
+        val view = swipeKeyboardView ?: return
+        val color = activeLookKnobs.keyboardBgColor ?: themeManager.currentTheme.value.colors.keyboardBackground
+        if (splitGapPx > 0) {
+            view.background =
+                com.urik.keyboard.ui.keyboard.components.SplitBackgroundDrawable(color, splitGapPx)
+        } else {
+            view.setBackgroundColor(color)
+        }
     }
 
     /**
@@ -1458,21 +1530,28 @@ open class UrikInputMethodService :
         overlay.handleColor = themeManager.currentTheme.value.colors.swipePrimary
         overlay.longPressMs = currentSettings.longPressDuration.durationMs
         overlay.onHaptic = { if (::layoutManager.isInitialized) layoutManager.triggerHapticFeedback() }
+        overlay.maxSplitPx = KeyboardLookKnobs.MAX_SPLIT_GAP_DP * resources.displayMetrics.density
         overlay.onBegin = {
             ResizeValues(
                 activeLookKnobs.keyHeightScale ?: 1f,
                 activeLookKnobs.keyboardWidthScale ?: 1f,
-                activeLookKnobs.bottomLiftDp ?: 0f
+                activeLookKnobs.bottomLiftDp ?: 0f,
+                activeLookKnobs.splitFraction ?: 0f
             )
         }
-        overlay.onApply = { v -> liveResize(v.heightScale, v.widthScale, v.bottomLiftDp) }
-        overlay.onCommit = { v -> commitResize(v.heightScale, v.widthScale, v.bottomLiftDp) }
+        overlay.onApply = { v -> liveResize(v.heightScale, v.widthScale, v.bottomLiftDp, v.splitFraction) }
+        overlay.onCommit = { v -> commitResize(v.heightScale, v.widthScale, v.bottomLiftDp, v.splitFraction) }
     }
 
     /** In-memory live apply of a resize drag (no persistence). */
-    private fun liveResize(height: Float, width: Float, liftDp: Float) {
+    private fun liveResize(height: Float, width: Float, liftDp: Float, splitFraction: Float) {
         activeLookKnobs =
-            activeLookKnobs.copy(keyHeightScale = height, keyboardWidthScale = width, bottomLiftDp = liftDp)
+            activeLookKnobs.copy(
+                keyHeightScale = height,
+                keyboardWidthScale = width,
+                bottomLiftDp = liftDp,
+                splitFraction = splitFraction
+            )
         reapplyLookKnobs()
     }
 
@@ -1481,17 +1560,23 @@ open class UrikInputMethodService :
      * UI sliders edit (merged so other knobs survive) — so resize and the sliders stay consistent rather than
      * a per-combo fork shadowing them.
      */
-    private fun commitResize(height: Float, width: Float, liftDp: Float) {
+    private fun commitResize(height: Float, width: Float, liftDp: Float, splitFraction: Float) {
         val w = if (width >= 0.98f) 1f else width
         val lift = if (liftDp <= 5f) 0f else liftDp
-        liveResize(height, w, lift)
+        val split = if (splitFraction <= 0.02f) 0f else splitFraction
+        liveResize(height, w, lift, split)
         serviceScope.launch {
             val geometry =
                 postureDetector?.postureInfo?.value?.let { geometryKey(it) } ?: GeometryBucket.FOLDED_PORT.key
             val existing = settingsRepository.getGeometryBaselineLook(geometry) ?: KeyboardLookKnobs()
             settingsRepository.updateGeometryBaselineLook(
                 geometry,
-                existing.copy(keyHeightScale = height, keyboardWidthScale = w, bottomLiftDp = lift)
+                existing.copy(
+                    keyHeightScale = height,
+                    keyboardWidthScale = w,
+                    bottomLiftDp = lift,
+                    splitFraction = split
+                )
             )
         }
     }
@@ -2089,6 +2174,7 @@ open class UrikInputMethodService :
 
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
+        resetCycle()
 
         if (::layoutManager.isInitialized) {
             layoutManager.stopAcceleratedBackspace()

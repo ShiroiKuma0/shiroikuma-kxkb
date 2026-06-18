@@ -94,7 +94,7 @@ class SwipeWordHandlerTest {
         realInputState.isDirectCommitField = true
         whenever(mockOutputBridge.safeGetTextBeforeCursor(1)).thenReturn("a")
         whenever(mockSwipeSpaceManager.isWhitespace("a")).thenReturn(false)
-        whenever(mockCaseTransformer.applyCasing(any(), any(), any(), any())).thenAnswer { invocation ->
+        whenever(mockCaseTransformer.applyCasing(any<SpellingSuggestion>(), any(), any(), any())).thenAnswer { invocation ->
             (invocation.arguments[0] as SpellingSuggestion).word
         }
         whenever(mockOutputBridge.safeGetTextBeforeCursor(50)).thenReturn("")
@@ -107,7 +107,7 @@ class SwipeWordHandlerTest {
         realInputState.isSuggestionsDisabled = true
         whenever(mockOutputBridge.safeGetTextBeforeCursor(1)).thenReturn("")
         whenever(mockOutputBridge.safeGetTextBeforeCursor(50)).thenReturn("")
-        whenever(mockCaseTransformer.applyCasing(any(), any(), any(), any())).thenAnswer { invocation ->
+        whenever(mockCaseTransformer.applyCasing(any<SpellingSuggestion>(), any(), any(), any())).thenAnswer { invocation ->
             (invocation.arguments[0] as SpellingSuggestion).word
         }
 
@@ -136,7 +136,7 @@ class SwipeWordHandlerTest {
         localAutoCap: MutableList<String>,
         localDisableShift: MutableList<Unit>
     ): SwipeWordHandler {
-        whenever(mockCaseTransformer.applyCasing(any(), any(), any(), any())).thenAnswer { invocation ->
+        whenever(mockCaseTransformer.applyCasing(any<SpellingSuggestion>(), any(), any(), any())).thenAnswer { invocation ->
             val suggestion = invocation.arguments[0] as SpellingSuggestion
             val state = invocation.arguments[1] as KeyboardState
             val isSentenceStart = invocation.arguments[2] as Boolean
@@ -190,7 +190,7 @@ class SwipeWordHandlerTest {
     fun `direct commit uses batch edit to suppress onUpdateSelection during casing sequence`() {
         realInputState.isDirectCommitField = true
         val callOrder = mutableListOf<String>()
-        whenever(mockCaseTransformer.applyCasing(any(), any(), any(), any())).thenAnswer { invocation ->
+        whenever(mockCaseTransformer.applyCasing(any<SpellingSuggestion>(), any(), any(), any())).thenAnswer { invocation ->
             (invocation.arguments[0] as SpellingSuggestion).word
         }
         whenever(mockOutputBridge.safeGetTextBeforeCursor(1)).thenReturn("")
@@ -262,7 +262,7 @@ class SwipeWordHandlerTest {
     fun `direct commit shift is disabled before commitText`() {
         realInputState.isDirectCommitField = true
         val callOrder = mutableListOf<String>()
-        whenever(mockCaseTransformer.applyCasing(any(), any(), any(), any())).thenAnswer { invocation ->
+        whenever(mockCaseTransformer.applyCasing(any<SpellingSuggestion>(), any(), any(), any())).thenAnswer { invocation ->
             (invocation.arguments[0] as SpellingSuggestion).word
         }
         whenever(mockOutputBridge.safeGetTextBeforeCursor(1)).thenReturn("")

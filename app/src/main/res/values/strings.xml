@@ -89,6 +89,31 @@
     <string name="library_duplicated_toast">Duplicated as “%1$s”</string>
     <string name="library_delete">Delete</string>
     <string name="library_deleted_toast">Deleted “%1$s”</string>
+    <string name="library_edit">Edit</string>
+    <!-- Visual Keyboard Editor (M4 L2) -->
+    <string name="editor_title">Edit · %1$s</string>
+    <string name="editor_mode_letters">Letters</string>
+    <string name="editor_mode_numbers">Numbers</string>
+    <string name="editor_mode_symbols">Symbols</string>
+    <string name="editor_mode_symbols2">Symbols₂</string>
+    <string name="editor_add_row">+ Row</string>
+    <string name="editor_add_row_below">Add row below</string>
+    <string name="editor_move_row_up">Move row up</string>
+    <string name="editor_move_row_down">Move row down</string>
+    <string name="editor_delete_row">Delete row</string>
+    <string name="editor_row_n">Row %1$d</string>
+    <string name="editor_edit_key_title">Key · row %1$d, col %2$d</string>
+    <string name="editor_key_type">Key type</string>
+    <string name="editor_key_subtype">Character class</string>
+    <string name="editor_char">Character</string>
+    <string name="editor_action">Action</string>
+    <string name="editor_cluster">Cluster band</string>
+    <string name="editor_width">Width (cells, blank = auto)</string>
+    <string name="editor_spacer_note">A spacer takes a slot but emits nothing.</string>
+    <string name="editor_apply">Apply</string>
+    <string name="editor_cancel">Cancel</string>
+    <string name="editor_delete_key">Delete key</string>
+    <string name="editor_live_preview">Live preview</string>
     <string name="space_menu_library">Layout library</string>
     <string name="library_section">Layout library</string>
     <string name="library_sub_separators">Separators</string>
@@ -129,6 +154,7 @@
     <string name="keyboard_ui_sub_bottom_row">Bottom row</string>
     <string name="keyboard_ui_item_height">Height</string>
     <string name="keyboard_ui_item_width">Width</string>
+    <string name="keyboard_ui_item_split">Split size</string>
     <string name="keyboard_ui_item_font">Font</string>
     <string name="keyboard_ui_item_weight">Weight</string>
     <string name="keyboard_ui_item_size">Size</string>

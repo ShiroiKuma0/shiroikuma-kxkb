@@ -8,174 +8,218 @@
       "rows": [
         [
           {
-            "type": "flick",
-            "char": "1",
-            "flick": {
-              "up": "⓪",
-              "down": "@",
-              "right": "①"
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "1",
+              "flick": {
+                "up": "⓪",
+                "down": "@",
+                "left": "1ˢᵗ",
+                "right": "①"
+              }
             },
-            "shifted": {
-              "type": "flick",
+            "shiftedManually": {
+              "type": "compass",
               "char": "@",
               "flick": {
                 "up": "⓪",
                 "down": "1",
+                "left": "1ˢᵗ",
                 "right": "①"
               }
             }
           },
           {
-            "type": "flick",
-            "char": "2",
-            "flick": {
-              "up": "&",
-              "down": "₂",
-              "right": "②"
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "2",
+              "flick": {
+                "up": "&",
+                "down": "₂",
+                "left": "2ⁿᵈ",
+                "right": "②"
+              }
             },
-            "shifted": {
-              "type": "flick",
+            "shiftedManually": {
+              "type": "compass",
               "char": "&",
               "flick": {
                 "up": "2",
                 "down": "₂",
+                "left": "2ⁿᵈ",
                 "right": "②"
               }
             }
           },
           {
-            "type": "flick",
-            "char": "3",
-            "flick": {
-              "up": "(",
-              "down": "[",
-              "right": "③"
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "3",
+              "flick": {
+                "up": "(",
+                "down": "[",
+                "left": "3ʳᵈ",
+                "right": "③"
+              }
             },
-            "shifted": {
-              "type": "flick",
+            "shiftedManually": {
+              "type": "compass",
               "char": "(",
               "flick": {
                 "up": "3",
                 "down": "[",
+                "left": "3ʳᵈ",
                 "right": "③"
               }
             }
           },
           {
-            "type": "flick",
-            "char": "4",
-            "flick": {
-              "up": "^",
-              "down": "⇨",
-              "right": "④"
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "4",
+              "flick": {
+                "up": "^",
+                "down": "⇨",
+                "left": "4ᵗʰ",
+                "right": "④"
+              }
             },
-            "shifted": {
-              "type": "flick",
+            "shiftedManually": {
+              "type": "compass",
               "char": "^",
               "flick": {
                 "up": "4",
                 "down": "⇨",
+                "left": "4ᵗʰ",
                 "right": "④"
               }
             }
           },
           {
-            "type": "flick",
-            "char": "5",
-            "flick": {
-              "up": "[",
-              "down": "{",
-              "right": "⑤"
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "5",
+              "flick": {
+                "up": "[",
+                "down": "{",
+                "left": "5ᵗʰ",
+                "right": "⑤"
+              }
             },
-            "shifted": {
-              "type": "flick",
+            "shiftedManually": {
+              "type": "compass",
               "char": "[",
               "flick": {
                 "up": "5",
                 "down": "{",
+                "left": "5ᵗʰ",
                 "right": "⑤"
               }
             }
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "("
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "$"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": ")"
           },
           {
-            "type": "flick",
-            "char": "6",
-            "flick": {
-              "up": "]",
-              "down": "}",
-              "right": "⑥"
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "6",
+              "flick": {
+                "up": "]",
+                "down": "}",
+                "left": "6ᵗʰ",
+                "right": "⑥"
+              }
             },
-            "shifted": {
-              "type": "flick",
+            "shiftedManually": {
+              "type": "compass",
               "char": "]",
               "flick": {
                 "up": "6",
                 "down": "}",
+                "left": "6ᵗʰ",
                 "right": "⑥"
               }
             }
           },
           {
-            "type": "flick",
-            "char": "7",
-            "flick": {
-              "up": "*",
-              "down": "^",
-              "right": "⑦"
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "7",
+              "flick": {
+                "up": "*",
+                "down": "^",
+                "left": "7ᵗʰ",
+                "right": "⑦"
+              }
             },
-            "shifted": {
-              "type": "flick",
+            "shiftedManually": {
+              "type": "compass",
               "char": "*",
               "flick": {
                 "up": "7",
                 "down": "^",
+                "left": "7ᵗʰ",
                 "right": "⑦"
               }
             }
           },
           {
-            "type": "flick",
-            "char": "8",
-            "flick": {
-              "up": ")",
-              "down": "]",
-              "right": "⑧"
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "8",
+              "flick": {
+                "up": ")",
+                "down": "]",
+                "left": "8ᵗʰ",
+                "right": "⑧"
+              }
             },
-            "shifted": {
-              "type": "flick",
+            "shiftedManually": {
+              "type": "compass",
               "char": ")",
               "flick": {
                 "up": "8",
                 "down": "]",
+                "left": "8ᵗʰ",
                 "right": "⑧"
               }
             }
           },
           {
-            "type": "flick",
-            "char": "9",
-            "flick": {
-              "up": "$",
-              "down": {
-                "action": "undo",
-                "label": "↶"
-              },
-              "right": "⑨"
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "9",
+              "flick": {
+                "up": "$",
+                "down": {
+                  "action": "undo",
+                  "label": "↶"
+                },
+                "left": "9ᵗʰ",
+                "right": "⑨"
+              }
             },
-            "shifted": {
-              "type": "flick",
+            "shiftedManually": {
+              "type": "compass",
               "char": "$",
               "flick": {
                 "up": "9",
@@ -183,12 +227,13 @@
                   "action": "undo",
                   "label": "↶"
                 },
+                "left": "9ᵗʰ",
                 "right": "⑨"
               }
             }
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "0",
             "flick": {
               "up": "〇",
@@ -202,11 +247,51 @@
         ],
         [
           {
-            "type": "flick",
+            "type": "column",
+            "main": "-i.",
+            "char": "i",
+            "attributes": {
+              "heightRows": 3
+            }
+          },
+          {
+            "type": "column",
+            "main": "cox",
+            "char": "o",
+            "attributes": {
+              "heightRows": 3
+            }
+          },
+          {
+            "type": "column",
+            "main": "map",
+            "char": "a",
+            "attributes": {
+              "heightRows": 3
+            }
+          },
+          {
+            "type": "column",
+            "main": "weu",
+            "char": "e",
+            "attributes": {
+              "heightRows": 3
+            }
+          },
+          {
+            "type": "column",
+            "main": "kvz",
+            "char": "v",
+            "attributes": {
+              "heightRows": 3
+            }
+          },
+          {
+            "type": "compass",
             "char": "["
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "↑",
             "flick": {
               "center": {
@@ -216,8 +301,48 @@
             }
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "]"
+          },
+          {
+            "type": "column",
+            "main": "qbg",
+            "char": "b",
+            "attributes": {
+              "heightRows": 3
+            }
+          },
+          {
+            "type": "column",
+            "main": "ftd",
+            "char": "t",
+            "attributes": {
+              "heightRows": 3
+            }
+          },
+          {
+            "type": "column",
+            "main": "rny",
+            "char": "n",
+            "attributes": {
+              "heightRows": 3
+            }
+          },
+          {
+            "type": "column",
+            "main": "lsj",
+            "char": "s",
+            "attributes": {
+              "heightRows": 3
+            }
+          },
+          {
+            "type": "column",
+            "main": "'h/",
+            "char": "h",
+            "attributes": {
+              "heightRows": 3
+            }
           }
         ],
         [
@@ -237,7 +362,7 @@
             "type": "spacer"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "←",
             "flick": {
               "center": {
@@ -247,14 +372,14 @@
             }
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "~",
             "flick": {
               "down": "`"
             }
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "→",
             "flick": {
               "center": {
@@ -296,7 +421,7 @@
             "type": "spacer"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "Esc",
             "flick": {
               "center": {
@@ -310,7 +435,7 @@
             }
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "↓",
             "flick": {
               "center": {
@@ -320,7 +445,7 @@
             }
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "Ctrl",
             "flick": {
               "center": {
@@ -330,6 +455,10 @@
               "up": {
                 "layer": "alt0",
                 "label": "sym"
+              },
+              "down": {
+                "chord": "C-SPC",
+                "label": "C-SPC"
               }
             }
           },
@@ -353,26 +482,45 @@
           {
             "type": "action",
             "action": "shift",
+            "attributes": {
+              "widthClass": "Custom2"
+            },
             "width": 1.0
           },
           {
             "type": "action",
             "action": "space",
+            "attributes": {
+              "widthClass": "Custom1",
+              "style": "Spacebar"
+            },
             "width": 2.0
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⇥",
             "flick": {
               "center": {
                 "action": "tab",
                 "label": "⇥"
+              },
+              "up": {
+                "chord": "S-TAB",
+                "label": "S-TAB"
+              },
+              "down": {
+                "chord": "C-TAB",
+                "label": "C-TAB"
+              },
+              "left": {
+                "chord": "M-TAB",
+                "label": "M-TAB"
               }
             },
             "width": 1.0
           },
           {
-            "type": "flick",
+            "type": "cluster",
             "cluster": "?,!",
             "char": ",",
             "flick": {
@@ -383,7 +531,7 @@
             "width": 1.0
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⚙",
             "flick": {
               "center": {
@@ -399,34 +547,57 @@
               "downLeft": "+",
               "downRight": "&"
             },
+            "attributes": {
+              "moreKeyMode": "OnlyExplicit"
+            },
             "width": 1.0
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": ":",
             "flick": {
               "up": "!",
+              "down": {
+                "chord": "C-:",
+                "label": "C-:"
+              },
+              "left": {
+                "chord": "M-:",
+                "label": "M-:"
+              },
               "right": "?"
             },
             "width": 1.0
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "\\|",
             "width": 1.0
           },
           {
             "type": "action",
             "action": "backspace",
+            "attributes": {
+              "widthClass": "Custom2",
+              "repeatableEnabled": true
+            },
             "width": 1.0
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⏎",
             "flick": {
               "center": {
                 "action": "enter",
                 "label": "⏎"
+              },
+              "down": {
+                "chord": "C-RET",
+                "label": "C-RET"
+              },
+              "left": {
+                "chord": "M-RET",
+                "label": "M-RET"
               }
             },
             "width": 1.0
@@ -434,11 +605,18 @@
           {
             "type": "action",
             "action": "space",
+            "attributes": {
+              "widthClass": "Custom1",
+              "style": "Spacebar"
+            },
             "width": 2.0
           },
           {
             "type": "action",
             "action": "shift",
+            "attributes": {
+              "widthClass": "Custom2"
+            },
             "width": 1.0
           }
         ]
@@ -448,287 +626,287 @@
       "rows": [
         [
           {
-            "type": "flick",
+            "type": "compass",
             "char": "1"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "2"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "3"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "4"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "5"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "6"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "7"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "8"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "9"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "0"
           }
         ],
         [
           {
-            "type": "flick",
-            "char": "ˢᵗ"
+            "type": "macro",
+            "text": "ˢᵗ"
           },
           {
-            "type": "flick",
-            "char": "ⁿᵈ"
+            "type": "macro",
+            "text": "ⁿᵈ"
           },
           {
-            "type": "flick",
-            "char": "ʳᵈ"
+            "type": "macro",
+            "text": "ʳᵈ"
           },
           {
-            "type": "flick",
-            "char": "ᵗʰ"
+            "type": "macro",
+            "text": "ᵗʰ"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "_"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "&"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "%"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "@"
           },
           {
-            "type": "flick",
-            "char": "10"
+            "type": "macro",
+            "text": "10"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "〇"
           }
         ],
         [
           {
-            "type": "flick",
+            "type": "compass",
             "char": "<"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": ">"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "≅"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "≈"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "="
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "-"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "+"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "*"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "'"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "\""
           }
         ],
         [
           {
-            "type": "flick",
-            "char": "1ˢᵗ"
+            "type": "macro",
+            "text": "1ˢᵗ"
           },
           {
-            "type": "flick",
-            "char": "2ⁿᵈ"
+            "type": "macro",
+            "text": "2ⁿᵈ"
           },
           {
-            "type": "flick",
-            "char": "3ʳᵈ"
+            "type": "macro",
+            "text": "3ʳᵈ"
           },
           {
-            "type": "flick",
-            "char": "4ᵗʰ"
+            "type": "macro",
+            "text": "4ᵗʰ"
           },
           {
-            "type": "flick",
-            "char": "5ᵗʰ"
+            "type": "macro",
+            "text": "5ᵗʰ"
           },
           {
-            "type": "flick",
-            "char": "6ᵗʰ"
+            "type": "macro",
+            "text": "6ᵗʰ"
           },
           {
-            "type": "flick",
-            "char": "7ᵗʰ"
+            "type": "macro",
+            "text": "7ᵗʰ"
           },
           {
-            "type": "flick",
-            "char": "8ᵗʰ"
+            "type": "macro",
+            "text": "8ᵗʰ"
           },
           {
-            "type": "flick",
-            "char": "9ᵗʰ"
+            "type": "macro",
+            "text": "9ᵗʰ"
           },
           {
-            "type": "flick",
-            "char": "10ᵗʰ"
+            "type": "macro",
+            "text": "10ᵗʰ"
           }
         ],
         [
           {
-            "type": "flick",
-            "char": "11ᵗʰ"
+            "type": "macro",
+            "text": "11ᵗʰ"
           },
           {
-            "type": "flick",
-            "char": "12ᵗʰ"
+            "type": "macro",
+            "text": "12ᵗʰ"
           },
           {
-            "type": "flick",
-            "char": "13ᵗʰ"
+            "type": "macro",
+            "text": "13ᵗʰ"
           },
           {
-            "type": "flick",
-            "char": "14ᵗʰ"
+            "type": "macro",
+            "text": "14ᵗʰ"
           },
           {
-            "type": "flick",
-            "char": "15ᵗʰ"
+            "type": "macro",
+            "text": "15ᵗʰ"
           },
           {
-            "type": "flick",
-            "char": "16ᵗʰ"
+            "type": "macro",
+            "text": "16ᵗʰ"
           },
           {
-            "type": "flick",
-            "char": "17ᵗʰ"
+            "type": "macro",
+            "text": "17ᵗʰ"
           },
           {
-            "type": "flick",
-            "char": "18ᵗʰ"
+            "type": "macro",
+            "text": "18ᵗʰ"
           },
           {
-            "type": "flick",
-            "char": "19ᵗʰ"
+            "type": "macro",
+            "text": "19ᵗʰ"
           },
           {
-            "type": "flick",
-            "char": "20ᵗʰ"
+            "type": "macro",
+            "text": "20ᵗʰ"
           }
         ],
         [
           {
-            "type": "flick",
-            "char": "21ˢᵗ"
+            "type": "macro",
+            "text": "21ˢᵗ"
           },
           {
-            "type": "flick",
-            "char": "22ⁿᵈ"
+            "type": "macro",
+            "text": "22ⁿᵈ"
           },
           {
-            "type": "flick",
-            "char": "23ʳᵈ"
+            "type": "macro",
+            "text": "23ʳᵈ"
           },
           {
-            "type": "flick",
-            "char": "24ᵗʰ"
+            "type": "macro",
+            "text": "24ᵗʰ"
           },
           {
-            "type": "flick",
-            "char": "25ᵗʰ"
+            "type": "macro",
+            "text": "25ᵗʰ"
           },
           {
-            "type": "flick",
-            "char": "26ᵗʰ"
+            "type": "macro",
+            "text": "26ᵗʰ"
           },
           {
-            "type": "flick",
-            "char": "27ᵗʰ"
+            "type": "macro",
+            "text": "27ᵗʰ"
           },
           {
-            "type": "flick",
-            "char": "28ᵗʰ"
+            "type": "macro",
+            "text": "28ᵗʰ"
           },
           {
-            "type": "flick",
-            "char": "29ᵗʰ"
+            "type": "macro",
+            "text": "29ᵗʰ"
           },
           {
-            "type": "flick",
-            "char": "30ᵗʰ"
+            "type": "macro",
+            "text": "30ᵗʰ"
           }
         ],
         [
           {
-            "type": "flick",
-            "char": "31ˢᵗ"
+            "type": "macro",
+            "text": "31ˢᵗ"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "\\"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": ":"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": ";"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "→"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⇒"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⇨"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "🎙",
             "flick": {
               "center": {
@@ -738,17 +916,17 @@
             }
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "#"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "/"
           }
         ],
         [
           {
-            "type": "flick",
+            "type": "compass",
             "char": "← ABC",
             "flick": {
               "center": {
@@ -756,15 +934,24 @@
                 "label": "← ABC"
               }
             },
-            "width": 1.0
+            "attributes": {
+              "widthClass": "Custom3",
+              "style": "Functional",
+              "showPopup": false
+            },
+            "width": 1.5
           },
           {
             "type": "action",
             "action": "space",
+            "attributes": {
+              "widthClass": "Custom1",
+              "style": "Spacebar"
+            },
             "width": 2.0
           },
           {
-            "type": "flick",
+            "type": "cluster",
             "cluster": ";.:",
             "char": ".",
             "flick": {
@@ -775,7 +962,7 @@
             "width": 1.0
           },
           {
-            "type": "flick",
+            "type": "cluster",
             "cluster": "?,!",
             "char": ",",
             "flick": {
@@ -786,7 +973,7 @@
             "width": 1.0
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⇥",
             "flick": {
               "center": {
@@ -801,12 +988,12 @@
             "width": 1.0
           },
           {
-            "type": "flick",
-            "char": "delete_key",
+            "type": "compass",
+            "char": "⌫",
             "flick": {
               "center": {
                 "action": "backspace",
-                "label": "delete_key"
+                "label": "⌫"
               },
               "up": {
                 "layer": "alt0",
@@ -823,11 +1010,18 @@
           {
             "type": "action",
             "action": "space",
+            "attributes": {
+              "widthClass": "Custom1",
+              "style": "Spacebar"
+            },
             "width": 2.0
           },
           {
             "type": "action",
             "action": "shift",
+            "attributes": {
+              "widthClass": "Custom2"
+            },
             "width": 1.0
           }
         ]
@@ -837,259 +1031,259 @@
       "rows": [
         [
           {
-            "type": "flick",
+            "type": "compass",
             "char": "①"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "②"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "③"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "④"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⑤"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⑥"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⑦"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⑧"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⑨"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⑩"
           }
         ],
         [
           {
-            "type": "flick",
+            "type": "compass",
             "char": "¹"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "²"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "³"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⁴"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⁵"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⁶"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⁷"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⁸"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⁹"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⁰"
           }
         ],
         [
           {
-            "type": "flick",
+            "type": "compass",
             "char": "₀"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "₂"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "₃"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "₄"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "½"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⅓"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⅔"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "¼"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "¾"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⓪"
           }
         ],
         [
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⑪"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⑫"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⑬"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⑭"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⑮"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⑯"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⑰"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⑱"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⑲"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⑳"
           }
         ],
         [
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㉑"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㉒"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㉓"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㉔"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㉕"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㉖"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㉗"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㉘"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㉙"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㉚"
           }
         ],
         [
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㉛"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㉜"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㉝"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㉞"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㉟"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㊱"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㊲"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㊳"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㊴"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㊵"
           }
         ],
         [
           {
-            "type": "flick",
+            "type": "compass",
             "char": "← ABC",
             "flick": {
               "center": {
@@ -1097,15 +1291,24 @@
                 "label": "← ABC"
               }
             },
-            "width": 1.0
+            "attributes": {
+              "widthClass": "Custom3",
+              "style": "Functional",
+              "showPopup": false
+            },
+            "width": 1.5
           },
           {
             "type": "action",
             "action": "space",
+            "attributes": {
+              "widthClass": "Custom1",
+              "style": "Spacebar"
+            },
             "width": 2.0
           },
           {
-            "type": "flick",
+            "type": "cluster",
             "cluster": ";.:",
             "char": ".",
             "flick": {
@@ -1116,7 +1319,7 @@
             "width": 1.0
           },
           {
-            "type": "flick",
+            "type": "cluster",
             "cluster": "?,!",
             "char": ",",
             "flick": {
@@ -1127,7 +1330,7 @@
             "width": 1.0
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⇥",
             "flick": {
               "center": {
@@ -1142,12 +1345,12 @@
             "width": 1.0
           },
           {
-            "type": "flick",
-            "char": "delete_key",
+            "type": "compass",
+            "char": "⌫",
             "flick": {
               "center": {
                 "action": "backspace",
-                "label": "delete_key"
+                "label": "⌫"
               },
               "up": {
                 "layer": "alt0",
@@ -1164,15 +1367,29 @@
           {
             "type": "action",
             "action": "space",
+            "attributes": {
+              "widthClass": "Custom1",
+              "style": "Spacebar"
+            },
             "width": 2.0
           },
           {
             "type": "action",
             "action": "shift",
+            "attributes": {
+              "widthClass": "Custom2"
+            },
             "width": 1.0
           }
         ]
       ]
     }
-  }
+  },
+  "numberRowMode": "AlwaysDisabled",
+  "overrideWidths": {
+    "Custom1": 0.2,
+    "Custom2": 0.0666667,
+    "Custom3": 0.1
+  },
+  "name": "kxkb en column 5r13c 1.3.4"
 }

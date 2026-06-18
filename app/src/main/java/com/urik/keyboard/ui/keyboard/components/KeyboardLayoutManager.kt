@@ -30,6 +30,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import androidx.core.widget.TextViewCompat
 import com.urik.keyboard.R
+import com.urik.keyboard.model.KeyAppearance
 import com.urik.keyboard.model.KeyboardKey
 import com.urik.keyboard.model.KeyboardLayout
 import com.urik.keyboard.model.KeyboardMode
@@ -69,6 +70,8 @@ class KeyboardLayoutManager(
     private val onSpaceLongPress: () -> Boolean = { false },
     private val onShowInputMethodPicker: () -> Unit = {},
     private val onFlickBinding: (KeyboardKey.FlickBinding) -> Unit = {},
+    // A cycle key was tapped: the host steps through its entries (delete previous, commit next, wrap).
+    private val onCycleTap: (List<String>) -> Unit = {},
     private val characterVariationService: CharacterVariationService,
     private val languageManager: LanguageManager,
     private val themeManager: ThemeManager,
@@ -136,6 +139,14 @@ class KeyboardLayoutManager(
             override fun onFlickCommit(key: KeyboardKey.FlickKey, direction: FlickGestureDetector.FlickDirection) {
                 flickPopup?.dismiss()
                 flickPopup = null
+                // A tap on a cycle key steps through its entries (a flick in a direction falls through to the
+                // normal slide handling below).
+                if (direction == FlickGestureDetector.FlickDirection.NONE &&
+                    key.tapKind == KeyboardKey.TapKind.CYCLE && key.cycleTaps.isNotEmpty()
+                ) {
+                    onCycleTap(key.cycleTaps)
+                    return
+                }
                 val pos = effectiveFlickPosition(key, direction)
                 val binding = key.bindings[pos]
                 if (binding != null) {
@@ -281,6 +292,59 @@ class KeyboardLayoutManager(
         val hintLabels = flickHintLabels(key).filterKeys { it != "left" && it != "right" }
         buildFlickHintsDrawable(key, hintLabels)?.let { layers.add(it) }
         return LayerDrawable(layers.toTypedArray())
+    }
+
+    /**
+     * A column key: its band of main characters stacked VERTICALLY down the centre, plus the left/right and
+     * diagonal hints — but NOT up/down (those ARE the band ends, reached by the vertical slide).
+     */
+    private fun createColumnBackground(
+        keyBackground: Drawable,
+        key: KeyboardKey.FlickKey,
+        primaryTextSp: Float
+    ): Drawable {
+        val mainsPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = getKeyTextColor(key)
+            textAlign = Paint.Align.CENTER
+            typeface = keyLabelTypeface()
+        }
+        val basePx = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_SP, primaryTextSp, context.resources.displayMetrics
+        )
+        val layers = mutableListOf(keyBackground, ColumnMainsDrawable(key.clusterMains, mainsPaint, basePx))
+        val hintLabels = flickHintLabels(key).filterKeys { it != "up" && it != "down" }
+        buildFlickHintsDrawable(key, hintLabels)?.let { layers.add(it) }
+        return LayerDrawable(layers.toTypedArray())
+    }
+
+    /** Draws each character of a column band centred in its own VERTICAL slot at primary size (top to bottom). */
+    private class ColumnMainsDrawable(
+        private val mains: String,
+        private val paint: Paint,
+        private val basePx: Float
+    ) : Drawable() {
+        override fun draw(canvas: Canvas) {
+            val b = bounds
+            if (b.isEmpty || mains.isEmpty()) return
+            paint.textSize = basePx
+            paint.textAlign = Paint.Align.CENTER
+            val fm = paint.fontMetrics
+            val lineHeight = fm.descent - fm.ascent
+            val total = lineHeight * mains.length
+            val cx = b.exactCenterX()
+            // Baseline of the first (top) glyph so the whole stack is vertically centred on the key.
+            var baseline = b.exactCenterY() - total / 2f - fm.ascent
+            for (i in mains.indices) {
+                canvas.drawText(mains[i].toString(), cx, baseline, paint)
+                baseline += lineHeight
+            }
+        }
+
+        override fun setAlpha(alpha: Int) {}
+        override fun setColorFilter(colorFilter: ColorFilter?) {}
+
+        @Deprecated("Deprecated in Java")
+        override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
     }
 
     /** The typeface used for key labels (family + weight/bold from the look knobs). */
@@ -773,19 +837,110 @@ class KeyboardLayoutManager(
                     ?: context.resources.getDimensionPixelSize(R.dimen.keyboard_padding_vertical)
 
                 setPadding(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding)
-                setBackgroundColor(themeManager.currentTheme.value.colors.keyboardBackground)
+                val bgColor = adaptiveDimensions?.keyboardBgColor
+                    ?: themeManager.currentTheme.value.colors.keyboardBackground
+                // When split, the background leaves a see-through vertical strip down the centre (the gap
+                // between the two halves) so the app shows through; the un-split bottom row's opaque keys
+                // cover the strip there. When not split it's a plain fill.
+                background =
+                    if (splitGapPx > 0) SplitBackgroundDrawable(bgColor, splitGapPx) else null
+                if (splitGapPx <= 0) setBackgroundColor(bgColor)
 
                 importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
                 contentDescription = context.getString(R.string.keyboard_description)
             }
 
-        processedRows.forEachIndexed { index, row ->
-            val hasNumberRowGutter = index == 0 && isTopNumberRow(row) && processedRows.size > 1
-            val rowView = createRowView(row, state, hasNumberRowGutter)
-            keyboardContainer.addView(rowView)
+        // A futokxkb column board is a row of tall `heightRows` column keys; the rows it spans hold spacers
+        // (under the columns) and any stacked continuation keys (e.g. a 3-key compass column). Render such a
+        // group as a transposed band of vertical columns; everything else is an ordinary horizontal row.
+        var index = 0
+        while (index < processedRows.size) {
+            val span = columnBandSpan(processedRows, index)
+            if (span > 0) {
+                keyboardContainer.addView(
+                    createColumnBandView(processedRows.subList(index, index + span), state)
+                )
+                index += span
+            } else {
+                val row = processedRows[index]
+                val hasNumberRowGutter = index == 0 && isTopNumberRow(row) && processedRows.size > 1
+                keyboardContainer.addView(createRowView(row, state, hasNumberRowGutter))
+                index += 1
+            }
         }
 
         return keyboardContainer
+    }
+
+    private fun rowMaxHeightRows(row: List<KeyboardKey>): Int =
+        row.maxOfOrNull { (it.attributes?.heightRows ?: 1f).toInt() } ?: 1
+
+    /**
+     * If the row at [i] starts a column band (has a `heightRows` > 1 key), how many rows it spans: the
+     * starting row plus the following same-length continuation rows (those carrying spacers under the tall
+     * keys), capped at the band's heightRows. Returns 0 when the row is an ordinary row.
+     */
+    private fun columnBandSpan(rows: List<List<KeyboardKey>>, i: Int): Int {
+        val n = rowMaxHeightRows(rows[i])
+        if (n <= 1) return 0
+        val len = rows[i].size
+        var span = 1
+        while (span < n && i + span < rows.size) {
+            val next = rows[i + span]
+            if (next.size == len && next.any { it is KeyboardKey.Spacer }) span++ else break
+        }
+        return span
+    }
+
+    /**
+     * Render a column band as a horizontal strip of vertical columns. Each column stacks the non-spacer keys
+     * at its position across the grouped rows, weighted by their `heightRows`, so a `heightRows:N` column key
+     * fills the full band height while N stacked single keys each take 1/N — matching the futokxkb grid.
+     */
+    private fun createColumnBandView(group: List<List<KeyboardKey>>, state: KeyboardState): LinearLayout {
+        ensureCacheValid()
+        val n = group.maxOf { rowMaxHeightRows(it) }
+        val keyHeight = requireDim("keyHeight")
+        val minTarget = requireDim("minTarget")
+        val visualHeight = keyHeight + 2
+        val verticalMargin = ((minTarget - visualHeight) / 2).coerceAtLeast(0)
+        val horizontalMargin = requireDim("horizontalMargin")
+        val rowUnit = visualHeight + verticalMargin * 2
+        val cols = group.maxOf { it.size }
+        val firstRow = group[0]
+
+        val band =
+            LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                isBaselineAligned = false
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                layoutParams =
+                    LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, rowUnit * n)
+                        .apply { setMargins(0, 0, 0, verticalMargin) }
+            }
+
+        for (c in 0 until cols) {
+            val colKeys = group.mapNotNull { it.getOrNull(c) }.filter { it !is KeyboardKey.Spacer }
+            val weight = colKeys.firstOrNull()?.let { getKeyWeight(it, firstRow) } ?: STANDARD_KEY_WEIGHT
+            val column =
+                LinearLayout(context).apply {
+                    orientation = LinearLayout.VERTICAL
+                    isBaselineAligned = false
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, weight)
+                }
+            for (key in colKeys) {
+                val button = getOrCreateKeyButton(key, state, firstRow)
+                button.layoutParams =
+                    LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        0,
+                        (key.attributes?.heightRows ?: 1f)
+                    ).apply { setMargins(horizontalMargin, verticalMargin, horizontalMargin, verticalMargin) }
+                column.addView(button)
+            }
+            band.addView(column)
+        }
+        return band
     }
 
     private fun shouldInjectGlobeButton(row: List<KeyboardKey>): Boolean = showLanguageSwitchKey &&
@@ -1032,7 +1187,10 @@ class KeyboardLayoutManager(
 
             text = getKeyLabel(key, state)
 
-            val finalTextSize = getCachedTextSize(adjustedKeyHeight)
+            // Per-key font-scale override (futokxkb appearance) multiplies the resolved size; applied to the
+            // button text AND the cluster/column band (both derive from finalTextSize).
+            val finalTextSize =
+                getCachedTextSize(adjustedKeyHeight) * (keyAppearance(key)?.fontScale ?: 1f)
 
             TextViewCompat.setAutoSizeTextTypeWithDefaults(this, TextViewCompat.AUTO_SIZE_TEXT_TYPE_NONE)
 
@@ -1124,7 +1282,11 @@ class KeyboardLayoutManager(
                 } else if (key is KeyboardKey.FlickKey && key.clusterMains.isNotEmpty() &&
                     effectiveLayout?.showFlickHints == true
                 ) {
-                    createClusterBackground(keyBackground, flickFace(key, state), finalTextSize)
+                    if (key.columnar) {
+                        createColumnBackground(keyBackground, flickFace(key, state), finalTextSize)
+                    } else {
+                        createClusterBackground(keyBackground, flickFace(key, state), finalTextSize)
+                    }
                 } else if (key is KeyboardKey.FlickKey && effectiveLayout?.showFlickHints == true) {
                     createFlickHintsBackground(keyBackground, flickFace(key, state))
                 } else {
@@ -1447,7 +1609,15 @@ class KeyboardLayoutManager(
     private fun flickFace(key: KeyboardKey.FlickKey, state: KeyboardState): KeyboardKey.FlickKey {
         // Keys render uppercase for both manual AND auto shift (so auto-caps shows caps, like the letter keys).
         if (!shouldCapitalize(state)) return key
-        key.shifted?.let { return it }
+        // Multi-state `case`: the face matching the precise shift state wins; else the generic shifted face.
+        val precise = when {
+            state.isCapsLockOn -> key.caseFaces["shiftLocked"]
+            state.isAutoShift -> key.caseFaces["shifted"]
+            else -> key.caseFaces["shiftedManually"]
+        }
+        (precise ?: key.shifted)?.let { return it }
+        // `shiftable: false` opts this cluster/column key out of auto-uppercasing (e.g. a fixed-symbol band).
+        if (key.attributes?.shiftable == false) return key
         if (!isBicameralScript(effectiveLayout?.script ?: "Latn")) return key
         val loc = getCurrentLocale()
         fun up(s: String?) = s?.uppercase(loc)
@@ -2012,12 +2182,17 @@ class KeyboardLayoutManager(
         }
     }
 
+    /** The per-key appearance overrides (futokxkb), or null to inherit theme / look-knob colours + sizes. */
+    private fun keyAppearance(key: KeyboardKey): KeyAppearance? = key.appearance
+
     private fun getKeyBackground(key: KeyboardKey): Drawable {
         ensureCacheValid()
         val theme = themeManager.currentTheme.value
-        // Per-geometry colour overrides (null = use the theme colour).
-        val bgOverride = adaptiveDimensions?.keyBgColor
-        val borderColor = adaptiveDimensions?.keyBorderColor ?: theme.colors.keyBorder
+        val app = keyAppearance(key)
+        // Per-key appearance wins, then the per-geometry colour overrides (null = use the theme colour).
+        val bgOverride = app?.backgroundColor ?: adaptiveDimensions?.keyBgColor
+        val borderColor =
+            app?.borderColor ?: adaptiveDimensions?.keyBorderColor ?: theme.colors.keyBorder
 
         val backgroundColor =
             when (key) {
@@ -2083,6 +2258,7 @@ class KeyboardLayoutManager(
     }
 
     private fun getKeyTextColor(key: KeyboardKey): Int {
+        keyAppearance(key)?.color?.let { return it }
         val colors = themeManager.currentTheme.value.colors
         val override = adaptiveDimensions?.keyTextColor
         return when (key) {

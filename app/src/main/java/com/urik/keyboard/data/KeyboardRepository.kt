@@ -175,6 +175,12 @@ constructor(
         }
     }
 
+    /**
+     * Drop all cached parsed layouts so a layout that was just edited in the visual editor re-parses from
+     * the custom store on the next [loadLayoutById] / active-layout load (id-keyed entries would be stale).
+     */
+    fun invalidateLayoutCache() = layoutCache.invalidateAll()
+
     private suspend fun loadLayoutFromAssets(
         mode: KeyboardMode,
         layoutIdentifier: String,
@@ -276,121 +282,10 @@ constructor(
         )
     }
 
+    // The parse/emit logic lives in the shared, lossless [KeyboardJsonCodec] so the editor and the converter
+    // round-trip a key through the model the same way. This stays a thin delegate (rebase-friendly).
     private fun parseKeyFromJson(keyData: JSONObject, currentAction: KeyboardKey.ActionType): KeyboardKey =
-        when (val type = keyData.getString("type")) {
-            "character" -> {
-                val char = keyData.getString("char")
-                val keyType =
-                    when (keyData.optString("keyType", "letter")) {
-                        "letter" -> KeyboardKey.KeyType.LETTER
-                        "number" -> KeyboardKey.KeyType.NUMBER
-                        "symbol" -> KeyboardKey.KeyType.SYMBOL
-                        "punctuation" -> KeyboardKey.KeyType.PUNCTUATION
-                        else -> KeyboardKey.KeyType.LETTER
-                    }
-                KeyboardKey.Character(char, keyType, keyData.optDouble("width", 0.0).toFloat())
-            }
-
-            "action" -> {
-                val actionName = keyData.getString("action")
-                val actionType =
-                    when (actionName) {
-                        "shift" -> KeyboardKey.ActionType.SHIFT
-                        "backspace" -> KeyboardKey.ActionType.BACKSPACE
-                        "space" -> KeyboardKey.ActionType.SPACE
-                        "mode_switch_numbers" -> KeyboardKey.ActionType.MODE_SWITCH_NUMBERS
-                        "mode_switch_letters" -> KeyboardKey.ActionType.MODE_SWITCH_LETTERS
-                        "mode_switch_symbols" -> KeyboardKey.ActionType.MODE_SWITCH_SYMBOLS
-                        "mode_switch_symbols_secondary" -> KeyboardKey.ActionType.MODE_SWITCH_SYMBOLS_SECONDARY
-                        "caps_lock" -> KeyboardKey.ActionType.CAPS_LOCK
-                        "dynamic_action" -> currentAction
-                        "dakuten" -> KeyboardKey.ActionType.DAKUTEN
-                        "small_kana" -> KeyboardKey.ActionType.SMALL_KANA
-                        "next_candidate" -> KeyboardKey.ActionType.NEXT_CANDIDATE
-                        "commit_candidate" -> KeyboardKey.ActionType.COMMIT_CANDIDATE
-                        "handakuten" -> KeyboardKey.ActionType.HANDAKUTEN
-                        "emoji" -> KeyboardKey.ActionType.EMOJI
-                        "language_switch" -> KeyboardKey.ActionType.LANGUAGE_SWITCH
-                        "tab" -> KeyboardKey.ActionType.TAB
-                        else -> KeyboardKey.ActionType.ENTER
-                    }
-                KeyboardKey.Action(actionType, keyData.optDouble("width", 0.0).toFloat())
-            }
-
-            "spacer" -> KeyboardKey.Spacer
-
-            "flick" -> {
-                // A position is either a plain string (text/macro) or an object describing a
-                // non-text binding: {"text": "..."} | {"action": "...", "label": "..."} |
-                // {"chord": "C-c", "label": "..."} | {"layer": "alt0", "label": "..."}.
-                fun parseFlickPosition(raw: Any?): Pair<String?, KeyboardKey.FlickBinding?> = when (raw) {
-                    is String -> raw.takeIf { it.isNotEmpty() } to null
-                    is JSONObject -> when {
-                        raw.has("text") -> raw.getString("text").takeIf { it.isNotEmpty() } to null
-                        raw.has("action") -> {
-                            val name = raw.getString("action")
-                            raw.optString("label").ifEmpty { name } to KeyboardKey.FlickBinding.Action(name)
-                        }
-                        raw.has("chord") -> {
-                            val spec = raw.getString("chord")
-                            raw.optString("label").ifEmpty { spec } to KeyboardKey.FlickBinding.Chord(spec)
-                        }
-                        raw.has("layer") -> {
-                            val target = raw.getString("layer")
-                            raw.optString("label").ifEmpty { target } to KeyboardKey.FlickBinding.Layer(target)
-                        }
-                        else -> null to null
-                    }
-                    else -> null to null
-                }
-
-                val keyType = when (keyData.optString("keyType", "")) {
-                    "letter" -> KeyboardKey.KeyType.LETTER
-                    "number" -> KeyboardKey.KeyType.NUMBER
-                    "symbol" -> KeyboardKey.KeyType.SYMBOL
-                    "punctuation" -> KeyboardKey.KeyType.PUNCTUATION
-                    else -> {
-                        // No explicit type: a sentence-punctuation centre (". , : ; ! ?") is a punctuation
-                        // key, so it routes to the non-letter handler (auto-spacing, no auto-shift) rather
-                        // than being treated as a letter. Everything else defaults to letter as before.
-                        val c = keyData.optString("char").firstOrNull()
-                        if (c != null && c in SENTENCE_PUNCTUATION_CHARS) {
-                            KeyboardKey.KeyType.PUNCTUATION
-                        } else {
-                            KeyboardKey.KeyType.LETTER
-                        }
-                    }
-                }
-                val flickObj = keyData.optJSONObject("flick")
-                val bindings = mutableMapOf<String, KeyboardKey.FlickBinding>()
-                fun pos(name: String): String? {
-                    val (label, binding) = parseFlickPosition(flickObj?.opt(name))
-                    if (binding != null) bindings[name] = binding
-                    return label
-                }
-                val center = keyData.getString("char")
-                parseFlickPosition(flickObj?.opt("center")).second?.let { bindings["center"] = it }
-                KeyboardKey.FlickKey(
-                    center = center,
-                    up = pos("up"),
-                    right = pos("right"),
-                    down = pos("down"),
-                    left = pos("left"),
-                    type = keyType,
-                    upLeft = pos("upLeft"),
-                    upRight = pos("upRight"),
-                    downLeft = pos("downLeft"),
-                    downRight = pos("downRight"),
-                    bindings = bindings,
-                    clusterMains = keyData.optString("cluster", ""),
-                    shifted = keyData.optJSONObject("shifted")
-                        ?.let { parseKeyFromJson(it, currentAction) as? KeyboardKey.FlickKey },
-                    width = keyData.optDouble("width", 0.0).toFloat()
-                )
-            }
-
-            else -> throw IllegalArgumentException("Unknown key type: $type")
-        }
+        KeyboardJsonCodec.parseKey(keyData, currentAction)
 
     private suspend fun tryLanguageFallback(
         context: Context,
@@ -572,8 +467,6 @@ constructor(
     }
 
     private companion object {
-        // Flick-key centres that are sentence punctuation are typed as PUNCTUATION when no keyType is given.
-        val SENTENCE_PUNCTUATION_CHARS = setOf('.', ',', ':', ';', '!', '?')
         const val LAYOUT_CACHE_SIZE = 20
         const val MAX_LAYOUT_RETRIES = 3
         const val LAYOUT_ERROR_COOLDOWN_MS = 60000L

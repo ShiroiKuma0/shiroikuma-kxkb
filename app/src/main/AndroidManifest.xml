@@ -65,6 +65,11 @@
             android:label="@string/layout_mapper_title" />
 
         <activity
+            android:name=".settings.library.KeyboardEditorActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Urik.NoActionBar" />
+
+        <activity
             android:name=".settings.OssLicensesActivity"
             android:exported="false"
             android:theme="@style/Theme.Urik.NoActionBar"

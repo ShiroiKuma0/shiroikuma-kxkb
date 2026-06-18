@@ -124,6 +124,10 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
 
     fun updateWidth(pct: Int) = persist(current.copy(keyboardWidthScale = pct / 100f))
 
+    // The slider value is the split gap in dp (0..MAX_SPLIT_GAP_DP); splitFraction is that over the max.
+    fun updateSplitFraction(dp: Int) =
+        persist(current.copy(splitFraction = dp / KeyboardLookKnobs.MAX_SPLIT_GAP_DP))
+
     fun updateBottomLift(dp: Int) = persist(current.copy(bottomLiftDp = dp.toFloat()))
 
     fun updateHintScale(pct: Int) = persist(current.copy(hintScale = pct / 100f))
@@ -205,6 +209,7 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
         keySpacingHPct = ((keySpacingHScale ?: 1f) * 100).toInt(),
         keySpacingVPct = ((keySpacingVScale ?: 1f) * 100).toInt(),
         keyboardWidthPct = ((keyboardWidthScale ?: 1f) * 100).toInt(),
+        splitFractionPct = ((splitFraction ?: 0f) * KeyboardLookKnobs.MAX_SPLIT_GAP_DP).toInt(),
         bottomLiftDp = (bottomLiftDp ?: 0f).toInt(),
         hintScalePct = ((hintScale ?: 1f) * 100).toInt(),
         hintColor = hintColor ?: DEFAULT_HINT,
@@ -259,6 +264,7 @@ data class KeyboardUiUiState(
     val keySpacingHPct: Int = 100,
     val keySpacingVPct: Int = 100,
     val keyboardWidthPct: Int = 100,
+    val splitFractionPct: Int = 0,
     val bottomLiftDp: Int = 0,
     val hintScalePct: Int = 100,
     val hintColor: Int = 0xB4FFFF00.toInt(),

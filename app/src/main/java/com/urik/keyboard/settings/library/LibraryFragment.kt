@@ -281,6 +281,9 @@ class LibraryFragment : Fragment() {
         )
         addView(pillButton(getString(R.string.library_duplicate)) { duplicate(entry) })
         if (CustomLayoutStore.hasLayout(requireContext(), entry.id)) {
+            addView(pillButton(getString(R.string.library_edit)) {
+                startActivity(KeyboardEditorActivity.intent(requireContext(), entry))
+            })
             addView(pillButton(getString(R.string.library_delete)) { delete(entry) })
         }
         addView(pillButton(getString(R.string.library_activate)) { activate(entry) })

@@ -43,20 +43,11 @@ class KeyboardLayoutEngine(
     }
 
     private fun mapButtonToKey(button: Button) {
-        val layout = currentLayout ?: return
-        val buttonIndex = _keyViews.indexOf(button)
-        if (buttonIndex == -1) return
-        var currentIndex = 0
-        layout.rows.forEach { row ->
-            row.forEach { key ->
-                if (key is KeyboardKey.Spacer) return@forEach
-                if (currentIndex == buttonIndex) {
-                    keyMapping[button] = key
-                    return
-                }
-                currentIndex++
-            }
-        }
+        // Use the key the renderer tagged onto each button. Index-based row walking assumed buttons extract
+        // in model row order, which is false once a row is split (left/gap/right + duplicated middle column)
+        // or a column board is transposed into vertical columns — that mis-mapped the bottom row (e.g. the
+        // space key), breaking findKeyAt and the space-swipe menu.
+        (button.getTag(com.urik.keyboard.R.id.key_data) as? KeyboardKey)?.let { keyMapping[button] = it }
     }
 
     fun applyPositions(rawPositions: Map<Button, Rect>, viewWidth: Int, viewHeight: Int) {
@@ -99,6 +90,13 @@ class KeyboardLayoutEngine(
         if (viewWidth <= 0 || viewHeight <= 0) return
         val minTouchTargetPx = 48 * 3
         val hasTopNumberRow = numberRowBoundaryY > 0
+        // The row/col → button-index mapping below assumes view order == model order. That's false when a row
+        // is split (a duplicated middle column adds a button) or a column board is transposed into vertical
+        // columns. Skip the edge expansion then so it can't pad the wrong keys — keyMapping (tag-based) still
+        // returns the correct keys, just without the extra edge hit area.
+        val modelKeyCount = layout.rows.sumOf { r -> r.count { it !is KeyboardKey.Spacer } }
+        val hasColumnBand = layout.rows.any { r -> r.any { (it.attributes?.heightRows ?: 1f) > 1f } }
+        if (_keyViews.size != modelKeyCount || hasColumnBand) return
         layout.rows.forEachIndexed { rowIndex, row ->
             row.forEachIndexed { colIndex, _ ->
                 val button = _keyViews.getOrNull(getButtonIndexForKey(rowIndex, colIndex)) ?: return@forEachIndexed

@@ -8,26 +8,24 @@
       "rows": [
         [
           {
-            "type": "flick",
-            "char": "S-Tab",
-            "flick": {
-              "center": {
-                "chord": "S-TAB",
-                "label": "S-Tab"
-              }
-            }
+            "type": "chord",
+            "keys": "S-TAB",
+            "label": "S-Tab"
           },
           {
-            "type": "flick",
-            "char": "あ",
-            "flick": {
-              "up": "う",
-              "down": "お",
-              "left": "い",
-              "right": "え"
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "あ",
+              "flick": {
+                "up": "う",
+                "down": "お",
+                "left": "い",
+                "right": "え"
+              }
             },
-            "shifted": {
-              "type": "flick",
+            "shiftedManually": {
+              "type": "compass",
               "char": "ア",
               "flick": {
                 "up": "ウ",
@@ -38,16 +36,19 @@
             }
           },
           {
-            "type": "flick",
-            "char": "か",
-            "flick": {
-              "up": "く",
-              "down": "こ",
-              "left": "き",
-              "right": "け"
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "か",
+              "flick": {
+                "up": "く",
+                "down": "こ",
+                "left": "き",
+                "right": "け"
+              }
             },
-            "shifted": {
-              "type": "flick",
+            "shiftedManually": {
+              "type": "compass",
               "char": "カ",
               "flick": {
                 "up": "ク",
@@ -58,16 +59,19 @@
             }
           },
           {
-            "type": "flick",
-            "char": "さ",
-            "flick": {
-              "up": "す",
-              "down": "そ",
-              "left": "し",
-              "right": "せ"
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "さ",
+              "flick": {
+                "up": "す",
+                "down": "そ",
+                "left": "し",
+                "right": "せ"
+              }
             },
-            "shifted": {
-              "type": "flick",
+            "shiftedManually": {
+              "type": "compass",
               "char": "サ",
               "flick": {
                 "up": "ス",
@@ -79,12 +83,16 @@
           },
           {
             "type": "action",
-            "action": "backspace"
+            "action": "backspace",
+            "attributes": {
+              "style": "Functional",
+              "repeatableEnabled": true
+            }
           }
         ],
         [
           {
-            "type": "flick",
+            "type": "compass",
             "char": "←",
             "flick": {
               "center": {
@@ -94,16 +102,19 @@
             }
           },
           {
-            "type": "flick",
-            "char": "た",
-            "flick": {
-              "up": "つ",
-              "down": "と",
-              "left": "ち",
-              "right": "て"
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "た",
+              "flick": {
+                "up": "つ",
+                "down": "と",
+                "left": "ち",
+                "right": "て"
+              }
             },
-            "shifted": {
-              "type": "flick",
+            "shiftedManually": {
+              "type": "compass",
               "char": "タ",
               "flick": {
                 "up": "ツ",
@@ -114,16 +125,19 @@
             }
           },
           {
-            "type": "flick",
-            "char": "な",
-            "flick": {
-              "up": "ぬ",
-              "down": "の",
-              "left": "に",
-              "right": "ね"
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "な",
+              "flick": {
+                "up": "ぬ",
+                "down": "の",
+                "left": "に",
+                "right": "ね"
+              }
             },
-            "shifted": {
-              "type": "flick",
+            "shiftedManually": {
+              "type": "compass",
               "char": "ナ",
               "flick": {
                 "up": "ヌ",
@@ -134,16 +148,19 @@
             }
           },
           {
-            "type": "flick",
-            "char": "は",
-            "flick": {
-              "up": "ふ",
-              "down": "ほ",
-              "left": "ひ",
-              "right": "へ"
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "は",
+              "flick": {
+                "up": "ふ",
+                "down": "ほ",
+                "left": "ひ",
+                "right": "へ"
+              }
             },
-            "shifted": {
-              "type": "flick",
+            "shiftedManually": {
+              "type": "compass",
               "char": "ハ",
               "flick": {
                 "up": "フ",
@@ -154,7 +171,7 @@
             }
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "→",
             "flick": {
               "center": {
@@ -167,19 +184,23 @@
         [
           {
             "type": "action",
-            "action": "tab"
+            "action": "tab",
+            "width": 1.0
           },
           {
-            "type": "flick",
-            "char": "ま",
-            "flick": {
-              "up": "む",
-              "down": "も",
-              "left": "み",
-              "right": "め"
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "ま",
+              "flick": {
+                "up": "む",
+                "down": "も",
+                "left": "み",
+                "right": "め"
+              }
             },
-            "shifted": {
-              "type": "flick",
+            "shiftedManually": {
+              "type": "compass",
               "char": "マ",
               "flick": {
                 "up": "ム",
@@ -187,20 +208,24 @@
                 "left": "ミ",
                 "right": "メ"
               }
-            }
+            },
+            "width": 1.0
           },
           {
-            "type": "flick",
-            "char": "や",
-            "flick": {
-              "up": "ゆ",
-              "down": "よ",
-              "left": "ゃ",
-              "right": "ゅ",
-              "downRight": "ょ"
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "や",
+              "flick": {
+                "up": "ゆ",
+                "down": "よ",
+                "left": "ゃ",
+                "right": "ゅ",
+                "downRight": "ょ"
+              }
             },
-            "shifted": {
-              "type": "flick",
+            "shiftedManually": {
+              "type": "compass",
               "char": "ヤ",
               "flick": {
                 "up": "ユ",
@@ -209,19 +234,23 @@
                 "right": "ュ",
                 "downRight": "ョ"
               }
-            }
+            },
+            "width": 1.0
           },
           {
-            "type": "flick",
-            "char": "ら",
-            "flick": {
-              "up": "る",
-              "down": "ろ",
-              "left": "り",
-              "right": "れ"
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "ら",
+              "flick": {
+                "up": "る",
+                "down": "ろ",
+                "left": "り",
+                "right": "れ"
+              }
             },
-            "shifted": {
-              "type": "flick",
+            "shiftedManually": {
+              "type": "compass",
               "char": "ラ",
               "flick": {
                 "up": "ル",
@@ -229,33 +258,41 @@
                 "left": "リ",
                 "right": "レ"
               }
-            }
+            },
+            "width": 1.0
           },
           {
             "type": "action",
-            "action": "space"
+            "action": "space",
+            "width": 2.0
           }
         ],
         [
           {
             "type": "action",
-            "action": "language_switch"
+            "action": "language_switch",
+            "attributes": {
+              "style": "Functional"
+            }
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "。"
           },
           {
-            "type": "flick",
-            "char": "わ",
-            "flick": {
-              "up": "ん",
-              "down": "・",
-              "left": "を",
-              "right": "ー"
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "わ",
+              "flick": {
+                "up": "ん",
+                "down": "・",
+                "left": "を",
+                "right": "ー"
+              }
             },
-            "shifted": {
-              "type": "flick",
+            "shiftedManually": {
+              "type": "compass",
               "char": "ワ",
               "flick": {
                 "up": "ン",
@@ -266,7 +303,7 @@
             }
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "、",
             "flick": {
               "up": "？",
@@ -276,23 +313,20 @@
           },
           {
             "type": "action",
-            "action": "enter"
+            "action": "enter",
+            "attributes": {
+              "style": "Action"
+            }
           }
         ],
         [
           {
-            "type": "flick",
-            "char": "⚙",
-            "flick": {
-              "center": {
-                "action": "key_settings",
-                "label": "⚙"
-              }
-            },
+            "type": "action",
+            "action": "settings",
             "width": 1.0
           },
           {
-            "type": "flick",
+            "type": "cluster",
             "cluster": "?!@%",
             "char": "@",
             "flick": {
@@ -302,7 +336,7 @@
             "width": 1.0
           },
           {
-            "type": "flick",
+            "type": "cluster",
             "cluster": ";.,",
             "char": ".",
             "flick": {
@@ -321,10 +355,13 @@
           {
             "type": "action",
             "action": "space",
-            "width": 1.0
+            "attributes": {
+              "style": "Spacebar"
+            },
+            "width": 2.0
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⏎",
             "flick": {
               "center": {
@@ -339,7 +376,7 @@
             "width": 1.0
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "Ctrl",
             "flick": {
               "center": {
@@ -351,16 +388,26 @@
                 "label": "sym"
               }
             },
+            "attributes": {
+              "widthClass": "Regular"
+            },
             "width": 1.0
           },
           {
             "type": "action",
             "action": "shift",
+            "attributes": {
+              "widthClass": "Regular"
+            },
             "width": 1.0
           },
           {
             "type": "action",
             "action": "backspace",
+            "attributes": {
+              "widthClass": "Regular",
+              "repeatableEnabled": true
+            },
             "width": 1.0
           }
         ]
@@ -370,203 +417,203 @@
       "rows": [
         [
           {
-            "type": "flick",
+            "type": "compass",
             "char": "1"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "2"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "3"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "4"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "5"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "6"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "7"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "8"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "9"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "0"
           }
         ],
         [
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㌔"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㌕"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㌖"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㍾"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㍽"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㍼"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㍻"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㋿"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "@"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "〇"
           }
         ],
         [
           {
-            "type": "flick",
+            "type": "compass",
             "char": "｟"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "｠"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "《"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "》"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "【"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "】"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "『"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "』"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "「"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "」"
           }
         ],
         [
           {
-            "type": "flick",
+            "type": "compass",
             "char": "¥"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "€"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "°"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "…"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "<"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": ">"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "'"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "\""
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "〜"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "…"
           }
         ],
         [
           {
-            "type": "flick",
+            "type": "compass",
             "char": "{"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "}"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "["
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "]"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": ":"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": ";"
           },
           {
-            "type": "flick",
-            "char": "..."
+            "type": "macro",
+            "text": "..."
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "🎙",
             "flick": {
               "center": {
@@ -576,28 +623,22 @@
             }
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "?"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "!"
           }
         ],
         [
           {
-            "type": "flick",
-            "char": "⚙",
-            "flick": {
-              "center": {
-                "action": "key_settings",
-                "label": "⚙"
-              }
-            },
+            "type": "action",
+            "action": "settings",
             "width": 1.0
           },
           {
-            "type": "flick",
+            "type": "cluster",
             "cluster": "?!@%",
             "char": "@",
             "flick": {
@@ -607,7 +648,7 @@
             "width": 1.0
           },
           {
-            "type": "flick",
+            "type": "cluster",
             "cluster": ";.,",
             "char": ".",
             "flick": {
@@ -626,10 +667,13 @@
           {
             "type": "action",
             "action": "space",
+            "attributes": {
+              "style": "Spacebar"
+            },
             "width": 2.0
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⏎",
             "flick": {
               "center": {
@@ -644,7 +688,7 @@
             "width": 1.0
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "← ABC",
             "flick": {
               "center": {
@@ -652,16 +696,28 @@
                 "label": "← ABC"
               }
             },
+            "attributes": {
+              "widthClass": "Regular",
+              "style": "Functional",
+              "showPopup": false
+            },
             "width": 1.0
           },
           {
             "type": "action",
             "action": "shift",
+            "attributes": {
+              "widthClass": "Regular"
+            },
             "width": 1.0
           },
           {
             "type": "action",
             "action": "backspace",
+            "attributes": {
+              "widthClass": "Regular",
+              "repeatableEnabled": true
+            },
             "width": 1.0
           }
         ]
@@ -671,270 +727,264 @@
       "rows": [
         [
           {
-            "type": "flick",
+            "type": "compass",
             "char": "①"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "②"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "③"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "④"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⑤"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⑥"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⑦"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⑧"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⑨"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⑩"
           }
         ],
         [
           {
-            "type": "flick",
+            "type": "compass",
             "char": "¹"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "²"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "³"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "₂"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "½"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⅓"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⅔"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "¼"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "¾"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⓪"
           }
         ],
         [
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⑪"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⑫"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⑬"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⑭"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⑮"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⑯"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⑰"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⑱"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⑲"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⑳"
           }
         ],
         [
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㉑"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㉒"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㉓"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㉔"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㉕"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㉖"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㉗"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㉘"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㉙"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㉚"
           }
         ],
         [
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㉛"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㉜"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㉝"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㉞"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㉟"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㊱"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㊲"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㊳"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㊴"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㊵"
           }
         ],
         [
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㊶"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㊷"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㊸"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㊹"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㊺"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㊻"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㊼"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㊽"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㊾"
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "㊿"
           }
         ],
         [
           {
-            "type": "flick",
-            "char": "⚙",
-            "flick": {
-              "center": {
-                "action": "key_settings",
-                "label": "⚙"
-              }
-            },
+            "type": "action",
+            "action": "settings",
             "width": 1.0
           },
           {
-            "type": "flick",
+            "type": "cluster",
             "cluster": "?!@%",
             "char": "@",
             "flick": {
@@ -944,7 +994,7 @@
             "width": 1.0
           },
           {
-            "type": "flick",
+            "type": "cluster",
             "cluster": ";.,",
             "char": ".",
             "flick": {
@@ -963,10 +1013,13 @@
           {
             "type": "action",
             "action": "space",
+            "attributes": {
+              "style": "Spacebar"
+            },
             "width": 2.0
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "⏎",
             "flick": {
               "center": {
@@ -981,7 +1034,7 @@
             "width": 1.0
           },
           {
-            "type": "flick",
+            "type": "compass",
             "char": "← ABC",
             "flick": {
               "center": {
@@ -989,20 +1042,34 @@
                 "label": "← ABC"
               }
             },
+            "attributes": {
+              "widthClass": "Regular",
+              "style": "Functional",
+              "showPopup": false
+            },
             "width": 1.0
           },
           {
             "type": "action",
             "action": "shift",
+            "attributes": {
+              "widthClass": "Regular"
+            },
             "width": 1.0
           },
           {
             "type": "action",
             "action": "backspace",
+            "attributes": {
+              "widthClass": "Regular",
+              "repeatableEnabled": true
+            },
             "width": 1.0
           }
         ]
       ]
     }
-  }
+  },
+  "numberRowMode": "AlwaysDisabled",
+  "name": "kxkb 日本語 携帯 5r5c 1.3.4"
 }

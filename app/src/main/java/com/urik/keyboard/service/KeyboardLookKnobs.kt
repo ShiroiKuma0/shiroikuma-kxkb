@@ -35,6 +35,11 @@ data class KeyboardLookKnobs(
     val hintWeight: Int? = null,
     /** Fraction of the available width the keyboard occupies (1.0 = full width; <1 narrows, centred). */
     val keyboardWidthScale: Float? = null,
+    /**
+     * Split-keyboard gap: 0 = no split (whole keyboard), >0 splits each non-spacebar row in the middle with
+     * a see-through gap of `splitFraction * MAX_SPLIT_GAP_DP` dp. Odd rows duplicate the middle column.
+     */
+    val splitFraction: Float? = null,
     /** Lift the keyboard off the bottom edge by this many dp (0 = docked). */
     val bottomLiftDp: Float? = null,
     /** Key-label font family: "" = system, "@monospace", or an imported font file name. See KeyboardFonts. */
@@ -76,6 +81,8 @@ data class KeyboardLookKnobs(
 ) {
     fun applyTo(base: AdaptiveDimensions, density: Float): AdaptiveDimensions = base.copy(
         keyHeightPx = keyHeightScale?.let { (base.keyHeightPx * it).toInt().coerceAtLeast(1) } ?: base.keyHeightPx,
+        splitGapPx =
+            splitFraction?.let { (it.coerceAtLeast(0f) * MAX_SPLIT_GAP_DP * density).toInt() } ?: base.splitGapPx,
         keyMarginHorizontalPx =
             keySpacingHScale?.let { (base.keyMarginHorizontalPx * it).toInt().coerceAtLeast(0) }
                 ?: base.keyMarginHorizontalPx,
@@ -133,6 +140,7 @@ data class KeyboardLookKnobs(
         hintFont = o.hintFont ?: hintFont,
         hintWeight = o.hintWeight ?: hintWeight,
         keyboardWidthScale = o.keyboardWidthScale ?: keyboardWidthScale,
+        splitFraction = o.splitFraction ?: splitFraction,
         bottomLiftDp = o.bottomLiftDp ?: bottomLiftDp,
         fontFamily = o.fontFamily ?: fontFamily,
         keyboardBgColor = o.keyboardBgColor ?: keyboardBgColor,
@@ -175,6 +183,7 @@ data class KeyboardLookKnobs(
         hintFont?.let { add("hf=$it") }
         hintWeight?.let { add("hw=$it") }
         keyboardWidthScale?.let { add("kw=$it") }
+        splitFraction?.let { add("spf=$it") }
         bottomLiftDp?.let { add("bl=$it") }
         fontFamily?.let { add("ff=$it") }
         keyboardBgColor?.let { add("cbg=$it") }
@@ -204,14 +213,18 @@ data class KeyboardLookKnobs(
     }.joinToString(";")
 
     companion object {
+        /** Split slider 100% → this many dp of see-through gap between the two halves. */
+        const val MAX_SPLIT_GAP_DP = 200f
+
         /**
          * 白い熊's signature look: square keys + bold labels (yellow-on-black supplies the contrast via
-         * [com.urik.keyboard.theme.HighContrastYellow]). Border width and the scale knobs stay at the
-         * renderer default until tuned. The seed beneath every geometry's baseline.
+         * [com.urik.keyboard.theme.HighContrastYellow]). Split starts at 0 (whole keyboard). Border width and
+         * the scale knobs stay at the renderer default until tuned. The seed beneath every geometry's baseline.
          */
         val DEFAULT = KeyboardLookKnobs(
             cornerRadiusDp = 0f,
-            boldKeyLabels = true
+            boldKeyLabels = true,
+            splitFraction = 0f
         )
 
         /** Lenient inverse of [encode]; unknown/garbled tokens are ignored (= inherit). */
@@ -225,6 +238,7 @@ data class KeyboardLookKnobs(
             var ksv: Float? = null
             var hn: Float? = null
             var kw: Float? = null
+            var spf: Float? = null
             var bl: Float? = null
             var ff: String? = null
             var cbg: Int? = null
@@ -269,6 +283,7 @@ data class KeyboardLookKnobs(
                     "ksv" -> ksv = value.toFloatOrNull()
                     "hn" -> hn = value.toFloatOrNull()
                     "kw" -> kw = value.toFloatOrNull()
+                    "spf" -> spf = value.toFloatOrNull()
                     "bl" -> bl = value.toFloatOrNull()
                     "ff" -> ff = value
                     "cbg" -> cbg = value.toIntOrNull()
@@ -305,7 +320,7 @@ data class KeyboardLookKnobs(
                 cornerRadiusDp = cr, keyBorderWidthDp = bw, boldKeyLabels = bold, keyFontScale = fs,
                 keyHeightScale = hs, keySpacingHScale = ksh, keySpacingVScale = ksv, hintScale = hn,
                 hintColor = hc, hintFont = hf, hintWeight = hw,
-                keyboardWidthScale = kw, bottomLiftDp = bl, fontFamily = ff,
+                keyboardWidthScale = kw, splitFraction = spf, bottomLiftDp = bl, fontFamily = ff,
                 keyboardBgColor = cbg, keyBgColor = kbg, keyTextColor = ktx, keyBorderColor = kbr,
                 capsLockShiftColor = clc, labelWeight = lw,
                 hintTopColor = htc, hintTopScale = hts, hintTopFont = htf, hintTopMarginDp = htm,

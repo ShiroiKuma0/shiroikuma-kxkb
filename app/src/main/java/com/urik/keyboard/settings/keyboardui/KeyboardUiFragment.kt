@@ -37,6 +37,7 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
     private lateinit var localePref: ListPreference
     private lateinit var heightPref: SeekBarPreference
     private lateinit var widthPref: SeekBarPreference
+    private lateinit var splitPref: SeekBarPreference
     private lateinit var liftPref: SeekBarPreference
     private lateinit var spacingHPref: SeekBarPreference
     private lateinit var spacingVPref: SeekBarPreference
@@ -168,6 +169,7 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
             }
         heightPref = seekBar("kb_ui_height", R.string.keyboard_ui_item_height, min = 50, max = 200)
         widthPref = seekBar("kb_ui_width", R.string.keyboard_ui_item_width, min = 50, max = 100)
+        splitPref = seekBar("kb_ui_split", R.string.keyboard_ui_item_split, min = 0, max = 200)
         liftPref = seekBar("kb_ui_lift", R.string.keyboard_ui_bottom_lift, min = 0, max = 200)
         keyboardBgColorPref = colorPref("kb_ui_col_keyboard_bg", R.string.keyboard_ui_item_background)
         spacingHPref = seekBar("kb_ui_spacing_h", R.string.keyboard_ui_item_h_gap, min = 0, max = 300, sub = true)
@@ -227,6 +229,7 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         keyboardCategory.addPreference(localePref)
         keyboardCategory.addPreference(heightPref)
         keyboardCategory.addPreference(widthPref)
+        keyboardCategory.addPreference(splitPref)
         keyboardCategory.addPreference(liftPref)
         keyboardCategory.addPreference(keyboardBgColorPref)
         keyboardCategory.addPreference(subHeader(R.string.keyboard_ui_sub_key_spacing))
@@ -425,6 +428,10 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
             viewModel.updateWidth(newValue as Int)
             true
         }
+        splitPref.setOnPreferenceChangeListener { _, v ->
+            viewModel.updateSplitFraction(v as Int)
+            true
+        }
         liftPref.setOnPreferenceChangeListener { _, newValue ->
             viewModel.updateBottomLift(newValue as Int)
             true
@@ -613,6 +620,7 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                         geometryPref.value = state.geometry
                         heightPref.value = state.keyHeightScalePct
                         widthPref.value = state.keyboardWidthPct
+                        splitPref.value = state.splitFractionPct
                         liftPref.value = state.bottomLiftDp
                         spacingHPref.value = state.keySpacingHPct
                         spacingVPref.value = state.keySpacingVPct

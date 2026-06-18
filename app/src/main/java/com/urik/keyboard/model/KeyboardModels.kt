@@ -42,10 +42,27 @@ sealed class KeyboardKey {
      */
     open val width: Float get() = 0f
 
-    /** @property value Can be multi-char for ligatures/emoji */
-    data class Character(val value: String, val type: KeyType, override val width: Float = 0f) : KeyboardKey()
+    /** Per-key visual overrides (futokxkb's per-key appearance); null on a key = inherit from theme/look. */
+    open val appearance: KeyAppearance? get() = null
 
-    data class Action(val action: ActionType, override val width: Float = 0f) : KeyboardKey()
+    /** Per-key behaviour/sizing attributes (futokxkb's per-key attributes); null = inherit defaults. */
+    open val attributes: KeyAttributes? get() = null
+
+    /** @property value Can be multi-char for ligatures/emoji */
+    data class Character(
+        val value: String,
+        val type: KeyType,
+        override val width: Float = 0f,
+        override val appearance: KeyAppearance? = null,
+        override val attributes: KeyAttributes? = null
+    ) : KeyboardKey()
+
+    data class Action(
+        val action: ActionType,
+        override val width: Float = 0f,
+        override val appearance: KeyAppearance? = null,
+        override val attributes: KeyAttributes? = null
+    ) : KeyboardKey()
 
     data object Spacer : KeyboardKey()
 
@@ -78,11 +95,35 @@ sealed class KeyboardKey {
          */
         val clusterMains: String = "",
         /**
-         * The face shown and committed when shift / caps-lock is active (a FUTO CaseSelector's shifted
+         * The face shown and committed when shift / caps-lock is active (a futokxkb `case` key's shifted
          * variant — e.g. uppercase, or hiragana→katakana). Null = no explicit shifted face (the renderer
-         * falls back to uppercasing for bicameral scripts).
+         * falls back to uppercasing for bicameral scripts). For a multi-state `case` this is the generic
+         * shifted face (derived from the most specific present state) and [caseFaces] holds the rest.
          */
         val shifted: FlickKey? = null,
+        /**
+         * A futokxkb `case` (CaseSelector) carries a distinct face per shift state, keyed by
+         * "shifted" (auto-shift) / "shiftedManually" (one-shot Shift) / "shiftLocked" (caps-lock) /
+         * "symbols" / "symbolsShifted". Empty for an ordinary key (then [shifted] alone is consulted).
+         * The renderer ([KeyboardLayoutManager.flickFace]) selects the face matching the current state.
+         */
+        val caseFaces: Map<String, FlickKey> = emptyMap(),
+        /**
+         * A futokxkb `column` key: the [clusterMains] band is stacked VERTICALLY (instead of the cluster's
+         * horizontal row), and the band ends ride the up/down slides instead of left/right. Prediction and
+         * the centre-tap commit are shared with cluster keys.
+         */
+        val columnar: Boolean = false,
+        /**
+         * Tap behaviour for the futokxkb non-directional types carried on a FlickKey (jargon outward, one
+         * internal type): MACRO commits [center] literally, CHORD fires its `center` chord binding, CYCLE
+         * steps through [cycleTaps] on repeated taps. NORMAL = an ordinary compass/cluster/column key.
+         */
+        val tapKind: TapKind = TapKind.NORMAL,
+        /** Ordered entries a CYCLE key steps through on repeated taps (delete previous, commit next, wrap). */
+        val cycleTaps: List<String> = emptyList(),
+        override val appearance: KeyAppearance? = null,
+        override val attributes: KeyAttributes? = null,
         override val width: Float = 0f
     ) : KeyboardKey()
 
@@ -91,6 +132,14 @@ sealed class KeyboardKey {
         NUMBER,
         PUNCTUATION,
         SYMBOL
+    }
+
+    /** Tap behaviour of a FlickKey carrying a futokxkb non-directional type (macro/chord/cycle). */
+    enum class TapKind {
+        NORMAL,
+        MACRO,
+        CHORD,
+        CYCLE
     }
 
     enum class ActionType {
@@ -134,6 +183,49 @@ sealed class KeyboardKey {
         data class Layer(val target: String) : FlickBinding()
     }
 }
+
+/**
+ * Per-key visual overrides (futokxkb's per-key appearance), all nullable = inherit from the theme / look
+ * knobs. Colours are ARGB ints; scales are multipliers on the resolved size; offsets are fractions of the
+ * key dimension. [color]/[fontScale]/[backgroundColor]/[borderColor] are rendered today; the offset fields
+ * are carried losslessly through the codec and rendered as the editor surfaces them.
+ */
+data class KeyAppearance(
+    val color: Int? = null,
+    val fontScale: Float? = null,
+    val hintScale: Float? = null,
+    val backgroundColor: Int? = null,
+    val borderColor: Int? = null,
+    val labelOffsetX: Float? = null,
+    val labelOffsetY: Float? = null,
+    val clusterLeftOffset: Float? = null,
+    val clusterRightOffset: Float? = null,
+    val flickTopOffset: Float? = null,
+    val flickBottomOffset: Float? = null,
+    val flickLeftOffset: Float? = null,
+    val flickRightOffset: Float? = null
+)
+
+/**
+ * Per-key behaviour/sizing attributes (futokxkb's per-key attributes), all nullable = inherit. The numeric
+ * [KeyboardKey.width] is the renderer's width driver; [widthClass] just preserves the futokxkb named width
+ * (Regular/FunctionalKey/Grow/Custom1–4) for the editor + round-trip (the converter resolves it to cells at
+ * import). [shiftable] = false opts a cluster/column out of auto-uppercasing; the remaining FUTO-specific
+ * fields are carried losslessly and surfaced by the editor even where Urik doesn't act on them yet.
+ */
+data class KeyAttributes(
+    val widthClass: String? = null,
+    val style: String? = null,
+    val moreKeyMode: String? = null,
+    val heightRows: Float? = null,
+    val showPopup: Boolean? = null,
+    val longPressEnabled: Boolean? = null,
+    val repeatableEnabled: Boolean? = null,
+    val anchored: Boolean? = null,
+    val useKeySpecShortcut: Boolean? = null,
+    val shiftable: Boolean? = null,
+    val fastMoreKeys: Boolean? = null
+)
 
 sealed class KeyboardEvent {
     data class KeyPressed(val key: KeyboardKey) : KeyboardEvent()

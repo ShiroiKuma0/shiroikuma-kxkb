@@ -7,8 +7,13 @@ import android.view.MotionEvent
 import android.view.View
 import kotlin.math.abs
 
-/** The size knobs a resize session edits: key-height scale, width fraction, bottom-lift dp. */
-data class ResizeValues(val heightScale: Float, val widthScale: Float, val bottomLiftDp: Float)
+/** The size knobs a resize session edits: key-height scale, width fraction, bottom-lift dp, split fraction. */
+data class ResizeValues(
+    val heightScale: Float,
+    val widthScale: Float,
+    val bottomLiftDp: Float,
+    val splitFraction: Float = 0f
+)
 
 /**
  * Seamless on-keyboard resize (futokxkb-style: long-press the keyboard's top-left corner, keep sliding the
@@ -66,7 +71,15 @@ class ResizeOverlayView(context: Context) : View(context) {
     private var liftDrawX = 0f
     private var liftDrawY = 0f
 
-    private var cur = ResizeValues(1f, 1f, 0f)
+    // Split finger: a second finger grabbed in the centre column adjusts the split fraction by horizontal drag
+    // (right = wider split). The split dot(s) are drawn whenever a resize is active so the grab point is visible.
+    private var splitId = -1
+    private var splitPrevScreenX = 0f
+    private var splitDrawY = 0f
+    /** Pixels of gap at split fraction 1.0 — set by the host so the dots sit on the real split edges. */
+    var maxSplitPx = 0f
+
+    private var cur = ResizeValues(1f, 1f, 0f, 0f)
     // The keyboard's unscaled height in px, captured at grab — the 1:1 reference so the top tracks the finger.
     private var baseHeightPx = 1f
 
@@ -86,6 +99,15 @@ class ResizeOverlayView(context: Context) : View(context) {
     private fun inBottomRight(x: Float, y: Float) =
         x >= width - 3f * gripSizePx && y >= height - 3f * gripSizePx
 
+    /**
+     * The split grab zone: spans from the centre out to (and a grip past) each split-edge dot, so grabbing
+     * either dot works — not just the dark gap between them.
+     */
+    private fun inCenter(x: Float, @Suppress("UNUSED_PARAMETER") y: Float): Boolean {
+        val gap = cur.splitFraction * maxSplitPx
+        return abs(x - width / 2f) <= gap / 2f + 1.5f * gripSizePx
+    }
+
     private fun activate() {
         if (!downInGrip || movedBeforeActivate) return
         cur = onBegin?.invoke() ?: ResizeValues(1f, 1f, 0f)
@@ -102,6 +124,7 @@ class ResizeOverlayView(context: Context) : View(context) {
         primaryId = -1
         liftId = -1
         liftEverGrabbed = false
+        splitId = -1
         downInGrip = false
         movedBeforeActivate = false
         invalidate()
@@ -136,6 +159,11 @@ class ResizeOverlayView(context: Context) : View(context) {
                     liftPrevScreenY = screenY(event, idx)
                     liftDrawX = px
                     liftDrawY = py
+                    onHaptic?.invoke()
+                } else if (splitId == -1 && inCenter(px, py)) {
+                    splitId = event.getPointerId(idx)
+                    splitPrevScreenX = screenX(event, idx)
+                    splitDrawY = py
                     onHaptic?.invoke()
                 }
                 return true
@@ -189,6 +217,19 @@ class ResizeOverlayView(context: Context) : View(context) {
                         liftPrevScreenY = lsy
                     }
                 }
+                if (active && splitId != -1) {
+                    val sIdx = event.findPointerIndex(splitId)
+                    if (sIdx >= 0) {
+                        val ssx = screenX(event, sIdx)
+                        splitDrawY = event.getY(sIdx)
+                        // Horizontal drag: right widens, left narrows; a half-width drag spans 0 → full split.
+                        cur = cur.copy(
+                            splitFraction =
+                                (cur.splitFraction + (ssx - splitPrevScreenX) / (refW * 0.5f)).coerceIn(0f, 1f)
+                        )
+                        splitPrevScreenX = ssx
+                    }
+                }
                 if (active) {
                     onApply?.invoke(cur)
                     invalidate()
@@ -200,6 +241,8 @@ class ResizeOverlayView(context: Context) : View(context) {
                 val id = event.getPointerId(event.actionIndex)
                 if (id == liftId) {
                     liftId = -1
+                } else if (id == splitId) {
+                    splitId = -1
                 } else if (id == primaryId) {
                     deactivate(commit = true)
                 }
@@ -229,6 +272,15 @@ class ResizeOverlayView(context: Context) : View(context) {
             dot(canvas, liftDrawX, liftDrawY)
         } else {
             dot(canvas, width - 1.6f * gripSizePx, height - 1.6f * gripSizePx)
+        }
+        // Split handle: a single centre dot when un-split, else a dot on each split edge (drag right to widen).
+        val gap = cur.splitFraction * maxSplitPx
+        val scy = if (splitId != -1) splitDrawY else height / 2f
+        if (gap < 4f) {
+            dot(canvas, width / 2f, scy)
+        } else {
+            dot(canvas, width / 2f - gap / 2f, scy)
+            dot(canvas, width / 2f + gap / 2f, scy)
         }
     }
 

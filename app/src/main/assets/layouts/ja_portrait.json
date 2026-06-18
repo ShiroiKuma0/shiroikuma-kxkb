@@ -1,6 +1,6 @@
 {
-  "locale": "ru",
-  "script": "Cyrl",
+  "locale": "ja",
+  "script": "Hira",
   "isRTL": false,
   "showFlickHints": true,
   "modes": {
@@ -8,231 +8,266 @@
       "rows": [
         [
           {
-            "type": "compass",
-            "char": "1"
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "1"
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "@"
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "2"
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "&"
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "3"
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "("
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "4"
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "#"
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "5"
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "["
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "6"
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "]"
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "7"
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "*"
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "8"
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": ")"
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "9"
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "$"
+            }
           },
           {
             "type": "compass",
-            "char": "2"
-          },
-          {
-            "type": "compass",
-            "char": "3"
-          },
-          {
-            "type": "compass",
-            "char": "4"
-          },
-          {
-            "type": "compass",
-            "char": "5"
-          },
-          {
-            "type": "compass",
-            "char": "6"
-          },
-          {
-            "type": "compass",
-            "char": "7"
-          },
-          {
-            "type": "cluster",
-            "cluster": "8",
-            "char": "8",
+            "char": "←",
             "flick": {
-              "down": {
-                "chord": "C-s",
-                "label": "C-s"
+              "center": {
+                "action": "arrow_left",
+                "label": "←"
+              }
+            }
+          },
+          {
+            "type": "compass",
+            "char": "↑",
+            "flick": {
+              "center": {
+                "action": "arrow_up",
+                "label": "↑"
+              }
+            }
+          },
+          {
+            "type": "compass",
+            "char": "→",
+            "flick": {
+              "center": {
+                "action": "arrow_right",
+                "label": "→"
+              }
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "cluster",
+              "cluster": "0",
+              "char": "0",
+              "flick": {
+                "up": "〇",
+                "down": {
+                  "action": "hide",
+                  "label": "⌄"
+                }
               }
             },
-            "width": 2.0
+            "shiftedManually": {
+              "type": "cluster",
+              "cluster": "^",
+              "char": "^",
+              "flick": {
+                "up": "〇",
+                "down": {
+                  "action": "hide",
+                  "label": "⌄"
+                }
+              }
+            }
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "ー",
+            "attributes": {
+              "widthClass": "Custom2"
+            },
+            "width": 1.0
           },
           {
             "type": "cluster",
-            "cluster": "9",
-            "char": "9",
+            "cluster": "・",
+            "char": "・",
             "flick": {
               "up": {
-                "action": "undo",
-                "label": "↶"
+                "action": "copy",
+                "label": "⧉"
               },
               "down": {
-                "action": "redo",
-                "label": "↷"
+                "action": "cut",
+                "label": "✂"
               }
             },
-            "width": 2.0
+            "attributes": {
+              "widthClass": "Custom2"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "m",
+            "attributes": {
+              "widthClass": "Custom2"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "w",
+            "attributes": {
+              "widthClass": "Custom2"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "k",
+            "attributes": {
+              "widthClass": "Custom2"
+            },
+            "width": 1.0
           },
           {
             "type": "cluster",
-            "cluster": "0",
-            "char": "0",
+            "cluster": "「」",
+            "char": "」",
             "flick": {
-              "up": "〇",
-              "down": {
-                "action": "hide",
-                "label": "⌄"
+              "left": "「"
+            },
+            "attributes": {
+              "widthClass": "Custom2"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "f",
+            "attributes": {
+              "widthClass": "Custom2"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "r",
+            "attributes": {
+              "widthClass": "Custom2"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "↓",
+            "flick": {
+              "center": {
+                "action": "arrow_down",
+                "label": "↓"
               }
             },
-            "width": 2.0
-          }
-        ],
-        [
-          {
-            "type": "cluster",
-            "cluster": "ч",
-            "char": "ч",
-            "flick": {
-              "up": "—",
-              "down": "-"
-            },
-            "width": 2.0,
             "attributes": {
-              "widthClass": "Custom3"
-            }
-          },
-          {
-            "type": "cluster",
-            "cluster": "ь",
-            "char": "ь",
-            "flick": {
-              "up": "ъ",
-              "down": "№"
-            },
-            "width": 2.0,
-            "attributes": {
-              "widthClass": "Custom3"
-            }
-          },
-          {
-            "type": "cluster",
-            "cluster": "к",
-            "char": "к",
-            "flick": {
-              "up": {
-                "action": "paste",
-                "label": "⎘"
-              },
-              "down": {
-                "action": "select_all",
-                "label": "全"
-              }
-            },
-            "width": 2.0,
-            "attributes": {
-              "widthClass": "Custom3"
-            }
-          },
-          {
-            "type": "compass",
-            "char": "ж",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
-          },
-          {
-            "type": "compass",
-            "char": "ф",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
-          },
-          {
-            "type": "compass",
-            "char": "я",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
-          },
-          {
-            "type": "compass",
-            "char": "ш",
-            "attributes": {
-              "widthClass": "Custom3"
+              "widthClass": "Custom2"
             },
             "width": 1.0
           },
           {
             "type": "cluster",
-            "cluster": "щ",
-            "char": "щ",
+            "cluster": "？",
+            "char": "？",
             "flick": {
-              "down": {
-                "action": "hide",
-                "label": "⌄"
-              }
+              "up": "！",
+              "down": "¥"
             },
-            "width": 2.0,
             "attributes": {
-              "widthClass": "Custom3"
-            }
-          }
-        ],
-        [
-          {
-            "type": "compass",
-            "char": "ю",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
-          },
-          {
-            "type": "compass",
-            "char": "ц",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
-          },
-          {
-            "type": "compass",
-            "char": "м",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
-          },
-          {
-            "type": "compass",
-            "char": "в",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
-          },
-          {
-            "type": "compass",
-            "char": "б",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
-          },
-          {
-            "type": "compass",
-            "char": "р",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
-          },
-          {
-            "type": "compass",
-            "char": "л",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
-          },
-          {
-            "type": "compass",
-            "char": "э",
-            "attributes": {
-              "widthClass": "Custom3"
+              "widthClass": "Custom2"
             },
             "width": 1.0
           }
@@ -240,69 +275,81 @@
         [
           {
             "type": "compass",
-            "char": "и",
+            "char": "i",
             "attributes": {
-              "widthClass": "Custom3"
+              "widthClass": "Custom2"
             },
             "width": 1.0
           },
           {
             "type": "compass",
-            "char": "о",
+            "char": "o",
             "attributes": {
-              "widthClass": "Custom3"
+              "widthClass": "Custom2"
             },
             "width": 1.0
           },
           {
             "type": "compass",
-            "char": "а",
+            "char": "a",
             "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
-          },
-          {
-            "type": "cluster",
-            "cluster": "е",
-            "char": "е",
-            "flick": {
-              "down": "ё"
-            },
-            "width": 2.0,
-            "attributes": {
-              "widthClass": "Custom3"
-            }
-          },
-          {
-            "type": "compass",
-            "char": "т",
-            "attributes": {
-              "widthClass": "Custom3"
+              "widthClass": "Custom2"
             },
             "width": 1.0
           },
           {
             "type": "compass",
-            "char": "н",
+            "char": "e",
             "attributes": {
-              "widthClass": "Custom3"
+              "widthClass": "Custom2"
             },
             "width": 1.0
           },
           {
             "type": "compass",
-            "char": "с",
+            "char": "v",
             "attributes": {
-              "widthClass": "Custom3"
+              "widthClass": "Custom2"
             },
             "width": 1.0
           },
           {
             "type": "compass",
-            "char": "х",
+            "char": "b",
             "attributes": {
-              "widthClass": "Custom3"
+              "widthClass": "Custom2"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "t",
+            "attributes": {
+              "widthClass": "Custom2"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "n",
+            "attributes": {
+              "widthClass": "Custom2"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "s",
+            "attributes": {
+              "widthClass": "Custom2"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "h",
+            "attributes": {
+              "widthClass": "Custom2"
             },
             "width": 1.0
           }
@@ -310,74 +357,90 @@
         [
           {
             "type": "cluster",
-            "cluster": "«»",
-            "char": "»",
+            "cluster": ";:",
+            "char": ":",
             "flick": {
-              "left": "«",
+              "left": ";",
               "down": "\""
             },
-            "width": 2.0,
             "attributes": {
-              "widthClass": "Custom3"
-            }
+              "widthClass": "Custom2"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "x",
+            "attributes": {
+              "widthClass": "Custom2"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "p",
+            "attributes": {
+              "widthClass": "Custom2"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "u",
+            "attributes": {
+              "widthClass": "Custom2"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "z",
+            "attributes": {
+              "widthClass": "Custom2"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "g",
+            "attributes": {
+              "widthClass": "Custom2"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "d",
+            "attributes": {
+              "widthClass": "Custom2"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "y",
+            "attributes": {
+              "widthClass": "Custom2"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "j",
+            "attributes": {
+              "widthClass": "Custom2"
+            },
+            "width": 1.0
           },
           {
             "type": "cluster",
-            "cluster": "з",
-            "char": "з",
+            "cluster": "）",
+            "char": "）",
             "flick": {
-              "down": "…"
+              "up": "（"
             },
-            "width": 2.0,
             "attributes": {
-              "widthClass": "Custom3"
-            }
-          },
-          {
-            "type": "compass",
-            "char": "п",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
-          },
-          {
-            "type": "compass",
-            "char": "у",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
-          },
-          {
-            "type": "compass",
-            "char": "г",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
-          },
-          {
-            "type": "compass",
-            "char": "д",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
-          },
-          {
-            "type": "compass",
-            "char": "ы",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
-          },
-          {
-            "type": "compass",
-            "char": "й",
-            "attributes": {
-              "widthClass": "Custom3"
+              "widthClass": "Custom2"
             },
             "width": 1.0
           }
@@ -386,13 +449,16 @@
           {
             "type": "action",
             "action": "settings",
+            "attributes": {
+              "widthClass": "Custom1"
+            },
             "width": 1.0
           },
           {
             "type": "action",
             "action": "shift",
             "attributes": {
-              "widthClass": "Custom2"
+              "widthClass": "Custom1"
             },
             "width": 1.0
           },
@@ -403,37 +469,45 @@
             "flick": {
               "left": ";",
               "right": ",",
-              "up": ":",
-              "down": "…"
+              "up": "…"
             },
-            "width": 2.0
+            "attributes": {
+              "widthClass": "Custom1"
+            },
+            "width": 1.0
           },
           {
-            "type": "action",
-            "action": "tab",
+            "type": "compass",
+            "char": "⇥",
+            "flick": {
+              "center": {
+                "action": "tab",
+                "label": "⇥"
+              },
+              "up": {
+                "layer": "alt1",
+                "label": "altGr"
+              }
+            },
+            "attributes": {
+              "widthClass": "Custom1"
+            },
             "width": 1.0
           },
           {
             "type": "action",
             "action": "space",
             "attributes": {
-              "widthClass": "Custom1",
               "style": "Spacebar"
             },
             "width": 2.0
           },
           {
-            "type": "compass",
-            "char": "⏎",
-            "flick": {
-              "center": {
-                "action": "enter",
-                "label": "⏎"
-              },
-              "up": {
-                "layer": "alt1",
-                "label": "altGr"
-              }
+            "type": "action",
+            "action": "enter",
+            "attributes": {
+              "widthClass": "Custom1",
+              "style": "Action"
             },
             "width": 1.0
           },
@@ -450,25 +524,34 @@
                 "label": "sym"
               }
             },
+            "attributes": {
+              "widthClass": "Custom1"
+            },
             "width": 1.0
           },
           {
-            "type": "cluster",
-            "cluster": "«\"»",
-            "char": "\"",
+            "type": "compass",
+            "char": "Esc",
             "flick": {
-              "left": "«",
-              "right": "»",
-              "up": "№",
-              "down": "'"
+              "center": {
+                "action": "escape",
+                "label": "Esc"
+              },
+              "up": {
+                "layer": "alt1",
+                "label": "altGr"
+              }
             },
-            "width": 2.0
+            "attributes": {
+              "widthClass": "Custom1"
+            },
+            "width": 1.0
           },
           {
             "type": "action",
             "action": "shift",
             "attributes": {
-              "widthClass": "Custom2"
+              "widthClass": "Custom1"
             },
             "width": 1.0
           },
@@ -476,7 +559,7 @@
             "type": "action",
             "action": "backspace",
             "attributes": {
-              "widthClass": "Custom2",
+              "widthClass": "Custom1",
               "repeatableEnabled": true
             },
             "width": 1.0
@@ -531,11 +614,103 @@
         [
           {
             "type": "compass",
-            "char": "_"
+            "char": "㌔"
           },
           {
             "type": "compass",
-            "char": "-"
+            "char": "㌕"
+          },
+          {
+            "type": "compass",
+            "char": "㌖"
+          },
+          {
+            "type": "compass",
+            "char": "㍾"
+          },
+          {
+            "type": "compass",
+            "char": "㍽"
+          },
+          {
+            "type": "compass",
+            "char": "㍼"
+          },
+          {
+            "type": "compass",
+            "char": "㍻"
+          },
+          {
+            "type": "compass",
+            "char": "㋿"
+          },
+          {
+            "type": "compass",
+            "char": "@"
+          },
+          {
+            "type": "compass",
+            "char": "〇"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "｟"
+          },
+          {
+            "type": "compass",
+            "char": "｠"
+          },
+          {
+            "type": "compass",
+            "char": "《"
+          },
+          {
+            "type": "compass",
+            "char": "》"
+          },
+          {
+            "type": "compass",
+            "char": "【"
+          },
+          {
+            "type": "compass",
+            "char": "】"
+          },
+          {
+            "type": "compass",
+            "char": "『"
+          },
+          {
+            "type": "compass",
+            "char": "』"
+          },
+          {
+            "type": "compass",
+            "char": "「"
+          },
+          {
+            "type": "compass",
+            "char": "」"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "¥"
+          },
+          {
+            "type": "compass",
+            "char": "€"
+          },
+          {
+            "type": "compass",
+            "char": "°"
+          },
+          {
+            "type": "compass",
+            "char": "…"
           },
           {
             "type": "compass",
@@ -547,167 +722,37 @@
           },
           {
             "type": "compass",
-            "char": "&"
-          },
-          {
-            "type": "compass",
-            "char": "%"
-          },
-          {
-            "type": "compass",
-            "char": "@"
-          },
-          {
-            "type": "compass",
-            "char": "🄀"
-          },
-          {
-            "type": "macro",
-            "text": "10"
-          },
-          {
-            "type": "compass",
-            "char": "〇"
-          }
-        ],
-        [
-          {
-            "type": "compass",
-            "char": "⒈"
-          },
-          {
-            "type": "compass",
-            "char": "⒉"
-          },
-          {
-            "type": "compass",
-            "char": "⒊"
-          },
-          {
-            "type": "compass",
-            "char": "⒋"
-          },
-          {
-            "type": "compass",
-            "char": "⒌"
-          },
-          {
-            "type": "compass",
-            "char": "⒍"
-          },
-          {
-            "type": "compass",
-            "char": "⒎"
-          },
-          {
-            "type": "compass",
-            "char": "⒏"
-          },
-          {
-            "type": "compass",
-            "char": "⒐"
-          },
-          {
-            "type": "compass",
-            "char": "⒑"
-          }
-        ],
-        [
-          {
-            "type": "compass",
-            "char": "⒒"
-          },
-          {
-            "type": "compass",
-            "char": "⒓"
-          },
-          {
-            "type": "compass",
-            "char": "⒔"
-          },
-          {
-            "type": "compass",
-            "char": "⒕"
-          },
-          {
-            "type": "compass",
-            "char": "⒖"
-          },
-          {
-            "type": "compass",
-            "char": "⒗"
-          },
-          {
-            "type": "compass",
-            "char": "⒘"
-          },
-          {
-            "type": "compass",
-            "char": "⒙"
-          },
-          {
-            "type": "compass",
-            "char": "⒚"
-          },
-          {
-            "type": "compass",
-            "char": "⒛"
-          }
-        ],
-        [
-          {
-            "type": "compass",
-            "char": "≅"
-          },
-          {
-            "type": "compass",
-            "char": "≈"
-          },
-          {
-            "type": "compass",
-            "char": "→"
-          },
-          {
-            "type": "compass",
-            "char": "⇒"
-          },
-          {
-            "type": "compass",
-            "char": "⇨"
-          },
-          {
-            "type": "compass",
-            "char": "="
-          },
-          {
-            "type": "compass",
-            "char": "+"
-          },
-          {
-            "type": "compass",
-            "char": "*"
-          },
-          {
-            "type": "compass",
             "char": "'"
           },
           {
             "type": "compass",
             "char": "\""
+          },
+          {
+            "type": "compass",
+            "char": "〜"
+          },
+          {
+            "type": "compass",
+            "char": "…"
           }
         ],
         [
           {
             "type": "compass",
-            "char": "|"
+            "char": "{"
           },
           {
             "type": "compass",
-            "char": "\\"
+            "char": "}"
           },
           {
             "type": "compass",
-            "char": "&"
+            "char": "["
+          },
+          {
+            "type": "compass",
+            "char": "]"
           },
           {
             "type": "compass",
@@ -718,12 +763,8 @@
             "char": ";"
           },
           {
-            "type": "compass",
-            "char": "?"
-          },
-          {
-            "type": "compass",
-            "char": "⅔"
+            "type": "macro",
+            "text": "..."
           },
           {
             "type": "compass",
@@ -737,11 +778,11 @@
           },
           {
             "type": "compass",
-            "char": "#"
+            "char": "?"
           },
           {
             "type": "compass",
-            "char": "/"
+            "char": "!"
           }
         ],
         [
@@ -755,7 +796,7 @@
               }
             },
             "attributes": {
-              "widthClass": "Custom2",
+              "widthClass": "Custom1",
               "style": "Functional",
               "showPopup": false
             },
@@ -765,7 +806,7 @@
             "type": "action",
             "action": "shift",
             "attributes": {
-              "widthClass": "Custom2"
+              "widthClass": "Custom1"
             },
             "width": 1.0
           },
@@ -776,37 +817,81 @@
             "flick": {
               "left": ";",
               "right": ",",
-              "up": ":",
-              "down": "…"
+              "up": "…"
             },
-            "width": 2.0
+            "attributes": {
+              "widthClass": "Custom1"
+            },
+            "width": 1.0
           },
           {
-            "type": "action",
-            "action": "tab",
+            "type": "compass",
+            "char": "⇥",
+            "flick": {
+              "center": {
+                "action": "tab",
+                "label": "⇥"
+              },
+              "up": {
+                "layer": "alt1",
+                "label": "altGr"
+              }
+            },
+            "attributes": {
+              "widthClass": "Custom1"
+            },
             "width": 1.0
           },
           {
             "type": "action",
             "action": "space",
             "attributes": {
-              "widthClass": "Custom1",
               "style": "Spacebar"
             },
             "width": 2.0
           },
           {
+            "type": "action",
+            "action": "enter",
+            "attributes": {
+              "widthClass": "Custom1",
+              "style": "Action"
+            },
+            "width": 1.0
+          },
+          {
             "type": "compass",
-            "char": "⏎",
+            "char": "Ctrl",
             "flick": {
               "center": {
-                "action": "enter",
-                "label": "⏎"
+                "action": "ctrl",
+                "label": "Ctrl"
+              },
+              "up": {
+                "layer": "alt0",
+                "label": "sym"
+              }
+            },
+            "attributes": {
+              "widthClass": "Custom1"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "Esc",
+            "flick": {
+              "center": {
+                "action": "escape",
+                "label": "Esc"
               },
               "up": {
                 "layer": "alt1",
                 "label": "altGr"
               }
+            },
+            "attributes": {
+              "widthClass": "Custom1"
             },
             "width": 1.0
           },
@@ -820,29 +905,9 @@
               }
             },
             "attributes": {
-              "widthClass": "Custom2",
+              "widthClass": "Custom1",
               "style": "Functional",
               "showPopup": false
-            },
-            "width": 1.0
-          },
-          {
-            "type": "cluster",
-            "cluster": "«\"»",
-            "char": "\"",
-            "flick": {
-              "left": "«",
-              "right": "»",
-              "up": "№",
-              "down": "!"
-            },
-            "width": 2.0
-          },
-          {
-            "type": "action",
-            "action": "shift",
-            "attributes": {
-              "widthClass": "Custom2"
             },
             "width": 1.0
           },
@@ -850,7 +915,7 @@
             "type": "action",
             "action": "backspace",
             "attributes": {
-              "widthClass": "Custom2",
+              "widthClass": "Custom1",
               "repeatableEnabled": true
             },
             "width": 1.0
@@ -863,253 +928,201 @@
         [
           {
             "type": "compass",
-            "char": "①"
+            "char": "¯"
           },
           {
             "type": "compass",
-            "char": "②"
+            "char": "`"
           },
           {
             "type": "compass",
-            "char": "③"
+            "char": "ˇ"
           },
           {
             "type": "compass",
-            "char": "④"
+            "char": "´"
           },
           {
             "type": "compass",
-            "char": "⑤"
+            "char": "¨"
           },
           {
             "type": "compass",
-            "char": "⑥"
+            "char": "˙"
           },
           {
             "type": "compass",
-            "char": "⑦"
+            "char": "˚"
           },
           {
             "type": "compass",
-            "char": "⑧"
+            "char": "¸"
           },
           {
             "type": "compass",
-            "char": "⑨"
+            "char": "﹐"
           },
           {
             "type": "compass",
-            "char": "⑩"
+            "char": "˛"
+          },
+          {
+            "type": "compass",
+            "char": "˘"
+          },
+          {
+            "type": "compass",
+            "char": "˜"
           }
         ],
         [
           {
             "type": "compass",
-            "char": "¹"
+            "char": "―"
           },
           {
             "type": "compass",
-            "char": "²"
+            "char": "∑"
           },
           {
             "type": "compass",
-            "char": "³"
+            "char": "é"
           },
           {
             "type": "compass",
-            "char": "₂"
+            "char": "ə"
           },
           {
             "type": "compass",
-            "char": "½"
+            "char": "®"
           },
           {
             "type": "compass",
-            "char": "⅓"
+            "char": "†"
           },
           {
             "type": "compass",
-            "char": "⅔"
+            "char": "Ω"
           },
           {
             "type": "compass",
-            "char": "¼"
+            "char": "œ"
           },
           {
             "type": "compass",
-            "char": "¾"
+            "char": "ø"
           },
           {
             "type": "compass",
-            "char": "⓪"
+            "char": "π"
+          },
+          {
+            "type": "compass",
+            "char": "•"
+          },
+          {
+            "type": "compass",
+            "char": "·"
           }
         ],
         [
           {
             "type": "compass",
-            "char": "⑪"
+            "char": "æ"
           },
           {
             "type": "compass",
-            "char": "⑫"
+            "char": "ß"
           },
           {
             "type": "compass",
-            "char": "⑬"
+            "char": "∂"
           },
           {
             "type": "compass",
-            "char": "⑭"
+            "char": "ð"
           },
           {
             "type": "compass",
-            "char": "⑮"
+            "char": "ƒ"
           },
           {
             "type": "compass",
-            "char": "⑯"
+            "char": "©"
           },
           {
             "type": "compass",
-            "char": "⑰"
+            "char": "ª"
           },
           {
             "type": "compass",
-            "char": "⑱"
+            "char": "º"
           },
           {
             "type": "compass",
-            "char": "⑲"
+            "char": "∆"
           },
           {
             "type": "compass",
-            "char": "⑳"
+            "char": "≠"
+          },
+          {
+            "type": "compass",
+            "char": "ĸ"
+          },
+          {
+            "type": "compass",
+            "char": "∞"
           }
         ],
         [
           {
             "type": "compass",
-            "char": "㉑"
+            "char": "ʒ"
           },
           {
             "type": "compass",
-            "char": "㉒"
+            "char": "Ω"
           },
           {
             "type": "compass",
-            "char": "㉓"
+            "char": "≈"
           },
           {
             "type": "compass",
-            "char": "㉔"
+            "char": "ç"
           },
           {
             "type": "compass",
-            "char": "㉕"
+            "char": "√"
           },
           {
             "type": "compass",
-            "char": "㉖"
+            "char": "þ"
           },
           {
             "type": "compass",
-            "char": "㉗"
+            "char": "∫"
           },
           {
             "type": "compass",
-            "char": "㉘"
+            "char": "ŋ"
           },
           {
             "type": "compass",
-            "char": "㉙"
+            "char": "µ"
           },
           {
             "type": "compass",
-            "char": "㉚"
-          }
-        ],
-        [
-          {
-            "type": "compass",
-            "char": "㉛"
+            "char": "≤"
           },
           {
             "type": "compass",
-            "char": "㉜"
+            "char": "≥"
           },
           {
             "type": "compass",
-            "char": "㉝"
-          },
-          {
-            "type": "compass",
-            "char": "㉞"
-          },
-          {
-            "type": "compass",
-            "char": "㉟"
-          },
-          {
-            "type": "compass",
-            "char": "㊱"
-          },
-          {
-            "type": "compass",
-            "char": "㊲"
-          },
-          {
-            "type": "compass",
-            "char": "㊳"
-          },
-          {
-            "type": "compass",
-            "char": "㊴"
-          },
-          {
-            "type": "compass",
-            "char": "㊵"
-          }
-        ],
-        [
-          {
-            "type": "compass",
-            "char": "㊶"
-          },
-          {
-            "type": "compass",
-            "char": "㊷"
-          },
-          {
-            "type": "compass",
-            "char": "㊸"
-          },
-          {
-            "type": "compass",
-            "char": "㊹"
-          },
-          {
-            "type": "compass",
-            "char": "㊺"
-          },
-          {
-            "type": "compass",
-            "char": "㊻"
-          },
-          {
-            "type": "compass",
-            "char": "㊼"
-          },
-          {
-            "type": "compass",
-            "char": "㊽"
-          },
-          {
-            "type": "compass",
-            "char": "㊾"
-          },
-          {
-            "type": "compass",
-            "char": "㊿"
+            "char": "÷"
           }
         ],
         [
@@ -1123,7 +1136,7 @@
               }
             },
             "attributes": {
-              "widthClass": "Custom2",
+              "widthClass": "Custom1",
               "style": "Functional",
               "showPopup": false
             },
@@ -1133,7 +1146,7 @@
             "type": "action",
             "action": "shift",
             "attributes": {
-              "widthClass": "Custom2"
+              "widthClass": "Custom1"
             },
             "width": 1.0
           },
@@ -1144,37 +1157,81 @@
             "flick": {
               "left": ";",
               "right": ",",
-              "up": ":",
-              "down": "…"
+              "up": "…"
             },
-            "width": 2.0
+            "attributes": {
+              "widthClass": "Custom1"
+            },
+            "width": 1.0
           },
           {
-            "type": "action",
-            "action": "tab",
+            "type": "compass",
+            "char": "⇥",
+            "flick": {
+              "center": {
+                "action": "tab",
+                "label": "⇥"
+              },
+              "up": {
+                "layer": "alt1",
+                "label": "altGr"
+              }
+            },
+            "attributes": {
+              "widthClass": "Custom1"
+            },
             "width": 1.0
           },
           {
             "type": "action",
             "action": "space",
             "attributes": {
-              "widthClass": "Custom1",
               "style": "Spacebar"
             },
             "width": 2.0
           },
           {
+            "type": "action",
+            "action": "enter",
+            "attributes": {
+              "widthClass": "Custom1",
+              "style": "Action"
+            },
+            "width": 1.0
+          },
+          {
             "type": "compass",
-            "char": "⏎",
+            "char": "Ctrl",
             "flick": {
               "center": {
-                "action": "enter",
-                "label": "⏎"
+                "action": "ctrl",
+                "label": "Ctrl"
+              },
+              "up": {
+                "layer": "alt0",
+                "label": "sym"
+              }
+            },
+            "attributes": {
+              "widthClass": "Custom1"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "Esc",
+            "flick": {
+              "center": {
+                "action": "escape",
+                "label": "Esc"
               },
               "up": {
                 "layer": "alt1",
                 "label": "altGr"
               }
+            },
+            "attributes": {
+              "widthClass": "Custom1"
             },
             "width": 1.0
           },
@@ -1188,29 +1245,9 @@
               }
             },
             "attributes": {
-              "widthClass": "Custom2",
+              "widthClass": "Custom1",
               "style": "Functional",
               "showPopup": false
-            },
-            "width": 1.0
-          },
-          {
-            "type": "cluster",
-            "cluster": "«\"»",
-            "char": "\"",
-            "flick": {
-              "left": "«",
-              "right": "»",
-              "up": "№",
-              "down": "!"
-            },
-            "width": 2.0
-          },
-          {
-            "type": "action",
-            "action": "shift",
-            "attributes": {
-              "widthClass": "Custom2"
             },
             "width": 1.0
           },
@@ -1218,7 +1255,7 @@
             "type": "action",
             "action": "backspace",
             "attributes": {
-              "widthClass": "Custom2",
+              "widthClass": "Custom1",
               "repeatableEnabled": true
             },
             "width": 1.0
@@ -1229,9 +1266,8 @@
   },
   "numberRowMode": "AlwaysDisabled",
   "overrideWidths": {
-    "Custom1": 0.25,
-    "Custom2": 0.0833333,
-    "Custom3": 0.125
+    "Custom1": 0.0833333,
+    "Custom2": 0.1
   },
-  "name": "kxkb ru 6r8c 1.1.9"
+  "name": "kxkb 日本語 5r10c 1.3.3"
 }
