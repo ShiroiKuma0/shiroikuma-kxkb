@@ -313,20 +313,25 @@ class LibraryFragment : Fragment() {
                 return@launch
             }
             val newId = CustomLayoutStore.freshId(requireContext(), entry.id)
-            val newEntry = entry.copy(id = newId, name = "${entry.name} copy")
+            // A stand-alone copy (shown separately, not shadowing any stock).
+            val newEntry = entry.copy(id = newId, name = "${entry.name} copy", derivedFrom = null)
             CustomLayoutStore.saveLayout(requireContext(), newEntry, raw)
             rebuild()
             flash(getString(R.string.library_duplicated_toast, newEntry.name))
         }
     }
 
-    /** Remove a custom layout (and reset any language that had it active back to the registry default). */
+    /**
+     * Remove a custom layout. If a language had it active, reinstate the stock it shadowed ([derivedFrom]) —
+     * or fall back to the registry default — so deleting an edited copy brings the original keyboard back.
+     */
     private fun delete(entry: LayoutEntry) {
         lifecycleScope.launch {
             CustomLayoutStore.deleteLayout(requireContext(), entry.id)
             if (settingsRepository.getActiveLayoutForLanguage(entry.lang) == entry.id) {
                 registry = LayoutRegistry.load(requireContext())
-                registry.defaultFor(entry.lang)?.let { settingsRepository.setActiveLayoutForLanguage(entry.lang, it) }
+                val reinstate = entry.derivedFrom ?: registry.defaultFor(entry.lang)
+                reinstate?.let { settingsRepository.setActiveLayoutForLanguage(entry.lang, it) }
             }
             previewContainer.visibility = View.GONE
             rebuild()

@@ -67,6 +67,13 @@
         <activity
             android:name=".settings.library.KeyboardEditorActivity"
             android:exported="false"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Urik.NoActionBar" />
+
+        <activity
+            android:name=".settings.library.KeyEditActivity"
+            android:exported="false"
+            android:taskAffinity=""
             android:theme="@style/Theme.Urik.NoActionBar" />
 
         <activity

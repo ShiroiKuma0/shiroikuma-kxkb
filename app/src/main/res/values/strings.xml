@@ -77,6 +77,8 @@
 
     <string name="keyboard_ui_settings_title">白い熊 kxkb UI</string>
     <string name="keyboard_ui_settings_description">Per-geometry size &amp; look</string>
+    <string name="editor_settings_title">Keyboard editor</string>
+    <string name="editor_settings_description">Edit the active keyboard</string>
     <string name="library_settings_title">Layout library</string>
     <string name="library_settings_description">Browse every layout and pick the active one per language</string>
     <string name="library_active_summary">%1$s · active</string>
@@ -114,6 +116,132 @@
     <string name="editor_cancel">Cancel</string>
     <string name="editor_delete_key">Delete key</string>
     <string name="editor_live_preview">Live preview</string>
+    <!-- Main editor screen (M4 L2 step 9) -->
+    <string name="editor_tap_to_edit">Tap a key to edit it.</string>
+    <string name="editor_section_rows">Rows</string>
+    <string name="editor_section_alt_pages">Alt pages</string>
+    <string name="editor_section_widths">Custom key widths</string>
+    <string name="editor_section_topbar">Suggestion bar candidates</string>
+    <string name="editor_topbar_hint">One candidate per line; leave empty to omit the bar.</string>
+    <string name="editor_row_label">Row %1$d</string>
+    <string name="editor_row_up">▲</string>
+    <string name="editor_row_down">▼</string>
+    <string name="editor_row_dup">dup</string>
+    <string name="editor_row_add_key">+key</string>
+    <string name="editor_row_delete">✕</string>
+    <string name="editor_alt_page_remove">Remove %1$s</string>
+    <string name="editor_alt_page_add">Add alt page</string>
+    <string name="editor_alt_page_append_note">Append a page from another layout — coming in a later step.</string>
+    <string name="editor_width_custom">Custom%1$d</string>
+    <string name="editor_apply_active">Apply</string>
+    <string name="editor_applied_toast">Applied — “%1$s” is active.</string>
+    <string name="editor_export_yaml">Export YAML</string>
+    <string name="editor_export_yaml_note">Showing raw JSON (real YAML emitter is a later step).</string>
+    <string name="editor_copy">Copy</string>
+    <string name="editor_copied_toast">Copied to clipboard.</string>
+    <string name="editor_apply_as_new">Apply as new layout</string>
+    <string name="editor_applied_new_toast">Saved as “%1$s”.</string>
+    <string name="editor_revert">Revert</string>
+    <string name="editor_revert_confirm">Discard working edits and reload the saved layout?</string>
+    <string name="editor_reverted_toast">Reverted.</string>
+    <string name="editor_delete_last_row">A layout needs at least one row.</string>
+
+    <!-- Recursive per-key editor (M4 L2 step 8) -->
+    <string name="keyedit_title">Edit key</string>
+    <string name="keyedit_breadcrumb">%1$s · row %2$d, col %3$d</string>
+    <string name="keyedit_type">Type</string>
+    <string name="keyedit_apply">Apply</string>
+    <string name="keyedit_cancel">Cancel</string>
+    <string name="keyedit_edit">Edit</string>
+    <string name="keyedit_add_key">Add key</string>
+    <string name="keyedit_inherit">inherit</string>
+    <string name="keyedit_inherit_paren">(inherit)</string>
+    <string name="keyedit_inherited">Inherited</string>
+    <string name="keyedit_empty">(empty)</string>
+    <string name="keyedit_on">true</string>
+    <string name="keyedit_off">false</string>
+    <string name="keyedit_preview">Preview</string>
+    <!-- Type names -->
+    <string name="keyedit_type_base">base</string>
+    <string name="keyedit_type_compass">compass</string>
+    <string name="keyedit_type_cluster">cluster</string>
+    <string name="keyedit_type_column">column</string>
+    <string name="keyedit_type_macro">macro</string>
+    <string name="keyedit_type_chord">chord</string>
+    <string name="keyedit_type_cycle">cycle</string>
+    <string name="keyedit_type_case">case</string>
+    <string name="keyedit_type_gap">gap</string>
+    <!-- Position in row -->
+    <string name="keyedit_position">Position in row</string>
+    <string name="keyedit_move_left">◀ Move</string>
+    <string name="keyedit_move_right">Move ▶</string>
+    <string name="keyedit_move_up">▲ Move up</string>
+    <string name="keyedit_move_down">Move down ▼</string>
+    <string name="keyedit_insert_left">Insert ◀</string>
+    <string name="keyedit_insert_right">Insert ▶</string>
+    <string name="keyedit_duplicate">Duplicate key</string>
+    <string name="keyedit_delete">Delete key</string>
+    <string name="keyedit_delete_confirm">Remove this key from the row?</string>
+    <!-- base -->
+    <string name="keyedit_spec">Key spec (char / !code / !icon)</string>
+    <string name="keyedit_special_key">Special key…</string>
+    <string name="keyedit_special_key_hint">Action name (e.g. shift, backspace, enter)</string>
+    <string name="keyedit_icon">Icon…</string>
+    <string name="keyedit_icon_hint">Icon name</string>
+    <string name="keyedit_hint">Hint</string>
+    <string name="keyedit_code_override">Code override</string>
+    <string name="keyedit_morekeys">More keys (one per line)</string>
+    <!-- compass / cluster / column -->
+    <string name="keyedit_compass_slide">slide  (compact string, optional)</string>
+    <string name="keyedit_label_compass">label (blank = primary)</string>
+    <string name="keyedit_main_band_cluster">main (band) e.g. abc</string>
+    <string name="keyedit_main_band_column">main (band stacks vertically) e.g. abc</string>
+    <string name="keyedit_label_band">label (blank = main)</string>
+    <string name="keyedit_icon_field">icon (blank = none)</string>
+    <string name="keyedit_primary_tap">primary (tap)</string>
+    <string name="keyedit_slides">Slide directions</string>
+    <string name="keyedit_dir_up">up</string>
+    <string name="keyedit_dir_down">down</string>
+    <string name="keyedit_dir_left">left</string>
+    <string name="keyedit_dir_right">right</string>
+    <string name="keyedit_dir_up_left">upLeft</string>
+    <string name="keyedit_dir_up_right">upRight</string>
+    <string name="keyedit_dir_down_left">downLeft</string>
+    <string name="keyedit_dir_down_right">downRight</string>
+    <!-- macro / chord / cycle -->
+    <string name="keyedit_macro_text">text</string>
+    <string name="keyedit_macro_label">label</string>
+    <string name="keyedit_chord_keys">keys  (e.g. C-x C-s)</string>
+    <string name="keyedit_label_chord">label (blank = keys)</string>
+    <string name="keyedit_cycle_taps">taps  (one per line)</string>
+    <string name="keyedit_cycle_label">label</string>
+    <!-- case -->
+    <string name="keyedit_case_states">Shift states (each is its own key)</string>
+    <!-- gap -->
+    <string name="keyedit_gap_note">A gap takes a slot but emits nothing.</string>
+    <!-- appearance -->
+    <string name="keyedit_appearance">Appearance (live)</string>
+    <string name="keyedit_appearance_case">Appearance (live) — applied to all shift states</string>
+    <string name="keyedit_text_color">Text colour</string>
+    <string name="keyedit_font_size">Font size — theme</string>
+    <string name="keyedit_hint_size">Secondary (hint) size — theme</string>
+    <string name="keyedit_bg_color">Background colour</string>
+    <string name="keyedit_border_color">Border colour</string>
+    <string name="keyedit_h_offset">Horizontal position — theme</string>
+    <string name="keyedit_v_offset">Vertical position — theme</string>
+    <string name="keyedit_cluster_left">Cluster left spacing — theme</string>
+    <string name="keyedit_cluster_right">Cluster right spacing — theme</string>
+    <string name="keyedit_sec_top">Secondary top offset — theme</string>
+    <string name="keyedit_sec_bottom">Secondary bottom offset — theme</string>
+    <string name="keyedit_sec_left">Secondary left offset — theme</string>
+    <string name="keyedit_sec_right">Secondary right offset — theme</string>
+    <!-- attributes -->
+    <string name="keyedit_attributes">Attributes (blank/inherit = use row/keyboard default)</string>
+    <string name="keyedit_attr_width">width</string>
+    <string name="keyedit_attr_style">style</string>
+    <string name="keyedit_attr_morekeymode">moreKeyMode</string>
+    <string name="keyedit_attr_heightrows">heightRows (blank = inherit)</string>
+
     <string name="space_menu_library">Layout library</string>
     <string name="library_section">Layout library</string>
     <string name="library_sub_separators">Separators</string>
@@ -141,6 +269,7 @@
     <string name="space_menu_actions">Actions</string>
     <string name="space_menu_keyboard">Keyboards…</string>
     <string name="space_menu_kxkb_ui">白い熊 kxkb UI</string>
+    <string name="space_menu_editor">Keyboard editor</string>
     <string name="space_menu_languages_action">Languages</string>
     <string name="space_menu_all_settings">All settings</string>
     <string name="keyboard_ui_app_language">App language</string>

@@ -9,7 +9,13 @@ data class LayoutEntry(
     val lang: String,
     val name: String,
     val kind: String,
-    val width: String
+    val width: String,
+    /**
+     * For a custom layout created by editing a stock one: the bundled layout id it replaces. Such a copy
+     * *shadows* its stock — it takes the stock's slot (same name) in the Library and switcher and the stock
+     * is hidden; deleting the copy reinstates the stock. Null for bundled layouts and stand-alone duplicates.
+     */
+    val derivedFrom: String? = null
 )
 
 /**
@@ -65,9 +71,15 @@ class LayoutRegistry private constructor(
                         )
                     }
                 }
-                // Append the user's custom layouts (edited/duplicated) so they show up everywhere too.
-                list.addAll(CustomLayoutStore.customEntries(context))
-                LayoutRegistry(defaults, list)
+                // Merge the user's custom layouts. A copy that shadows a stock (derivedFrom) REPLACES it in
+                // its slot so the stock is hidden; stand-alone duplicates (and copies whose stock no longer
+                // exists) are appended.
+                val customs = CustomLayoutStore.customEntries(context)
+                val byShadow = customs.filter { it.derivedFrom != null }.associateBy { it.derivedFrom }
+                val bundledIds = list.map { it.id }.toSet()
+                val effective = list.map { stock -> byShadow[stock.id] ?: stock } +
+                    customs.filter { it.derivedFrom == null || it.derivedFrom !in bundledIds }
+                LayoutRegistry(defaults, effective)
             } catch (_: Exception) {
                 LayoutRegistry(emptyMap(), CustomLayoutStore.customEntries(context))
             }

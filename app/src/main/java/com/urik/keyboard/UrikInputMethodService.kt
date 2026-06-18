@@ -1027,6 +1027,13 @@ open class UrikInputMethodService :
             showInputMethodPicker()
             return
         }
+        if (action == "editor") {
+            val editorIntent = com.urik.keyboard.settings.library.KeyboardEditorActivity
+                .intentForActiveLayout(this, languageManager.currentLayoutLanguage.value)
+            editorIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(editorIntent)
+            return
+        }
         val intent = when (action) {
             "kxkb_ui" -> com.urik.keyboard.settings.SettingsActivity.createIntent(
                 this, com.urik.keyboard.settings.SettingsActivity.PAGE_KEYBOARD_UI
@@ -1426,6 +1433,9 @@ open class UrikInputMethodService :
             // Publish the live geometry so the Keyboard UI screen can follow it (rotate/fold while shown).
             settingsRepository.setCurrentGeometry(geometry)
             val language = languageManager.currentLayoutLanguage.value
+            // Publish the live layout language so the settings-side editor entry points can target the
+            // keyboard that's actually on screen (this runs on language switch too — see the collector above).
+            settingsRepository.setCurrentLayoutLanguage(language)
             val layout = currentSettings.alternativeKeyboardLayout.name
             val resolved = settingsRepository.resolveLookKnobs(language, layout, geometry)
             // Cache for the next cold start so the first render is already correct (see seedLookKnobsFromCache).

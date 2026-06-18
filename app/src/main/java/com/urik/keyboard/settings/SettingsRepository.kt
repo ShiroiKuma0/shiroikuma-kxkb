@@ -57,6 +57,7 @@ constructor(
         val PER_GEOMETRY_LOOK = stringPreferencesKey("per_geometry_look")
         val LIBRARY_LOOK = stringPreferencesKey("library_look")
         val CURRENT_GEOMETRY = stringPreferencesKey("current_geometry")
+        val CURRENT_LAYOUT_LANGUAGE = stringPreferencesKey("current_layout_language")
         val CURRENT_KEY_HEIGHT_SCALE = stringPreferencesKey("current_key_height_scale")
         val HAPTIC_FEEDBACK = booleanPreferencesKey("haptic_feedback")
         val VIBRATION_STRENGTH = intPreferencesKey("vibration_strength")
@@ -462,6 +463,30 @@ constructor(
         } catch (e: Exception) {
             // best-effort; the UI falls back to a Configuration-derived guess
         }
+    }
+
+    /**
+     * The layout language the running keyboard is currently using, published by the IME service so the
+     * settings-side editor entry points (the space-menu / Settings "Edit keyboard" items) can target the
+     * keyboard that's actually on screen. Reads fall back to the first active language when unset.
+     */
+    suspend fun setCurrentLayoutLanguage(language: String) {
+        try {
+            if (language.isBlank()) return
+            dataStore.edit {
+                if (it[PreferenceKeys.CURRENT_LAYOUT_LANGUAGE] != language) {
+                    it[PreferenceKeys.CURRENT_LAYOUT_LANGUAGE] = language
+                }
+            }
+        } catch (e: Exception) {
+            // best-effort; callers fall back to the first active language
+        }
+    }
+
+    suspend fun getCurrentLayoutLanguage(): String? = try {
+        dataStore.data.first()[PreferenceKeys.CURRENT_LAYOUT_LANGUAGE]?.takeIf { it.isNotBlank() }
+    } catch (e: Exception) {
+        null
     }
 
     /** Published by the IME as it resolves its look — the keyHeightScale the live keyboard is actually using

@@ -39,7 +39,8 @@ object CustomLayoutStore {
                     lang = o.getString("lang"),
                     name = o.optString("name", o.getString("id")),
                     kind = o.optString("kind", ""),
-                    width = o.optString("width", "")
+                    width = o.optString("width", ""),
+                    derivedFrom = o.optString("derivedFrom", "").takeIf { it.isNotEmpty() }
                 )
             }
         }
@@ -82,6 +83,7 @@ object CustomLayoutStore {
                     .put("name", e.name)
                     .put("kind", e.kind)
                     .put("width", e.width)
+                    .apply { e.derivedFrom?.let { put("derivedFrom", it) } }
             )
         }
         registryFile(context).writeText(arr.toString(2))

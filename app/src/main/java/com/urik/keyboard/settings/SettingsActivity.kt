@@ -18,11 +18,16 @@ import com.urik.keyboard.settings.autocorrection.AutoCorrectionFragment
 import com.urik.keyboard.settings.languages.LanguagesFragment
 import com.urik.keyboard.settings.keyboardui.KeyboardUiFragment
 import com.urik.keyboard.settings.layoutinput.LayoutInputFragment
+import com.urik.keyboard.settings.library.KeyboardEditorActivity
 import com.urik.keyboard.settings.library.LibraryFragment
 import com.urik.keyboard.settings.learnedwords.LearnedWordsFragment
 import com.urik.keyboard.settings.privacydata.PrivacyDataFragment
 import com.urik.keyboard.settings.typingbehavior.TypingBehaviorFragment
+import androidx.lifecycle.lifecycleScope
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class SettingsActivity : AppCompatActivity() {
@@ -134,6 +139,8 @@ class SettingsActivity : AppCompatActivity() {
 
 @AndroidEntryPoint
 class MainSettingsFragment : PreferenceFragmentCompat() {
+    @Inject lateinit var settingsRepository: SettingsRepository
+
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         val context = preferenceManager.context
         val screen = preferenceManager.createPreferenceScreen(context)
@@ -212,6 +219,18 @@ class MainSettingsFragment : PreferenceFragmentCompat() {
 
         screen.addPreference(
             Preference(context).apply {
+                key = "editor_category"
+                title = resources.getString(R.string.editor_settings_title)
+                summary = resources.getString(R.string.editor_settings_description)
+                setOnPreferenceClickListener {
+                    openEditorOnActiveLayout()
+                    true
+                }
+            }
+        )
+
+        screen.addPreference(
+            Preference(context).apply {
                 key = "library_category"
                 title = resources.getString(R.string.library_settings_title)
                 summary = resources.getString(R.string.library_settings_description)
@@ -259,6 +278,19 @@ class MainSettingsFragment : PreferenceFragmentCompat() {
         )
 
         preferenceScreen = screen
+    }
+
+    /**
+     * Launch the visual editor on the currently active layout. The target language is the one the live
+     * keyboard last published (falling back to the first active language); the editor itself duplicates a
+     * stock layout into an editable copy on open. The settings read suspends, so it runs in a coroutine.
+     */
+    private fun openEditorOnActiveLayout() {
+        lifecycleScope.launch {
+            val lang = settingsRepository.getCurrentLayoutLanguage()
+                ?: settingsRepository.settings.first().activeLanguages.firstOrNull()
+            startActivity(KeyboardEditorActivity.intentForActiveLayout(requireContext(), lang))
+        }
     }
 
     private fun navigateToFragment(fragment: androidx.fragment.app.Fragment) {

@@ -1,5 +1,7 @@
 package com.urik.keyboard.settings.library
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
@@ -8,13 +10,11 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
-import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.ScrollView
-import android.widget.Spinner
+import android.widget.SeekBar
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -26,6 +26,8 @@ import com.urik.keyboard.R
 import com.urik.keyboard.data.CustomLayoutStore
 import com.urik.keyboard.data.KeyboardRepository
 import com.urik.keyboard.data.LayoutEntry
+import com.urik.keyboard.data.LayoutRegistry
+import com.urik.keyboard.model.KeyboardKey
 import com.urik.keyboard.model.KeyboardMode
 import com.urik.keyboard.model.KeyboardState
 import com.urik.keyboard.service.AdaptiveDimensions
@@ -38,6 +40,7 @@ import com.urik.keyboard.theme.ThemeManager
 import com.urik.keyboard.ui.keyboard.components.KeyboardLayoutManager
 import com.urik.keyboard.utils.CacheMemoryManager
 import dagger.hilt.android.AndroidEntryPoint
+import java.util.IdentityHashMap
 import javax.inject.Inject
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -45,11 +48,20 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * The visual Keyboard Editor (M4 L2). Edits a custom layout's raw JSON tree directly — losslessly, so
- * fields the editor doesn't surface (script, per-key `shifted`, compass bindings) ride through untouched.
- * The grid maps each cell to `modes.<mode>.rows[r][c]`; tapping it edits that key; structural buttons
- * add/remove keys and rows. Every committed change auto-saves to the [CustomLayoutStore] and refreshes a
- * true live preview rendered with the real keyboard renderer (the same path the Library uses).
+ * The main visual Keyboard Editor screen (M4 L2 step 9). Edits a custom layout's raw JSON tree directly —
+ * losslessly, so fields the editor doesn't surface (script, per-key `shifted`, compass bindings) ride
+ * through untouched. Top→bottom it is: mode tabs → a true live preview (each preview key is tappable →
+ * opens the per-key [KeyEditActivity] for that key's (mode,row,col)) → a Rows section (reorder/dup/+key/
+ * delete per row) → an Alt-pages section → Custom-key-width sliders → a Suggestion-bar candidates box → an
+ * action row (Apply / Export YAML / Apply as new / Revert). Every committed change auto-saves to the
+ * [CustomLayoutStore] and refreshes the preview (the same render path the Library uses).
+ *
+ * Preview-tap → (mode,row,col) mapping is reliable even though the renderer transposes column boards and
+ * splits rows (view order ≠ model order): the loaded [com.urik.keyboard.model.KeyboardLayout] keeps the
+ * authored rows/cols 1:1, and the renderer tags every key Button with `R.id.key_data` = the very
+ * [KeyboardKey] instance from `layout.rows[r][c]`. So we build an identity map KeyboardKey → (row,col) from
+ * the loaded layout, walk the rendered view tree, and look each Button's tagged key back up — matching by
+ * object identity, never by view order.
  */
 @AndroidEntryPoint
 class KeyboardEditorActivity : AppCompatActivity() {
@@ -63,10 +75,14 @@ class KeyboardEditorActivity : AppCompatActivity() {
     private lateinit var entry: LayoutEntry
     private lateinit var working: JSONObject
     private var mode = "letters"
+    private var built = false
 
     private lateinit var modeTabs: LinearLayout
-    private lateinit var gridContainer: LinearLayout
     private lateinit var previewContainer: LinearLayout
+    private lateinit var rowsContainer: LinearLayout
+    private lateinit var altPagesContainer: LinearLayout
+    private lateinit var widthsContainer: LinearLayout
+    private lateinit var topBarField: EditText
 
     private val layoutManager by lazy {
         KeyboardLayoutManager(
@@ -83,24 +99,103 @@ class KeyboardEditorActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        entry = LayoutEntry(
+        window.statusBarColor = Color.BLACK
+        window.navigationBarColor = Color.BLACK
+        if (intent.getBooleanExtra(EXTRA_EDIT_ACTIVE, false)) {
+            // "Edit active layout": resolve (and, for a stock layout, duplicate into an editable copy) the
+            // currently active layout, then run the normal editor setup on the resolved entry. Settings reads
+            // suspend, so this happens in a coroutine; the UI is built inside [setupEditor].
+            lifecycleScope.launch { resolveActiveEntryAndSetup(intent.getStringExtra(EXTRA_LANG)) }
+            return
+        }
+        val resolved = LayoutEntry(
             id = intent.getStringExtra(EXTRA_ID) ?: run { finish(); return },
             lang = intent.getStringExtra(EXTRA_LANG) ?: "",
             name = intent.getStringExtra(EXTRA_NAME) ?: "",
             kind = intent.getStringExtra(EXTRA_KIND) ?: "",
             width = intent.getStringExtra(EXTRA_WIDTH) ?: ""
         )
-        val loaded = CustomLayoutStore.rawJson(this, entry.id)
-        if (loaded == null || !loaded.has("modes")) {
+        if (!setupEditor(resolved)) finish()
+    }
+
+    /**
+     * Resolve the active layout for [requestedLang] (or the current/first-active language), duplicating a
+     * stock built-in layout into an editable custom copy first (and pointing the active keyboard at the
+     * copy), then run the normal editor setup. Mirrors [LibraryFragment.duplicate]'s freshId→rawJson→
+     * saveLayout pattern; a layout that's already custom is edited in place.
+     */
+    private suspend fun resolveActiveEntryAndSetup(requestedLang: String?) {
+        val registry = LayoutRegistry.load(this)
+        val settings = settingsRepository.settings.first()
+        val lang = requestedLang?.takeIf { it.isNotBlank() }
+            ?: settingsRepository.getCurrentLayoutLanguage()
+            ?: settings.activeLanguages.firstOrNull()
+            ?: "en"
+        val activeId = settingsRepository.getActiveLayoutForLanguage(lang)
+            ?: registry.defaultFor(lang)
+            ?: registry.forLanguage(lang).firstOrNull()?.id
+        if (activeId == null) {
             finish()
             return
         }
+        val baseEntry = registry.entries.find { it.id == activeId }
+            ?: LayoutEntry(id = activeId, lang = lang, name = activeId, kind = "", width = "")
+
+        val targetEntry = if (CustomLayoutStore.hasLayout(this, activeId)) {
+            // Already an editable custom layout — edit it directly.
+            baseEntry
+        } else {
+            // Stock/built-in (uneditable): duplicate into an editable copy that SHADOWS the stock — same name,
+            // derivedFrom = the stock id, so the Library/switcher show only this copy (stock hidden) and
+            // deleting it reinstates the stock. Make it the active layout so the on-screen keyboard is editable.
+            val raw = CustomLayoutStore.rawJson(this, activeId)
+            if (raw == null) {
+                finish()
+                return
+            }
+            val newId = CustomLayoutStore.freshId(this, activeId)
+            val newEntry = baseEntry.copy(id = newId, derivedFrom = activeId)
+            CustomLayoutStore.saveLayout(this, newEntry, raw)
+            settingsRepository.setActiveLayoutForLanguage(lang, newId)
+            newEntry
+        }
+        if (!setupEditor(targetEntry)) finish()
+    }
+
+    /** Load [target]'s JSON, build the editor UI, and render. Returns false if the layout can't be opened. */
+    private fun setupEditor(target: LayoutEntry): Boolean {
+        entry = target
+        val loaded = CustomLayoutStore.rawJson(this, entry.id)
+        if (loaded == null || !loaded.has("modes")) return false
         working = loaded
         mode = modesPresent().firstOrNull() ?: "letters"
 
         setContentView(buildRoot())
+        renderAll()
+        built = true
+        return true
+    }
+
+    /**
+     * Coming back from [KeyEditActivity] (which auto-saves into the same custom-store file), reload the
+     * working JSON and re-render so edits made over there show up. Skipped on the first resume right after
+     * [onCreate] (nothing changed yet, and the file is already loaded).
+     */
+    override fun onResume() {
+        super.onResume()
+        if (!built) return
+        val reloaded = CustomLayoutStore.rawJson(this, entry.id) ?: return
+        working = reloaded
+        if (mode !in modesPresent()) mode = modesPresent().firstOrNull() ?: "letters"
+        renderAll()
+    }
+
+    private fun renderAll() {
         renderModeTabs()
-        renderGrid()
+        renderRows()
+        renderAltPages()
+        renderWidths()
+        renderTopBar()
         refreshPreview()
     }
 
@@ -119,22 +214,40 @@ class KeyboardEditorActivity : AppCompatActivity() {
             orientation = LinearLayout.HORIZONTAL
             setPadding(dp(8), dp(4), dp(8), dp(4))
         }
-        gridContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         previewContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(0, dp(8), 0, 0)
+            setPadding(0, dp(4), 0, dp(4))
         }
-
-        val addRowBtn = pill(getString(R.string.editor_add_row)) { addRow() }.apply {
-            (layoutParams as LinearLayout.LayoutParams).topMargin = dp(8)
+        rowsContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        altPagesContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        widthsContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        topBarField = EditText(this).apply {
+            setTextColor(YELLOW)
+            setHintTextColor(0x80FFFF00.toInt())
+            hint = getString(R.string.editor_topbar_hint)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or
+                android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            setHorizontallyScrolling(false)
+            maxLines = 8
         }
 
         val scrollInner = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(10), dp(8), dp(10), dp(16))
-            addView(gridContainer)
-            addView(addRowBtn)
             addView(previewContainer)
+            addView(captionView(getString(R.string.editor_tap_to_edit)))
+            addView(sectionLabel(getString(R.string.editor_section_rows)))
+            addView(rowsContainer)
+            addView(pill(getString(R.string.editor_add_row)) { addRow() }.apply {
+                (layoutParams as LinearLayout.LayoutParams).topMargin = dp(6)
+            })
+            addView(sectionLabel(getString(R.string.editor_section_alt_pages)))
+            addView(altPagesContainer)
+            addView(sectionLabel(getString(R.string.editor_section_widths)))
+            addView(widthsContainer)
+            addView(sectionLabel(getString(R.string.editor_section_topbar)))
+            addView(topBarField)
+            addView(buildActionRow())
         }
         val scroll = ScrollView(this).apply {
             isFillViewport = true
@@ -157,6 +270,26 @@ class KeyboardEditorActivity : AppCompatActivity() {
         return root
     }
 
+    private fun buildActionRow(): View {
+        val bar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.START
+            setPadding(0, dp(16), 0, 0)
+        }
+        bar.addView(pillFilled(getString(R.string.editor_apply_active)) { applyActive() })
+        bar.addView(pill(getString(R.string.editor_export_yaml)) { exportYaml() }
+            .apply { (layoutParams as LinearLayout.LayoutParams).marginStart = dp(6) })
+        bar.addView(pill(getString(R.string.editor_apply_as_new)) { applyAsNew() }
+            .apply { (layoutParams as LinearLayout.LayoutParams).marginStart = dp(6) })
+        bar.addView(pill(getString(R.string.editor_revert)) { revert() }
+            .apply { (layoutParams as LinearLayout.LayoutParams).marginStart = dp(6) })
+        // Wrap so the action pills can flow/scroll on narrow screens.
+        return android.widget.HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            addView(bar)
+        }
+    }
+
     private fun renderModeTabs() {
         modeTabs.removeAllViews()
         for (m in modesPresent()) {
@@ -171,242 +304,14 @@ class KeyboardEditorActivity : AppCompatActivity() {
                     ).apply { marginEnd = dp(6) }
                     setOnClickListener {
                         mode = m
-                        renderModeTabs()
-                        renderGrid()
-                        refreshPreview()
+                        renderAll()
                     }
                 }
             )
         }
     }
 
-    private fun renderGrid() {
-        gridContainer.removeAllViews()
-        val rows = rowsArray()
-        for (r in 0 until rows.length()) {
-            val rowArr = rows.getJSONArray(r)
-            val rowView = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                val p = dp(3)
-                setPadding(0, p, 0, p)
-            }
-            rowView.addView(
-                Button(this).apply {
-                    text = "≡"
-                    setTextColor(YELLOW)
-                    background = pillBg(filled = false)
-                    minWidth = dp(40)
-                    setOnClickListener { rowMenu(r) }
-                }
-            )
-            val keysRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            for (c in 0 until rowArr.length()) {
-                keysRow.addView(cell(rowArr.getJSONObject(c), r, c))
-            }
-            keysRow.addView(
-                Button(this).apply {
-                    text = "+"
-                    setTextColor(YELLOW)
-                    background = pillBg(filled = false)
-                    setOnClickListener { addKey(r) }
-                    layoutParams = LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
-                    ).apply { marginStart = dp(4) }
-                }
-            )
-            rowView.addView(
-                HorizontalScrollView(this).apply {
-                    isHorizontalScrollBarEnabled = false
-                    addView(keysRow)
-                    layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-                        .apply { marginStart = dp(6) }
-                }
-            )
-            gridContainer.addView(rowView)
-        }
-    }
-
-    private fun cell(key: JSONObject, r: Int, c: Int): View = TextView(this).apply {
-        text = cellLabel(key)
-        setTextColor(YELLOW)
-        gravity = Gravity.CENTER
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
-        setPadding(dp(8), dp(10), dp(8), dp(10))
-        minWidth = dp(44)
-        background = pillBg(filled = false)
-        layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
-        ).apply { marginEnd = dp(4) }
-        isClickable = true
-        setOnClickListener { editKey(r, c) }
-    }
-
-    // ---- key editing ----------------------------------------------------------------------------
-
-    private fun editKey(r: Int, c: Int) {
-        val existing = rowsArray().getJSONArray(r).getJSONObject(c)
-        val container = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(8), dp(20), dp(8))
-        }
-        val typeSpinner = Spinner(this).apply {
-            adapter = simpleAdapter(TYPES)
-            setSelection(TYPES.indexOf(existing.optString("type", "character")).coerceAtLeast(0))
-        }
-        container.addView(label(getString(R.string.editor_key_type)))
-        container.addView(typeSpinner)
-
-        val fields = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        container.addView(fields)
-
-        var collect: () -> JSONObject = { existing }
-        fun rebuildFields() {
-            fields.removeAllViews()
-            collect = buildFields(fields, TYPES[typeSpinner.selectedItemPosition], existing)
-        }
-        rebuildFields()
-        typeSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(p: android.widget.AdapterView<*>?, v: View?, pos: Int, id: Long) = rebuildFields()
-            override fun onNothingSelected(p: android.widget.AdapterView<*>?) {}
-        }
-
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.editor_edit_key_title, r + 1, c + 1))
-            .setView(ScrollView(this).apply { addView(container) })
-            .setPositiveButton(R.string.editor_apply) { _, _ ->
-                rowsArray().getJSONArray(r).put(c, collect())
-                commit()
-            }
-            .setNeutralButton(R.string.editor_delete_key) { _, _ ->
-                rowsArray().getJSONArray(r).remove(c)
-                commit()
-            }
-            .setNegativeButton(R.string.editor_cancel, null)
-            .show()
-    }
-
-    /** Populate [fields] for the chosen key [type]; return a collector that reads them into a JSON key. */
-    private fun buildFields(fields: LinearLayout, type: String, existing: JSONObject): () -> JSONObject {
-        when (type) {
-            "character" -> {
-                val charField = field(fields, getString(R.string.editor_char), existing.optString("char"))
-                val keyTypeSpinner = spinnerField(fields, getString(R.string.editor_key_subtype), KEY_TYPES,
-                    existing.optString("keyType", "letter"))
-                val widthField = field(fields, getString(R.string.editor_width), widthText(existing))
-                return {
-                    JSONObject()
-                        .put("type", "character")
-                        .put("char", charField.text.toString())
-                        .put("keyType", KEY_TYPES[keyTypeSpinner.selectedItemPosition])
-                        .also { putWidth(it, widthField) }
-                }
-            }
-            "action" -> {
-                val cur = existing.optString("action", "dynamic_action")
-                val actionSpinner = spinnerField(fields, getString(R.string.editor_action),
-                    ACTIONS.map { it.first }, cur, ACTIONS.map { it.second })
-                val widthField = field(fields, getString(R.string.editor_width), widthText(existing))
-                return {
-                    JSONObject()
-                        .put("type", "action")
-                        .put("action", ACTIONS[actionSpinner.selectedItemPosition].first)
-                        .also { putWidth(it, widthField) }
-                }
-            }
-            "spacer" -> {
-                fields.addView(label(getString(R.string.editor_spacer_note)))
-                return { JSONObject().put("type", "spacer") }
-            }
-            else -> { // flick
-                val charField = field(fields, getString(R.string.editor_char), existing.optString("char"))
-                val clusterField = field(fields, getString(R.string.editor_cluster), existing.optString("cluster"))
-                val keyTypeSpinner = spinnerField(fields, getString(R.string.editor_key_subtype),
-                    listOf("") + KEY_TYPES, existing.optString("keyType", ""))
-                val widthField = field(fields, getString(R.string.editor_width), widthText(existing))
-                val flick = existing.optJSONObject("flick") ?: JSONObject()
-                val dirFields = DIRECTIONS.associateWith { dir ->
-                    field(fields, dir, flickDisplay(flick.opt(dir)))
-                }
-                return {
-                    val o = JSONObject()
-                        .put("type", "flick")
-                        .put("char", charField.text.toString())
-                    if (clusterField.text.isNotBlank()) o.put("cluster", clusterField.text.toString())
-                    val kt = (listOf("") + KEY_TYPES)[keyTypeSpinner.selectedItemPosition]
-                    if (kt.isNotBlank()) o.put("keyType", kt)
-                    // Preserve `shifted` and any other untouched fields verbatim.
-                    existing.optJSONObject("shifted")?.let { o.put("shifted", it) }
-                    val newFlick = JSONObject()
-                    for (dir in DIRECTIONS) {
-                        val typed = dirFields.getValue(dir).text.toString()
-                        val original = flick.opt(dir)
-                        when {
-                            typed.isBlank() -> {}
-                            // Untouched object binding (action/chord/layer) → keep it verbatim.
-                            original is JSONObject && typed == flickDisplay(original) -> newFlick.put(dir, original)
-                            else -> newFlick.put(dir, typed)
-                        }
-                    }
-                    if (newFlick.length() > 0) o.put("flick", newFlick)
-                    putWidth(o, widthField)
-                    o
-                }
-            }
-        }
-    }
-
-    // ---- structural ops -------------------------------------------------------------------------
-
-    private fun addKey(r: Int) {
-        rowsArray().getJSONArray(r).put(
-            JSONObject().put("type", "character").put("char", "x").put("keyType", "letter")
-        )
-        commit()
-    }
-
-    private fun rowMenu(r: Int) {
-        val options = arrayOf(
-            getString(R.string.editor_add_row_below),
-            getString(R.string.editor_move_row_up),
-            getString(R.string.editor_move_row_down),
-            getString(R.string.editor_delete_row)
-        )
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.editor_row_n, r + 1))
-            .setItems(options) { _, which ->
-                when (which) {
-                    0 -> { setRows(insertAt(rowsArray(), r + 1, JSONArray())); commit() }
-                    1 -> if (r > 0) { swapRows(r, r - 1); commit() }
-                    2 -> if (r < rowsArray().length() - 1) { swapRows(r, r + 1); commit() }
-                    3 -> { rowsArray().remove(r); commit() }
-                }
-            }
-            .show()
-    }
-
-    private fun addRow() {
-        setRows(insertAt(rowsArray(), rowsArray().length(), JSONArray()))
-        commit()
-    }
-
-    private fun swapRows(a: Int, b: Int) {
-        val rows = rowsArray()
-        val tmp = rows.getJSONArray(a)
-        rows.put(a, rows.getJSONArray(b))
-        rows.put(b, tmp)
-    }
-
-    // ---- persistence + preview ------------------------------------------------------------------
-
-    /** Auto-save the working JSON to the custom store, drop stale caches, and re-render grid + preview. */
-    private fun commit() {
-        CustomLayoutStore.saveLayout(this, entry, working)
-        keyboardRepository.invalidateLayoutCache()
-        renderModeTabs()
-        renderGrid()
-        refreshPreview()
-    }
+    // ---- live preview (tap → per-key editor) ----------------------------------------------------
 
     private fun refreshPreview() {
         lifecycleScope.launch {
@@ -440,17 +345,336 @@ class KeyboardEditorActivity : AppCompatActivity() {
             val keyboardView = layoutManager.createKeyboardView(layout, KeyboardState())
             val bg = knobs.keyboardBgColor ?: themeManager.currentTheme.value.colors.keyboardBackground
             keyboardView.setBackgroundColor(bg)
+
+            // Build the identity map from the loaded layout (authored row/col order), then make each
+            // rendered key Button open the per-key editor at the matching (row,col).
+            val coords = IdentityHashMap<KeyboardKey, Pair<Int, Int>>()
+            layout.rows.forEachIndexed { r, row ->
+                row.forEachIndexed { c, key -> coords[key] = r to c }
+            }
+            wireTaps(keyboardView, coords)
+
             previewContainer.removeAllViews()
             previewContainer.addView(
                 TextView(this@KeyboardEditorActivity).apply {
                     text = getString(R.string.editor_live_preview)
                     setTextColor(YELLOW)
                     setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
-                    setPadding(dp(2), dp(6), 0, dp(4))
+                    setPadding(dp(2), dp(2), 0, dp(4))
                 }
             )
             previewContainer.addView(keyboardView)
         }
+    }
+
+    /**
+     * Walk [view]'s tree; for any Button tagged with a [KeyboardKey] we know the (row,col) of, override its
+     * click to open the per-key editor on that cell. Each layout-key instance maps to exactly one Button
+     * (the renderer tags the live instance), so a plain identity lookup is unambiguous.
+     */
+    private fun wireTaps(view: View, coords: IdentityHashMap<KeyboardKey, Pair<Int, Int>>) {
+        if (view is Button) {
+            val key = view.getTag(R.id.key_data) as? KeyboardKey
+            val rc = key?.let { coords[it] }
+            if (rc != null) {
+                view.isClickable = true
+                view.setOnClickListener { editKey(rc.first, rc.second) }
+                view.setOnLongClickListener { editKey(rc.first, rc.second); true }
+            }
+        }
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) wireTaps(view.getChildAt(i), coords)
+        }
+    }
+
+    /**
+     * Tapping a preview key opens the full-screen recursive per-key editor ([KeyEditActivity]) on that
+     * (mode, row, col). It auto-saves into the same custom-store file; [onResume] reloads the working JSON
+     * and re-renders when we come back.
+     */
+    private fun editKey(r: Int, c: Int) {
+        startActivity(KeyEditActivity.intent(this, entry, mode, r, c))
+    }
+
+    // ---- Rows section ---------------------------------------------------------------------------
+
+    private fun renderRows() {
+        rowsContainer.removeAllViews()
+        val rows = rowsArray()
+        for (r in 0 until rows.length()) {
+            rowsContainer.addView(rowCard(r, rows.getJSONArray(r)))
+        }
+    }
+
+    private fun rowCard(r: Int, rowArr: JSONArray): View {
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        header.addView(TextView(this).apply {
+            text = getString(R.string.editor_row_label, r + 1) + "  " + rowPreviewText(rowArr)
+            setTextColor(YELLOW)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        })
+        val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        controls.addView(smallPill(getString(R.string.editor_row_up)) { if (r > 0) { swapRows(r, r - 1); commit() } })
+        controls.addView(smallPill(getString(R.string.editor_row_down)) {
+            if (r < rowsArray().length() - 1) { swapRows(r, r + 1); commit() }
+        })
+        controls.addView(smallPill(getString(R.string.editor_row_dup)) { dupRow(r) })
+        controls.addView(smallPill(getString(R.string.editor_row_add_key)) { addKey(r) })
+        controls.addView(smallPill(getString(R.string.editor_row_delete)) { deleteRow(r) }
+            .apply { setTextColor(RED); background = pillBg(filled = false, stroke = RED) })
+        header.addView(controls)
+
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            val p = dp(4)
+            setPadding(dp(2), p, dp(2), p)
+            addView(header)
+        }
+    }
+
+    private fun rowPreviewText(rowArr: JSONArray): String {
+        val sb = StringBuilder()
+        for (c in 0 until rowArr.length()) {
+            if (c > 0) sb.append(' ')
+            sb.append(cellLabel(rowArr.getJSONObject(c)))
+        }
+        return sb.toString()
+    }
+
+    private fun dupRow(r: Int) {
+        val rows = rowsArray()
+        val copy = JSONArray(rows.getJSONArray(r).toString())
+        setRows(insertAt(rows, r + 1, copy))
+        commit()
+    }
+
+    private fun deleteRow(r: Int) {
+        if (rowsArray().length() <= 1) {
+            flash(getString(R.string.editor_delete_last_row))
+            return
+        }
+        rowsArray().remove(r)
+        commit()
+    }
+
+    private fun addRow() {
+        setRows(insertAt(rowsArray(), rowsArray().length(), JSONArray()))
+        commit()
+    }
+
+    private fun swapRows(a: Int, b: Int) {
+        val rows = rowsArray()
+        val tmp = rows.getJSONArray(a)
+        rows.put(a, rows.getJSONArray(b))
+        rows.put(b, tmp)
+    }
+
+    /** Append a fresh key to row [r], then open the per-key editor on it. */
+    private fun addKey(r: Int) {
+        val arr = rowsArray().getJSONArray(r)
+        arr.put(JSONObject().put("type", "character").put("char", "x").put("keyType", "letter"))
+        CustomLayoutStore.saveLayout(this, entry, working)
+        keyboardRepository.invalidateLayoutCache()
+        editKey(r, arr.length() - 1)
+    }
+
+    // ---- Alt pages section ----------------------------------------------------------------------
+
+    private fun renderAltPages() {
+        altPagesContainer.removeAllViews()
+        val present = modesPresent()
+        for (m in present) {
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(0, dp(3), 0, dp(3))
+            }
+            row.addView(TextView(this).apply {
+                text = modeLabel(m)
+                setTextColor(YELLOW)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            })
+            // "letters" is the base page and always stays; alt pages can be removed.
+            if (m != "letters" && present.size > 1) {
+                row.addView(smallPill(getString(R.string.editor_alt_page_remove, modeLabel(m))) { removeAltPage(m) }
+                    .apply { setTextColor(RED); background = pillBg(filled = false, stroke = RED) })
+            }
+            altPagesContainer.addView(row)
+        }
+        // Add an alt page that isn't present yet.
+        val addable = MODE_ORDER.filter { it != "letters" && it !in present }
+        if (addable.isNotEmpty()) {
+            altPagesContainer.addView(pill(getString(R.string.editor_alt_page_add)) { addAltPageMenu(addable) }
+                .apply { (layoutParams as LinearLayout.LayoutParams).topMargin = dp(6) })
+        }
+        // Append-from-another-layout is a later step (simple add/remove is enough now).
+        altPagesContainer.addView(captionView(getString(R.string.editor_alt_page_append_note)))
+    }
+
+    private fun addAltPageMenu(addable: List<String>) {
+        val labels = addable.map { modeLabel(it) }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.editor_alt_page_add))
+            .setItems(labels) { _, which -> addAltPage(addable[which]) }
+            .show()
+    }
+
+    private fun addAltPage(m: String) {
+        val modes = working.getJSONObject("modes")
+        if (!modes.has(m)) {
+            modes.put(m, JSONObject().put("rows", JSONArray().put(JSONArray())))
+        }
+        commit()
+    }
+
+    private fun removeAltPage(m: String) {
+        working.getJSONObject("modes").remove(m)
+        if (mode == m) mode = modesPresent().firstOrNull() ?: "letters"
+        commit()
+    }
+
+    // ---- Custom key widths ----------------------------------------------------------------------
+
+    private fun renderWidths() {
+        widthsContainer.removeAllViews()
+        val ow = working.optJSONObject("overrideWidths") ?: JSONObject().also { working.put("overrideWidths", it) }
+        for (i in 1..4) {
+            val key = "Custom$i"
+            val frac = if (ow.has(key)) ow.optDouble(key, DEFAULT_WIDTH) else DEFAULT_WIDTH
+            widthsContainer.addView(widthSlider(key, frac))
+        }
+    }
+
+    /** A labelled slider for one Custom width fraction (0.02–1.0); writing commits and re-renders preview. */
+    private fun widthSlider(key: String, initial: Double): View {
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dp(4), 0, dp(4))
+        }
+        val caption = TextView(this).apply {
+            setTextColor(YELLOW)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+        }
+        fun captionText(frac: Double) {
+            caption.text = "$key  ${"%.2f".format(frac)}"
+        }
+        captionText(initial)
+        val seek = SeekBar(this).apply {
+            max = 100
+            progress = (initial * 100).toInt().coerceIn(MIN_WIDTH_PCT, 100)
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: SeekBar?, p: Int, fromUser: Boolean) {
+                    captionText(p.coerceAtLeast(MIN_WIDTH_PCT) / 100.0)
+                }
+                override fun onStartTrackingTouch(sb: SeekBar?) {}
+                override fun onStopTrackingTouch(sb: SeekBar?) {
+                    val frac = sb!!.progress.coerceAtLeast(MIN_WIDTH_PCT) / 100.0
+                    val ow = working.optJSONObject("overrideWidths")
+                        ?: JSONObject().also { working.put("overrideWidths", it) }
+                    ow.put(key, frac)
+                    commit()
+                }
+            })
+        }
+        container.addView(caption)
+        container.addView(seek)
+        return container
+    }
+
+    // ---- Suggestion-bar candidates --------------------------------------------------------------
+
+    private fun renderTopBar() {
+        val arr = working.optJSONArray("topBar")
+        val text = if (arr == null) "" else (0 until arr.length()).joinToString("\n") { arr.optString(it) }
+        topBarField.setText(text)
+        // Commit on focus loss (a passive bind that doesn't fight typing).
+        topBarField.setOnFocusChangeListener { _, hasFocus -> if (!hasFocus) commitTopBar() }
+    }
+
+    private fun commitTopBar() {
+        val lines = topBarField.text.toString().split("\n").map { it.trim() }.filter { it.isNotEmpty() }
+        if (lines.isEmpty()) working.remove("topBar") else working.put("topBar", JSONArray(lines))
+        CustomLayoutStore.saveLayout(this, entry, working)
+        keyboardRepository.invalidateLayoutCache()
+    }
+
+    // ---- Action row ------------------------------------------------------------------------------
+
+    /** The editor already auto-saves; Apply just (re-)activates this layout for its language and confirms. */
+    private fun applyActive() {
+        commitTopBar()
+        lifecycleScope.launch {
+            settingsRepository.setActiveLayoutForLanguage(entry.lang, entry.id)
+            flash(getString(R.string.editor_applied_toast, entry.name))
+        }
+    }
+
+    /** Stub: show the layout JSON in a scrollable dialog with Copy (real YAML emitter is a later step). */
+    private fun exportYaml() {
+        commitTopBar()
+        val json = working.toString(2)
+        val text = TextView(this).apply {
+            text = json
+            setTextColor(YELLOW)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+            typeface = android.graphics.Typeface.MONOSPACE
+            setPadding(dp(14), dp(8), dp(14), dp(8))
+        }
+        val scroll = ScrollView(this).apply { addView(text) }
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.editor_export_yaml))
+            .setMessage(getString(R.string.editor_export_yaml_note))
+            .setView(scroll)
+            .setPositiveButton(getString(R.string.editor_copy)) { _, _ ->
+                val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                cm.setPrimaryClip(ClipData.newPlainText(entry.name, json))
+                flash(getString(R.string.editor_copied_toast))
+            }
+            .setNegativeButton(getString(R.string.editor_cancel), null)
+            .show()
+    }
+
+    /** Save the current working JSON as a brand-new custom layout (mirrors LibraryFragment.duplicate). */
+    private fun applyAsNew() {
+        commitTopBar()
+        val newId = CustomLayoutStore.freshId(this, entry.id)
+        // A stand-alone copy (shown separately, not shadowing any stock).
+        val newEntry = entry.copy(id = newId, name = "${entry.name} copy", derivedFrom = null)
+        val copy = JSONObject(working.toString())
+        CustomLayoutStore.saveLayout(this, newEntry, copy)
+        flash(getString(R.string.editor_applied_new_toast, newEntry.name))
+    }
+
+    /** Discard working edits: reload from the store/asset of THIS id and re-render. */
+    private fun revert() {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.editor_revert))
+            .setMessage(getString(R.string.editor_revert_confirm))
+            .setPositiveButton(getString(R.string.editor_revert)) { _, _ ->
+                val reloaded = CustomLayoutStore.rawJson(this, entry.id) ?: return@setPositiveButton
+                working = reloaded
+                if (mode !in modesPresent()) mode = modesPresent().firstOrNull() ?: "letters"
+                renderAll()
+                flash(getString(R.string.editor_reverted_toast))
+            }
+            .setNegativeButton(getString(R.string.editor_cancel), null)
+            .show()
+    }
+
+    // ---- persistence ----------------------------------------------------------------------------
+
+    /** Auto-save the working JSON to the custom store, drop stale caches, and re-render everything. */
+    private fun commit() {
+        CustomLayoutStore.saveLayout(this, entry, working)
+        keyboardRepository.invalidateLayoutCache()
+        renderAll()
     }
 
     // ---- small helpers --------------------------------------------------------------------------
@@ -479,13 +703,15 @@ class KeyboardEditorActivity : AppCompatActivity() {
 
     private fun cellLabel(key: JSONObject): String = when (key.optString("type")) {
         "character" -> key.optString("char").ifEmpty { "·" }
-        "flick" -> {
-            val c = key.optString("cluster")
+        "flick", "compass", "cluster", "column" -> {
+            val c = key.optString("cluster").ifEmpty { key.optString("main") }
             (if (c.isNotEmpty()) c else key.optString("char").ifEmpty { "·" }) +
                 if (key.has("flick")) " ✦" else ""
         }
         "action" -> actionGlyph(key.optString("action"))
-        "spacer" -> "▢"
+        "spacer", "gap" -> "▢"
+        "macro" -> key.optString("label").ifEmpty { key.optString("text").ifEmpty { "≣" } }
+        "case" -> key.optJSONObject("normal")?.optString("char")?.ifEmpty { "⇧" } ?: "⇧"
         else -> "?"
     }
 
@@ -500,30 +726,6 @@ class KeyboardEditorActivity : AppCompatActivity() {
         else -> a.ifEmpty { "↵" }
     }
 
-    private fun flickDisplay(raw: Any?): String = when (raw) {
-        null, JSONObject.NULL -> ""
-        is String -> raw
-        is JSONObject -> when {
-            raw.has("text") -> raw.optString("text")
-            raw.has("label") -> raw.optString("label")
-            raw.has("action") -> raw.optString("action")
-            raw.has("chord") -> raw.optString("chord")
-            raw.has("layer") -> raw.optString("layer")
-            else -> ""
-        }
-        else -> raw.toString()
-    }
-
-    private fun widthText(o: JSONObject): String =
-        o.optDouble("width", 0.0).let { if (it > 0.0) trimNum(it) else "" }
-
-    private fun putWidth(o: JSONObject, f: EditText) {
-        val w = f.text.toString().trim().toDoubleOrNull()
-        if (w != null && w > 0.0) o.put("width", w)
-    }
-
-    private fun trimNum(d: Double): String = if (d == d.toLong().toDouble()) d.toLong().toString() else d.toString()
-
     private fun modeLabel(m: String): String = when (m) {
         "letters" -> getString(R.string.editor_mode_letters)
         "numbers" -> getString(R.string.editor_mode_numbers)
@@ -532,40 +734,24 @@ class KeyboardEditorActivity : AppCompatActivity() {
         else -> m
     }
 
-    // Dialog labels/fields use the AlertDialog surface's default colours (legible on light or dark),
-    // unlike the black-backed grid/toolbar/preview which are forced black/yellow.
-    private fun label(text: String) = TextView(this).apply {
+    /** A short confirmation toast (custom-view toasts are deprecated/ignored on modern Android). */
+    private fun flash(message: String) {
+        android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_SHORT).show()
+    }
+
+    private fun captionView(text: String): TextView = TextView(this).apply {
         this.text = text
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-        setPadding(0, dp(10), 0, dp(2))
+        setTextColor(0xC0FFFF00.toInt())
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+        setPadding(dp(2), dp(4), 0, dp(4))
     }
 
-    private fun field(parent: LinearLayout, labelText: String, value: String): EditText {
-        parent.addView(label(labelText))
-        return EditText(this).apply {
-            setText(value)
-            setSingleLine()
-            parent.addView(this)
-        }
+    private fun sectionLabel(text: String): TextView = TextView(this).apply {
+        this.text = text
+        setTextColor(YELLOW)
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+        setPadding(0, dp(18), 0, dp(4))
     }
-
-    private fun spinnerField(
-        parent: LinearLayout,
-        labelText: String,
-        values: List<String>,
-        selected: String,
-        display: List<String> = values
-    ): Spinner {
-        parent.addView(label(labelText))
-        return Spinner(this).apply {
-            adapter = simpleAdapter(display)
-            setSelection(values.indexOf(selected).coerceAtLeast(0))
-            parent.addView(this)
-        }
-    }
-
-    private fun simpleAdapter(items: List<String>): ArrayAdapter<String> =
-        ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, items)
 
     private fun pill(text: String, onClick: () -> Unit): Button = Button(this).apply {
         this.text = text
@@ -577,49 +763,49 @@ class KeyboardEditorActivity : AppCompatActivity() {
         setOnClickListener { onClick() }
     }
 
-    private fun pillBg(filled: Boolean) = android.graphics.drawable.GradientDrawable().apply {
-        setColor(if (filled) YELLOW else Color.BLACK)
-        setStroke(dp(2), YELLOW)
-        cornerRadius = dp(4).toFloat()
+    private fun pillFilled(text: String, onClick: () -> Unit): Button = pill(text, onClick).apply {
+        setTextColor(Color.BLACK)
+        background = pillBg(filled = true)
     }
+
+    /** A compact pill for the dense per-row / per-page control clusters. */
+    private fun smallPill(text: String, onClick: () -> Unit): Button = Button(this).apply {
+        this.text = text
+        setTextColor(YELLOW)
+        background = pillBg(filled = false)
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+        minWidth = dp(36)
+        minimumWidth = dp(36)
+        setPadding(dp(6), dp(2), dp(6), dp(2))
+        layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { marginStart = dp(3) }
+        setOnClickListener { onClick() }
+    }
+
+    private fun pillBg(filled: Boolean, stroke: Int = YELLOW) =
+        android.graphics.drawable.GradientDrawable().apply {
+            setColor(if (filled) YELLOW else Color.BLACK)
+            setStroke(dp(2), stroke)
+            cornerRadius = dp(4).toFloat()
+        }
 
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
 
     companion object {
         private const val YELLOW = 0xFFFFFF00.toInt()
+        private const val RED = 0xFFFF5555.toInt()
+        private const val DEFAULT_WIDTH = 0.1
+        private const val MIN_WIDTH_PCT = 2
+
         private const val EXTRA_ID = "layout_id"
         private const val EXTRA_LANG = "layout_lang"
         private const val EXTRA_NAME = "layout_name"
         private const val EXTRA_KIND = "layout_kind"
         private const val EXTRA_WIDTH = "layout_width"
+        private const val EXTRA_EDIT_ACTIVE = "edit_active"
 
         private val MODE_ORDER = listOf("letters", "numbers", "symbols", "symbols_secondary")
-        private val TYPES = listOf("character", "action", "flick", "spacer")
-        private val KEY_TYPES = listOf("letter", "number", "symbol", "punctuation")
-        private val DIRECTIONS =
-            listOf("up", "down", "left", "right", "upLeft", "upRight", "downLeft", "downRight")
-
-        /** (json action, display label) in editor order. */
-        private val ACTIONS = listOf(
-            "dynamic_action" to "Enter (dynamic)",
-            "enter" to "Enter (fixed)",
-            "shift" to "Shift",
-            "caps_lock" to "Caps lock",
-            "backspace" to "Backspace",
-            "space" to "Space",
-            "mode_switch_letters" to "→ Letters",
-            "mode_switch_numbers" to "→ Numbers",
-            "mode_switch_symbols" to "→ Symbols",
-            "mode_switch_symbols_secondary" to "→ Symbols₂",
-            "language_switch" to "Language switch",
-            "emoji" to "Emoji",
-            "tab" to "Tab",
-            "dakuten" to "Dakuten",
-            "handakuten" to "Handakuten",
-            "small_kana" to "Small kana",
-            "next_candidate" to "Next candidate",
-            "commit_candidate" to "Commit candidate"
-        )
 
         fun intent(context: Context, entry: LayoutEntry): Intent =
             Intent(context, KeyboardEditorActivity::class.java).apply {
@@ -628,6 +814,17 @@ class KeyboardEditorActivity : AppCompatActivity() {
                 putExtra(EXTRA_NAME, entry.name)
                 putExtra(EXTRA_KIND, entry.kind)
                 putExtra(EXTRA_WIDTH, entry.width)
+            }
+
+        /**
+         * Open the editor on the *currently active* layout (for [lang], else the live/first-active language),
+         * duplicating a stock layout into an editable custom copy first. Used by the space-slide menu and the
+         * Settings "Keyboard editor" item. Resolution happens in [resolveActiveEntryAndSetup] on open.
+         */
+        fun intentForActiveLayout(context: Context, lang: String?): Intent =
+            Intent(context, KeyboardEditorActivity::class.java).apply {
+                putExtra(EXTRA_EDIT_ACTIVE, true)
+                if (!lang.isNullOrBlank()) putExtra(EXTRA_LANG, lang)
             }
     }
 }

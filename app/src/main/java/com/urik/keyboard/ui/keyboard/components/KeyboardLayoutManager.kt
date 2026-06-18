@@ -1575,6 +1575,7 @@ class KeyboardLayoutManager(
             header = context.getString(R.string.space_menu_actions),
             items = listOf(
                 SpaceMenuItem(context.getString(R.string.space_menu_kxkb_ui), false) { onMenuAction("kxkb_ui") },
+                SpaceMenuItem(context.getString(R.string.space_menu_editor), false) { onMenuAction("editor") },
                 SpaceMenuItem(context.getString(R.string.space_menu_languages_action), false) { onMenuAction("languages") },
                 SpaceMenuItem(context.getString(R.string.space_menu_all_settings), false) { onMenuAction("settings") }
             )
