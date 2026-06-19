@@ -57,6 +57,7 @@ import com.urik.keyboard.service.InputStateManager
 import com.urik.keyboard.service.JapaneseCandidateHandler
 import com.urik.keyboard.service.KeyEventHandler
 import com.urik.keyboard.service.KeyboardLookKnobs
+import com.urik.keyboard.service.EnterActionPerformer
 import com.urik.keyboard.service.KeyEventRouter
 import com.urik.keyboard.service.LanguageManager
 import com.urik.keyboard.service.LetterInputHandler
@@ -1126,7 +1127,11 @@ open class UrikInputMethodService :
             // Route through onTab so a flick-bound Tab ("tap" key) advances the cluster candidate selection
             // when one is pending, and only falls back to a literal KEYCODE_TAB otherwise.
             "tab" -> onTab()
-            "enter" -> outputBridge.sendEnter()
+            // A compass/flick Enter (the column layouts' ⏎ key) must take the EXACT same path as the plain
+            // action-Enter key: finish any composing word with NO trailing space, then perform the field's
+            // editor action. Routing it through onEnterAction (not outputBridge.sendEnter(), which commits a
+            // "\n" that single-line fields normalise to a SPACE) fixes the "ac " trailing-space bug. (Bug E.)
+            "enter" -> onEnterAction(EditorInfo.IME_ACTION_NONE)
             "space" -> outputBridge.sendSpace()
             "backspace" -> handleBackspace()
             "arrow_up" -> sendKeyEventWithMeta(KeyEvent.KEYCODE_DPAD_UP, 0)
@@ -2049,21 +2054,10 @@ open class UrikInputMethodService :
 
             inputState.isActivelyEditing = true
 
-            when (imeAction) {
-                EditorInfo.IME_ACTION_SEARCH,
-                EditorInfo.IME_ACTION_SEND,
-                EditorInfo.IME_ACTION_DONE,
-                EditorInfo.IME_ACTION_GO,
-                EditorInfo.IME_ACTION_NEXT,
-                EditorInfo.IME_ACTION_PREVIOUS
-                -> {
-                    outputBridge.performEditorAction(imeAction)
-                }
-
-                else -> {
-                    outputBridge.sendEnter()
-                }
-            }
+            // Perform the field's Enter action WITHOUT ever committing a "\n"/" " (see EnterActionPerformer):
+            // a committed newline is normalised to a SPACE by single-line fields (the "ac " bug). This is the
+            // shared decision used by both the plain action-Enter key and the compass/flick Enter.
+            performEnterAction(imeAction)
 
             coordinateStateClear()
 
@@ -2088,6 +2082,19 @@ open class UrikInputMethodService :
             )
             coordinateStateClear()
         }
+    }
+
+    /**
+     * Performs the field's Enter action for an already-finished composing word, NEVER committing a "\n"/" ".
+     * Shared by the plain action-Enter (via performInputAction) and the compass/flick Enter (handleGnuAction).
+     */
+    private fun performEnterAction(imeAction: Int) {
+        EnterActionPerformer.perform(
+            imeAction = imeAction,
+            performEditorAction = { action -> outputBridge.performEditorAction(action) },
+            sendDefaultEditorAction = { sendDefaultEditorAction(true) },
+            sendEnterKeyEvent = { sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER) }
+        )
     }
 
     private fun handleBackspace() = backspaceHandler.handle()
