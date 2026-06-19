@@ -176,6 +176,21 @@ constructor(
     }
 
     /**
+     * Parse an in-memory layout [JSONObject] into a [KeyboardLayout] for [mode], off any store/asset/cache —
+     * for the Library's git-history preview, which renders a version of a layout as it was at a past commit
+     * (the JSON comes straight from a git blob, never the live store). Returns null if it can't be parsed.
+     */
+    fun layoutFromJson(
+        layoutData: JSONObject,
+        mode: KeyboardMode = KeyboardMode.LETTERS,
+        currentAction: KeyboardKey.ActionType = KeyboardKey.ActionType.ENTER
+    ): KeyboardLayout? = try {
+        parseLayoutForMode(layoutData, mode, currentAction)
+    } catch (_: Exception) {
+        null
+    }
+
+    /**
      * Drop all cached parsed layouts so a layout that was just edited in the visual editor re-parses from
      * the custom store on the next [loadLayoutById] / active-layout load (id-keyed entries would be stale).
      */

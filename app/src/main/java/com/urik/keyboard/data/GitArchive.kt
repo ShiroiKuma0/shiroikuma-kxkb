@@ -4,10 +4,13 @@ import java.io.File
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.api.errors.GitAPIException
 import org.eclipse.jgit.api.errors.TransportException
+import org.eclipse.jgit.lib.ObjectId
+import org.eclipse.jgit.revwalk.RevWalk
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder
 import org.eclipse.jgit.transport.RemoteRefUpdate
 import org.eclipse.jgit.transport.URIish
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider
+import org.eclipse.jgit.treewalk.TreeWalk
 
 /**
  * In-app JGit wrapper for the Library's optional **git archive** — a real git repository at a user-set real
@@ -77,6 +80,84 @@ object GitArchive {
             }
         } catch (_: Exception) {
             emptySet()
+        }
+
+    // --- History browser (Library-tab-only, blocking; call from Dispatchers.IO) -------------------------
+    // Read-only walks of the archive's git history, so a layout can be inspected/restored as it was at any
+    // commit. Everything is guarded; a missing/corrupt repo yields an empty list or null, never a crash.
+
+    /** One commit in the archive's log, in the shape the History UI needs. */
+    data class CommitInfo(
+        val hash: String,
+        val shortHash: String,
+        val message: String,
+        val timeMs: Long,
+        val author: String
+    )
+
+    /** The archive's commit log, newest first (capped at [maxCount]); empty on any failure. */
+    fun log(dir: File, maxCount: Int = 100): List<CommitInfo> =
+        try {
+            Git.open(dir).use { git ->
+                git.log().setMaxCount(maxCount).call().map { commit ->
+                    CommitInfo(
+                        hash = commit.name,
+                        shortHash = commit.name.take(8),
+                        message = commit.shortMessage,
+                        timeMs = commit.commitTime.toLong() * 1000L,
+                        author = commit.authorIdent.name
+                    )
+                }
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
+
+    /**
+     * The layout `*.json` paths under `layouts/` present in commit [hash], excluding the `registry.json`
+     * manifest (metadata, not an importable layout). Paths are repo-relative, with `/` separators.
+     */
+    fun layoutFilesAtCommit(dir: File, hash: String): List<String> =
+        try {
+            Git.open(dir).use { git ->
+                val repo = git.repository
+                RevWalk(repo).use { revWalk ->
+                    val tree = revWalk.parseCommit(ObjectId.fromString(hash)).tree
+                    TreeWalk(repo).use { treeWalk ->
+                        treeWalk.addTree(tree)
+                        treeWalk.isRecursive = true
+                        val out = mutableListOf<String>()
+                        while (treeWalk.next()) {
+                            val path = treeWalk.pathString
+                            if (path.startsWith("layouts/") &&
+                                path.endsWith(".json", ignoreCase = true) &&
+                                !path.endsWith("/registry.json", ignoreCase = true)
+                            ) {
+                                out.add(path)
+                            }
+                        }
+                        out.sorted()
+                    }
+                }
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
+
+    /** The text of the blob at [path] in commit [hash], or null if it isn't there / can't be read. */
+    fun fileAtCommit(dir: File, hash: String, path: String): String? =
+        try {
+            Git.open(dir).use { git ->
+                val repo = git.repository
+                RevWalk(repo).use { revWalk ->
+                    val tree = revWalk.parseCommit(ObjectId.fromString(hash)).tree
+                    TreeWalk.forPath(repo, path, tree)?.use { tw ->
+                        String(repo.open(tw.getObjectId(0)).bytes, Charsets.UTF_8)
+                    }
+                }
+            }
+        } catch (_: Exception) {
+            null
         }
 
     // --- HTTPS remote ops (Library-tab-only, blocking; call from Dispatchers.IO) -------------------------

@@ -7,6 +7,8 @@ import android.content.Intent
 import android.graphics.Color
 import android.graphics.Rect
 import android.os.Bundle
+import android.os.Environment
+import android.text.InputType
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
@@ -27,10 +29,12 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.material.appbar.MaterialToolbar
 import com.urik.keyboard.R
 import com.urik.keyboard.data.CustomLayoutStore
+import com.urik.keyboard.data.GitArchive
 import com.urik.keyboard.data.KeyboardRepository
 import com.urik.keyboard.data.KeyboardYamlEmitter
 import com.urik.keyboard.data.LayoutEntry
 import com.urik.keyboard.data.LayoutRegistry
+import com.urik.keyboard.data.LibraryArchive
 import com.urik.keyboard.model.KeyboardKey
 import com.urik.keyboard.model.KeyboardMode
 import com.urik.keyboard.model.KeyboardState
@@ -44,10 +48,14 @@ import com.urik.keyboard.theme.ThemeManager
 import com.urik.keyboard.ui.keyboard.components.KeyboardLayoutManager
 import com.urik.keyboard.utils.CacheMemoryManager
 import dagger.hilt.android.AndroidEntryPoint
+import java.io.File
 import java.util.IdentityHashMap
+import java.util.Locale
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -281,6 +289,8 @@ class KeyboardEditorActivity : AppCompatActivity() {
             setPadding(0, dp(16), 0, 0)
         }
         bar.addView(pillFilled(getString(R.string.editor_apply_active)) { applyActive() })
+        bar.addView(pill(getString(R.string.editor_commit)) { promptCommit() }
+            .apply { (layoutParams as LinearLayout.LayoutParams).marginStart = dp(6) })
         bar.addView(pill(getString(R.string.editor_export_yaml)) { exportYaml() }
             .apply { (layoutParams as LinearLayout.LayoutParams).marginStart = dp(6) })
         bar.addView(pill(getString(R.string.editor_apply_as_new)) { applyAsNew() }
@@ -635,6 +645,68 @@ class KeyboardEditorActivity : AppCompatActivity() {
         lifecycleScope.launch {
             settingsRepository.setActiveLayoutForLanguage(entry.lang, entry.id)
             flash(getString(R.string.editor_applied_toast, entry.name))
+        }
+    }
+
+    /**
+     * Commit straight from the editor — the same explicit library→archive snapshot as the Library tab, but
+     * the message comes PRE-STAMPED with this layout's language + id (e.g. "English · en_column_5r13c: ")
+     * with the cursor parked after it, so 白い熊 only appends the concrete change instead of typing the
+     * identifier by hand. Requires the archive path (set in the Library) + all-files access.
+     */
+    private fun promptCommit() {
+        commitTopBar()
+        lifecycleScope.launch {
+            val path = settingsRepository.getLibraryRepoPath()
+            val dir = path?.let { File(it) }
+            if (dir == null || !Environment.isExternalStorageManager() || !GitArchive.isRepo(dir)) {
+                flash(getString(R.string.editor_commit_no_repo))
+                return@launch
+            }
+            val cleanId = entry.derivedFrom ?: entry.id
+            val rawLang = Locale(entry.lang).getDisplayLanguage(Locale.ENGLISH)
+            // A real language resolves to its English name (en→English); an unknown tag like "gnu" comes
+            // back as the code itself — uppercase those so the commit scope reads "GNU", not "gnu".
+            val langName = if (rawLang.equals(entry.lang, ignoreCase = true)) {
+                entry.lang.uppercase(Locale.ENGLISH)
+            } else {
+                rawLang
+            }
+            val prefix = "$langName · $cleanId: "
+            val input = EditText(this@KeyboardEditorActivity).apply {
+                setText(prefix)
+                setSelection(prefix.length)
+                hint = getString(R.string.library_git_commit_dialog_hint)
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES or
+                    InputType.TYPE_TEXT_FLAG_MULTI_LINE
+                minLines = 2
+                gravity = Gravity.TOP or Gravity.START
+            }
+            val pad = dp(20)
+            val box = FrameLayout(this@KeyboardEditorActivity).apply {
+                setPadding(pad, dp(8), pad, 0); addView(input)
+            }
+            AlertDialog.Builder(this@KeyboardEditorActivity, R.style.Theme_Urik_Dialog)
+                .setTitle(R.string.library_git_commit_dialog_title)
+                .setView(box)
+                .setPositiveButton(R.string.library_git_commit) { _, _ ->
+                    val message = input.text.toString().trim()
+                        .ifBlank { getString(R.string.library_git_commit_default_msg) }
+                    doCommit(dir, message)
+                }
+                .setNegativeButton(R.string.library_git_cancel, null)
+                .show()
+        }
+    }
+
+    private fun doCommit(dir: File, message: String) {
+        val ctx = applicationContext
+        lifecycleScope.launch {
+            val hash = withContext(Dispatchers.IO) { LibraryArchive.mirrorAndCommit(ctx, dir, message) }
+            flash(
+                if (hash != null) getString(R.string.library_git_committed_toast, hash.take(8))
+                else getString(R.string.library_git_nothing_to_commit)
+            )
         }
     }
 

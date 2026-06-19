@@ -110,6 +110,9 @@
     <string name="library_git_import_failed">Could not import file</string>
     <string name="library_git_no_files">No layout files in the archive yet.</string>
     <string name="library_git_commit">Commit library → archive</string>
+    <string name="library_git_commit_dialog_title">Commit message</string>
+    <string name="library_git_commit_dialog_hint">Describe what you changed</string>
+    <string name="library_git_commit_default_msg">Update from 白い熊 kxkb</string>
     <string name="library_git_committed_toast">Committed %1$s</string>
     <string name="library_git_nothing_to_commit">Nothing to commit</string>
     <string name="library_git_pending">%1$d pending</string>
@@ -133,6 +136,19 @@
     <string name="library_git_push">Push</string>
     <string name="library_git_remote_need_fields">Set the remote URL and token first.</string>
     <string name="library_git_clone_need_empty">Clone needs an empty (non-repo) folder path.</string>
+    <!-- History browser (M4 L3): browse the archive's git log, preview/restore a layout at any commit. -->
+    <string name="library_git_history">History</string>
+    <string name="library_git_history_title">Archive history</string>
+    <string name="library_git_history_empty">No commits in the archive yet.</string>
+    <string name="library_git_history_loading">Reading history…</string>
+    <string name="library_git_commit_title">%1$s · %2$s</string>
+    <string name="library_git_commit_no_layouts">No layouts in this commit.</string>
+    <string name="library_git_history_preview">Preview</string>
+    <string name="library_git_history_restore">Restore</string>
+    <string name="library_git_history_preview_failed">Could not render this version</string>
+    <string name="library_git_history_restored_toast">Restored “%1$s”</string>
+    <string name="library_git_history_restore_failed">Could not restore this version</string>
+    <string name="library_git_close">Close</string>
     <!-- Visual Keyboard Editor (M4 L2) -->
     <string name="editor_title">Edit · %1$s</string>
     <string name="editor_mode_letters">Letters</string>
@@ -176,6 +192,8 @@
     <string name="editor_width_custom">Custom%1$d</string>
     <string name="editor_apply_active">Apply</string>
     <string name="editor_applied_toast">Applied — “%1$s” is active.</string>
+    <string name="editor_commit">Commit</string>
+    <string name="editor_commit_no_repo">Set the git archive path in the Library first.</string>
     <string name="editor_export_yaml">Export YAML</string>
     <string name="editor_share">Share</string>
     <string name="editor_export_failed">Export failed: %1$s</string>

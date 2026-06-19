@@ -29,6 +29,7 @@ import com.urik.keyboard.data.GitArchive
 import com.urik.keyboard.data.KeyboardRepository
 import com.urik.keyboard.data.LayoutEntry
 import com.urik.keyboard.data.LayoutRegistry
+import com.urik.keyboard.data.LibraryArchive
 import com.urik.keyboard.model.KeyboardState
 import com.urik.keyboard.service.AdaptiveDimensions
 import com.urik.keyboard.service.CharacterVariationService
@@ -267,7 +268,9 @@ class LibraryFragment : Fragment() {
                     }
                     val pills = LinearLayout(requireContext()).apply { orientation = LinearLayout.HORIZONTAL }
                     pills.setPadding(0, dp(4), 0, dp(8))
-                    pills.addView(pillButton(getString(R.string.library_git_commit)) { commitLibrary(dir) })
+                    pills.addView(pillButton(getString(R.string.library_git_commit)) { promptCommitMessage(dir) })
+                    // Browse the archive's git log; view/restore a layout as it was at any commit.
+                    pills.addView(pillButton(getString(R.string.library_git_history)) { showHistory(dir) })
                     // With a remote set, offer Pull / Push for the existing repo.
                     if (!remoteUrl.isNullOrBlank()) {
                         pills.addView(pillButton(getString(R.string.library_git_pull)) { pullRepo(dir) })
@@ -621,36 +624,183 @@ class LibraryFragment : Fragment() {
      * The layouts dir is rebuilt each commit so it's a faithful mirror; stray `_copy` files an earlier version
      * wrote to the repo root are cleaned up.
      */
-    private fun commitLibrary(dir: File) {
+    /**
+     * Commits are explicit (never automatic on edit) — edits already auto-save to the runtime store; this
+     * snapshots the whole library into the archive on demand. Prompt for a free-text message first so the
+     * commit (and the History list) records WHAT changed; a blank message falls back to a default.
+     */
+    private fun promptCommitMessage(dir: File) {
+        val input = EditText(requireContext()).apply {
+            hint = getString(R.string.library_git_commit_dialog_hint)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES or
+                InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            minLines = 2
+            gravity = Gravity.TOP or Gravity.START
+        }
+        val pad = dp(20)
+        val box = FrameLayout(requireContext()).apply { setPadding(pad, dp(8), pad, 0); addView(input) }
+        AlertDialog.Builder(requireContext(), R.style.Theme_Urik_Dialog)
+            .setTitle(R.string.library_git_commit_dialog_title)
+            .setView(box)
+            .setPositiveButton(R.string.library_git_commit) { _, _ ->
+                val message = input.text.toString().trim()
+                    .ifBlank { getString(R.string.library_git_commit_default_msg) }
+                commitLibrary(dir, message)
+            }
+            .setNegativeButton(R.string.library_git_cancel, null)
+            .show()
+    }
+
+    private fun commitLibrary(dir: File, message: String) {
         lifecycleScope.launch {
             val ctx = requireContext()
-            val registry = LayoutRegistry.load(ctx)
-            // Effective id → JSON: a shadow uses derivedFrom (the stock id); bundled / stand-alone keep theirs.
-            val toWrite = registry.entries
-                .mapNotNull { e -> CustomLayoutStore.rawJson(ctx, e.id)?.let { (e.derivedFrom ?: e.id) to it } }
-                .distinctBy { it.first }
-            val registryJson = try {
-                ctx.assets.open("layouts/registry.json").bufferedReader().use { it.readText() }
-            } catch (_: Exception) {
-                null
-            }
-            val hash = withContext(Dispatchers.IO) {
-                try {
-                    val layoutsDir = File(dir, "layouts").apply { mkdirs() }
-                    layoutsDir.listFiles { f -> f.isFile && f.extension == "json" }?.forEach { it.delete() }
-                    dir.listFiles { f -> f.isFile && f.name.endsWith(".json") }?.forEach { it.delete() }
-                    toWrite.forEach { (id, json) -> File(layoutsDir, "$id.json").writeText(json.toString(2)) }
-                    registryJson?.let { File(layoutsDir, "registry.json").writeText(it) }
-                    GitArchive.commitAll(dir, "Update from 白い熊 kxkb", "白い熊 kxkb", "kxkb@localhost")
-                } catch (_: Exception) {
-                    null
-                }
-            }
+            val hash = withContext(Dispatchers.IO) { LibraryArchive.mirrorAndCommit(ctx, dir, message) }
             flash(
                 if (hash != null) getString(R.string.library_git_committed_toast, hash.take(8))
                 else getString(R.string.library_git_nothing_to_commit)
             )
             rebuild()
+        }
+    }
+
+    // --- History browser (M4 L3): browse the archive's git log; preview/restore a layout at any commit. ---
+    // All git/file reads run off the main thread; the dialogs degrade gracefully when the repo can't be read.
+
+    /** Off-thread read the archive's commit log, then show it as a black/yellow list dialog. */
+    private fun showHistory(dir: File) {
+        lifecycleScope.launch {
+            val commits = withContext(Dispatchers.IO) { GitArchive.log(dir) }
+            if (commits.isEmpty()) {
+                flash(getString(R.string.library_git_history_empty)); return@launch
+            }
+            val labels = commits.map { c ->
+                "${c.shortHash}  ·  ${relativeTime(c.timeMs)}\n${c.message}"
+            }.toTypedArray()
+            AlertDialog.Builder(requireContext(), R.style.Theme_Urik_Dialog)
+                .setTitle(R.string.library_git_history_title)
+                .setItems(labels) { _, which -> showCommitLayouts(dir, commits[which]) }
+                .setNegativeButton(R.string.library_git_close, null)
+                .show()
+        }
+    }
+
+    /** For one commit, list the layouts it held, each with Preview + Restore. */
+    private fun showCommitLayouts(dir: File, commit: GitArchive.CommitInfo) {
+        lifecycleScope.launch {
+            val files = withContext(Dispatchers.IO) { GitArchive.layoutFilesAtCommit(dir, commit.hash) }
+            if (files.isEmpty()) {
+                flash(getString(R.string.library_git_commit_no_layouts)); return@launch
+            }
+            // A vertical list: per layout a row with its path + Preview + Restore (the standard pills).
+            val list = LinearLayout(requireContext()).apply {
+                orientation = LinearLayout.VERTICAL
+                val p = dp(12)
+                setPadding(p, dp(4), p, dp(4))
+            }
+            val dialog = AlertDialog.Builder(requireContext(), R.style.Theme_Urik_Dialog)
+                .setTitle(getString(R.string.library_git_commit_title, commit.shortHash, relativeTime(commit.timeMs)))
+                .setView(ScrollView(requireContext()).apply { addView(list) })
+                .setNegativeButton(R.string.library_git_close, null)
+                .create()
+            files.forEach { path ->
+                list.addView(commitLayoutRow(dir, commit, path) { dialog.dismiss() })
+            }
+            dialog.show()
+        }
+    }
+
+    /** "<path>   [Preview] [Restore]" for one layout inside a commit. */
+    private fun commitLayoutRow(
+        dir: File,
+        commit: GitArchive.CommitInfo,
+        path: String,
+        onRestored: () -> Unit
+    ): View = LinearLayout(requireContext()).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding(0, dp(6), 0, dp(6))
+        addView(
+            TextView(requireContext()).apply {
+                text = path.removePrefix("layouts/")
+                setTextColor(0xFFFFFFFF.toInt())
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            }
+        )
+        addView(pillButton(getString(R.string.library_git_history_preview)) { previewAtCommit(dir, commit, path) })
+        addView(pillButton(getString(R.string.library_git_history_restore)) {
+            restoreAtCommit(dir, commit, path); onRestored()
+        })
+    }
+
+    /**
+     * Read the layout JSON as it was at [commit]'s [path], parse it, and live-render that exact version in
+     * the Library preview panel — the same render path as [preview], but from in-memory git-blob JSON rather
+     * than a stored layout id. Look knobs resolve off the JSON's own `locale` + base id.
+     */
+    private fun previewAtCommit(dir: File, commit: GitArchive.CommitInfo, path: String) {
+        lifecycleScope.launch {
+            val text = withContext(Dispatchers.IO) { GitArchive.fileAtCommit(dir, commit.hash, path) }
+            val json = text?.let { try { JSONObject(it) } catch (_: Exception) { null } }
+            if (json == null) {
+                flash(getString(R.string.library_git_history_preview_failed)); return@launch
+            }
+            val baseId = path.removePrefix("layouts/").removeSuffix(".json").substringAfterLast('/')
+                .ifBlank { "version" }
+            val lang = json.optString("locale", "")
+            val name = json.optString("name", "").ifBlank { baseId }
+            val layout = keyboardRepository.layoutFromJson(json)
+            if (layout == null) {
+                flash(getString(R.string.library_git_history_preview_failed)); return@launch
+            }
+            renderPreview(layout, lang, baseId, historyPreviewHeader("$name · ${commit.shortHash}"))
+        }
+    }
+
+    /**
+     * Bring the layout as it was at [commit]'s [path] back into the editable custom store as a NEW layout
+     * (fresh id, derived name/lang from the JSON) — mirrors [importFile]. We never `git checkout` the whole
+     * repo; just this one version becomes a fresh editable Library entry.
+     */
+    private fun restoreAtCommit(dir: File, commit: GitArchive.CommitInfo, path: String) {
+        lifecycleScope.launch {
+            val text = withContext(Dispatchers.IO) { GitArchive.fileAtCommit(dir, commit.hash, path) }
+            val json = text?.let { try { JSONObject(it) } catch (_: Exception) { null } }
+            if (json == null) {
+                flash(getString(R.string.library_git_history_restore_failed)); return@launch
+            }
+            val baseId = path.removePrefix("layouts/").removeSuffix(".json").substringAfterLast('/')
+                .ifBlank { "restored" }
+            val newId = CustomLayoutStore.freshId(requireContext(), baseId)
+            val lang = json.optString("locale", "")
+            val name = json.optString("name", "").ifBlank { baseId }
+            val entry = LayoutEntry(
+                id = newId,
+                lang = lang,
+                name = name,
+                kind = json.optString("kind", ""),
+                width = json.optString("width", ""),
+                derivedFrom = null
+            )
+            CustomLayoutStore.saveLayout(requireContext(), entry, json)
+            flash(getString(R.string.library_git_history_restored_toast, name))
+            rebuild()
+        }
+    }
+
+    /** A coarse "Nm/h/d ago" label for a commit time (no extra deps; good enough for a log row). */
+    private fun relativeTime(timeMs: Long): String {
+        val delta = System.currentTimeMillis() - timeMs
+        if (delta < 0) return java.text.DateFormat.getDateInstance().format(java.util.Date(timeMs))
+        val minutes = delta / 60_000L
+        val hours = delta / 3_600_000L
+        val days = delta / 86_400_000L
+        return when {
+            minutes < 1 -> "just now"
+            minutes < 60 -> "${minutes}m ago"
+            hours < 24 -> "${hours}h ago"
+            days < 30 -> "${days}d ago"
+            else -> java.text.DateFormat.getDateInstance().format(java.util.Date(timeMs))
         }
     }
 
@@ -709,6 +859,22 @@ class LibraryFragment : Fragment() {
     private fun preview(entry: LayoutEntry) {
         lifecycleScope.launch {
             val layout = keyboardRepository.loadLayoutById(entry.id) ?: return@launch
+            renderPreview(layout, entry.lang, entry.id, header = previewHeader(entry))
+        }
+    }
+
+    /**
+     * The shared live-render path: resolve the look knobs for [lang]/[id] at the keyboard's geometry, build
+     * the real keyboard view from [layout], and drop it (under [header]) into the bottom preview panel. Used
+     * for both a stored Library layout ([preview]) and an at-commit version from git ([previewAtCommit]).
+     */
+    private fun renderPreview(
+        layout: com.urik.keyboard.model.KeyboardLayout,
+        lang: String,
+        id: String,
+        header: View
+    ) {
+        lifecycleScope.launch {
             val settings = settingsRepository.settings.first()
             val density = resources.displayMetrics.density
             val posture = PostureDetector(requireContext(), lifecycleScope).postureInfo.value
@@ -717,7 +883,7 @@ class LibraryFragment : Fragment() {
             // the whole per-geometry look (spacing, square keys, colours, borders) hangs off it.
             val geometry = settingsRepository.currentGeometry.first()
                 ?: GeometryBucket.fromConfiguration(resources.configuration).key
-            val knobs = settingsRepository.resolveLookKnobs(entry.lang, entry.id, geometry)
+            val knobs = settingsRepository.resolveLookKnobs(lang, id, geometry)
             // Render at the live keyboard's actual height when the IME has published one (its on-keyboard
             // resize lives in a per-combo fork that a different previewed layout wouldn't otherwise pick up).
             val baseDims = AdaptiveDimensions.compute(posture, settings.keySize, density)
@@ -741,10 +907,27 @@ class LibraryFragment : Fragment() {
 
             previewContainer.removeAllViews()
             previewContainer.setBackgroundColor(bg)
-            previewContainer.addView(previewHeader(entry))
+            previewContainer.addView(header)
             previewContainer.addView(keyboardView)
             previewContainer.visibility = View.VISIBLE
         }
+    }
+
+    /** A plain title bar (no Activate/Edit) above an at-commit history preview. */
+    private fun historyPreviewHeader(title: String): View = LinearLayout(requireContext()).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        val p = dp(10)
+        setPadding(p, p, p, dp(4))
+        addView(
+            TextView(requireContext()).apply {
+                text = title
+                setTextColor(0xFFFFFF00.toInt())
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            }
+        )
     }
 
     /** The "<name>   [Activate]" bar above the live preview. */
