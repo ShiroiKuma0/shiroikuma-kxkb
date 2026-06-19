@@ -111,8 +111,25 @@ class SuggestionPipeline(
         suggestions: List<SpellingSuggestion>,
         isSentenceStart: Boolean = false
     ): List<String> {
-        state.currentRawSuggestions = suggestions
-        return capitalizeSuggestions(suggestions, isSentenceStart)
+        val withContractions =
+            Contractions.injectForWord(suggestions, state.displayBuffer, host.currentLanguage())
+        state.currentRawSuggestions = withContractions
+        return capitalizeSuggestions(withContractions, isSentenceStart)
+    }
+
+    /**
+     * The keyboard casing state to apply to suggestions, normalised so the bar shows EXACTLY what a commit
+     * will insert. Manual shift on the current word is honoured even after the live shift latch has cleared;
+     * everything else (caps-lock, auto-shift) is read straight from the keyboard state. Used for both the
+     * displayed bar strings and the committed form so the two can never diverge.
+     */
+    private fun effectiveKeyboardState(): com.urik.keyboard.model.KeyboardState {
+        val keyboardState = host.getKeyboardState()
+        return if (state.isCurrentWordManualShifted && !keyboardState.isShiftPressed && !keyboardState.isCapsLockOn) {
+            keyboardState.copy(isShiftPressed = true, isAutoShift = false)
+        } else {
+            keyboardState
+        }
     }
 
     fun capitalizeSuggestions(suggestions: List<SpellingSuggestion>, isSentenceStart: Boolean = false): List<String> {
@@ -120,17 +137,11 @@ class SuggestionPipeline(
         if (lang in CASELESS_LANGUAGES) {
             return suggestions.map { it.word }
         }
-        var keyboardState = host.getKeyboardState()
-        if (state.isCurrentWordManualShifted && !keyboardState.isShiftPressed && !keyboardState.isCapsLockOn) {
-            keyboardState = keyboardState.copy(isShiftPressed = true, isAutoShift = false)
-        }
-        // The suggestion bar shows dictionary case under auto-caps — only MANUAL shift / caps-lock cases it.
-        // Auto-shift / sentence-start must NOT case the bar (that's "offering shifted candidates", which is
-        // wrong); the sentence capital is applied when the candidate is committed instead (recaseForCommit).
-        if (keyboardState.isAutoShift) {
-            keyboardState = keyboardState.copy(isShiftPressed = false, isAutoShift = false)
-        }
-        return caseTransformer.applyCasingToSuggestions(suggestions, keyboardState, isSentenceStart = false)
+        // The bar must show the case that will actually be committed: manual shift / caps-lock AND the
+        // sentence-start auto-capital all apply here, exactly as recaseForCommit applies them on selection.
+        // Both paths share effectiveKeyboardState() + isCurrentWordAtSentenceStart so display == commit.
+        val sentenceStart = isSentenceStart || state.isCurrentWordAtSentenceStart
+        return caseTransformer.applyCasingToSuggestions(suggestions, effectiveKeyboardState(), sentenceStart)
     }
 
     /**
@@ -140,23 +151,43 @@ class SuggestionPipeline(
      */
     fun expandedClusterCandidates(maxResults: Int = 48): List<String> {
         val buffer = state.displayBuffer
-        if (buffer.isEmpty()) return state.pendingSuggestions
+        // Empty buffer: the pending row IS the (bigram / custom default) list — already merged. For a typed
+        // word, re-query the DAWG, then append the custom row AFTER the predictions so the pane shows the
+        // same predictions-then-custom ordering as the bar. (Bug C — custom entries in the expand pane.)
+        if (buffer.isEmpty()) return state.withCustomRow(state.pendingSuggestions)
         val lang = host.currentLanguage().split("-").first()
         val words = spellCheckManager.clusterCandidatesFor(buffer, lang, maxResults)
-        if (words.isEmpty()) return state.pendingSuggestions
-        return capitalizeSuggestions(words.map { SpellingSuggestion(it, 0.0, 0, "cluster") }).distinct()
+        if (words.isEmpty()) return state.withCustomRow(state.pendingSuggestions)
+        val predictions =
+            capitalizeSuggestions(words.map { SpellingSuggestion(it, 0.0, 0, "cluster") }).distinct()
+        return state.withCustomRow(predictions)
     }
 
-    /** Apply the sentence-start / shift capital that the bar deliberately omits, at the moment of commit. */
+    /**
+     * Re-case a chosen candidate for commit. The bar already shows the committed form (capitalizeSuggestions
+     * uses the same effectiveKeyboardState() + isCurrentWordAtSentenceStart), so this is normally idempotent;
+     * it stays as a safety net for the manual-shift latch having cleared between display and selection.
+     */
+    /**
+     * Capitalise a standalone English pronoun ("i" -> "I", "i'm" -> "I'm", …) on an English layout; any other
+     * word, or a non-English layout, is returned unchanged. Used so a cluster candidate commit matches the
+     * casing the non-cluster auto-correct path already produces. (Bug D.)
+     */
+    private fun applyPronounCorrection(word: String): String {
+        val lang = host.currentLanguage().split("-").first()
+        if (lang != "en") return word
+        return EnglishPronounCorrection.capitalize(word.lowercase()) ?: word
+    }
+
     private fun recaseForCommit(displayed: String): String {
         if (displayed.isEmpty()) return displayed
         val lang = host.currentLanguage().split("-").first()
         if (lang in CASELESS_LANGUAGES) return displayed
-        var keyboardState = host.getKeyboardState()
-        if (state.isCurrentWordManualShifted && !keyboardState.isShiftPressed && !keyboardState.isCapsLockOn) {
-            keyboardState = keyboardState.copy(isShiftPressed = true, isAutoShift = false)
-        }
-        return caseTransformer.applyCasing(displayed, keyboardState, state.isCurrentWordAtSentenceStart)
+        // Re-derive from the raw suggestion (preserving its preserveCase flag) so a learned/proper-noun
+        // candidate is cased on commit exactly as it was shown in the bar.
+        val raw = state.currentRawSuggestions.firstOrNull { it.word.equals(displayed, ignoreCase = true) }
+        val suggestion = raw ?: SpellingSuggestion(displayed, 0.0, 0)
+        return caseTransformer.applyCasing(suggestion, effectiveKeyboardState(), state.isCurrentWordAtSentenceStart)
     }
 
     fun showBigramPredictions() {
@@ -170,6 +201,25 @@ class SuggestionPipeline(
 
         serviceScope.launch {
             try {
+                // Next-word (bigram) prediction needs a real PRECEDING word still in the field. At the very
+                // start of input / on an empty line there's no preceding word — lastCommittedWord can still
+                // hold a stale value from an earlier line, which would wrongly resurrect a bigram that a plain
+                // Space would then commit. Gate on actual non-blank text before the cursor; when there's none,
+                // show the custom default row instead of a bigram. (Bug A.)
+                // Use the CURRENT LINE only (text after the last newline): after Enter the field still holds the
+                // previous line's text, so a whole-buffer check wouldn't see that this line is empty.
+                val textBeforeForGate = outputBridge.safeGetTextBeforeCursor(200).substringAfterLast('\n')
+                if (textBeforeForGate.isBlank()) {
+                    withContext(Dispatchers.Main) {
+                        if (state.displayBuffer.isEmpty()) {
+                            state.isShowingBigramPredictions = false
+                            state.pendingSuggestions = emptyList()
+                            state.clearSuggestionDisplay()
+                        }
+                    }
+                    return@launch
+                }
+
                 val currentLanguage = languageManager.currentLanguage.value
                 val bigramCount =
                     if (state.clusterLayoutActive) SpellCheckManager.CLUSTER_BAR_POOL else host.effectiveSuggestionCount()
@@ -193,8 +243,7 @@ class SuggestionPipeline(
                                 preserveCase = false
                             )
                         }
-                    val textBefore = outputBridge.safeGetTextBeforeCursor(50)
-                    val bigramSentenceStart = host.shouldAutoCapitalize(textBefore)
+                    val bigramSentenceStart = host.shouldAutoCapitalize(textBeforeForGate)
                     val displayPredictions = storeAndCapitalizeSuggestions(suggestionObjects, bigramSentenceStart)
                     withContext(Dispatchers.Main) {
                         if (state.displayBuffer.isEmpty()) {
@@ -330,7 +379,11 @@ class SuggestionPipeline(
                 state.isActivelyEditing = true
 
                 recordWordUsage(suggestion)
-                val committed = recaseForCommit(suggestion)
+                // Standalone English pronoun: a cluster candidate of "i" (or "i'm"/"i'll"/…) must commit as
+                // "I". The non-cluster Space path applies this via its AutocorrectDecision branches, but a
+                // cluster commit goes straight through here, so apply pronoun correction to the recased form
+                // (no-op for any other word / non-English layout). (Bug D.)
+                val committed = applyPronounCorrection(recaseForCommit(suggestion))
 
                 outputBridge.beginBatchEdit()
                 try {
@@ -359,6 +412,39 @@ class SuggestionPipeline(
                     severity = ErrorLogger.Severity.HIGH,
                     exception = e,
                     context = mapOf("operation" to "coordinateSuggestionSelection")
+                )
+                outputBridge.coordinateStateClear()
+            }
+        }
+    }
+
+    /**
+     * Commit a tapped custom-row entry: insert its literal text verbatim (no re-casing, no spell-learning,
+     * no bigram recording — it isn't a dictionary word). Any in-progress composing region is finished first
+     * so the entry appends after the typed buffer rather than replacing it. Mirrors the post-commit cleanup
+     * of a normal selection so Space/tap stay consistent and the custom default row re-shows afterwards.
+     */
+    suspend fun coordinateCustomSuggestionSelection(entry: String, checkAutoCapitalization: (String) -> Unit) {
+        withContext(Dispatchers.Main) {
+            try {
+                state.isActivelyEditing = true
+                outputBridge.beginBatchEdit()
+                try {
+                    outputBridge.finishComposingText()
+                    outputBridge.commitText(entry, 1)
+                    state.clearInternalStateOnly()
+                    showBigramPredictions()
+                    val textBefore = outputBridge.safeGetTextBeforeCursor(50)
+                    checkAutoCapitalization(textBefore)
+                } finally {
+                    outputBridge.endBatchEdit()
+                }
+            } catch (e: Exception) {
+                ErrorLogger.logException(
+                    component = "SuggestionPipeline",
+                    severity = ErrorLogger.Severity.HIGH,
+                    exception = e,
+                    context = mapOf("operation" to "coordinateCustomSuggestionSelection")
                 )
                 outputBridge.coordinateStateClear()
             }
@@ -439,6 +525,9 @@ class SuggestionPipeline(
     }
 
     private fun requestJapaneseSuggestions(hiraganaBuffer: String) {
+        // A Japanese reading is being composed: its candidate list is index-navigated by Space
+        // (JapaneseCandidateHandler), so the custom row must not be appended to / overwrite it here.
+        state.customRowSuppressed = hiraganaBuffer.isNotEmpty()
         suggestionDebounceJob?.cancel()
         suggestionDebounceJob = serviceScope.launch {
             try {

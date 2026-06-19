@@ -88,6 +88,7 @@ constructor(
         val SHOW_NUMBER_HINTS = booleanPreferencesKey("show_number_hints")
         val RESET_TO_LETTERS_ON_DISMISS = booleanPreferencesKey("reset_to_letters_on_dismiss")
         val PRESS_HIGHLIGHT_ENABLED = booleanPreferencesKey("press_highlight_enabled")
+        val CUSTOM_SUGGESTIONS = stringPreferencesKey("custom_suggestions")
     }
 
     /** Falls back to system locale defaults on deserialization errors. */
@@ -242,7 +243,10 @@ constructor(
                     autocorrectionEnabled = preferences[PreferenceKeys.AUTOCORRECTION_ENABLED] ?: false,
                     showNumberHints = preferences[PreferenceKeys.SHOW_NUMBER_HINTS] ?: false,
                     resetToLettersOnDismiss = preferences[PreferenceKeys.RESET_TO_LETTERS_ON_DISMISS] ?: true,
-                    keyPressHighlightEnabled = preferences[PreferenceKeys.PRESS_HIGHLIGHT_ENABLED] ?: true
+                    keyPressHighlightEnabled = preferences[PreferenceKeys.PRESS_HIGHLIGHT_ENABLED] ?: true,
+                    customSuggestions =
+                        preferences[PreferenceKeys.CUSTOM_SUGGESTIONS]?.takeIf { it.isNotBlank() }
+                            ?: KeyboardSettings.DEFAULT_CUSTOM_SUGGESTIONS
                 ).validated()
             }.catch { e ->
                 ErrorLogger.logException(
@@ -297,6 +301,14 @@ constructor(
 
     suspend fun updateClipboardConsentShown(shown: Boolean): Result<Unit> = try {
         dataStore.edit { it[PreferenceKeys.CLIPBOARD_CONSENT_SHOWN] = shown }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    /** Persists the raw newline-separated custom-suggestion list verbatim (parsing happens at display time). */
+    suspend fun updateCustomSuggestions(raw: String): Result<Unit> = try {
+        dataStore.edit { it[PreferenceKeys.CUSTOM_SUGGESTIONS] = raw }
         Result.success(Unit)
     } catch (e: Exception) {
         Result.failure(e)

@@ -9,6 +9,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.mockito.Mockito.mock
@@ -37,12 +38,21 @@ class SpaceInputHandlerTest {
     private val coordinateStateClearCalls = mutableListOf<Unit>()
     private val autoCapArgs = mutableListOf<String>()
     private val disableCapsLockCalls = mutableListOf<Unit>()
+    private var barPainted: List<String>? = null
+    private var barBlanked = false
 
     @Before
     fun setUp() {
         closeable = MockitoAnnotations.openMocks(this)
+        barPainted = null
+        barBlanked = false
         realInputState = InputStateManager(
-            viewCallback = mock(ViewCallback::class.java),
+            viewCallback = object : ViewCallback {
+                override fun clearSuggestions() { barBlanked = true }
+                override fun updateSuggestions(suggestions: List<String>) { barPainted = suggestions }
+                override fun showDegradedIndicator(degraded: Boolean) {}
+                override fun setSelectedSuggestion(index: Int) {}
+            },
             onShiftStateChanged = {},
             isCapsLockOn = { false },
             cancelDebounceJob = {}
@@ -146,7 +156,9 @@ class SpaceInputHandlerTest {
         assertEquals(SpellConfirmationState.AWAITING_CONFIRMATION, realInputState.spellConfirmationState)
         assertEquals(listOf("hello"), realInputState.pendingSuggestions)
         verify(mockSuggestionPipeline).storeAndCapitalizeSuggestions(eq(listOf(suggestion)), any())
-        verify(mockCandidateBarController).updateSuggestions(listOf("hello"))
+        // The Pause bar now routes through the custom-aware state path (Bug 1), so the row is painted via
+        // the state's view callback, not the candidate bar controller directly.
+        assertEquals(listOf("hello"), barPainted)
     }
 
     @Test
@@ -184,6 +196,137 @@ class SpaceInputHandlerTest {
 
         verify(mockOutputBridge).commitText("hello ", 1)
         assertEquals("hello", realInputState.lastAutocorrection?.correctedWord)
+    }
+
+    @Test
+    fun `Pause with no suggestions shows the custom default row instead of blanking`() = testScope.runTest {
+        realInputState.setCustomSuggestions(listOf("brb", "omw"))
+        // A Pause decision carrying no display suggestions: the bar must fall back to the custom row.
+        stubDecisionPath(AutocorrectDecision.Pause(emptyList()), "helo")
+
+        handler.handle()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(false, barBlanked)
+        assertEquals(listOf("brb", "omw"), barPainted)
+    }
+
+    // ---- Bug 4: a literal-commit (long-press Space) learns the word so it is offered next time. ----
+
+    @Test
+    fun `literal space learns the committed literal word`() = testScope.runTest {
+        realInputState.displayBuffer = "newline"
+        whenever(mockLanguageManager.currentLanguage).thenReturn(MutableStateFlow("en"))
+        // The IC still holds the composing text (last letter before the cursor), so the desync-guard that
+        // would wipe the buffer does not fire and the literal word survives to be learned.
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(any(), any())).thenReturn("newline")
+        whenever(mockOutputBridge.safeGetTextAfterCursor(any(), any())).thenReturn("")
+        whenever(mockSuggestionPipeline.learnWordAndInvalidateCache(any(), any())).thenReturn(true)
+
+        handler.handle(literalSpace = true)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        org.mockito.kotlin.verify(mockSuggestionPipeline)
+            .learnWordAndInvalidateCache(eq("newline"), eq(InputMethod.TYPED))
+        // The literal word is still committed verbatim followed by a space.
+        org.mockito.Mockito.verify(mockOutputBridge).commitText(" ", 1)
+    }
+
+    @Test
+    fun `literal space does not learn a single character`() = testScope.runTest {
+        realInputState.displayBuffer = "a"
+        whenever(mockLanguageManager.currentLanguage).thenReturn(MutableStateFlow("en"))
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(any(), any())).thenReturn("a")
+        whenever(mockOutputBridge.safeGetTextAfterCursor(any(), any())).thenReturn("")
+
+        handler.handle(literalSpace = true)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        org.mockito.kotlin.verify(mockSuggestionPipeline, org.mockito.Mockito.never())
+            .learnWordAndInvalidateCache(any(), any())
+    }
+
+    @Test
+    fun `literal space does not learn a non-alphabetic token`() = testScope.runTest {
+        realInputState.displayBuffer = "a1"
+        whenever(mockLanguageManager.currentLanguage).thenReturn(MutableStateFlow("en"))
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(any(), any())).thenReturn("a1")
+        whenever(mockOutputBridge.safeGetTextAfterCursor(any(), any())).thenReturn("")
+
+        handler.handle(literalSpace = true)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        org.mockito.kotlin.verify(mockSuggestionPipeline, org.mockito.Mockito.never())
+            .learnWordAndInvalidateCache(any(), any())
+    }
+
+    @Test
+    fun `non-literal empty-buffer space does not learn`() = testScope.runTest {
+        // A plain Space with no composing word must not invoke the literal-learn path.
+        whenever(mockLanguageManager.currentLanguage).thenReturn(MutableStateFlow("en"))
+
+        handler.handle(literalSpace = false)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        org.mockito.kotlin.verify(mockSuggestionPipeline, org.mockito.Mockito.never())
+            .learnWordAndInvalidateCache(any(), any())
+    }
+
+    // ---- Bug B: custom default row has no default selection; Tab-then-Space commits the selected entry. ----
+
+    @Test
+    fun `cluster custom default row plain Space is a literal space not a commit`() = testScope.runTest {
+        realInputState.clusterLayoutActive = true
+        realInputState.setCustomSuggestions(listOf("brb", "omw"))
+        whenever(mockLanguageManager.currentLanguage).thenReturn(MutableStateFlow("en"))
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(any(), any())).thenReturn("")
+        // Paint the custom DEFAULT row (nothing predicted) — this clears the selection to -1.
+        realInputState.clearSuggestionDisplay()
+        assertEquals(-1, realInputState.selectedCandidate)
+        assertEquals(listOf("brb", "omw"), realInputState.pendingSuggestions)
+
+        handler.handle(literalSpace = false)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // No explicit selection -> a plain Space enters a literal space, not the custom entry.
+        verify(mockOutputBridge).commitText(" ", 1)
+        org.mockito.kotlin.verifyBlocking(mockSuggestionPipeline, org.mockito.Mockito.never()) {
+            coordinateCustomSuggestionSelection(any(), any())
+        }
+    }
+
+    @Test
+    fun `cluster custom default row Tab-then-Space commits the selected custom entry`() = testScope.runTest {
+        realInputState.clusterLayoutActive = true
+        realInputState.setCustomSuggestions(listOf("brb", "omw"))
+        whenever(mockLanguageManager.currentLanguage).thenReturn(MutableStateFlow("en"))
+        realInputState.clearSuggestionDisplay()
+        // Tab explicitly selects the first custom entry (index 0).
+        realInputState.selectedCandidate = 0
+        assertTrue(realInputState.hasExplicitSelection)
+
+        handler.handle(literalSpace = false)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        org.mockito.kotlin.verifyBlocking(mockSuggestionPipeline) {
+            coordinateCustomSuggestionSelection(eq("brb"), any())
+        }
+    }
+
+    @Test
+    fun `cluster real prediction commits the best on a plain Space without Tab`() = testScope.runTest {
+        realInputState.clusterLayoutActive = true
+        whenever(mockLanguageManager.currentLanguage).thenReturn(MutableStateFlow("en"))
+        // Real predictions present: the setter selects index 0 (the best) -> Space commits it (no Tab needed).
+        realInputState.pendingSuggestions = listOf("Yes", "Yeh")
+        assertEquals(0, realInputState.selectedCandidate)
+
+        handler.handle(literalSpace = false)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        org.mockito.kotlin.verifyBlocking(mockSuggestionPipeline) {
+            coordinateSuggestionSelection(eq("Yes"), any())
+        }
     }
 
     @Test

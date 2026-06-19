@@ -68,11 +68,19 @@ class SpaceInputHandler(
                     inputState.pendingSuggestions.isNotEmpty()
                 ) {
                     val idx = inputState.selectedCandidate.coerceIn(0, inputState.pendingSuggestions.size - 1)
-                    suggestionPipeline.coordinateSuggestionSelection(
-                        inputState.pendingSuggestions[idx],
-                        onCheckAutoCapitalization
-                    )
-                    return@launch
+                    val candidate = inputState.pendingSuggestions[idx]
+                    // Real predictions: Space commits the best (or the Tab-advanced) one — index 0 by default.
+                    // Custom-row entries are TAP-ONLY by default: on the custom DEFAULT row (nothing predicted)
+                    // selectedCandidate is -1 (no explicit selection), so a plain Space enters a literal space.
+                    // But once Tab has EXPLICITLY selected a custom entry (selectedCandidate >= 0), Space commits
+                    // THAT entry via the custom path — the only way to enter a custom default-row word. (Bug B.)
+                    if (!inputState.isCustomSuggestion(candidate)) {
+                        suggestionPipeline.coordinateSuggestionSelection(candidate, onCheckAutoCapitalization)
+                        return@launch
+                    } else if (inputState.hasExplicitSelection) {
+                        suggestionPipeline.coordinateCustomSuggestionSelection(candidate, onCheckAutoCapitalization)
+                        return@launch
+                    }
                 }
 
                 if (inputState.spellConfirmationState == SpellConfirmationState.AWAITING_CONFIRMATION) {
@@ -174,9 +182,11 @@ class SpaceInputHandler(
                                 outputBridge.highlightCurrentWord()
                                 inputState.pendingSuggestions = displaySuggestions
                                 if (displaySuggestions.isNotEmpty()) {
-                                    candidateBarController.updateSuggestions(displaySuggestions)
+                                    inputState.updateSuggestionDisplay(displaySuggestions)
                                 } else {
-                                    candidateBarController.clearSuggestions()
+                                    // Custom-aware clear so the custom default row survives a Pause with no
+                                    // spelling suggestions, instead of blanking the bar. (Bug 1.)
+                                    inputState.clearSuggestionDisplay()
                                 }
                                 return@launch
                             }
@@ -264,6 +274,18 @@ class SpaceInputHandler(
                     }
                 }
 
+                // Fast add-to-dictionary: a long-press Space commits the LITERAL word verbatim (the escape
+                // from auto-correct / from committing a cluster candidate). Learn exactly the literal text
+                // being inserted — the displayBuffer, which here IS what reaches the field via
+                // finishComposingText() (on a cluster layout this is the chosen literal, not a substituted
+                // candidate) — so it's offered next time and not auto-corrected away. Gated to real
+                // alphabetic words (>= 2 letters); learnWordAndInvalidateCache itself no-ops when the
+                // learning setting is off or the word is already in the dictionary. (Bug 4.)
+                val wordToLearn = inputState.displayBuffer
+                if (literalSpace && isLearnableWord(wordToLearn)) {
+                    suggestionPipeline.learnWordAndInvalidateCache(wordToLearn, InputMethod.TYPED)
+                }
+
                 outputBridge.beginBatchEdit()
                 try {
                     applyPronounCorrectionIfNeeded()
@@ -319,6 +341,14 @@ class SpaceInputHandler(
         inputState.lastSpaceTime = 0
         return true
     }
+
+    /**
+     * A literal-commit candidate worth learning: at least two characters and all letters (so symbols,
+     * numbers, and single keystrokes are skipped). The committed surface IS the word here (non-cluster
+     * layout), so the raw displayBuffer is the right thing to learn.
+     */
+    private fun isLearnableWord(word: String): Boolean =
+        word.length >= 2 && word.all { it.isLetter() }
 
     private fun applyPronounCorrectionIfNeeded() {
         val pronounLang = languageManager.currentLanguage.value.split("-").first()

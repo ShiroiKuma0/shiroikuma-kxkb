@@ -3,6 +3,7 @@ package com.urik.keyboard.settings
 import android.icu.util.ULocale
 import com.urik.keyboard.R
 import com.urik.keyboard.model.KeyboardDisplayMode
+import com.urik.keyboard.settings.KeyboardSettings.Companion.DEFAULT_CUSTOM_SUGGESTIONS
 import com.urik.keyboard.settings.KeyboardSettings.Companion.DEFAULT_LANGUAGE
 
 enum class KeySize(val displayNameRes: Int, val scaleFactor: Float) {
@@ -105,7 +106,12 @@ data class KeyboardSettings(
     val autocorrectionEnabled: Boolean = false,
     val showNumberHints: Boolean = false,
     val resetToLettersOnDismiss: Boolean = true,
-    val keyPressHighlightEnabled: Boolean = true
+    val keyPressHighlightEnabled: Boolean = true,
+    /**
+     * User-defined custom suggestions, newline-separated. Shown in the candidate bar as the default row
+     * when nothing is predicted, and appended after live predictions otherwise. Empty = feature off.
+     */
+    val customSuggestions: String = DEFAULT_CUSTOM_SUGGESTIONS
 ) {
     /**
      * Whether word learning is enabled via [learnNewWords] flag.
@@ -167,6 +173,18 @@ data class KeyboardSettings(
         const val MAX_SUGGESTION_COUNT = 3
 
         const val DEFAULT_LANGUAGE = "en"
+
+        /**
+         * Default custom-suggestion list, newline-separated, re-derived in spirit from the design-
+         * reference fork's Multiling-style "topBar" default set (short symbols, bracket/quote pairs,
+         * emoji and date stamps). Used as the out-of-the-box value so a fresh install shows a useful
+         * row; an explicit empty string (the user cleared the list) is honoured and stays empty.
+         */
+        val DEFAULT_CUSTOM_SUGGESTIONS: String =
+            listOf(
+                "+", "-", "*", "#", "“…”", "\"…\"", "(…)", "[Paste]", ":@)", "[…]",
+                "{{yyyy-MM-dd ", "☺", "❤", "♡ ", "{…}", "{{yyyy-MM-dd_HH-mm-ss"
+            ).joinToString("\n")
 
         /**
          * Languages with full keyboard layout, dictionary, and localization support.

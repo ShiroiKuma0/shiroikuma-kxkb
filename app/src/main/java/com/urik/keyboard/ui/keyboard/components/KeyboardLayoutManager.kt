@@ -1404,8 +1404,16 @@ class KeyboardLayoutManager(
                         }
                     iconDrawable?.setTint(iconTint)
 
+                    // Size every action icon to a fixed square (a constant fraction of the key HEIGHT, which
+                    // is uniform per geometry) so shift / backspace / enter etc. render at the SAME size on
+                    // every key and every layout. A fixed inset instead scaled the icon with the key's box, so
+                    // a narrow/short key (or a different layout) got a visibly smaller icon than enter.
+                    val iconSizePx =
+                        ((adaptiveDimensions?.keyHeightPx
+                            ?: (48 * context.resources.displayMetrics.density).toInt()) * 0.52f)
+                            .toInt().coerceAtLeast(1)
                     val baseLayer = LayerDrawable(arrayOf(keyBackground, iconDrawable)).apply {
-                        setLayerInset(1, 12, 12, 12, 12)
+                        setLayerSize(1, iconSizePx, iconSizePx)
                         setLayerGravity(1, Gravity.CENTER)
                     }
 

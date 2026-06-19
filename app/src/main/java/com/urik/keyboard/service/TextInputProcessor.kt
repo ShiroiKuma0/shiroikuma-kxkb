@@ -157,10 +157,16 @@ constructor(
                 if (spellCheckManager.clusterActive) SpellCheckManager.CLUSTER_BAR_POOL
                 else currentSettings.effectiveSuggestionCount
 
+            // Cluster prediction is meaningful from the very first tap (a single ambiguous-band tap like
+            // `aev` must offer its dictionary words, e.g. `a`), so a cluster layout exempts suggestion
+            // generation from the MIN_SPELL_CHECK_LENGTH gate. Spell-check validation (the misspelled
+            // underline) stays gated — a lone letter should not be flagged as a misspelling.
+            val clusterActive = spellCheckManager.clusterActive
             val requiresSpellCheck =
                 spellCheckEnabled && graphemeCount >= TextProcessingConstants.MIN_SPELL_CHECK_LENGTH
             val shouldGenerateSuggestions =
-                suggestionsEnabled && graphemeCount >= TextProcessingConstants.MIN_SPELL_CHECK_LENGTH
+                suggestionsEnabled &&
+                    (clusterActive || graphemeCount >= TextProcessingConstants.MIN_SPELL_CHECK_LENGTH)
             var isValid = true
             var suggestions = emptyList<SpellingSuggestion>()
 

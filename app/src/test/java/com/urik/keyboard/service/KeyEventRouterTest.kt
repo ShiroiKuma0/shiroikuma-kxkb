@@ -34,7 +34,7 @@ class KeyEventRouterTest {
             mockViewModel.getCharacterForInput(KeyboardKey.Character("a", KeyboardKey.KeyType.LETTER))
         ).thenReturn("a")
         router.route(KeyboardKey.Character("a", KeyboardKey.KeyType.LETTER))
-        verify(mockHandler).onLetterInput(eq("a"), any())
+        verify(mockHandler).onLetterInput(eq("a"), any(), any())
         verify(mockHandler, never()).onNonLetterInput("a")
     }
 
@@ -45,7 +45,7 @@ class KeyEventRouterTest {
         ).thenReturn("!")
         router.route(KeyboardKey.Character("!", KeyboardKey.KeyType.SYMBOL))
         verify(mockHandler).onNonLetterInput("!")
-        verify(mockHandler, never()).onLetterInput(eq("!"), any())
+        verify(mockHandler, never()).onLetterInput(eq("!"), any(), any())
     }
 
     @Test
@@ -109,7 +109,7 @@ class KeyEventRouterTest {
             mockViewModel.getCharacterForInput(KeyboardKey.Character("a", KeyboardKey.KeyType.LETTER))
         ).thenReturn("a")
         router.route(KeyboardKey.Character("a", KeyboardKey.KeyType.LETTER))
-        verify(mockHandler, never()).onLetterInput(eq("a"), any())
+        verify(mockHandler, never()).onLetterInput(eq("a"), any(), any())
         verify(mockHandler, never()).onNonLetterInput("a")
     }
 
@@ -134,7 +134,8 @@ class KeyEventRouterTest {
             mockViewModel.getCharacterForInput(KeyboardKey.Character("l", KeyboardKey.KeyType.LETTER))
         ).thenReturn("L")
         router.route(KeyboardKey.Character("l", KeyboardKey.KeyType.LETTER))
-        verify(mockHandler).onLetterInput(eq("L"), eq(true))
+        // Auto-shift is NOT a manual shift, so wasManualShifted must stay false.
+        verify(mockHandler).onLetterInput(eq("L"), eq(true), eq(false))
     }
 
     @Test
@@ -143,6 +144,31 @@ class KeyEventRouterTest {
             mockViewModel.getCharacterForInput(KeyboardKey.Character("a", KeyboardKey.KeyType.LETTER))
         ).thenReturn("a")
         router.route(KeyboardKey.Character("a", KeyboardKey.KeyType.LETTER))
-        verify(mockHandler).onLetterInput(eq("a"), eq(false))
+        verify(mockHandler).onLetterInput(eq("a"), eq(false), eq(false))
+    }
+
+    @Test
+    fun `route LETTER passes wasManualShifted=true when shift is engaged without auto-shift or caps`() {
+        // Captured BEFORE clearShiftAfterCharacter() wipes the latch — the crux of Bug 2.
+        whenever(
+            mockViewModel.state
+        ).thenReturn(MutableStateFlow(KeyboardState(isShiftPressed = true, isAutoShift = false, isCapsLockOn = false)))
+        whenever(
+            mockViewModel.getCharacterForInput(KeyboardKey.Character("h", KeyboardKey.KeyType.LETTER))
+        ).thenReturn("H")
+        router.route(KeyboardKey.Character("h", KeyboardKey.KeyType.LETTER))
+        verify(mockHandler).onLetterInput(eq("H"), eq(false), eq(true))
+    }
+
+    @Test
+    fun `route LETTER passes wasManualShifted=false when caps-lock is on`() {
+        whenever(
+            mockViewModel.state
+        ).thenReturn(MutableStateFlow(KeyboardState(isShiftPressed = false, isAutoShift = false, isCapsLockOn = true)))
+        whenever(
+            mockViewModel.getCharacterForInput(KeyboardKey.Character("h", KeyboardKey.KeyType.LETTER))
+        ).thenReturn("H")
+        router.route(KeyboardKey.Character("h", KeyboardKey.KeyType.LETTER))
+        verify(mockHandler).onLetterInput(eq("H"), eq(false), eq(false))
     }
 }

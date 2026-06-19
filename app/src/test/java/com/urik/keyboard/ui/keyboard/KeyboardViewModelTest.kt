@@ -761,6 +761,64 @@ class KeyboardViewModelTest {
         assertFalse(viewModel.state.value.isAutoShift)
     }
 
+    // ---- Bug B: pressing Shift while auto-capitalised drops to lowercase and stays there. ----
+
+    @Test
+    fun `dismissAutoShift clears shift and autoShift to lowercase`() = runTest {
+        viewModel.enableAutoCapitalization()
+        assertTrue(viewModel.state.value.isShiftPressed)
+        assertTrue(viewModel.state.value.isAutoShift)
+
+        viewModel.dismissAutoShift()
+
+        assertFalse(viewModel.state.value.isShiftPressed)
+        assertFalse(viewModel.state.value.isAutoShift)
+    }
+
+    @Test
+    fun `auto-cap re-check does not re-capitalise after the user dismisses auto-shift`() = runTest {
+        // Sentence start: auto-cap engages.
+        viewModel.checkAndApplyAutoCapitalization("")
+        assertTrue(viewModel.state.value.isShiftPressed)
+
+        // User presses Shift to type lowercase.
+        viewModel.dismissAutoShift()
+        assertFalse(viewModel.state.value.isShiftPressed)
+
+        // A spurious onUpdateSelection re-checks auto-cap at the same (still sentence-start) position: it
+        // must NOT re-capitalise, or the downshift would be silently undone.
+        viewModel.checkAndApplyAutoCapitalization("")
+        assertFalse(viewModel.state.value.isShiftPressed)
+        assertFalse(viewModel.state.value.isAutoShift)
+    }
+
+    @Test
+    fun `typing a lowercase letter re-arms auto-cap for the next sentence`() = runTest {
+        viewModel.checkAndApplyAutoCapitalization("")
+        viewModel.dismissAutoShift()
+
+        // The user actually types a lowercase letter — the one-shot dismissal is spent.
+        val key = KeyboardKey.Character("a", KeyboardKey.KeyType.LETTER)
+        assertEquals("a", viewModel.getCharacterForInput(key))
+
+        // The NEXT sentence start auto-capitalises again (dismissal was one-shot, not permanent).
+        viewModel.checkAndApplyAutoCapitalization("Hi. ")
+        assertTrue(viewModel.state.value.isShiftPressed)
+        assertTrue(viewModel.state.value.isAutoShift)
+    }
+
+    @Test
+    fun `manual shift cycle still works while dismissal is pending`() = runTest {
+        viewModel.checkAndApplyAutoCapitalization("")
+        viewModel.dismissAutoShift()
+        assertFalse(viewModel.state.value.isShiftPressed)
+
+        // An explicit manual shift-on still latches (and clears any pending dismissal / auto-shift flag).
+        viewModel.onEvent(KeyboardEvent.ShiftStateChanged(true))
+        assertTrue(viewModel.state.value.isShiftPressed)
+        assertFalse(viewModel.state.value.isAutoShift)
+    }
+
     private fun createMockLayout(mode: KeyboardMode): KeyboardLayout = KeyboardLayout(
         mode = mode,
         rows = emptyList()

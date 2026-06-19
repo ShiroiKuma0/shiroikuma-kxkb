@@ -786,7 +786,29 @@ constructor(
         val allowedSets = folded.map { ch -> bands[ch] ?: setOf(ch) }
         if (allowedSets.none { it.size > 1 }) return emptyList()
         val dict = getUrikDictionary(languageCode) ?: return emptyList()
-        return dict.clusterCandidates(allowedSets, CLUSTER_BAR_POOL)
+
+        // Cluster contractions (Bug 1): the apostrophe form can't come from the DAWG (the "'" is never
+        // tapped) and the centre-letter buffer never spells the bare key, so surface any contraction whose
+        // bare key is consistent with the tap bands as a TOP-ranked candidate, ahead of the dict words.
+        val contractions =
+            if (languageCode == "en") {
+                Contractions.candidatesForBands(allowedSets).mapNotNull { (value, preserveCase) ->
+                    val key = value.lowercase()
+                    if (key in seenWords || isWordBlacklisted(value)) return@mapNotNull null
+                    seenWords.add(key)
+                    SpellingSuggestion(
+                        word = value,
+                        confidence = CONTRACTION_GUARANTEED_CONFIDENCE,
+                        ranking = 0,
+                        source = "contraction",
+                        preserveCase = preserveCase
+                    )
+                }
+            } else {
+                emptyList()
+            }
+
+        val dictCandidates = dict.clusterCandidates(allowedSets, CLUSTER_BAR_POOL)
             .mapNotNull { (word, freq) ->
                 val key = word.lowercase()
                 if (key in seenWords || isWordBlacklisted(word)) return@mapNotNull null
@@ -794,6 +816,7 @@ constructor(
                 val freqScore = ln(freq.toDouble() + 1.0) / ln(MAX_DICT_FREQUENCY)
                 SpellingSuggestion(word, (0.55 + 0.44 * freqScore).coerceIn(0.0, 0.99), 0, "cluster")
             }
+        return contractions + dictCandidates
     }
 
     private suspend fun queryUrikSuggestions(

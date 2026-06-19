@@ -124,6 +124,8 @@ class SpellCheckManagerTest {
         bested 300
         bester 100
         bestow 800
+        a 25000000
+        e 5
         """.trimIndent()
 
     @Before
@@ -1828,6 +1830,36 @@ class SpellCheckManagerTest {
         assertTrue(
             "gave should appear as suggestion for bave (b→g adjacent keys), got: ${suggestions.map { it.word }}",
             suggestions.any { it.word == "gave" }
+        )
+    }
+
+    @Test
+    fun `single cluster tap ranks the band's frequent dictionary word above the literal centre`() = runTest {
+        // The `aev` cluster key commits its centre `e`; its band folds to {a,e,v}. A single tap must offer
+        // the band's real words ranked by frequency — `a` (very common) must beat the literal `e` (rare).
+        whenever(wordLearningEngine.getSimilarLearnedWordsWithFrequency(any(), any(), any()))
+            .thenReturn(emptyList())
+        spellCheckManager.setClusterBands(mapOf('e' to "aev"))
+
+        val suggestions = spellCheckManager.getSpellingSuggestionsWithConfidence("e")
+        val words = suggestions.map { it.word }
+
+        assertTrue("`a` should be offered for a single `aev` tap, got: $words", "a" in words)
+        val aRank = words.indexOf("a")
+        val eRank = words.indexOf("e")
+        assertTrue("`a` must rank above the literal `e`, got: $words", eRank < 0 || aRank < eRank)
+        assertEquals("`a` should be the top cluster prediction, got: $words", "a", words.first())
+    }
+
+    @Test
+    fun `cluster suggestions are off when no cluster bands are set`() = runTest {
+        whenever(wordLearningEngine.getSimilarLearnedWordsWithFrequency(any(), any(), any()))
+            .thenReturn(emptyList())
+        // No setClusterBands call -> clusterActive is false -> a lone `e` must not synthesize `a`.
+        val suggestions = spellCheckManager.getSpellingSuggestionsWithConfidence("e")
+        assertTrue(
+            "Cluster words must not appear without an active cluster layout, got: ${suggestions.map { it.word }}",
+            suggestions.none { it.source == "cluster" }
         )
     }
 }

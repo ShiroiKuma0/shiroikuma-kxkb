@@ -39,6 +39,23 @@ class NonLetterInputHandler(
             try {
                 inputState.lastSpaceTime = 0
 
+                // "…"/"-" on a NON-cluster layout: the composing buffer IS the typed word, so commit it
+                // literally (ellipsis) or commit the top candidate (hyphen) here. On a CLUSTER layout the
+                // buffer is centre-letters, so these fall through to the cluster candidate-commit branch below
+                // (which commits the predicted word, not the centres) — gated here on !clusterLayoutActive.
+                if ((char == ELLIPSIS || char == THREE_DOTS) && !inputState.clusterLayoutActive) {
+                    handleEllipsis(char)
+                    return@launch
+                }
+                if (char == "-" &&
+                    !inputState.clusterLayoutActive &&
+                    inputState.displayBuffer.isNotEmpty() &&
+                    inputState.pendingSuggestions.isNotEmpty()
+                ) {
+                    handleHyphenCommit()
+                    return@launch
+                }
+
                 // Auto-spacing: once a word is committed it carries a trailing space ("word "). Typing
                 // closing punctuation then eats that space, attaches the mark to the word, and re-adds a
                 // trailing space — "word " + "." -> "word. ". Only when nothing is composing (the word is
@@ -54,7 +71,9 @@ class NonLetterInputHandler(
                             inputState.lastAutocorrection = null
                             if (inputState.postCommitReplacementState != null) {
                                 inputState.postCommitReplacementState = null
-                                candidateBarController.clearSuggestions()
+                                // Route through the custom-aware clear so the custom default row re-shows
+                                // (instead of a blank bar) when the post-commit bar is dismissed. (Bug 1.)
+                                inputState.clearSuggestionDisplay()
                             }
                             swipeSpaceManager.clearAutoSpaceFlag()
                             if (isSentenceEndingPunctuation(single) && !inputState.requiresDirectCommit) {
@@ -87,7 +106,9 @@ class NonLetterInputHandler(
 
                 if (inputState.postCommitReplacementState != null) {
                     inputState.postCommitReplacementState = null
-                    candidateBarController.clearSuggestions()
+                    // Custom-aware clear: dropping the post-commit bar must restore the custom default
+                    // row, not blank it, so the row survives ordinary character input. (Bug 1.)
+                    inputState.clearSuggestionDisplay()
                 }
                 inputState.lastAutocorrection = null
 
@@ -111,6 +132,37 @@ class NonLetterInputHandler(
                     return@launch
                 }
 
+                // Cluster typing: the composing buffer is the tapped clusters' CENTRE letters (e.g. "Deh"),
+                // not a misspelling of the intended word ("Yes"), so the spell-based auto-correct below can't
+                // recover it and would commit the literal centres + mark ("Deh."). Mirror Space's cluster
+                // path: commit the highlighted candidate first, then append the mark with the right spacing,
+                // so "Yes" + "." -> "Yes.". This also covers brackets/quotes/em-dash typed as CHARACTERS on a
+                // cluster key (e.g. "-" is a flick-up on the "—j_" key): they must TERMINATE the word and NOT
+                // be appended to the centre-letter buffer (which would make "long" + "-" -> garbage "litd-").
+                // (Bugs A & C.)
+                if (char.length == 1 &&
+                    isClusterTerminator(char.single()) &&
+                    inputState.clusterLayoutActive
+                ) {
+                    // Commit the composing word's candidate first IF a word is being composed; otherwise just
+                    // enter the mark directly. Either way the mark is entered here (with the right spacing),
+                    // never appended to the centre-letter buffer.
+                    if (inputState.displayBuffer.isNotEmpty() && inputState.pendingSuggestions.isNotEmpty()) {
+                        suggestionPipeline.cancelDebounceJob()
+                        val idx = inputState.selectedCandidate.coerceIn(0, inputState.pendingSuggestions.size - 1)
+                        val candidate = inputState.pendingSuggestions[idx]
+                        // A highlighted custom-row entry commits literally; a real prediction goes through the
+                        // dictionary-selection path (spell-learn / bigram) — same split Space uses.
+                        if (inputState.isCustomSuggestion(candidate)) {
+                            suggestionPipeline.coordinateCustomSuggestionSelection(candidate, onCheckAutoCapitalization)
+                        } else {
+                            suggestionPipeline.coordinateSuggestionSelection(candidate, onCheckAutoCapitalization)
+                        }
+                    }
+                    commitPunctuationAfterClusterCommit(char.single())
+                    return@launch
+                }
+
                 if (inputState.displayBuffer.isNotEmpty() &&
                     onGetCurrentSettings().spellCheckEnabled &&
                     inputState.displayBuffer.length >= TextProcessingConstants.MIN_SPELL_CHECK_LENGTH
@@ -129,6 +181,24 @@ class NonLetterInputHandler(
 
                         if (isPunctuation) {
                             suggestionPipeline.cancelDebounceJob()
+                            // Punctuation closes the word: apply the SAME auto-correct Space would, then the
+                            // mark — so "teh." becomes "the." not "teh.". Gated on the auto-correct setting
+                            // (decide() returns Correct only when autocorrectionEnabled). No trailing space
+                            // is added — just <corrected-word><punctuation>.
+                            val decision = autoCorrectionEngine.decide(
+                                buffer = inputState.displayBuffer,
+                                spellCheckEnabled = onGetCurrentSettings().spellCheckEnabled,
+                                autocorrectionEnabled = onGetCurrentSettings().autocorrectionEnabled,
+                                pauseOnMisspelledWord = onGetCurrentSettings().pauseOnMisspelledWord,
+                                lastAutocorrection = inputState.lastAutocorrection,
+                                textBeforeCursor = textBefore,
+                                nextChar = char
+                            )
+                            if (decision is AutocorrectDecision.Correct) {
+                                commitCorrectedThenPunctuation(decision.suggestion, char)
+                                return@launch
+                            }
+
                             val isValid = textInputProcessor.validateWord(inputState.displayBuffer)
                             if (!isValid) {
                                 outputBridge.beginBatchEdit()
@@ -189,10 +259,12 @@ class NonLetterInputHandler(
                                             inputState.isCurrentWordAtSentenceStart
                                         )
                                     inputState.pendingSuggestions = displaySuggestions
+                                    // Route through the state funnel so the custom row merges (default when
+                                    // empty, appended otherwise) instead of bypassing it via the bar directly.
                                     if (displaySuggestions.isNotEmpty()) {
-                                        candidateBarController.updateSuggestions(displaySuggestions)
+                                        inputState.updateSuggestionDisplay(displaySuggestions)
                                     } else {
-                                        candidateBarController.clearSuggestions()
+                                        inputState.clearSuggestionDisplay()
                                     }
                                     return@launch
                                 }
@@ -239,11 +311,213 @@ class NonLetterInputHandler(
         }
     }
 
-    private fun isSentenceEndingPunctuation(char: Char): Boolean =
-        UCharacter.hasBinaryProperty(char.code, UProperty.S_TERM)
+    /**
+     * After a cluster candidate has been committed (which appends a trailing space, like Space does), attach
+     * the punctuation [punctuation] with the right spacing: delete that auto-space, commit the mark, and decide
+     * the trailing space.
+     *  - CLOSING_PUNCTUATION (`.,?!:;`), ellipsis, closing brackets/quotes (`)]}"`…), and the em dash all get a
+     *    trailing space (they end a clause/word).
+     *  - OPENING brackets/quotes (`([{"`…) join the FOLLOWING word, so NO trailing space.
+     *  - The hyphen "-" joins words, so NO trailing space.
+     * Re-runs sentence-end auto-cap so the next word capitalises. (Bugs A & C.)
+     */
+    private suspend fun commitPunctuationAfterClusterCommit(punctuation: Char) {
+        outputBridge.beginBatchEdit()
+        try {
+            // Openers ("word (") and the spaced em dash ("word — ") KEEP the preceding space; everything else
+            // (closers "word) ", the hyphen "word-", ellipsis/.,?!:;) attaches to the word, eating that space.
+            val keepPreceding = punctuation in OPENING_BRACKETS_QUOTES || punctuation == EM_DASH
+            if (!keepPreceding) {
+                val before = outputBridge.safeGetTextBeforeCursor(1)
+                if (before == " ") {
+                    outputBridge.deleteSurroundingText(1, 0)
+                }
+            }
+            val wantsTrailingSpace =
+                punctuation in CLOSING_PUNCTUATION ||
+                    punctuation == '…' ||
+                    punctuation in CLOSING_BRACKETS_QUOTES ||
+                    punctuation == EM_DASH
+            if (wantsTrailingSpace) {
+                outputBridge.commitText("$punctuation ", 1)
+            } else {
+                // Openers and the hyphen attach to what follows -> no trailing space.
+                outputBridge.commitText(punctuation.toString(), 1)
+            }
+            swipeSpaceManager.clearAutoSpaceFlag()
+            inputState.lastAutocorrection = null
+            if (isSentenceEndingPunctuation(punctuation) && !inputState.requiresDirectCommit) {
+                onDisableCapsLockAfterPunctuation()
+                onCheckAutoCapitalization(outputBridge.safeGetTextBeforeCursor(50))
+            }
+        } finally {
+            outputBridge.endBatchEdit()
+        }
+    }
 
-    private companion object {
+    private fun isClusterTerminator(c: Char): Boolean = isClusterTerminatorChar(c)
+
+    /**
+     * Commit the auto-corrected word immediately followed by [punctuation] (no trailing space), the same
+     * correction Space applies via AutocorrectDecision.Correct — but ending the word with the mark. Applies
+     * English pronoun ("i" -> "I") and sentence-start capitalisation to the corrected form, records usage,
+     * and registers a PostCommitReplacementState so the original word can be restored from the bar.
+     */
+    private suspend fun commitCorrectedThenPunctuation(rawCorrected: String, punctuation: String) {
+        val pronounLang = languageManager.currentLanguage.value.split("-").first()
+        val pronounCorrected = if (pronounLang == "en") {
+            EnglishPronounCorrection.capitalize(rawCorrected.lowercase()) ?: rawCorrected
+        } else {
+            rawCorrected
+        }
+        val correctedWord = if (inputState.isCurrentWordAtSentenceStart) {
+            pronounCorrected.replaceFirstChar { it.uppercaseChar() }
+        } else {
+            pronounCorrected
+        }
+        inputState.isActivelyEditing = true
+        suggestionPipeline.recordWordUsage(correctedWord)
+        outputBridge.beginBatchEdit()
+        try {
+            outputBridge.finishComposingText()
+            outputBridge.commitText("$correctedWord$punctuation", 1)
+            swipeSpaceManager.clearAutoSpaceFlag()
+            inputState.clearInternalStateOnly()
+            // No PostCommitReplacementState here: the bar-revert flow expects a trailing space after the
+            // committed word, which the punctuation commit deliberately omits, so it wouldn't match. The
+            // user can undo via Backspace instead.
+
+            if (punctuation.length == 1 &&
+                isSentenceEndingPunctuation(punctuation.single()) &&
+                !inputState.requiresDirectCommit
+            ) {
+                onDisableCapsLockAfterPunctuation()
+                val textBefore = outputBridge.safeGetTextBeforeCursor(50)
+                onCheckAutoCapitalization(textBefore)
+            }
+
+            suggestionPipeline.showBigramPredictions()
+        } finally {
+            outputBridge.endBatchEdit()
+        }
+    }
+
+    /**
+     * NON-cluster hyphen: commit the top candidate (the same selection paths Space / closing punctuation use),
+     * then append "-" with NO trailing space so the hyphen joins the word to whatever follows. The candidate
+     * commit appends an auto-space, so that space is deleted before the "-" is written.
+     */
+    private suspend fun handleHyphenCommit() {
+        suggestionPipeline.cancelDebounceJob()
+        val idx = inputState.selectedCandidate.coerceIn(0, inputState.pendingSuggestions.size - 1)
+        val candidate = inputState.pendingSuggestions[idx]
+        if (inputState.isCustomSuggestion(candidate)) {
+            suggestionPipeline.coordinateCustomSuggestionSelection(candidate, onCheckAutoCapitalization)
+        } else {
+            suggestionPipeline.coordinateSuggestionSelection(candidate, onCheckAutoCapitalization)
+        }
+        outputBridge.beginBatchEdit()
+        try {
+            val before = outputBridge.safeGetTextBeforeCursor(1)
+            if (before == " ") {
+                outputBridge.deleteSurroundingText(1, 0)
+            }
+            outputBridge.commitText("-", 1)
+            swipeSpaceManager.clearAutoSpaceFlag()
+            inputState.lastAutocorrection = null
+        } finally {
+            outputBridge.endBatchEdit()
+        }
+    }
+
+    /**
+     * NON-cluster ellipsis: close any composing word first (committing the literal typed word, learning a
+     * non-dictionary one), eat a single preceding auto-space so the mark attaches, commit "<ellipsis> " with
+     * one trailing space, and re-run sentence-end auto-cap.
+     */
+    private suspend fun handleEllipsis(ellipsis: String) {
+        if (inputState.displayBuffer.isNotEmpty()) {
+            outputBridge.beginBatchEdit()
+            try {
+                val pronounLang = languageManager.currentLanguage.value.split("-").first()
+                if (pronounLang == "en") {
+                    val corrected = EnglishPronounCorrection.capitalize(inputState.displayBuffer.lowercase())
+                    if (corrected != null && corrected != inputState.displayBuffer) {
+                        inputState.onPronounCapitalized(corrected)
+                        outputBridge.setComposingText(corrected, 1)
+                    }
+                }
+                if (onGetCurrentSettings().spellCheckEnabled &&
+                    !textInputProcessor.validateWord(inputState.displayBuffer)
+                ) {
+                    suggestionPipeline.learnWordAndInvalidateCache(inputState.displayBuffer, InputMethod.TYPED)
+                } else {
+                    suggestionPipeline.recordWordUsage(inputState.displayBuffer)
+                }
+                outputBridge.finishComposingText()
+            } finally {
+                outputBridge.endBatchEdit()
+            }
+        }
+        outputBridge.beginBatchEdit()
+        try {
+            val before = outputBridge.safeGetTextBeforeCursor(1)
+            if (before == " ") {
+                outputBridge.deleteSurroundingText(1, 0)
+            }
+            outputBridge.commitText("$ellipsis ", 1)
+            swipeSpaceManager.clearAutoSpaceFlag()
+            inputState.lastAutocorrection = null
+            inputState.postCommitReplacementState = null
+            if (!inputState.requiresDirectCommit) {
+                onDisableCapsLockAfterPunctuation()
+                onCheckAutoCapitalization(outputBridge.safeGetTextBeforeCursor(50))
+            }
+            onCoordinateStateClear()
+            suggestionPipeline.showBigramPredictions()
+        } finally {
+            outputBridge.endBatchEdit()
+        }
+    }
+
+    private fun isSentenceEndingPunctuation(char: Char): Boolean =
+        char == '…' || UCharacter.hasBinaryProperty(char.code, UProperty.S_TERM)
+
+    companion object {
         // Punctuation that attaches to the preceding word, eating an auto-space before it.
         private val CLOSING_PUNCTUATION = setOf('.', ',', '?', '!', ':', ';')
+
+        // The em dash (U+2014): closes a clause, so it gets a trailing space (and is NOT caught by
+        // isPunctuation, which excludes DASH_PUNCTUATION).
+        private const val EM_DASH = '—'
+
+        // Opening brackets/quotes: typed as a CHARACTER, they begin a group and join the FOLLOWING word, so
+        // they terminate the composing cluster word but get NO trailing space. Includes the curly opens.
+        private val OPENING_BRACKETS_QUOTES = setOf('(', '[', '{', '"', '“', '‘')
+
+        // Closing brackets/quotes: they end a group, so they get a trailing space. (The straight double quote
+        // `"` is ambiguous; it's handled as a closer here — matching the common close-then-space expectation.)
+        // The closing single quote U+2019 is intentionally NOT here: it's the apostrophe, never a terminator.
+        private val CLOSING_BRACKETS_QUOTES = setOf(')', ']', '}', '"', '”')
+
+        // The single ellipsis char (U+2026) and the literal three-dot token, both treated as a sentence end.
+        private const val ELLIPSIS = "…"
+        private const val THREE_DOTS = "..."
+
+        /**
+         * A single char that, on a CLUSTER layout, must terminate the composing word (commit the candidate) and
+         * be entered as a standalone mark — never appended to the centre-letter buffer. Covers ordinary
+         * punctuation (`isPunctuation`: brackets, the straight/curly double quotes, etc.), the hyphen, the
+         * ellipsis, the em dash, and the opening brackets/curly opens. The straight/curly apostrophe
+         * (`'` / U+2019) is deliberately excluded — it's a contraction character ("don't"), not a terminator.
+         * The service's onLetterInput routing uses this to redirect such a flick to NonLetterInputHandler so it
+         * doesn't get appended to the cluster buffer. (Bug C.)
+         */
+        fun isClusterTerminatorChar(c: Char): Boolean =
+            CursorEditingUtils.isPunctuation(c) ||
+                c == '-' ||
+                c == '…' ||
+                c == EM_DASH ||
+                c in OPENING_BRACKETS_QUOTES
     }
 }

@@ -8,7 +8,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 interface KeyEventHandler {
-    fun onLetterInput(char: String, wasAutoShifted: Boolean)
+    fun onLetterInput(char: String, wasAutoShifted: Boolean, wasManualShifted: Boolean)
     fun onNonLetterInput(char: String)
     fun onBackspace()
     fun onSpace()
@@ -50,10 +50,19 @@ constructor() {
         when (key) {
             is KeyboardKey.Character -> {
                 val char = viewModel?.getCharacterForInput(key) ?: key.value
-                val wasAutoShifted = viewModel?.state?.value?.isAutoShift ?: false
+                // Capture both shift signals BEFORE clearShiftAfterCharacter() wipes the live shift latch:
+                // a manual single-shift tap clears isShiftPressed here, so reading it later in onLetterInput
+                // would always see false and the candidate bar would commit lowercase mid-line (Bug 2).
+                val shiftState = viewModel?.state?.value
+                val wasAutoShifted = shiftState?.isAutoShift ?: false
+                val wasManualShifted =
+                    shiftState != null &&
+                        shiftState.isShiftPressed &&
+                        !shiftState.isAutoShift &&
+                        !shiftState.isCapsLockOn
                 viewModel?.clearShiftAfterCharacter(key)
                 if (key.type == KeyboardKey.KeyType.LETTER) {
-                    handler?.onLetterInput(char, wasAutoShifted)
+                    handler?.onLetterInput(char, wasAutoShifted, wasManualShifted)
                 } else {
                     handler?.onNonLetterInput(char)
                 }

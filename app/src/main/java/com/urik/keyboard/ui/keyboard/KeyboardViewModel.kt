@@ -40,6 +40,15 @@ constructor(
     private var currentActionType: KeyboardKey.ActionType = KeyboardKey.ActionType.ENTER
     private var loadJob: Job? = null
 
+    /**
+     * The user pressed Shift to leave an auto-capitalised (sentence-start) state and type lowercase. While
+     * set, [checkAndApplyAutoCapitalization] must NOT re-engage auto-shift — otherwise the very next
+     * onUpdateSelection (cursor still at a sentence start) would silently re-capitalise and undo the
+     * downshift. Cleared the moment real input flows again ([getCharacterForInput], a committed space, or
+     * an explicit shift/caps toggle), so the next sentence still auto-capitalises normally. (Bug B.)
+     */
+    private var autoShiftDismissed = false
+
     init {
         viewModelScope.launch {
             loadLayout(KeyboardMode.LETTERS)
@@ -85,6 +94,11 @@ constructor(
     }
 
     fun getCharacterForInput(key: KeyboardKey.Character): String {
+        // A character was actually typed: the downshift the user asked for has been honoured, so allow the
+        // NEXT sentence start to auto-capitalise again. (Bug B — reset the one-shot dismissal.)
+        if (key.type == KeyboardKey.KeyType.LETTER) {
+            autoShiftDismissed = false
+        }
         val shouldCap = shouldCapitalize()
         return when {
             key.type == KeyboardKey.KeyType.LETTER && shouldCap -> {
@@ -142,10 +156,24 @@ constructor(
     fun checkAndApplyAutoCapitalization(textBeforeCursor: String?, autoCapEnabled: Boolean = true) {
         if (!autoCapEnabled) return
         if (shouldAutoCapitalize(textBeforeCursor) && !_state.value.isCapsLockOn) {
-            enableAutoCapitalization()
+            // Don't re-arm auto-shift if the user just pressed Shift to type lowercase here: a spurious
+            // onUpdateSelection at the same sentence start would otherwise re-capitalise. (Bug B.)
+            if (!autoShiftDismissed) {
+                enableAutoCapitalization()
+            }
         } else if (_state.value.isAutoShift) {
             updateState { it.copy(isShiftPressed = false, isAutoShift = false) }
         }
+    }
+
+    /**
+     * The user pressed Shift while auto-capitalised (sentence start) to type lowercase: drop to lowercase
+     * (clear both the shift latch AND the auto-shift flag, which the key rendering also keys off) and mark
+     * the auto-shift one-shot-dismissed so the immediate re-check doesn't re-capitalise. (Bug B.)
+     */
+    fun dismissAutoShift() {
+        autoShiftDismissed = true
+        updateState { it.copy(isShiftPressed = false, isAutoShift = false) }
     }
 
     fun disableCapsLockAfterPunctuation() {
@@ -155,6 +183,7 @@ constructor(
     }
 
     fun clearShiftAndCapsState() {
+        autoShiftDismissed = false
         updateState { it.copy(isShiftPressed = false, isCapsLockOn = false, isAutoShift = false) }
     }
 
@@ -232,14 +261,19 @@ constructor(
     }
 
     private fun handleShiftStateChange(isPressed: Boolean) {
-        updateState { it.copy(isShiftPressed = isPressed) }
+        // An explicit shift event ends any pending auto-shift dismissal (manual shift fully clears autoShift
+        // too, so a later lowercase letter can't leave a stale latch). (Bug B.)
+        autoShiftDismissed = false
+        updateState { it.copy(isShiftPressed = isPressed, isAutoShift = false) }
     }
 
     private fun handleCapsLockToggle() {
+        autoShiftDismissed = false
         updateState {
             it.copy(
                 isCapsLockOn = !it.isCapsLockOn,
-                isShiftPressed = false
+                isShiftPressed = false,
+                isAutoShift = false
             )
         }
     }

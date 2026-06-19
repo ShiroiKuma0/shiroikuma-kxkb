@@ -2,6 +2,7 @@ package com.urik.keyboard.settings.keyboardui
 
 import android.net.Uri
 import android.os.Bundle
+import android.text.InputType
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -12,6 +13,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceCategory
@@ -76,6 +78,8 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
     private lateinit var suggestionWeightPref: SeekBarPreference
     private lateinit var suggestionSizePref: SeekBarPreference
     private lateinit var suggestionColorPref: ColorSwatchPreference
+    // Custom-suggestion row contents (a global setting, edited here next to the suggestion-bar look).
+    private lateinit var customSuggestionsPref: EditTextPreference
     // Library screen look (app-wide, not per-geometry).
     private lateinit var libSepColorPref: ColorSwatchPreference
     private lateinit var libSepThicknessPref: SeekBarPreference
@@ -203,6 +207,33 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         suggestionWeightPref = seekBar("kb_ui_sug_weight", R.string.keyboard_ui_item_weight, min = 100, max = 900, sub = true)
         suggestionSizePref = seekBar("kb_ui_sug_size", R.string.keyboard_ui_item_size, min = 50, max = 400, sub = true)
         suggestionColorPref = colorPref("kb_ui_sug_col", R.string.keyboard_ui_item_colour, sub = true)
+        customSuggestionsPref =
+            EditTextPreference(context).apply {
+                key = "kb_ui_custom_suggestions"
+                isPersistent = false
+                layoutResource = R.layout.preference_item_kxkb_l2
+                title = resources.getString(R.string.keyboard_ui_custom_suggestions)
+                dialogTitle = resources.getString(R.string.keyboard_ui_custom_suggestions)
+                dialogMessage = resources.getString(R.string.keyboard_ui_custom_suggestions_dialog)
+                setOnBindEditTextListener { editText ->
+                    editText.inputType =
+                        InputType.TYPE_CLASS_TEXT or
+                            InputType.TYPE_TEXT_FLAG_MULTI_LINE or
+                            InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+                    editText.minLines = 4
+                    editText.setSelection(editText.text.length)
+                }
+                // Summary: a one-line preview of the configured entries, or the explanatory hint when empty.
+                summaryProvider =
+                    Preference.SummaryProvider<EditTextPreference> { pref ->
+                        val entries = pref.text.orEmpty()
+                        if (entries.isBlank()) {
+                            resources.getString(R.string.keyboard_ui_custom_suggestions_summary)
+                        } else {
+                            entries.split("\n").map { it.trim() }.filter { it.isNotEmpty() }.joinToString("  ")
+                        }
+                    }
+            }
         hintTopColorPref = colorPref("kb_ui_hint_top_col", R.string.keyboard_ui_item_colour, sub = true)
         hintTopScalePref = seekBar("kb_ui_hint_top_size", R.string.keyboard_ui_item_size, min = 50, max = 400, sub = true)
         hintTopFontPref = fontEntry("kb_ui_hint_top_font", R.string.keyboard_ui_item_font, sub = true)
@@ -262,6 +293,7 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         rowsCategory.addPreference(suggestionWeightPref)
         rowsCategory.addPreference(suggestionSizePref)
         rowsCategory.addPreference(suggestionColorPref)
+        rowsCategory.addPreference(customSuggestionsPref)
         rowsCategory.addPreference(subHeader(R.string.keyboard_ui_sub_top_row))
         rowsCategory.addPreference(hintTopColorPref)
         rowsCategory.addPreference(hintTopScalePref)
@@ -572,6 +604,10 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
             ColorPicker.show(requireContext(), viewModel.uiState.value.suggestionColor) { viewModel.updateSuggestionColor(it) }
             true
         }
+        customSuggestionsPref.setOnPreferenceChangeListener { _, newValue ->
+            viewModel.updateCustomSuggestions(newValue as String)
+            true
+        }
 
         libSepColorPref.setOnPreferenceClickListener {
             ColorPicker.show(requireContext(), viewModel.libraryState.value.separatorColor) { viewModel.updateLibSeparatorColor(it) }
@@ -670,6 +706,11 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                 }
                 launch {
                     viewModel.events.collect { event -> eventHandler.handle(event) }
+                }
+                launch {
+                    viewModel.customSuggestions.collect { raw ->
+                        if (customSuggestionsPref.text != raw) customSuggestionsPref.text = raw
+                    }
                 }
                 launch {
                     viewModel.libraryState.collect { lib ->

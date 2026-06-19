@@ -17,6 +17,9 @@ interface ViewCallback {
     fun updateSuggestions(suggestions: List<String>)
 
     fun showDegradedIndicator(degraded: Boolean)
+
+    /** Move (or clear, with -1) the cluster-candidate highlight without rebuilding the bar. */
+    fun setSelectedSuggestion(index: Int)
 }
 
 class InputStateManager(
@@ -63,10 +66,18 @@ class InputStateManager(
     /**
      * Index of the highlighted candidate in [pendingSuggestions] — the one Space commits in cluster typing.
      * Resets to 0 (the best candidate) on every new suggestion set; Tab advances it. See [clusterLayoutActive].
+     *
+     * A value of -1 means NO candidate is selected: that's the state of the custom DEFAULT row (nothing
+     * predicted), where a plain Space must enter a literal space, not commit a custom entry. Tab then sets a
+     * real index (>= 0), at which point Space commits THAT entry. See [hasExplicitSelection]. (Bug B.)
      */
     @Volatile
     var selectedCandidate: Int = 0
         internal set
+
+    /** True once Tab (or any explicit pick) has chosen a candidate — distinguishes the custom default row. */
+    val hasExplicitSelection: Boolean
+        get() = selectedCandidate >= 0
 
     /** True while a cluster-key layout is active, gating Space-commits-candidate / Tab-advances behaviour. */
     @Volatile
@@ -152,6 +163,43 @@ class InputStateManager(
 
     val selectionStateTracker = SelectionStateTracker()
 
+    /**
+     * User-defined custom suggestions (parsed, ordered, de-duplicated). Refreshed from settings.
+     * Shown as the default row when nothing is predicted and appended after live predictions otherwise.
+     */
+    @Volatile
+    var customSuggestions: List<String> = emptyList()
+        internal set
+
+    /** Fast membership check for the commit path (a custom-row tap must not spell-learn). */
+    @Volatile
+    private var customSuggestionSet: Set<String> = emptySet()
+
+    /** The real (non-custom) predictions currently shown, so a tap on one of those still learns/records. */
+    @Volatile
+    private var lastRealPredictions: Set<String> = emptySet()
+
+    fun setCustomSuggestions(entries: List<String>) {
+        customSuggestions = entries
+        customSuggestionSet = entries.toSet()
+    }
+
+    /**
+     * True if [word] is a custom-row entry that is NOT one of the live predictions currently shown (so a tap
+     * commits it literally, with no spell-learn / bigram recording). A custom entry that coincides with a
+     * real prediction is left as a normal prediction so its word stats are still recorded.
+     */
+    fun isCustomSuggestion(word: String): Boolean =
+        word in customSuggestionSet && word !in lastRealPredictions
+
+    /**
+     * Set while a Japanese reading is being composed: the candidate list is index-navigated by Space
+     * (JapaneseCandidateHandler), so the custom row must not be appended to / shown during composition.
+     */
+    @Volatile
+    var customRowSuppressed: Boolean = false
+        internal set
+
     val requiresDirectCommit: Boolean
         get() = isSecureField || isDirectCommitField
 
@@ -220,12 +268,72 @@ class InputStateManager(
         displayBuffer = capitalizedWord
     }
 
+    /**
+     * Merge the custom row into a (possibly empty) prediction list for display: nothing-predicted shows
+     * the custom row as the default; predictions get the custom entries appended. Suppressed while a
+     * Japanese reading is being composed, and skipped when there's no custom row configured. Updates
+     * [pendingSuggestions] to the merged list so Space / Tab / tap all operate on what the bar shows.
+     */
+    private fun mergeCustomRow(predictions: List<String>): List<String> {
+        if (customSuggestions.isEmpty() ||
+            customRowSuppressed ||
+            isSuggestionsDisabled ||
+            requiresDirectCommit
+        ) {
+            return predictions
+        }
+        return CustomSuggestionRow.merge(predictions, customSuggestions)
+    }
+
+    /**
+     * Append the custom row to a (possibly large) candidate list for the expandable "more candidates" pane:
+     * same gating as the bar (skipped when no custom row, suppressed, suggestions off, or direct-commit), but
+     * WITHOUT the bar's tight MAX_MERGED cap — the pane shows every prediction plus every custom entry not
+     * already present. Empty predictions return the custom row alone (the empty-buffer default). (Bug C.)
+     */
+    fun withCustomRow(predictions: List<String>): List<String> {
+        if (customSuggestions.isEmpty() ||
+            customRowSuppressed ||
+            isSuggestionsDisabled ||
+            requiresDirectCommit
+        ) {
+            return predictions
+        }
+        val seen = predictions.toMutableSet()
+        val tail = customSuggestions.filter { seen.add(it) }
+        return if (tail.isEmpty()) predictions else predictions + tail
+    }
+
+    /** Show the custom row as the default row when the bar would otherwise be cleared blank. */
+    private fun showCustomRowOrClear() {
+        // No real predictions in this state — the whole row (if any) is the custom default.
+        lastRealPredictions = emptySet()
+        val merged = mergeCustomRow(emptyList())
+        if (merged.isEmpty()) {
+            viewCallback.clearSuggestions()
+        } else {
+            pendingSuggestions = merged
+            viewCallback.updateSuggestions(merged)
+            // The custom DEFAULT row starts with NO candidate selected (a plain Space = literal space). Tab
+            // then explicitly selects one; only then does Space commit it. (Bug B.)
+            selectedCandidate = -1
+            viewCallback.setSelectedSuggestion(-1)
+        }
+    }
+
     fun clearSuggestionDisplay() {
-        viewCallback.clearSuggestions()
+        // An empty prediction list still shows the custom row as the default when one is configured.
+        showCustomRowOrClear()
     }
 
     fun updateSuggestionDisplay(suggestions: List<String>) {
-        viewCallback.updateSuggestions(suggestions)
+        // [suggestions] are the real predictions; the custom row (if any) is appended after them.
+        lastRealPredictions = suggestions.toSet()
+        val merged = mergeCustomRow(suggestions)
+        if (merged !== suggestions) {
+            pendingSuggestions = merged
+        }
+        viewCallback.updateSuggestions(merged)
     }
 
     fun showDegradedIndicator(degraded: Boolean) {
@@ -243,6 +351,7 @@ class InputStateManager(
         isActivelyEditing = true
         isCurrentWordAtSentenceStart = false
         isCurrentWordManualShifted = false
+        customRowSuppressed = false
         displayBuffer = ""
         wordState = WordState()
         pendingSuggestions = emptyList()
@@ -252,7 +361,7 @@ class InputStateManager(
         pendingWordForLearning = null
         postCommitReplacementState = null
         lastAutocorrection = null
-        viewCallback.clearSuggestions()
+        showCustomRowOrClear()
         composingRegionStart = -1
         composingReassertionCount = 0
         lastKnownCursorPosition = -1
@@ -281,7 +390,7 @@ class InputStateManager(
         if (isShowingBigramPredictions) {
             isShowingBigramPredictions = false
             pendingSuggestions = emptyList()
-            viewCallback.clearSuggestions()
+            showCustomRowOrClear()
         }
     }
 
@@ -300,6 +409,7 @@ class InputStateManager(
 
         isActivelyEditing = true
 
+        customRowSuppressed = false
         displayBuffer = ""
         wordState = WordState()
         pendingSuggestions = emptyList()
@@ -308,7 +418,7 @@ class InputStateManager(
         pendingWordForLearning = null
         postCommitReplacementState = null
         lastAutocorrection = null
-        viewCallback.clearSuggestions()
+        showCustomRowOrClear()
         composingRegionStart = -1
         lastKnownCursorPosition = -1
         selectionStateTracker.clearExpectedPosition()

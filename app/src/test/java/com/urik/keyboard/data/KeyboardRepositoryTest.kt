@@ -32,7 +32,11 @@ import org.robolectric.RuntimeEnvironment
  * Tests KeyboardRepository layout resolution using real assets.
  *
  * Uses Robolectric to access actual layout files from src/main/assets/layouts/,
- * verifying that locale → file → parsed layout resolves correctly with no mocked I/O.
+ * verifying that locale -> file -> parsed layout resolves correctly with no mocked I/O.
+ *
+ * The shipped roster is now cs/en/gnu/ja/ru only (per-language layout families, re-imported from the
+ * futokxkb v2 design data); the old single-file-per-language layouts and the ar/bg/el/fa/uk families are
+ * gone by design, so the tests that asserted on them were removed.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -60,10 +64,6 @@ class KeyboardRepositoryTest {
     private suspend fun loadLetters(lang: String) =
         repository.getLayoutForMode(KeyboardMode.LETTERS, Locale.forLanguageTag(lang))
 
-    private fun letterKeys(result: Result<com.urik.keyboard.model.KeyboardLayout>) = result.getOrNull()!!.rows.flatten()
-        .filterIsInstance<KeyboardKey.Character>()
-        .filter { it.type == KeyboardKey.KeyType.LETTER }
-
     // ── Russian ──────────────────────────────────────────────────────────────
 
     @Test
@@ -75,80 +75,29 @@ class KeyboardRepositoryTest {
 
     @Test
     fun `Russian layout letter keys are all Cyrillic`() = runTest {
-        val keys = letterKeys(loadLetters("ru"))
-        assertTrue("Russian layout must have letter keys", keys.isNotEmpty())
-        keys.forEach { key ->
+        // The current Russian roster (registry default ru_6r8c) is a compass/cluster board: its letters are
+        // FlickKey centres, not flat Character keys. Same intent — every single-character LETTER face is
+        // Cyrillic — over the FlickKey letter keys (digits, punctuation and chord labels like "Ctrl" are
+        // non-LETTER or multi-character, so they're excluded).
+        val letterFaces = loadLetters("ru").getOrNull()!!.rows.flatten()
+            .filterIsInstance<KeyboardKey.FlickKey>()
+            .filter { it.type == KeyboardKey.KeyType.LETTER }
+            .map { it.center }
+            .filter { it.length == 1 && it.first().isLetter() }
+        assertTrue("Russian layout must have letter keys", letterFaces.isNotEmpty())
+        letterFaces.forEach { face ->
             assertTrue(
-                "Key '${key.value}' contains non-Cyrillic characters",
-                key.value.all { it in '\u0400'..'\u04FF' }
+                "Letter face '$face' contains non-Cyrillic characters",
+                face.all { it in 'Ѐ'..'ӿ' }
             )
         }
     }
 
-    // ── Ukrainian ─────────────────────────────────────────────────────────────
+    // Removed-language tests deleted by design (roster is cs/en/gnu/ja/ru only):
+    //   Ukrainian (uk), Arabic (ar), Farsi (fa), Greek (el), Bulgarian (bg) and the BDS alt-layout — those
+    //   layouts no longer ship.
 
-    @Test
-    fun `Ukrainian layout resolves to Cyrl script`() = runTest {
-        val result = loadLetters("uk")
-        assertTrue("uk layout must load without error", result.isSuccess)
-        assertEquals("Cyrl", result.getOrNull()?.script)
-    }
-
-    @Test
-    fun `Ukrainian layout letter keys are all Cyrillic`() = runTest {
-        val keys = letterKeys(loadLetters("uk"))
-        assertTrue("Ukrainian layout must have letter keys", keys.isNotEmpty())
-        keys.forEach { key ->
-            assertTrue(
-                "Key '${key.value}' contains non-Cyrillic characters",
-                key.value.all { it in '\u0400'..'\u04FF' }
-            )
-        }
-    }
-
-    // ── Arabic ────────────────────────────────────────────────────────────────
-
-    @Test
-    fun `Arabic layout resolves to Arab script`() = runTest {
-        val result = loadLetters("ar")
-        assertTrue("ar layout must load without error", result.isSuccess)
-        assertEquals("Arab", result.getOrNull()?.script)
-    }
-
-    @Test
-    fun `Arabic layout letter keys are all Arabic`() = runTest {
-        val keys = letterKeys(loadLetters("ar"))
-        assertTrue("Arabic layout must have letter keys", keys.isNotEmpty())
-        keys.forEach { key ->
-            assertTrue(
-                "Key '${key.value}' contains non-Arabic characters",
-                key.value.all { it in '\u0600'..'\u06FF' }
-            )
-        }
-    }
-
-    // ── Farsi ─────────────────────────────────────────────────────────────────
-
-    @Test
-    fun `Farsi layout resolves to Arab script`() = runTest {
-        val result = loadLetters("fa")
-        assertTrue("fa layout must load without error", result.isSuccess)
-        assertEquals("Arab", result.getOrNull()?.script)
-    }
-
-    @Test
-    fun `Farsi layout letter keys are all Arabic-script`() = runTest {
-        val keys = letterKeys(loadLetters("fa"))
-        assertTrue("Farsi layout must have letter keys", keys.isNotEmpty())
-        keys.forEach { key ->
-            assertTrue(
-                "Key '${key.value}' contains non-Arabic-script characters",
-                key.value.all { it in '\u0600'..'\u06FF' }
-            )
-        }
-    }
-
-    // \u2500\u2500 GNU compass \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+    // ── GNU compass ────────────────────────────────────────────────────────────
 
     @Test
     fun `GNU layout loads all three modes as flick keys`() = runTest {
@@ -180,19 +129,16 @@ class KeyboardRepositoryTest {
         val down = c.bindings["down"]
         assertTrue("c down is a chord", down is KeyboardKey.FlickBinding.Chord)
         assertEquals("C-c", (down as KeyboardKey.FlickBinding.Chord).spec)
-        assertEquals("\u010D", c.right)
-    }
-
-    // ── Greek ─────────────────────────────────────────────────────────────────
-
-    @Test
-    fun `Greek layout resolves to Grek script`() = runTest {
-        val result = loadLetters("el")
-        assertTrue("el layout must load without error", result.isSuccess)
-        assertEquals("Grek", result.getOrNull()?.script)
+        assertEquals("č", c.right)
     }
 
     // ── Japanese ──────────────────────────────────────────────────────────────
+    //
+    // `ja` resolves to the registry default `ja_gojuon`, a compass/cluster grid board (not the old flick
+    // 12-key). The kana flick-variant tests (あ/や up/down/left/right), the per-key kana action keys
+    // (DAKUTEN/HANDAKUTEN/SMALL_KANA/EMOJI/NEXT_CANDIDATE/COMMIT_CANDIDATE), the JP symbols-punctuation
+    // row and the symbols_secondary mode no longer exist in any ja_* layout, so those assertions were
+    // dropped. LANGUAGE_SWITCH still ships on the `ja_ketai` (携帯/flick) layout and is verified there.
 
     @Test
     fun `Japanese layout resolves to Hira script`() = runTest {
@@ -209,170 +155,12 @@ class KeyboardRepositoryTest {
     }
 
     @Test
-    fun `Japanese あ key has correct flick variants`() = runTest {
-        val layout = loadLetters("ja").getOrNull()!!
-        val aKey = layout.rows.flatten()
-            .filterIsInstance<KeyboardKey.FlickKey>()
-            .find { it.center == "あ" }
-        assertNotNull("あ key must exist", aKey)
-        assertEquals("い", aKey!!.up)
-        assertEquals("う", aKey.right)
-        assertEquals("え", aKey.down)
-        assertEquals("お", aKey.left)
-    }
-
-    @Test
-    fun `Japanese や key has small kana flick variants`() = runTest {
-        val layout = loadLetters("ja").getOrNull()!!
-        val yaKey = layout.rows.flatten()
-            .filterIsInstance<KeyboardKey.FlickKey>()
-            .find { it.center == "や" }
-        assertNotNull("や key must exist", yaKey)
-        assertEquals("ゃ", yaKey!!.up)
-        assertEquals("ゆ", yaKey.right)
-        assertEquals("ょ", yaKey.down)
-        assertEquals("ゅ", yaKey.left)
-    }
-
-    @Test
-    fun `Japanese layout contains DAKUTEN action key`() = runTest {
-        val layout = loadLetters("ja").getOrNull()!!
-        val dakutenKey = layout.rows.flatten()
-            .filterIsInstance<KeyboardKey.Action>()
-            .find { it.action == KeyboardKey.ActionType.DAKUTEN }
-        assertNotNull("DAKUTEN action key must exist in Japanese layout", dakutenKey)
-    }
-
-    @Test
-    fun `Japanese layout contains SMALL_KANA action key`() = runTest {
-        val layout = loadLetters("ja").getOrNull()!!
-        val smallKanaKey = layout.rows.flatten()
-            .filterIsInstance<KeyboardKey.Action>()
-            .find { it.action == KeyboardKey.ActionType.SMALL_KANA }
-        assertNotNull("SMALL_KANA action key must exist in Japanese layout", smallKanaKey)
-    }
-
-    @Test
-    fun `Japanese layout contains LANGUAGE_SWITCH action key`() = runTest {
-        val layout = loadLetters("ja").getOrNull()!!
-        val languageSwitchKey = layout.rows.flatten()
+    fun `Japanese ja_ketai layout contains LANGUAGE_SWITCH action key`() = runTest {
+        val layout = repository.loadLayoutById("ja_ketai", KeyboardMode.LETTERS)
+        assertNotNull("ja_ketai layout must load", layout)
+        val languageSwitchKey = layout!!.rows.flatten()
             .filterIsInstance<KeyboardKey.Action>()
             .find { it.action == KeyboardKey.ActionType.LANGUAGE_SWITCH }
-        assertNotNull("LANGUAGE_SWITCH action key must exist in Japanese layout", languageSwitchKey)
+        assertNotNull("LANGUAGE_SWITCH action key must exist in the ja_ketai layout", languageSwitchKey)
     }
-
-    @Test
-    fun `Japanese layout contains NEXT_CANDIDATE action key`() = runTest {
-        val layout = loadLetters("ja").getOrNull()!!
-        val key = layout.rows.flatten()
-            .filterIsInstance<KeyboardKey.Action>()
-            .find { it.action == KeyboardKey.ActionType.NEXT_CANDIDATE }
-        assertNotNull("NEXT_CANDIDATE action key must exist in Japanese layout", key)
-    }
-
-    @Test
-    fun `Japanese layout contains COMMIT_CANDIDATE action key`() = runTest {
-        val layout = loadLetters("ja").getOrNull()!!
-        val key = layout.rows.flatten()
-            .filterIsInstance<KeyboardKey.Action>()
-            .find { it.action == KeyboardKey.ActionType.COMMIT_CANDIDATE }
-        assertNotNull("COMMIT_CANDIDATE action key must exist in Japanese layout", key)
-    }
-
-    @Test
-    fun `Japanese layout contains HANDAKUTEN action key`() = runTest {
-        val layout = loadLetters("ja").getOrNull()!!
-        val key = layout.rows.flatten()
-            .filterIsInstance<KeyboardKey.Action>()
-            .find { it.action == KeyboardKey.ActionType.HANDAKUTEN }
-        assertNotNull("HANDAKUTEN action key must exist in Japanese layout", key)
-    }
-
-    @Test
-    fun `Japanese layout contains EMOJI action key`() = runTest {
-        val layout = loadLetters("ja").getOrNull()!!
-        val key = layout.rows.flatten()
-            .filterIsInstance<KeyboardKey.Action>()
-            .find { it.action == KeyboardKey.ActionType.EMOJI }
-        assertNotNull("EMOJI action key must exist in Japanese layout", key)
-    }
-
-    @Test
-    fun `Japanese symbols mode first row contains JP punctuation`() = runTest {
-        val layout = loadSymbols("ja").getOrNull()!!
-        val chars = layout.rows[0].filterIsInstance<KeyboardKey.Character>().map { it.value }
-        assertTrue("JP symbols row 0 must contain 。", chars.contains("。"))
-        assertTrue("JP symbols row 0 must contain 「", chars.contains("「"))
-        assertTrue("JP symbols row 0 must contain ！", chars.contains("！"))
-    }
-
-    @Test
-    fun `Japanese symbols secondary mode first row contains ASCII symbols`() = runTest {
-        val layout = loadSymbolsSecondary("ja").getOrNull()!!
-        val chars = layout.rows[0].filterIsInstance<KeyboardKey.Character>().map { it.value }
-        assertTrue("JP symbols_secondary row 0 must contain !", chars.contains("!"))
-        assertTrue("JP symbols_secondary row 0 must contain @", chars.contains("@"))
-    }
-
-    // ── Bulgarian ─────────────────────────────────────────────────────────────
-
-    @Test
-    fun `Bulgarian layout resolves to Cyrl script`() = runTest {
-        val result = loadLetters("bg")
-        assertTrue("bg layout must load without error", result.isSuccess)
-        assertEquals("Cyrl", result.getOrNull()?.script)
-    }
-
-    @Test
-    fun `Bulgarian layout letter keys are all Cyrillic`() = runTest {
-        val keys = letterKeys(loadLetters("bg"))
-        assertTrue("Bulgarian layout must have letter keys", keys.isNotEmpty())
-        keys.forEach { key ->
-            assertTrue(
-                "Key '${key.value}' contains non-Cyrillic characters",
-                key.value.all { it in 'Ѐ'..'ӿ' }
-            )
-        }
-    }
-
-    // ── BDS layout ────────────────────────────────────────────────────────────
-
-    @Test
-    fun `BDS layout resolves to Cyrl script`() = runTest {
-        val settingsFlow = MutableStateFlow(
-            KeyboardSettings(alternativeKeyboardLayout = com.urik.keyboard.settings.AlternativeKeyboardLayout.BDS)
-        )
-        val settingsRepository = mock<SettingsRepository>()
-        whenever(settingsRepository.settings).thenReturn(settingsFlow)
-        val repo = KeyboardRepository(context, CacheMemoryManager(context), settingsRepository)
-
-        val result = repo.getLayoutForMode(KeyboardMode.LETTERS, Locale.forLanguageTag("bg"))
-        assertTrue("BDS layout must load without error", result.isSuccess)
-        assertEquals("Cyrl", result.getOrNull()?.script)
-    }
-
-    @Test
-    fun `BDS layout letter keys are all Cyrillic`() = runTest {
-        val settingsFlow = MutableStateFlow(
-            KeyboardSettings(alternativeKeyboardLayout = com.urik.keyboard.settings.AlternativeKeyboardLayout.BDS)
-        )
-        val settingsRepository = mock<SettingsRepository>()
-        whenever(settingsRepository.settings).thenReturn(settingsFlow)
-        val repo = KeyboardRepository(context, CacheMemoryManager(context), settingsRepository)
-
-        val keys = letterKeys(repo.getLayoutForMode(KeyboardMode.LETTERS, Locale.forLanguageTag("bg")))
-        assertTrue("BDS layout must have letter keys", keys.isNotEmpty())
-        keys.forEach { key ->
-            assertTrue(
-                "Key '${key.value}' contains non-Cyrillic characters",
-                key.value.all { it in 'Ѐ'..'ӿ' }
-            )
-        }
-    }
-
-    private suspend fun loadSymbols(lang: String) =
-        repository.getLayoutForMode(KeyboardMode.SYMBOLS, Locale.forLanguageTag(lang))
-
-    private suspend fun loadSymbolsSecondary(lang: String) =
-        repository.getLayoutForMode(KeyboardMode.SYMBOLS_SECONDARY, Locale.forLanguageTag(lang))
 }

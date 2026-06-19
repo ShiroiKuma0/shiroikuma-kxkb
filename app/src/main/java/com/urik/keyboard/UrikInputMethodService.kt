@@ -47,6 +47,7 @@ import com.urik.keyboard.service.BackspaceHandler
 import com.urik.keyboard.service.CandidateBarController
 import com.urik.keyboard.service.CharacterVariationService
 import com.urik.keyboard.service.ClipboardActionCoordinator
+import com.urik.keyboard.service.CustomSuggestionRow
 import com.urik.keyboard.service.ClipboardMonitorService
 import com.urik.keyboard.service.ClipboardPanelHost
 import com.urik.keyboard.service.EmojiSearchManager
@@ -358,6 +359,10 @@ open class UrikInputMethodService :
                         override fun showDegradedIndicator(degraded: Boolean) {
                             candidateBarController.showDegradedIndicator(degraded)
                         }
+
+                        override fun setSelectedSuggestion(index: Int) {
+                            candidateBarController.setSelectedSuggestion(index)
+                        }
                     },
                     onShiftStateChanged = { pressed ->
                         viewModel.onEvent(KeyboardEvent.ShiftStateChanged(pressed))
@@ -585,6 +590,23 @@ open class UrikInputMethodService :
                     context = mapOf("phase" to "language_init")
                 )
                 return
+            }
+
+            // Seed currentSettings synchronously (off the main thread, during onCreate) so the very first
+            // onStartInputView paint reads the real customSuggestions instead of the empty default — the
+            // async settings collector can otherwise emit AFTER that first paint, leaving the custom row
+            // blank until a keypress. (Bug 1 — load-timing race.)
+            try {
+                val seeded = settingsRepository.settings.first()
+                currentSettings = seeded
+                inputState.setCustomSuggestions(CustomSuggestionRow.parse(seeded.customSuggestions))
+            } catch (e: Exception) {
+                ErrorLogger.logException(
+                    component = "UrikInputMethodService",
+                    severity = ErrorLogger.Severity.LOW,
+                    exception = e,
+                    context = mapOf("operation" to "seedCurrentSettings")
+                )
             }
 
             try {
@@ -1230,6 +1252,17 @@ open class UrikInputMethodService :
 
                         currentSettings = newSettings
 
+                        // Custom suggestion row: parse the raw newline-separated setting once per change and
+                        // hand the clean list to the input state, which merges it into the candidate bar.
+                        inputState.setCustomSuggestions(CustomSuggestionRow.parse(newSettings.customSuggestions))
+                        // If the bar is currently idle (no composing word, no live predictions), repaint the
+                        // default row now so a just-saved custom row appears without needing a refocus (Bug 3).
+                        if (inputState.displayBuffer.isEmpty() && inputState.pendingSuggestions.isEmpty()) {
+                            withContext(Dispatchers.Main) {
+                                inputState.clearSuggestionDisplay()
+                            }
+                        }
+
                         val currentMode = keyboardModeManager.currentMode.value.mode
                         updateSwipeEnabledState(currentMode)
 
@@ -1299,7 +1332,9 @@ open class UrikInputMethodService :
                                 inputState.isCurrentWordAtSentenceStart
                             )
                         inputState.pendingSuggestions = recased
-                        candidateBarController.updateSuggestions(recased)
+                        // Route through updateSuggestionDisplay so the custom-row suffix (if any) stays
+                        // appended after the recased predictions instead of being dropped on a shift change.
+                        inputState.updateSuggestionDisplay(recased)
                     }
                 }
             }
@@ -1686,6 +1721,12 @@ open class UrikInputMethodService :
 
         applyFieldTypeFromEditorInfo(info)
 
+        // Sync the custom-suggestion row from the latest settings synchronously: the settings Flow collector
+        // is async, so on a fresh focus its first emission can land AFTER this method's clearSuggestionDisplay()
+        // below — leaving the default row blank even though entries are configured. Re-parsing the already-held
+        // currentSettings here makes the row correct immediately. (Bug C — empty custom row after newline/focus.)
+        inputState.setCustomSuggestions(CustomSuggestionRow.parse(currentSettings.customSuggestions))
+
         val targetMode = KeyboardModeUtils.determineTargetMode(info, viewModel.state.value.currentMode)
         if (targetMode != viewModel.state.value.currentMode) {
             viewModel.onEvent(KeyboardEvent.ModeChanged(targetMode))
@@ -1696,6 +1737,11 @@ open class UrikInputMethodService :
         } else if (!inputState.isUrlOrEmailField && !inputState.isTerminalField) {
             if (inputState.displayBuffer.isNotEmpty() || inputState.wordState.hasContent) {
                 coordinateStateClear()
+            } else {
+                // Empty fresh field: nothing to clear, but the custom-suggestion default row must still be
+                // shown when one is configured (coordinateStateClear would have done this via
+                // clearInternalStateOnly). Without this the bar stays blank on first focus (Bug 3).
+                inputState.clearSuggestionDisplay()
             }
 
             val textBefore = outputBridge.safeGetTextBeforeCursor(50)
@@ -1733,15 +1779,28 @@ open class UrikInputMethodService :
         viewModel.updateActionType(inputState.currentInputAction)
     }
 
-    override fun onLetterInput(char: String, wasAutoShifted: Boolean) {
+    override fun onLetterInput(char: String, wasAutoShifted: Boolean, wasManualShifted: Boolean) {
         autofillCoordinator.onKeyInput()
+        // Cluster keys carry punctuation/brackets/quotes/dashes as LETTER-typed flick characters (e.g. "-" is
+        // a flick-up on the "—j_" key), so they arrive here and would be APPENDED to the centre-letter buffer
+        // — showing underlined as a candidate ("long" + "-" -> garbage "litd-"; a lone "(" becoming a 1-char
+        // composing candidate). A terminator on a cluster layout must NEVER join the buffer: redirect it to the
+        // non-letter path, which commits any composing word's candidate first (if one's composing) and then
+        // enters the mark directly with the right spacing — even when nothing is composing. (Bug C.)
+        if (char.length == 1 &&
+            inputState.clusterLayoutActive &&
+            NonLetterInputHandler.isClusterTerminatorChar(char.single())
+        ) {
+            handleNonLetterInput(char)
+            return
+        }
+        // Only the first letter of a word decides its casing flags. wasManualShifted is captured in
+        // KeyEventRouter BEFORE the shift latch is cleared, so a mid-line manual Shift tap is honoured
+        // and the candidate bar shows + commits the Capitalized form (Bug 2). Auto-shift and caps-lock
+        // are handled by their own state and must NOT set the manual-shift flag.
         if (inputState.displayBuffer.isEmpty()) {
-            val state = viewModel.state.value
             inputState.isCurrentWordAtSentenceStart = wasAutoShifted
-            inputState.isCurrentWordManualShifted =
-                state.isShiftPressed &&
-                !state.isAutoShift &&
-                !state.isCapsLockOn
+            inputState.isCurrentWordManualShifted = wasManualShifted
         }
         handleLetterInput(char)
     }
@@ -1774,6 +1833,11 @@ open class UrikInputMethodService :
             else -> {
                 when {
                     currentState.isCapsLockOn -> viewModel.onEvent(KeyboardEvent.CapsLockToggled)
+                    // Auto-capitalised (sentence start): Shift means "let me type lowercase here". Drop to
+                    // lowercase AND suppress the immediate auto-cap re-check so it doesn't re-capitalise.
+                    // Must be checked before the generic isShiftPressed branch (auto-shift also has shift
+                    // latched). (Bug B.)
+                    currentState.isAutoShift -> viewModel.dismissAutoShift()
                     !currentState.isShiftPressed -> viewModel.onEvent(KeyboardEvent.ShiftStateChanged(true))
                     currentState.isShiftPressed -> viewModel.onEvent(KeyboardEvent.ShiftStateChanged(false))
                 }
@@ -1912,6 +1976,14 @@ open class UrikInputMethodService :
                 return@launch
             }
 
+            // A tapped custom-row entry commits its literal text (no spell-learn / bigram). It can never be
+            // a real top prediction (isCustomSuggestion excludes words that are also live predictions), so
+            // this only fires for the empty-buffer default row or the appended custom suffix.
+            if (inputState.isCustomSuggestion(suggestion)) {
+                suggestionPipeline.coordinateCustomSuggestionSelection(suggestion, ::checkAutoCapitalization)
+                return@launch
+            }
+
             val replacementState = inputState.postCommitReplacementState
             if (replacementState != null) {
                 suggestionPipeline.coordinatePostCommitReplacement(
@@ -1946,7 +2018,9 @@ open class UrikInputMethodService :
                     if (currentSuggestions.isNotEmpty()) {
                         candidateBarController.updateSuggestions(currentSuggestions)
                     } else {
-                        candidateBarController.clearSuggestions()
+                        // Custom-aware clear so the custom default row reappears after the last live
+                        // suggestion is removed, instead of a blank bar. (Bug 1.)
+                        inputState.clearSuggestionDisplay()
                     }
                 }
             } catch (e: Exception) {

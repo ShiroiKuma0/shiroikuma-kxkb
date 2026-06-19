@@ -88,6 +88,8 @@ class SuggestionPipelineTest {
                 capturedSuggestions = suggestions
             }
 
+            override fun setSelectedSuggestion(index: Int) {}
+
             override fun showDegradedIndicator(degraded: Boolean) {
                 capturedDegradedIndicator = degraded
             }
@@ -251,6 +253,90 @@ class SuggestionPipelineTest {
         assertEquals("hello", inputState.lastCommittedWord)
     }
 
+    // ---- Bug D: a standalone English pronoun "i" cluster candidate commits as "I". ----
+
+    @Test
+    fun `coordinateSuggestionSelection capitalizes a standalone i pronoun to I`() = runTest(testDispatcher) {
+        inputState.displayBuffer = "i"
+        inputState.composingRegionStart = 0
+        whenever(mockIc.getTextBeforeCursor(any(), any())).thenReturn("i")
+        // recaseForCommit echoes the lowercase "i"; the pronoun correction then capitalizes it to "I".
+        whenever(
+            mockCaseTransformer.applyCasing(
+                any<SpellingSuggestion>(),
+                any<KeyboardState>(),
+                any<Boolean>(),
+                any<java.util.Locale>()
+            )
+        ).thenAnswer { inv -> (inv.arguments[0] as SpellingSuggestion).word }
+
+        pipeline.coordinateSuggestionSelection("i", checkAutoCapitalization = {})
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockIc).commitText("I ", 1)
+    }
+
+    @Test
+    fun `coordinateSuggestionSelection leaves a non-pronoun word unchanged`() = runTest(testDispatcher) {
+        inputState.displayBuffer = "hel"
+        inputState.composingRegionStart = 0
+        whenever(mockIc.getTextBeforeCursor(any(), any())).thenReturn("hel")
+        whenever(
+            mockCaseTransformer.applyCasing(
+                any<SpellingSuggestion>(),
+                any<KeyboardState>(),
+                any<Boolean>(),
+                any<java.util.Locale>()
+            )
+        ).thenAnswer { inv -> (inv.arguments[0] as SpellingSuggestion).word }
+
+        pipeline.coordinateSuggestionSelection("hello", checkAutoCapitalization = {})
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockIc).commitText("hello ", 1)
+    }
+
+    // ---- Bug A: no next-word (bigram) prediction at the start of input / on an empty line. ----
+
+    @Test
+    fun `showBigramPredictions shows the custom row not a bigram when there is no preceding word`() =
+        runTest(testDispatcher) {
+            // A stale lastCommittedWord from an earlier line would otherwise resurrect a bigram, but the field
+            // is empty before the cursor (line start) -> no bigram; the custom default row is shown instead.
+            inputState.lastCommittedWord = "hello"
+            inputState.setCustomSuggestions(listOf("brb", "omw"))
+            whenever(mockIc.getTextBeforeCursor(any(), any())).thenReturn("")
+            whenever(mockWordFrequencyRepository.getBigramPredictions(any(), any(), any()))
+                .thenReturn(setOf("world"))
+
+            pipeline.showBigramPredictions()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // The bigram was never fetched; the bar shows the custom default row.
+            verify(mockWordFrequencyRepository, never()).getBigramPredictions(any(), any(), any())
+            assertEquals(listOf("brb", "omw"), capturedSuggestions)
+        }
+
+    @Test
+    fun `showBigramPredictions emits the bigram when a preceding word is present`() = runTest(testDispatcher) {
+        inputState.lastCommittedWord = "hello"
+        whenever(mockIc.getTextBeforeCursor(any(), any())).thenReturn("hello ")
+        whenever(mockWordFrequencyRepository.getBigramPredictions(any(), any(), any()))
+            .thenReturn(setOf("world"))
+        whenever(mockSpellCheckManager.isWordBlacklisted(any())).thenReturn(false)
+        whenever(mockCaseTransformer.applyCasingToSuggestions(any(), any(), any(), any()))
+            .thenAnswer { inv ->
+                @Suppress("UNCHECKED_CAST")
+                (inv.arguments[0] as List<SpellingSuggestion>).map { it.word }
+            }
+
+        pipeline.showBigramPredictions()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockWordFrequencyRepository).getBigramPredictions(any(), any(), any())
+        assertEquals(listOf("world"), capturedSuggestions)
+    }
+
     @Test
     fun `capitalizeSuggestions skips capitalization for Arabic`() {
         val arabicPipeline = SuggestionPipeline(
@@ -353,6 +439,62 @@ class SuggestionPipelineTest {
             .thenReturn(listOf("Hello"))
 
         val result = pipeline.capitalizeSuggestions(suggestions, isSentenceStart = true)
+
+        assertEquals(listOf("Hello"), result)
+    }
+
+    /**
+     * Fix 2: under auto-capitalization at sentence start (NO manual shift), the bar must already show the
+     * Capitalized form that the commit will insert — display and commit must not diverge. Uses a real
+     * CaseTransformer so the actual casing is exercised end to end.
+     */
+    @Test
+    fun `capitalizeSuggestions shows capitalized form at sentence start with real transformer`() {
+        val realPipeline = SuggestionPipeline(
+            state = inputState,
+            outputBridge = outputBridge,
+            textInputProcessor = mockTextInputProcessor,
+            spellCheckManager = mockSpellCheckManager,
+            wordLearningEngine = mockWordLearningEngine,
+            wordFrequencyRepository = mockWordFrequencyRepository,
+            languageManager = mockLanguageManager,
+            caseTransformer = CaseTransformer(),
+            scriptConverterRegistry = mockScriptConverterRegistry,
+            serviceScope = kotlinx.coroutines.CoroutineScope(testDispatcher),
+            host = FakeSuggestionPipelineHost()
+        )
+        inputState.isCurrentWordAtSentenceStart = true
+        val suggestions = listOf(SpellingSuggestion("hello", 0.9, 0, "dictionary", preserveCase = false))
+
+        val result = realPipeline.capitalizeSuggestions(suggestions)
+
+        assertEquals(listOf("Hello"), result)
+    }
+
+    /**
+     * Fix 2: when the user pressed Shift then typed (manual shift recorded on the current word) but the live
+     * shift latch has since cleared, the bar must still reflect the shift and show the Capitalized form.
+     */
+    @Test
+    fun `capitalizeSuggestions reflects manual shift after latch cleared`() {
+        val realPipeline = SuggestionPipeline(
+            state = inputState,
+            outputBridge = outputBridge,
+            textInputProcessor = mockTextInputProcessor,
+            spellCheckManager = mockSpellCheckManager,
+            wordLearningEngine = mockWordLearningEngine,
+            wordFrequencyRepository = mockWordFrequencyRepository,
+            languageManager = mockLanguageManager,
+            caseTransformer = CaseTransformer(),
+            scriptConverterRegistry = mockScriptConverterRegistry,
+            serviceScope = kotlinx.coroutines.CoroutineScope(testDispatcher),
+            host = FakeSuggestionPipelineHost()
+        )
+        inputState.isCurrentWordManualShifted = true
+        inputState.isCurrentWordAtSentenceStart = false
+        val suggestions = listOf(SpellingSuggestion("hello", 0.9, 0, "dictionary", preserveCase = false))
+
+        val result = realPipeline.capitalizeSuggestions(suggestions)
 
         assertEquals(listOf("Hello"), result)
     }
@@ -572,5 +714,52 @@ class SuggestionPipelineTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         assertEquals(emptyList<String>(), capturedSuggestions)
+    }
+
+    // ---- Bug C: the expandable "more candidates" pane includes the custom row after the predictions. ----
+
+    @Test
+    fun `expandedClusterCandidates appends the custom row after the DAWG predictions`() {
+        inputState.displayBuffer = "Deh"
+        inputState.setCustomSuggestions(listOf("brb", "omw"))
+        whenever(mockSpellCheckManager.clusterCandidatesFor(eq("Deh"), eq("en"), any()))
+            .thenReturn(listOf("Yes", "Yeh", "Deg"))
+        // Real transformer would re-case; the mock just echoes the words so the assertion is exact.
+        whenever(mockCaseTransformer.applyCasingToSuggestions(any(), any(), any(), any()))
+            .thenAnswer { inv ->
+                @Suppress("UNCHECKED_CAST")
+                (inv.arguments[0] as List<SpellingSuggestion>).map { it.word }
+            }
+
+        val pane = pipeline.expandedClusterCandidates()
+
+        assertEquals(listOf("Yes", "Yeh", "Deg", "brb", "omw"), pane)
+    }
+
+    @Test
+    fun `expandedClusterCandidates on empty buffer is the pending row plus the custom row`() {
+        inputState.displayBuffer = ""
+        inputState.setCustomSuggestions(listOf("brb"))
+        inputState.pendingSuggestions = listOf("the", "to")
+
+        val pane = pipeline.expandedClusterCandidates()
+
+        assertEquals(listOf("the", "to", "brb"), pane)
+    }
+
+    @Test
+    fun `expandedClusterCandidates without a custom row returns predictions unchanged`() {
+        inputState.displayBuffer = "Deh"
+        whenever(mockSpellCheckManager.clusterCandidatesFor(eq("Deh"), eq("en"), any()))
+            .thenReturn(listOf("Yes", "Yeh"))
+        whenever(mockCaseTransformer.applyCasingToSuggestions(any(), any(), any(), any()))
+            .thenAnswer { inv ->
+                @Suppress("UNCHECKED_CAST")
+                (inv.arguments[0] as List<SpellingSuggestion>).map { it.word }
+            }
+
+        val pane = pipeline.expandedClusterCandidates()
+
+        assertEquals(listOf("Yes", "Yeh"), pane)
     }
 }

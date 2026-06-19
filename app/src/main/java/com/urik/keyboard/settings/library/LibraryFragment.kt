@@ -337,6 +337,53 @@ class LibraryFragment : Fragment() {
                     rebuild()
                 }
             }
+            .setNeutralButton(R.string.library_git_browse) { _, _ ->
+                val start = current?.takeIf { it.isNotBlank() }?.let { File(it) }
+                    ?.takeIf { it.isDirectory }
+                    ?: Environment.getExternalStorageDirectory()
+                browseForFolder(start) { picked ->
+                    lifecycleScope.launch {
+                        settingsRepository.setLibraryRepoPath(picked.absolutePath)
+                        rebuild()
+                    }
+                }
+            }
+            .setNegativeButton(R.string.library_git_cancel, null)
+            .show()
+    }
+
+    /**
+     * A no-SAF, in-app directory browser (we hold All-Files-Access): list the sub-folders of [dir], let the
+     * user walk up/into them, create a new sub-folder, or pick [dir] itself. Re-shows itself per navigation.
+     */
+    private fun browseForFolder(dir: File, onPick: (File) -> Unit) {
+        if (!hasAllFilesAccess()) {
+            flash(getString(R.string.library_git_need_access)); requestAllFilesAccess(); return
+        }
+        val subdirs = (dir.listFiles { f -> f.isDirectory && !f.name.startsWith(".") } ?: emptyArray())
+            .sortedBy { it.name.lowercase(Locale.ROOT) }
+        val labels = mutableListOf<String>()
+        val targets = mutableListOf<File>()
+        dir.parentFile?.let { labels.add(getString(R.string.library_git_up)); targets.add(it) }
+        subdirs.forEach { labels.add("📁  " + it.name); targets.add(it) }
+        AlertDialog.Builder(requireContext())
+            .setTitle(dir.absolutePath)
+            .setItems(labels.toTypedArray()) { _, which -> browseForFolder(targets[which], onPick) }
+            .setPositiveButton(R.string.library_git_select_folder) { _, _ -> onPick(dir) }
+            .setNeutralButton(R.string.library_git_new_folder) { _, _ ->
+                val input = EditText(requireContext()).apply { setSingleLine() }
+                val pad = dp(20)
+                AlertDialog.Builder(requireContext())
+                    .setTitle(R.string.library_git_new_folder)
+                    .setView(FrameLayout(requireContext()).apply { setPadding(pad, dp(8), pad, 0); addView(input) })
+                    .setPositiveButton(R.string.library_git_save) { _, _ ->
+                        val name = input.text.toString().trim().takeIf { it.isNotEmpty() }
+                        val created = name?.let { File(dir, it).apply { mkdirs() } }
+                        browseForFolder(created?.takeIf { it.isDirectory } ?: dir, onPick)
+                    }
+                    .setNegativeButton(R.string.library_git_cancel) { _, _ -> browseForFolder(dir, onPick) }
+                    .show()
+            }
             .setNegativeButton(R.string.library_git_cancel, null)
             .show()
     }

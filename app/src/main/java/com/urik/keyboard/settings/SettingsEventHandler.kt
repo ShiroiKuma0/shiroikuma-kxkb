@@ -139,6 +139,10 @@ class SettingsEventHandler(private val context: Context) {
                     context.getString(R.string.error_update_reset_to_letters)
                 }
 
+                is SettingsEvent.Error.CustomSuggestionsUpdateFailed -> {
+                    context.getString(R.string.error_update_custom_suggestions)
+                }
+
                 is SettingsEvent.Error.KeyPressHighlightToggleFailed -> {
                     context.getString(R.string.error_update_press_highlight)
                 }

@@ -11,6 +11,7 @@ import org.junit.Test
 class InputStateManagerTest {
     private var suggestionsCleared = false
     private var lastSuggestions: List<String> = emptyList()
+    private var lastSelectedIndex = 0
 
     private lateinit var stateManager: InputStateManager
 
@@ -18,6 +19,7 @@ class InputStateManagerTest {
     fun setup() {
         suggestionsCleared = false
         lastSuggestions = emptyList()
+        lastSelectedIndex = 0
 
         val viewCallback = object : ViewCallback {
             override fun clearSuggestions() {
@@ -29,6 +31,10 @@ class InputStateManagerTest {
             }
 
             override fun showDegradedIndicator(degraded: Boolean) {
+            }
+
+            override fun setSelectedSuggestion(index: Int) {
+                lastSelectedIndex = index
             }
         }
 
@@ -283,5 +289,102 @@ class InputStateManagerTest {
         assertFalse(stateManager.wordState.suggestions.any { it.word.equals("hello", ignoreCase = true) })
         assertTrue(stateManager.currentRawSuggestions.any { it.word.equals("world", ignoreCase = true) })
         assertTrue(stateManager.wordState.suggestions.any { it.word.equals("world", ignoreCase = true) })
+    }
+
+    // ---- Bug C: the custom row as the empty-buffer default and appended to predictions. ----
+
+    @Test
+    fun `clearSuggestionDisplay shows the custom row as the default when one is configured`() {
+        stateManager.setCustomSuggestions(listOf("brb", "omw"))
+
+        stateManager.clearSuggestionDisplay()
+
+        assertFalse(suggestionsCleared)
+        assertEquals(listOf("brb", "omw"), lastSuggestions)
+        assertEquals(listOf("brb", "omw"), stateManager.pendingSuggestions)
+    }
+
+    @Test
+    fun `clearSuggestionDisplay clears the bar when no custom row is configured`() {
+        stateManager.clearSuggestionDisplay()
+
+        assertTrue(suggestionsCleared)
+    }
+
+    @Test
+    fun `updateSuggestionDisplay appends the custom row after the predictions`() {
+        stateManager.setCustomSuggestions(listOf("brb"))
+
+        stateManager.updateSuggestionDisplay(listOf("the", "to"))
+
+        assertEquals(listOf("the", "to", "brb"), lastSuggestions)
+        assertEquals(listOf("the", "to", "brb"), stateManager.pendingSuggestions)
+    }
+
+    @Test
+    fun `withCustomRow appends custom entries not already present and keeps order`() {
+        stateManager.setCustomSuggestions(listOf("the", "brb", "omw"))
+
+        // "the" is already a prediction, so it is not duplicated; the rest are appended in order.
+        assertEquals(listOf("the", "to", "brb", "omw"), stateManager.withCustomRow(listOf("the", "to")))
+    }
+
+    @Test
+    fun `withCustomRow returns predictions unchanged when no custom row`() {
+        assertEquals(listOf("the", "to"), stateManager.withCustomRow(listOf("the", "to")))
+    }
+
+    @Test
+    fun `withCustomRow is suppressed during Japanese composition`() {
+        stateManager.setCustomSuggestions(listOf("brb"))
+        stateManager.customRowSuppressed = true
+
+        assertEquals(listOf("the"), stateManager.withCustomRow(listOf("the")))
+    }
+
+    // ---- Bug 1: the custom default row survives every state-reset path (backspace-to-empty, Enter/newline). ----
+
+    @Test
+    fun `clearInternalStateOnly repaints the custom default row and syncs pendingSuggestions`() {
+        // clearInternalStateOnly is what coordinateStateClear runs on a post-commit clear / Enter / newline.
+        stateManager.setCustomSuggestions(listOf("brb", "omw"))
+        stateManager.displayBuffer = "hel"
+        stateManager.pendingSuggestions = listOf("hello", "help")
+
+        stateManager.clearInternalStateOnly()
+
+        assertFalse(suggestionsCleared)
+        assertEquals(listOf("brb", "omw"), lastSuggestions)
+        // pendingSuggestions must mirror the bar so a tap commits the right custom entry.
+        assertEquals(listOf("brb", "omw"), stateManager.pendingSuggestions)
+    }
+
+    @Test
+    fun `custom default row reappears across empty then backspace then newline states`() {
+        stateManager.setCustomSuggestions(listOf("brb", "omw"))
+
+        // (a) empty buffer -> bar shows the custom entries.
+        stateManager.clearSuggestionDisplay()
+        assertEquals(listOf("brb", "omw"), lastSuggestions)
+        assertEquals(listOf("brb", "omw"), stateManager.pendingSuggestions)
+
+        // (b) backspace dropping a post-commit bar to empty -> still the custom entries, NOT blank.
+        lastSuggestions = emptyList()
+        stateManager.clearSuggestionDisplay()
+        assertFalse(suggestionsCleared)
+        assertEquals(listOf("brb", "omw"), lastSuggestions)
+
+        // (c) after Enter/newline (coordinateStateClear -> clearInternalStateOnly) -> the custom entries.
+        lastSuggestions = emptyList()
+        stateManager.clearInternalStateOnly()
+        assertEquals(listOf("brb", "omw"), lastSuggestions)
+        assertEquals(listOf("brb", "omw"), stateManager.pendingSuggestions)
+    }
+
+    @Test
+    fun `clearInternalStateOnly blanks the bar when no custom row is configured`() {
+        stateManager.displayBuffer = "hel"
+        stateManager.clearInternalStateOnly()
+        assertTrue(suggestionsCleared)
     }
 }

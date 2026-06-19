@@ -115,6 +115,10 @@
     <string name="library_git_pending">%1$d pending</string>
     <string name="library_git_save">Save</string>
     <string name="library_git_cancel">Cancel</string>
+    <string name="library_git_browse">Browse…</string>
+    <string name="library_git_select_folder">Select this folder</string>
+    <string name="library_git_new_folder">New folder…</string>
+    <string name="library_git_up">⬆  ..</string>
     <!-- Visual Keyboard Editor (M4 L2) -->
     <string name="editor_title">Edit · %1$s</string>
     <string name="editor_mode_letters">Letters</string>
@@ -328,6 +332,9 @@
     <string name="keyboard_ui_item_left_char_pos">Left character position</string>
     <string name="keyboard_ui_item_right_char_pos">Right character position</string>
     <string name="keyboard_ui_section_suggestion">Suggestion bar</string>
+    <string name="keyboard_ui_custom_suggestions">Custom suggestions</string>
+    <string name="keyboard_ui_custom_suggestions_summary">Your own words, phrases or symbols — shown when nothing is predicted and added after live suggestions</string>
+    <string name="keyboard_ui_custom_suggestions_dialog">One entry per line. Each is shown in the suggestion bar and inserted exactly as written when tapped.</string>
     <string name="keyboard_ui_font_family">Font</string>
     <string name="keyboard_ui_font_import">Import font…</string>
     <string name="font_system_default">System default</string>
@@ -539,6 +546,7 @@
     <string name="error_update_autocorrection">Failed to update autocorrection setting</string>
     <string name="error_update_number_hints">Failed to update number hints</string>
     <string name="error_update_reset_to_letters">Failed to update reset to letters setting</string>
+    <string name="error_update_custom_suggestions">Failed to update custom suggestions</string>
     <string name="error_update_press_highlight">Failed to update key press highlight setting</string>
     <string name="layout_settings_show_number_hints">Show Number Hints</string>
     <string name="layout_settings_number_hints_on">On</string>

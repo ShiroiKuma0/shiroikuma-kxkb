@@ -47,6 +47,9 @@ class KeyboardLayoutEngineTest {
 
     private fun buildEngineWithButton(button: Button, key: KeyboardKey): Map<Button, Rect> {
         val app = RuntimeEnvironment.getApplication()
+        // The engine's mapButtonToKey reads each Button's R.id.key_data tag (set by KeyboardLayoutManager),
+        // instead of index-walking the model. Tag the button the same way the real renderer does so it maps.
+        button.setTag(com.urik.keyboard.R.id.key_data, key)
         val container = FrameLayout(app)
         container.addView(button)
         val layout = KeyboardLayout(

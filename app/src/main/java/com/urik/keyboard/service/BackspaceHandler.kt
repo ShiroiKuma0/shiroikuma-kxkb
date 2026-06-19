@@ -99,7 +99,9 @@ class BackspaceHandler(
 
             if (inputState.postCommitReplacementState != null) {
                 inputState.postCommitReplacementState = null
-                candidateBarController.clearSuggestions()
+                // Custom-aware clear so the custom default row re-shows after a backspace dismisses the
+                // post-commit bar, instead of leaving the bar blank. (Bug 1.)
+                inputState.clearSuggestionDisplay()
             }
 
             if (inputState.displayBuffer.isNotEmpty() && inputState.composingRegionStart != -1) {
@@ -350,7 +352,9 @@ class BackspaceHandler(
                                 outputBridge.setComposingText(autocorrection.originalTypedWord, 1)
                                 inputState.displayBuffer = autocorrection.originalTypedWord
                                 inputState.pendingSuggestions = emptyList()
-                                candidateBarController.clearSuggestions()
+                                // Custom-aware clear so the custom default row remains visible while the
+                                // autocorrect-undo recomposes the original word. (Bug 1.)
+                                inputState.clearSuggestionDisplay()
                                 val originalWord = autocorrection.originalTypedWord
                                 serviceScope.launch {
                                     suggestionPipeline.learnWordAndInvalidateCache(originalWord, InputMethod.TYPED)

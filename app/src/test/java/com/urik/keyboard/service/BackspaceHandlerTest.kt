@@ -135,6 +135,54 @@ class BackspaceHandlerTest {
         verify(mockSuggestionPipeline, never()).recordWordUsage(any())
     }
 
+    // ---- Bug 1: dropping a post-commit bar via backspace restores the custom default row, not a blank bar. ----
+
+    @Test
+    fun `backspace dropping a post-commit bar restores the custom default row`() = runTest(testDispatcher) {
+        var blanked = false
+        var painted: List<String> = emptyList()
+        val recordingState = InputStateManager(
+            viewCallback = object : ViewCallback {
+                override fun clearSuggestions() { blanked = true }
+                override fun updateSuggestions(suggestions: List<String>) { painted = suggestions }
+                override fun showDegradedIndicator(degraded: Boolean) {}
+                override fun setSelectedSuggestion(index: Int) {}
+            },
+            onShiftStateChanged = {},
+            isCapsLockOn = { false },
+            cancelDebounceJob = {}
+        )
+        recordingState.setCustomSuggestions(listOf("brb", "omw"))
+        recordingState.postCommitReplacementState = PostCommitReplacementState("teh", "the")
+        // Empty composing buffer but committed text before the cursor: backspace clears the post-commit
+        // state (routing through the custom-aware clear) and deletes a committed character.
+        whenever(mockOutputBridge.safeGetCursorPosition()).thenReturn(1)
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(any(), any())).thenReturn("x")
+
+        val recordingHandler = BackspaceHandler(
+            inputState = recordingState,
+            outputBridge = mockOutputBridge,
+            suggestionPipeline = mockSuggestionPipeline,
+            candidateBarController = mockCandidateBarController,
+            layoutManager = mockLayoutManager,
+            serviceScope = testScope,
+            onCoordinateStateClear = {},
+            onInvalidateComposingState = {},
+            onDisableShiftAfterBackspace = {},
+            onGetKeyboardState = { KeyboardState() },
+            onSendDownUpKeyEvents = {}
+        )
+
+        recordingHandler.handle()
+        advanceUntilIdle()
+
+        // The post-commit bar was dismissed but the custom default row was repainted, not blanked.
+        assertEquals(false, blanked)
+        assertEquals(listOf("brb", "omw"), painted)
+        // The low-level bar-blank (candidateBarController.clearSuggestions) was NOT used for this dismissal.
+        verify(mockCandidateBarController, never()).clearSuggestions()
+    }
+
     @Test
     fun `backspace in suggestions-disabled field deletes without recomposition`() = runTest(testDispatcher) {
         realInputState.isSuggestionsDisabled = true

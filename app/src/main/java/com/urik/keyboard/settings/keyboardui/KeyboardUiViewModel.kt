@@ -12,9 +12,12 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
@@ -40,6 +43,16 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
     private val _libraryState = MutableStateFlow(LibraryLook().toLibraryUiState())
     val libraryState: StateFlow<LibraryUiState> = _libraryState.asStateFlow()
     private var currentLibrary = LibraryLook()
+
+    // The custom-suggestion row contents (a global setting), edited next to the suggestion-bar look.
+    val customSuggestions: StateFlow<String> =
+        settingsRepository.settings
+            .map { it.customSuggestions }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
+                initialValue = ""
+            )
 
     init {
         // Follow the geometry the running keyboard is actually using (published by the IME service),
@@ -188,6 +201,14 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
 
     fun updateSuggestionColor(c: Int) = persist(current.copy(suggestionColor = c))
 
+    fun updateCustomSuggestions(raw: String) {
+        viewModelScope.launch {
+            settingsRepository
+                .updateCustomSuggestions(raw)
+                .onFailure { _events.emit(SettingsEvent.Error.CustomSuggestionsUpdateFailed) }
+        }
+    }
+
     private fun persist(updated: KeyboardLookKnobs) {
         val geometry = _uiState.value.geometry
         current = updated
@@ -243,6 +264,8 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
     )
 
     companion object {
+        private const val STOP_TIMEOUT_MILLIS = 5000L
+
         // Effective fallbacks for the colour pickers/swatches — 白い熊's HighContrastYellow look.
         const val DEFAULT_KEYBOARD_BG = 0xFF000000.toInt()
         const val DEFAULT_KEY_BG = 0xFF000000.toInt()
