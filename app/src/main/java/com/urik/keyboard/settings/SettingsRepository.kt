@@ -59,6 +59,13 @@ constructor(
         val CURRENT_GEOMETRY = stringPreferencesKey("current_geometry")
         val CURRENT_LAYOUT_LANGUAGE = stringPreferencesKey("current_layout_language")
         val LIBRARY_REPO_PATH = stringPreferencesKey("library_repo_path")
+        val LIBRARY_GIT_FOLDED = booleanPreferencesKey("library_git_folded")
+        // The Library git archive's HTTPS remote. Stored in app-private DataStore (this device already has
+        // All-Files-Access); the token is a personal-access token used only for clone/pull/push, never on
+        // the keyboard hot path or at boot.
+        val LIBRARY_REPO_REMOTE = stringPreferencesKey("library_repo_remote")
+        val LIBRARY_REPO_USER = stringPreferencesKey("library_repo_user")
+        val LIBRARY_REPO_TOKEN = stringPreferencesKey("library_repo_token")
         val CURRENT_KEY_HEIGHT_SCALE = stringPreferencesKey("current_key_height_scale")
         val HAPTIC_FEEDBACK = booleanPreferencesKey("haptic_feedback")
         val VIBRATION_STRENGTH = intPreferencesKey("vibration_strength")
@@ -507,6 +514,20 @@ constructor(
      * Read/written ONLY in the Library tab — never on the keyboard hot path or at boot. Null/blank → the
      * Library shows the internal store only.
      */
+    /** Whether the Library's Git-archive section is collapsed (persisted across sessions). */
+    suspend fun getLibraryGitFolded(): Boolean = try {
+        dataStore.data.first()[PreferenceKeys.LIBRARY_GIT_FOLDED] ?: false
+    } catch (_: Exception) {
+        false
+    }
+
+    suspend fun setLibraryGitFolded(folded: Boolean) {
+        try {
+            dataStore.edit { it[PreferenceKeys.LIBRARY_GIT_FOLDED] = folded }
+        } catch (_: Exception) {
+        }
+    }
+
     suspend fun getLibraryRepoPath(): String? = try {
         dataStore.data.first()[PreferenceKeys.LIBRARY_REPO_PATH]?.takeIf { it.isNotBlank() }
     } catch (e: Exception) {
@@ -518,6 +539,46 @@ constructor(
             val trimmed = path.trim()
             if (trimmed.isEmpty()) it.remove(PreferenceKeys.LIBRARY_REPO_PATH)
             else it[PreferenceKeys.LIBRARY_REPO_PATH] = trimmed
+        }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    /**
+     * The Library git archive's HTTPS remote (URL + credentials). Read/written ONLY in the Library tab.
+     * The token is a personal-access token stored in app-private DataStore (this device already grants the
+     * app All-Files-Access); it is used solely for clone/pull/push and never on the keyboard hot path.
+     */
+    suspend fun getLibraryRepoRemote(): String? = try {
+        dataStore.data.first()[PreferenceKeys.LIBRARY_REPO_REMOTE]?.takeIf { it.isNotBlank() }
+    } catch (e: Exception) {
+        null
+    }
+
+    suspend fun getLibraryRepoUser(): String = try {
+        dataStore.data.first()[PreferenceKeys.LIBRARY_REPO_USER] ?: ""
+    } catch (e: Exception) {
+        ""
+    }
+
+    suspend fun getLibraryRepoToken(): String = try {
+        dataStore.data.first()[PreferenceKeys.LIBRARY_REPO_TOKEN] ?: ""
+    } catch (e: Exception) {
+        ""
+    }
+
+    suspend fun setLibraryRepoRemote(url: String, user: String, token: String): Result<Unit> = try {
+        dataStore.edit {
+            val trimmedUrl = url.trim()
+            if (trimmedUrl.isEmpty()) it.remove(PreferenceKeys.LIBRARY_REPO_REMOTE)
+            else it[PreferenceKeys.LIBRARY_REPO_REMOTE] = trimmedUrl
+            val trimmedUser = user.trim()
+            if (trimmedUser.isEmpty()) it.remove(PreferenceKeys.LIBRARY_REPO_USER)
+            else it[PreferenceKeys.LIBRARY_REPO_USER] = trimmedUser
+            // The token may legitimately contain leading/trailing nothing of note; keep it verbatim.
+            if (token.isEmpty()) it.remove(PreferenceKeys.LIBRARY_REPO_TOKEN)
+            else it[PreferenceKeys.LIBRARY_REPO_TOKEN] = token
         }
         Result.success(Unit)
     } catch (e: Exception) {

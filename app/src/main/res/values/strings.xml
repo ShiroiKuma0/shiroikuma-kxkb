@@ -119,6 +119,20 @@
     <string name="library_git_select_folder">Select this folder</string>
     <string name="library_git_new_folder">New folder…</string>
     <string name="library_git_up">⬆  ..</string>
+    <!-- Library git archive: HTTPS remote (clone / pull / push) -->
+    <string name="library_git_remote_label">Remote</string>
+    <string name="library_git_remote_unset">Not set</string>
+    <string name="library_git_remote_dialog_title">HTTPS remote</string>
+    <string name="library_git_remote_dialog_message">HTTPS URL plus a username and personal-access token. Stored privately on this device. Leave the URL blank to remove the remote.</string>
+    <string name="library_git_remote_url_hint">https://github.com/user/repo.git</string>
+    <string name="library_git_remote_user_hint">Username (optional)</string>
+    <string name="library_git_remote_token_hint">Personal-access token</string>
+    <string name="library_git_remote_saved">Remote saved</string>
+    <string name="library_git_clone">Clone</string>
+    <string name="library_git_pull">Pull</string>
+    <string name="library_git_push">Push</string>
+    <string name="library_git_remote_need_fields">Set the remote URL and token first.</string>
+    <string name="library_git_clone_need_empty">Clone needs an empty (non-repo) folder path.</string>
     <!-- Visual Keyboard Editor (M4 L2) -->
     <string name="editor_title">Edit · %1$s</string>
     <string name="editor_mode_letters">Letters</string>

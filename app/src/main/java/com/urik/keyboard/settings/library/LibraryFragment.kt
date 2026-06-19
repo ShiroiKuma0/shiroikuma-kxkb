@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
+import android.text.InputType
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -196,10 +197,29 @@ class LibraryFragment : Fragment() {
     private fun buildGitSection(container: LinearLayout) {
         lifecycleScope.launch {
             container.removeAllViews()
-            container.addView(heading(getString(R.string.library_git_heading)))
+            // Foldable + persistent: tapping the heading collapses/expands the section, and the state survives
+            // exit/re-open (stored in settings). Collapsed → only the heading shows.
+            val folded = settingsRepository.getLibraryGitFolded()
+            val arrow = if (folded) "▸ " else "▾ "
+            container.addView(
+                heading(arrow + getString(R.string.library_git_heading)).apply {
+                    isClickable = true
+                    setOnClickListener {
+                        lifecycleScope.launch {
+                            settingsRepository.setLibraryGitFolded(!folded)
+                            buildGitSection(container)
+                        }
+                    }
+                }
+            )
+            if (folded) return@launch
 
             val path = settingsRepository.getLibraryRepoPath()
             container.addView(gitPathRow(path))
+
+            // The HTTPS remote row is always shown (independent of the path), so the user can set it up first.
+            val remoteUrl = settingsRepository.getLibraryRepoRemote()
+            container.addView(gitRemoteRow(remoteUrl))
 
             if (path.isNullOrBlank()) return@launch
 
@@ -226,25 +246,34 @@ class LibraryFragment : Fragment() {
             }
 
             when (state) {
-                GitState.Missing -> {
-                    container.addView(gitCaption(getString(R.string.library_git_dir_missing)))
-                    container.addView(pillRow(pillButton(getString(R.string.library_git_init)) {
-                        initRepo(dir)
-                    }))
-                }
-                GitState.NotRepo -> {
-                    container.addView(gitCaption(getString(R.string.library_git_not_a_repo)))
-                    container.addView(pillRow(pillButton(getString(R.string.library_git_init)) {
-                        initRepo(dir)
-                    }))
+                GitState.Missing, GitState.NotRepo -> {
+                    val caption = if (state is GitState.Missing) R.string.library_git_dir_missing
+                        else R.string.library_git_not_a_repo
+                    container.addView(gitCaption(getString(caption)))
+                    val pills = LinearLayout(requireContext()).apply { orientation = LinearLayout.HORIZONTAL }
+                    pills.setPadding(0, dp(4), 0, dp(8))
+                    pills.addView(pillButton(getString(R.string.library_git_init)) { initRepo(dir) })
+                    // With a remote set, offer Clone into this (empty/non-repo) folder.
+                    if (!remoteUrl.isNullOrBlank()) {
+                        pills.addView(pillButton(getString(R.string.library_git_clone)) {
+                            cloneRepo(remoteUrl, dir)
+                        })
+                    }
+                    container.addView(pills)
                 }
                 is GitState.Repo -> {
                     if (state.pending > 0) {
                         container.addView(gitCaption(getString(R.string.library_git_pending, state.pending)))
                     }
-                    container.addView(pillRow(pillButton(getString(R.string.library_git_commit)) {
-                        commitLibrary(dir)
-                    }))
+                    val pills = LinearLayout(requireContext()).apply { orientation = LinearLayout.HORIZONTAL }
+                    pills.setPadding(0, dp(4), 0, dp(8))
+                    pills.addView(pillButton(getString(R.string.library_git_commit)) { commitLibrary(dir) })
+                    // With a remote set, offer Pull / Push for the existing repo.
+                    if (!remoteUrl.isNullOrBlank()) {
+                        pills.addView(pillButton(getString(R.string.library_git_pull)) { pullRepo(dir) })
+                        pills.addView(pillButton(getString(R.string.library_git_push)) { pushRepo(dir) })
+                    }
+                    container.addView(pills)
                     if (state.files.isEmpty()) {
                         container.addView(gitCaption(getString(R.string.library_git_no_files)))
                     } else {
@@ -281,6 +310,32 @@ class LibraryFragment : Fragment() {
         addView(
             TextView(requireContext()).apply {
                 text = path?.takeIf { it.isNotBlank() } ?: getString(R.string.library_git_path_unset)
+                setTextColor(0xFFCCCC66.toInt())
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                setPadding(dp(10), 0, 0, 0)
+                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            }
+        )
+    }
+
+    /** The "Remote  <url>" row — tap to edit the HTTPS URL + username + token in an AlertDialog. */
+    private fun gitRemoteRow(url: String?): View = LinearLayout(requireContext()).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding(dp(4), dp(8), dp(8), dp(8))
+        isClickable = true
+        isFocusable = true
+        setOnClickListener { editRemote() }
+        addView(
+            TextView(requireContext()).apply {
+                text = getString(R.string.library_git_remote_label)
+                setTextColor(0xFFFFFF00.toInt())
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+            }
+        )
+        addView(
+            TextView(requireContext()).apply {
+                text = url?.takeIf { it.isNotBlank() } ?: getString(R.string.library_git_remote_unset)
                 setTextColor(0xFFCCCC66.toInt())
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
                 setPadding(dp(10), 0, 0, 0)
@@ -327,7 +382,7 @@ class LibraryFragment : Fragment() {
         }
         val pad = dp(20)
         val box = FrameLayout(requireContext()).apply { setPadding(pad, dp(8), pad, 0); addView(input) }
-        AlertDialog.Builder(requireContext())
+        AlertDialog.Builder(requireContext(), R.style.Theme_Urik_Dialog)
             .setTitle(R.string.library_git_path_dialog_title)
             .setMessage(R.string.library_git_path_dialog_message)
             .setView(box)
@@ -352,6 +407,108 @@ class LibraryFragment : Fragment() {
             .show()
     }
 
+    /** Edit the HTTPS remote — URL, username, token (masked) — in one dialog; saves all three at once. */
+    private fun editRemote() {
+        lifecycleScope.launch {
+            val currentUrl = settingsRepository.getLibraryRepoRemote() ?: ""
+            val currentUser = settingsRepository.getLibraryRepoUser()
+            val currentToken = settingsRepository.getLibraryRepoToken()
+
+            val urlField = EditText(requireContext()).apply {
+                setText(currentUrl)
+                hint = getString(R.string.library_git_remote_url_hint)
+                setSingleLine()
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
+            }
+            val userField = EditText(requireContext()).apply {
+                setText(currentUser)
+                hint = getString(R.string.library_git_remote_user_hint)
+                setSingleLine()
+            }
+            val tokenField = EditText(requireContext()).apply {
+                setText(currentToken)
+                hint = getString(R.string.library_git_remote_token_hint)
+                setSingleLine()
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            }
+            val pad = dp(20)
+            val box = LinearLayout(requireContext()).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(pad, dp(8), pad, 0)
+                addView(urlField)
+                addView(userField)
+                addView(tokenField)
+            }
+            AlertDialog.Builder(requireContext(), R.style.Theme_Urik_Dialog)
+                .setTitle(R.string.library_git_remote_dialog_title)
+                .setMessage(R.string.library_git_remote_dialog_message)
+                .setView(box)
+                .setPositiveButton(R.string.library_git_save) { _, _ ->
+                    lifecycleScope.launch {
+                        settingsRepository.setLibraryRepoRemote(
+                            urlField.text.toString(),
+                            userField.text.toString(),
+                            tokenField.text.toString()
+                        )
+                        flash(getString(R.string.library_git_remote_saved))
+                        rebuild()
+                    }
+                }
+                .setNegativeButton(R.string.library_git_cancel, null)
+                .show()
+        }
+    }
+
+    /** Clone the saved remote into [dir] (must be empty/non-repo), then commit-config the origin URL. */
+    private fun cloneRepo(url: String, dir: File) {
+        lifecycleScope.launch {
+            val user = settingsRepository.getLibraryRepoUser()
+            val token = settingsRepository.getLibraryRepoToken()
+            if (token.isBlank()) {
+                flash(getString(R.string.library_git_remote_need_fields)); return@launch
+            }
+            val result = withContext(Dispatchers.IO) { GitArchive.clone(url, dir, user, token) }
+            flash(result.message)
+            rebuild()
+        }
+    }
+
+    /** Ensure `origin` points at the saved remote, then pull. */
+    private fun pullRepo(dir: File) {
+        lifecycleScope.launch {
+            val url = settingsRepository.getLibraryRepoRemote()
+            val user = settingsRepository.getLibraryRepoUser()
+            val token = settingsRepository.getLibraryRepoToken()
+            if (url.isNullOrBlank() || token.isBlank()) {
+                flash(getString(R.string.library_git_remote_need_fields)); return@launch
+            }
+            val result = withContext(Dispatchers.IO) {
+                GitArchive.setRemote(dir, url)
+                GitArchive.pull(dir, user, token)
+            }
+            flash(result.message)
+            rebuild()
+        }
+    }
+
+    /** Ensure `origin` points at the saved remote, then push. */
+    private fun pushRepo(dir: File) {
+        lifecycleScope.launch {
+            val url = settingsRepository.getLibraryRepoRemote()
+            val user = settingsRepository.getLibraryRepoUser()
+            val token = settingsRepository.getLibraryRepoToken()
+            if (url.isNullOrBlank() || token.isBlank()) {
+                flash(getString(R.string.library_git_remote_need_fields)); return@launch
+            }
+            val result = withContext(Dispatchers.IO) {
+                GitArchive.setRemote(dir, url)
+                GitArchive.push(dir, user, token)
+            }
+            flash(result.message)
+            rebuild()
+        }
+    }
+
     /**
      * A no-SAF, in-app directory browser (we hold All-Files-Access): list the sub-folders of [dir], let the
      * user walk up/into them, create a new sub-folder, or pick [dir] itself. Re-shows itself per navigation.
@@ -366,14 +523,14 @@ class LibraryFragment : Fragment() {
         val targets = mutableListOf<File>()
         dir.parentFile?.let { labels.add(getString(R.string.library_git_up)); targets.add(it) }
         subdirs.forEach { labels.add("📁  " + it.name); targets.add(it) }
-        AlertDialog.Builder(requireContext())
+        AlertDialog.Builder(requireContext(), R.style.Theme_Urik_Dialog)
             .setTitle(dir.absolutePath)
             .setItems(labels.toTypedArray()) { _, which -> browseForFolder(targets[which], onPick) }
             .setPositiveButton(R.string.library_git_select_folder) { _, _ -> onPick(dir) }
             .setNeutralButton(R.string.library_git_new_folder) { _, _ ->
                 val input = EditText(requireContext()).apply { setSingleLine() }
                 val pad = dp(20)
-                AlertDialog.Builder(requireContext())
+                AlertDialog.Builder(requireContext(), R.style.Theme_Urik_Dialog)
                     .setTitle(R.string.library_git_new_folder)
                     .setView(FrameLayout(requireContext()).apply { setPadding(pad, dp(8), pad, 0); addView(input) })
                     .setPositiveButton(R.string.library_git_save) { _, _ ->
@@ -457,18 +614,33 @@ class LibraryFragment : Fragment() {
         }
     }
 
-    /** Mirror every custom-store layout out to `<dir>/<id>.json`, then commit. Flash the resulting hash. */
+    /**
+     * Mirror the FULL effective layout collection (bundled + the user's edits) into `<dir>/layouts/` under
+     * CLEAN names + the registry, then commit. A shadow copy (an edited stock) is written under the STOCK id
+     * it replaces — so the archive holds `gnu_5r13c.json` with the edited content, never `gnu_5r13c_copy.json`.
+     * The layouts dir is rebuilt each commit so it's a faithful mirror; stray `_copy` files an earlier version
+     * wrote to the repo root are cleaned up.
+     */
     private fun commitLibrary(dir: File) {
         lifecycleScope.launch {
-            val entries = CustomLayoutStore.customEntries(requireContext())
-            val rawById = entries.associate { it.id to CustomLayoutStore.rawJson(requireContext(), it.id) }
+            val ctx = requireContext()
+            val registry = LayoutRegistry.load(ctx)
+            // Effective id → JSON: a shadow uses derivedFrom (the stock id); bundled / stand-alone keep theirs.
+            val toWrite = registry.entries
+                .mapNotNull { e -> CustomLayoutStore.rawJson(ctx, e.id)?.let { (e.derivedFrom ?: e.id) to it } }
+                .distinctBy { it.first }
+            val registryJson = try {
+                ctx.assets.open("layouts/registry.json").bufferedReader().use { it.readText() }
+            } catch (_: Exception) {
+                null
+            }
             val hash = withContext(Dispatchers.IO) {
                 try {
-                    entries.forEach { e ->
-                        rawById[e.id]?.let { json ->
-                            File(dir, "${e.id}.json").writeText(json.toString(2))
-                        }
-                    }
+                    val layoutsDir = File(dir, "layouts").apply { mkdirs() }
+                    layoutsDir.listFiles { f -> f.isFile && f.extension == "json" }?.forEach { it.delete() }
+                    dir.listFiles { f -> f.isFile && f.name.endsWith(".json") }?.forEach { it.delete() }
+                    toWrite.forEach { (id, json) -> File(layoutsDir, "$id.json").writeText(json.toString(2)) }
+                    registryJson?.let { File(layoutsDir, "registry.json").writeText(it) }
                     GitArchive.commitAll(dir, "Update from 白い熊 kxkb", "白い熊 kxkb", "kxkb@localhost")
                 } catch (_: Exception) {
                     null
