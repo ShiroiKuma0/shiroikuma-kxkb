@@ -251,6 +251,10 @@ dependencies {
 
     implementation(libs.androidx.window)
 
+    // In-app git for the Library archive (JGit 5.13 LTS — last Java-8 line, Android-safe at minSdk 26).
+    implementation(libs.jgit)
+    implementation(libs.slf4j.nop)
+
     testImplementation(libs.junit)
     testImplementation(libs.mockito.core)
     testImplementation(libs.mockito.kotlin)

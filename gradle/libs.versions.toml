@@ -23,9 +23,13 @@ robolectric = "4.16.1"
 roomRuntime = "2.8.4"
 sqliteKtx = "2.6.2"
 window = "1.5.1"
+jgit = "5.13.3.202401111512-r"
+slf4j = "1.7.36"
 
 [libraries]
 android-database-sqlcipher = { module = "net.zetetic:sqlcipher-android", version.ref = "androidDatabaseSqlcipher" }
+jgit = { module = "org.eclipse.jgit:org.eclipse.jgit", version.ref = "jgit" }
+slf4j-nop = { module = "org.slf4j:slf4j-nop", version.ref = "slf4j" }
 androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
 androidx-autofill = { module = "androidx.autofill:autofill", version.ref = "autofill" }
 androidx-biometric = { module = "androidx.biometric:biometric", version.ref = "biometric" }

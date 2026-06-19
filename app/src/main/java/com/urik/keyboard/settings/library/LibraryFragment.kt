@@ -1,23 +1,30 @@
 package com.urik.keyboard.settings.library
 
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.Paint
+import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
+import android.provider.Settings
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.urik.keyboard.R
 import com.urik.keyboard.data.CustomLayoutStore
+import com.urik.keyboard.data.GitArchive
 import com.urik.keyboard.data.KeyboardRepository
 import com.urik.keyboard.data.LayoutEntry
 import com.urik.keyboard.data.LayoutRegistry
@@ -35,10 +42,14 @@ import com.urik.keyboard.theme.ThemeManager
 import com.urik.keyboard.utils.CacheMemoryManager
 import com.urik.keyboard.ui.keyboard.components.KeyboardLayoutManager
 import dagger.hilt.android.AndroidEntryPoint
+import java.io.File
 import java.util.Locale
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
 
 /**
  * The Library — browse every layout grouped under a per-language heading. Tapping a layout renders it as a
@@ -160,6 +171,10 @@ class LibraryFragment : Fragment() {
                 settingsRepository.getActiveLayoutForLanguage(lang) ?: registry.defaultFor(lang)
             }
             listContainer.removeAllViews()
+            // The git archive section is additive at the TOP — all its (blocking) git work runs lazily
+            // off the main thread, only when this section builds, never on the keyboard hot path or boot.
+            val gitSection = LinearLayout(requireContext()).apply { orientation = LinearLayout.VERTICAL }
+            listContainer.addView(gitSection)
             for (lang in langs) {
                 listContainer.addView(heading(langDisplay(lang)))
                 val entries = registry.forLanguage(lang)
@@ -168,6 +183,255 @@ class LibraryFragment : Fragment() {
                     if (i < entries.lastIndex) listContainer.addView(separator())
                 }
             }
+            buildGitSection(gitSection)
+        }
+    }
+
+    /**
+     * Build the Library's "Git archive" section into [container]. Path unset → only the heading + a path
+     * row (so the Library degrades to internal-store-only, exactly as before). All git/filesystem calls go
+     * through [Dispatchers.IO]; failures (missing dir, not-a-repo, no permission) degrade gracefully and
+     * never crash.
+     */
+    private fun buildGitSection(container: LinearLayout) {
+        lifecycleScope.launch {
+            container.removeAllViews()
+            container.addView(heading(getString(R.string.library_git_heading)))
+
+            val path = settingsRepository.getLibraryRepoPath()
+            container.addView(gitPathRow(path))
+
+            if (path.isNullOrBlank()) return@launch
+
+            // All-files access is required to touch a real external folder.
+            if (!hasAllFilesAccess()) {
+                container.addView(gitCaption(getString(R.string.library_git_need_access)))
+                container.addView(pillRow(pillButton(getString(R.string.library_git_grant_access)) {
+                    requestAllFilesAccess()
+                }))
+                return@launch
+            }
+
+            val dir = File(path)
+            // Probe the repo state off the main thread.
+            val state = withContext(Dispatchers.IO) {
+                when {
+                    !dir.exists() -> GitState.Missing
+                    !GitArchive.isRepo(dir) -> GitState.NotRepo
+                    else -> GitState.Repo(
+                        GitArchive.listLayoutFiles(dir).map { it to it.relativeTo(dir).path },
+                        GitArchive.pendingChanges(dir).size
+                    )
+                }
+            }
+
+            when (state) {
+                GitState.Missing -> {
+                    container.addView(gitCaption(getString(R.string.library_git_dir_missing)))
+                    container.addView(pillRow(pillButton(getString(R.string.library_git_init)) {
+                        initRepo(dir)
+                    }))
+                }
+                GitState.NotRepo -> {
+                    container.addView(gitCaption(getString(R.string.library_git_not_a_repo)))
+                    container.addView(pillRow(pillButton(getString(R.string.library_git_init)) {
+                        initRepo(dir)
+                    }))
+                }
+                is GitState.Repo -> {
+                    if (state.pending > 0) {
+                        container.addView(gitCaption(getString(R.string.library_git_pending, state.pending)))
+                    }
+                    container.addView(pillRow(pillButton(getString(R.string.library_git_commit)) {
+                        commitLibrary(dir)
+                    }))
+                    if (state.files.isEmpty()) {
+                        container.addView(gitCaption(getString(R.string.library_git_no_files)))
+                    } else {
+                        state.files.forEach { (file, rel) ->
+                            container.addView(gitFileRow(file, rel, dir))
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private sealed interface GitState {
+        data object Missing : GitState
+        data object NotRepo : GitState
+        data class Repo(val files: List<Pair<File, String>>, val pending: Int) : GitState
+    }
+
+    /** The "Repository path  <value>" row — tap to edit the path in an AlertDialog. */
+    private fun gitPathRow(path: String?): View = LinearLayout(requireContext()).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding(dp(4), dp(8), dp(8), dp(8))
+        isClickable = true
+        isFocusable = true
+        setOnClickListener { editRepoPath(path) }
+        addView(
+            TextView(requireContext()).apply {
+                text = getString(R.string.library_git_path_label)
+                setTextColor(0xFFFFFF00.toInt())
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+            }
+        )
+        addView(
+            TextView(requireContext()).apply {
+                text = path?.takeIf { it.isNotBlank() } ?: getString(R.string.library_git_path_unset)
+                setTextColor(0xFFCCCC66.toInt())
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                setPadding(dp(10), 0, 0, 0)
+                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            }
+        )
+    }
+
+    private fun gitCaption(text: String): TextView = TextView(requireContext()).apply {
+        this.text = text
+        setTextColor(0xFFCCCC66.toInt())
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+        setPadding(dp(4), dp(2), dp(8), dp(6))
+    }
+
+    /** A left-aligned single-pill row, so a lone pill doesn't stretch full width. */
+    private fun pillRow(pill: View): View = LinearLayout(requireContext()).apply {
+        orientation = LinearLayout.HORIZONTAL
+        setPadding(0, dp(4), 0, dp(8))
+        addView(pill)
+    }
+
+    /** "<relative path>   [Import]" — Import copies the archived JSON into the editable custom store. */
+    private fun gitFileRow(file: File, rel: String, dir: File): View = LinearLayout(requireContext()).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding(dp(8), dp(6), dp(8), dp(6))
+        addView(
+            TextView(requireContext()).apply {
+                text = rel
+                setTextColor(0xFFFFFFFF.toInt())
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            }
+        )
+        addView(pillButton(getString(R.string.library_git_import)) { importFile(file, dir) })
+    }
+
+    private fun editRepoPath(current: String?) {
+        val input = EditText(requireContext()).apply {
+            setText(current ?: "")
+            hint = getString(R.string.library_git_path_dialog_hint)
+            setSingleLine()
+        }
+        val pad = dp(20)
+        val box = FrameLayout(requireContext()).apply { setPadding(pad, dp(8), pad, 0); addView(input) }
+        AlertDialog.Builder(requireContext())
+            .setTitle(R.string.library_git_path_dialog_title)
+            .setMessage(R.string.library_git_path_dialog_message)
+            .setView(box)
+            .setPositiveButton(R.string.library_git_save) { _, _ ->
+                lifecycleScope.launch {
+                    settingsRepository.setLibraryRepoPath(input.text.toString())
+                    rebuild()
+                }
+            }
+            .setNegativeButton(R.string.library_git_cancel, null)
+            .show()
+    }
+
+    private fun hasAllFilesAccess(): Boolean = Environment.isExternalStorageManager()
+
+    private fun requestAllFilesAccess() {
+        val pkg = "package:" + requireContext().packageName
+        try {
+            startActivity(
+                Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse(pkg))
+            )
+        } catch (_: Exception) {
+            try {
+                startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+            } catch (_: Exception) {
+                flash(getString(R.string.library_git_need_access))
+            }
+        }
+    }
+
+    private fun initRepo(dir: File) {
+        lifecycleScope.launch {
+            val ok = withContext(Dispatchers.IO) {
+                try {
+                    GitArchive.initIfNeeded(dir)
+                    GitArchive.isRepo(dir)
+                } catch (_: Exception) {
+                    false
+                }
+            }
+            flash(getString(if (ok) R.string.library_git_initialised_toast else R.string.library_git_init_failed))
+            rebuild()
+        }
+    }
+
+    /** Read the archived file's JSON, derive a [LayoutEntry], and save it into the editable custom store. */
+    private fun importFile(file: File, dir: File) {
+        lifecycleScope.launch {
+            val json = withContext(Dispatchers.IO) {
+                try {
+                    JSONObject(file.readText())
+                } catch (_: Exception) {
+                    null
+                }
+            }
+            if (json == null) {
+                flash(getString(R.string.library_git_import_failed))
+                return@launch
+            }
+            val baseId = file.relativeTo(dir).path
+                .removeSuffix(".json")
+                .substringAfterLast('/')
+                .ifBlank { "imported" }
+            val newId = CustomLayoutStore.freshId(requireContext(), baseId)
+            // The shipped layout JSON carries `locale` (the registry's `lang` key), `script`, and `name`;
+            // `kind`/`width` live only in the registry, so default them empty.
+            val lang = json.optString("locale", "")
+            val name = json.optString("name", "").ifBlank { baseId }
+            val entry = LayoutEntry(
+                id = newId,
+                lang = lang,
+                name = name,
+                kind = json.optString("kind", ""),
+                width = json.optString("width", ""),
+                derivedFrom = null
+            )
+            CustomLayoutStore.saveLayout(requireContext(), entry, json)
+            flash(getString(R.string.library_git_imported_toast, name))
+            rebuild()
+        }
+    }
+
+    /** Mirror every custom-store layout out to `<dir>/<id>.json`, then commit. Flash the resulting hash. */
+    private fun commitLibrary(dir: File) {
+        lifecycleScope.launch {
+            val entries = CustomLayoutStore.customEntries(requireContext())
+            val rawById = entries.associate { it.id to CustomLayoutStore.rawJson(requireContext(), it.id) }
+            val hash = withContext(Dispatchers.IO) {
+                try {
+                    entries.forEach { e ->
+                        rawById[e.id]?.let { json ->
+                            File(dir, "${e.id}.json").writeText(json.toString(2))
+                        }
+                    }
+                    GitArchive.commitAll(dir, "Update from 白い熊 kxkb", "白い熊 kxkb", "kxkb@localhost")
+                } catch (_: Exception) {
+                    null
+                }
+            }
+            flash(
+                if (hash != null) getString(R.string.library_git_committed_toast, hash.take(8))
+                else getString(R.string.library_git_nothing_to_commit)
+            )
+            rebuild()
         }
     }
 

@@ -58,6 +58,7 @@ constructor(
         val LIBRARY_LOOK = stringPreferencesKey("library_look")
         val CURRENT_GEOMETRY = stringPreferencesKey("current_geometry")
         val CURRENT_LAYOUT_LANGUAGE = stringPreferencesKey("current_layout_language")
+        val LIBRARY_REPO_PATH = stringPreferencesKey("library_repo_path")
         val CURRENT_KEY_HEIGHT_SCALE = stringPreferencesKey("current_key_height_scale")
         val HAPTIC_FEEDBACK = booleanPreferencesKey("haptic_feedback")
         val VIBRATION_STRENGTH = intPreferencesKey("vibration_strength")
@@ -487,6 +488,28 @@ constructor(
         dataStore.data.first()[PreferenceKeys.CURRENT_LAYOUT_LANGUAGE]?.takeIf { it.isNotBlank() }
     } catch (e: Exception) {
         null
+    }
+
+    /**
+     * The user-set real filesystem path of the Library's optional git archive (All-Files-Access; no SAF).
+     * Read/written ONLY in the Library tab — never on the keyboard hot path or at boot. Null/blank → the
+     * Library shows the internal store only.
+     */
+    suspend fun getLibraryRepoPath(): String? = try {
+        dataStore.data.first()[PreferenceKeys.LIBRARY_REPO_PATH]?.takeIf { it.isNotBlank() }
+    } catch (e: Exception) {
+        null
+    }
+
+    suspend fun setLibraryRepoPath(path: String): Result<Unit> = try {
+        dataStore.edit {
+            val trimmed = path.trim()
+            if (trimmed.isEmpty()) it.remove(PreferenceKeys.LIBRARY_REPO_PATH)
+            else it[PreferenceKeys.LIBRARY_REPO_PATH] = trimmed
+        }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
     }
 
     /** Published by the IME as it resolves its look — the keyHeightScale the live keyboard is actually using

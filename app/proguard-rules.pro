@@ -28,5 +28,21 @@
     volatile <fields>;
 }
 
+# JGit (Library git archive): keep the library (reflection + META-INF/services providers) and silence its
+# optional transport/crypto deps we don't ship (ssh/jsch, apache-http, bouncycastle, servlet, JMX).
+-keep class org.eclipse.jgit.** { *; }
+-dontwarn org.eclipse.jgit.**
+-keep class org.slf4j.** { *; }
+-dontwarn org.slf4j.**
+-keep class com.googlecode.javaewah.** { *; }
+-dontwarn com.googlecode.javaewah.**
+-dontwarn javax.servlet.**
+-dontwarn javax.management.**
+-dontwarn org.apache.**
+-dontwarn org.bouncycastle.**
+-dontwarn org.ietf.jgss.**
+-dontwarn com.jcraft.**
+-dontwarn java.lang.management.**
+
 -repackageclasses
 -allowaccessmodification
