@@ -78,32 +78,36 @@ bar·Top·Bottom} / Compass keys / Cluster keys / Suggestion bar), secondary-cha
 rendering, caps-lock shift colour, cluster-key main-band rendering, shifted faces (uppercase/katakana),
 space bar shows the layout language's native name, app interface-language (per-app locale) setting.
 
-### M2 — Layout registry + import  ✅ (core done)
+### M2 — Layout registry + import  ✅ DONE
 `tools/gnu_yaml_to_json.py` extended (locale/script from filename; `gap`→spacer; `case`→normal + emitted
 `shifted` variant; native action keys; full cluster bands; per-key `width` so the bottom bar aligns to the
 grid). Imported 12 layouts (cs ×2, en ×4, ru ×2, gnu ×2, ja ×2 — ja = gojūon + ketai, replacing the bundled
 flick). Registry + per-language active-layout resolution. **Remaining:** width-variant auto-selection by
 geometry; the dead-key type; richer per-layout metadata.
 
-### M3 — Cluster prediction (the soul)  ← NEXT
+### M3 — Cluster prediction (the soul)  ✅ DONE
 Per-tap allowed-char-set from a cluster key; constrained DFS over the `.urik` DAWG
 (`dictionary/UrikDictionary.kt`) with accent-fold (`WordNormalizer`/NFD); inject at
 `service/SpellCheckManager.kt::queryUrikSuggestions` via `queryClusterSuggestions()`, gated on the active
 layout carrying cluster keys; feed `service/SuggestionPipeline.kt`. Space commits the top in-cluster
 prediction; the literal is 2nd. Validate on a cs/en/ru corpus; give it a `cluster-prediction-testing` skill.
 
-### M4 — Library tab + Keyboard Editor + git archive  (the curation layer)
-- **L1** internal Library tab — browse the runtime store grouped Language → Kind → Width, live previews,
-  Apply / Open-in-Editor / Duplicate / Export / Delete; a Look sub-tab.
-- **L2** visual Keyboard Editor — per-key edit, structural ops, alt-page, cross-layout copy, Apply /
-  Apply-as-new / Export, per-key appearance into the layout JSON, a model→JSON emitter.
-- **L3** git archive — JGit on a real-path-chooser-set repo; auto-working-copy on edit + Commit (history,
-  live-render-per-commit, revert). Unset → L1 internal browse only.
+### M4 — Library tab + Keyboard Editor + git archive  ✅ DONE
+- **L1** ✅ internal Library tab — browse grouped per language, live previews, Activate / Edit / Duplicate /
+  Delete (into an app-private custom store; the shadow model).
+- **L2** ✅ visual Keyboard Editor — recursive per-key edit, structural ops, alt-pages, cross-layout copy,
+  Apply / Apply-as-new / Export-YAML, per-key appearance in the JSON, a model→JSON codec; the full futokxkb
+  key-type capabilities (case/column/cycle/macro/chord/appearance/attributes) re-imported at full fidelity.
+- **L3** ✅ git archive — in-app JGit on a real-path-chooser-set repo (no SAF); init / import / Commit (with
+  messages, incl. from the editor) / HTTPS clone·pull·push / a history browser that previews + restores a
+  layout at any commit. Unset → L1 internal browse only.
 
-### M5 — Typing refinements + full Keyboard UI parity
-Dead-key composition; force-auto-caps incl. after newline; auto-spacing; caps-lock tap-cycle; one-shot Ctrl;
-pinnable action bar; topBar candidates + Space/Tab selection; remaining v2 key types (column, cycle); the
-space-menu actions that need features (Resize / Add layout / Special keys / Keyboard editor); scoped backup.
+### M5 — Typing refinements + full Keyboard UI parity  ◑ substantially done
+✅ Dead-key composition (Czech ´ˇ¨˚¯); auto-spacing; topBar candidates + Space/Tab selection; column/cycle
+key types; the space-menu features (Keyboard editor, Mode picker); functional-key colour + per-row height;
+the **Mode** picker incl. **floating keyboard mode**; the **key-preview popup**; the split keyboard; the
+Japanese reading→kanji registration + no-auto-caps; black/yellow Settings dialogs throughout.
+Remaining tail (low priority): number/arrow rows on the look page; quick-period flick; scoped backup.
 
 ## Cross-cutting
 - `.urik` dict build pipeline (upstream gitignores its tooling) — our own encoder from `UrikFormat`.

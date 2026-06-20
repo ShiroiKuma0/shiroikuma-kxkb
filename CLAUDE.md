@@ -114,10 +114,32 @@ resize; **1D space-slide menu** (Actions | Languages | Layouts); secondary-chara
 main-band rendering, shifted faces (uppercase/katakana), caps-lock shift colour, space bar shows the
 language's native name, app interface-language (per-app locale) setting.
 
-**M2 core complete** (layout registry + import): `tools/gnu_yaml_to_json.py` extended (locale/script,
-`gap`/`case`/`shifted`/native-action/cluster-band/per-key `width`); imported 12 futokxkb layouts
-(cs/en/ru/gnu/ja) + `LayoutRegistry` (`assets/layouts/registry.json`) with per-language active-layout
-resolution.
+**M2 complete** (layout registry + import): `tools/gnu_yaml_to_json.py` extended; imported 12 futokxkb
+layouts (cs/en/ru/gnu/ja) + `LayoutRegistry` (`assets/layouts/registry.json`) with per-language
+active-layout resolution.
 
-**Next: M3** — cluster prediction (DAWG-constrained DFS). Full architecture + milestone sequence in
-`docs/PLAN.md`.
+**M3 complete** (cluster prediction — the soul): DAWG-constrained DFS over the `.urik` dictionary with
+accent-folding; Space commits the highlighted candidate, Tab advances, long-press Space = literal space;
+the FUTO-style as-many-as-fit candidate line + an expandable long-tail pane; cluster-typing casing,
+contractions, punctuation + auto-spacing refinements.
+
+**M4 complete** (the curation layer): **L1** Library browse (live per-layout preview + Activate;
+Duplicate/Delete into an app-private custom store; the shadow model). **L2** the visual **Keyboard
+editor** (recursive per-key editor, main sections, Special/Icon pickers, YAML export, preview taps,
+space-slide + Settings entry points) + the full futokxkb key-type capabilities
+(case/column/cycle/macro/chord/appearance/attributes) re-imported at full fidelity. **L3** the **git
+archive** — in-app JGit at a settable real path (no SAF): init/import/commit with messages, HTTPS
+clone/pull/push, a history browser that previews/restores a layout at any commit, commit-from-editor.
+
+**M5 substantially complete** (typing refinements + Keyboard UI parity): functional-key colour,
+top/bottom row height, a per-geometry **Mode** picker (Standard/Split/One-handed/**Floating**),
+**floating keyboard mode** (drag + resize, per-geometry), **key-preview popup**; split keyboard with a
+see-through gap + a custom suggestion row; **Czech dead keys** (´ˇ¨˚¯ combining); **Japanese** — no
+trailing space on candidate commit, reading→kanji registration (a `＋登録` flow + a user-dictionary
+editor), never auto-capitalises (katakana on explicit Shift only); every Settings dialog in the
+black/yellow house style. Fixes along the way: Enter committing a space in single-line fields; the
+half-keyboard on cold start.
+
+**Released `0.23.1+147`** (2026-06-20; first fork release since `+72`) — tagged, APK attached, on the
+fork's GitHub; default branch `custom`. Remaining M5 tail (low priority): number/arrow rows on the look
+page, quick-period flick. Full architecture + milestone sequence in `docs/PLAN.md`.

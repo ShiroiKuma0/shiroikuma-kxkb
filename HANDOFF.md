@@ -28,7 +28,18 @@ today). Japanese is single-reading for now; full native Mozc is deferred (see `d
   signing identity).
 - **Roadmap:** `docs/PLAN.md`. **Conventions:** `CLAUDE.md`. **Skills:** `.claude/skills/`.
 
-## 3. What's already done (Phase 0 — identity, icon, first build)
+## 3. What's already done
+
+**Current state (2026-06-20):** the roadmap is largely complete — **M1–M4 done, M5 substantially done**,
+**released `0.23.1+147`**. That spans the per-geometry look system + the 白い熊 kxkb UI page, cluster-word
+prediction, the whole **Library** (browse + a visual Keyboard editor + an in-app git archive with HTTPS
+remotes and a history browser), and Keyboard-UI parity (a Mode picker incl. **floating mode**, a
+**key-preview popup**, Czech dead keys, the Japanese reading→kanji registration, black/yellow dialogs).
+The authoritative, up-to-date status is **`CLAUDE.md` → “Current status”**; the per-release detail is
+**`CHANGELOG.md`**; the milestone breakdown is **`docs/PLAN.md`**. The remaining M5 tail (low priority):
+number/arrow rows on the look page, quick-period flick, scoped backup.
+
+### Phase 0 foundation (identity, icon, first build)
 
 - **Repackaged side-by-side:** `APP_ID=shiroikuma.kxkb`, label **白い熊 kxkb** (3 strings). Code namespace
   kept `com.urik.keyboard` (do **not** rename — it keeps rebases trivial).
