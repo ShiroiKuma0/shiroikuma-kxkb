@@ -342,6 +342,8 @@
     <string name="keyboard_ui_sub_top_row">Top row</string>
     <string name="keyboard_ui_sub_bottom_row">Bottom row</string>
     <string name="keyboard_ui_item_height">Height</string>
+    <string name="keyboard_ui_item_top_row_height">Top row height</string>
+    <string name="keyboard_ui_item_bottom_row_height">Bottom row height</string>
     <string name="keyboard_ui_item_width">Width</string>
     <string name="keyboard_ui_item_split">Split size</string>
     <string name="keyboard_ui_item_font">Font</string>
@@ -349,6 +351,7 @@
     <string name="keyboard_ui_item_size">Size</string>
     <string name="keyboard_ui_item_colour">Colour</string>
     <string name="keyboard_ui_item_background">Background</string>
+    <string name="keyboard_ui_item_functional_key_colour">Functional key colour</string>
     <string name="keyboard_ui_item_distance">Distance</string>
     <string name="keyboard_ui_item_border_colour">Border colour</string>
     <string name="keyboard_ui_item_caps_shift">Caps-lock shift colour</string>

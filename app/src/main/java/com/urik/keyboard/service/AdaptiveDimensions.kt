@@ -22,6 +22,10 @@ data class AdaptiveDimensions(
     val keyTextMaxSp: Float,
     val suggestionBarHeightPx: Int,
     // Per-geometry "look" overrides overlaid by KeyboardLookKnobs. null/default = renderer default.
+    // Edge-row height multipliers: the renderer scales ONLY the first (top) and last (bottom) row's key
+    // height by these; 1.0 = no change (so the keyboard renders identically by default).
+    val topRowHeightScale: Float = 1f,
+    val bottomRowHeightScale: Float = 1f,
     val cornerRadiusPx: Int? = null,
     val keyBorderWidthPx: Int? = null,
     val boldKeyLabels: Boolean = false,
@@ -34,6 +38,7 @@ data class AdaptiveDimensions(
     // Per-geometry colour overrides (ARGB Int; null = use the active theme's colour).
     val keyboardBgColor: Int? = null,
     val keyBgColor: Int? = null,
+    val functionalKeyBgColor: Int? = null,
     val keyTextColor: Int? = null,
     val keyBorderColor: Int? = null,
     val capsLockShiftColor: Int? = null,

@@ -853,18 +853,23 @@ class KeyboardLayoutManager(
         // A futokxkb column board is a row of tall `heightRows` column keys; the rows it spans hold spacers
         // (under the columns) and any stacked continuation keys (e.g. a 3-key compass column). Render such a
         // group as a transposed band of vertical columns; everything else is an ordinary horizontal row.
+        val lastRowIndex = processedRows.size - 1
         var index = 0
         while (index < processedRows.size) {
             val span = columnBandSpan(processedRows, index)
+            // The first row (top) and the last row (bottom) get their own height multiplier; everything in
+            // between renders at 1.0. A column band that starts at row 0 is the top; one ending at the last
+            // row is the bottom. Defaults are 1.0, so an un-tuned layout renders identically.
+            val rowHeightScale = edgeRowHeightScale(startIndex = index, span = maxOf(span, 1), lastRowIndex = lastRowIndex)
             if (span > 0) {
                 keyboardContainer.addView(
-                    createColumnBandView(processedRows.subList(index, index + span), state)
+                    createColumnBandView(processedRows.subList(index, index + span), state, rowHeightScale)
                 )
                 index += span
             } else {
                 val row = processedRows[index]
                 val hasNumberRowGutter = index == 0 && isTopNumberRow(row) && processedRows.size > 1
-                keyboardContainer.addView(createRowView(row, state, hasNumberRowGutter))
+                keyboardContainer.addView(createRowView(row, state, hasNumberRowGutter, rowHeightScale))
                 index += 1
             }
         }
@@ -874,6 +879,21 @@ class KeyboardLayoutManager(
 
     private fun rowMaxHeightRows(row: List<KeyboardKey>): Int =
         row.maxOfOrNull { (it.attributes?.heightRows ?: 1f).toInt() } ?: 1
+
+    /**
+     * The per-key height multiplier for the row/band beginning at [startIndex] and spanning [span] rows: the
+     * top-row factor when it starts at row 0, the bottom-row factor when it ends at [lastRowIndex], else 1.0.
+     * Both factors default to 1.0, so an un-tuned layout (and any non-edge row) renders unchanged. A
+     * single-row keyboard's only row counts as the top.
+     */
+    private fun edgeRowHeightScale(startIndex: Int, span: Int, lastRowIndex: Int): Float {
+        val dims = adaptiveDimensions ?: return 1f
+        return when {
+            startIndex == 0 -> dims.topRowHeightScale
+            startIndex + span - 1 == lastRowIndex -> dims.bottomRowHeightScale
+            else -> 1f
+        }
+    }
 
     /**
      * If the row at [i] starts a column band (has a `heightRows` > 1 key), how many rows it spans: the
@@ -897,11 +917,18 @@ class KeyboardLayoutManager(
      * at its position across the grouped rows, weighted by their `heightRows`, so a `heightRows:N` column key
      * fills the full band height while N stacked single keys each take 1/N — matching the futokxkb grid.
      */
-    private fun createColumnBandView(group: List<List<KeyboardKey>>, state: KeyboardState): LinearLayout {
+    private fun createColumnBandView(
+        group: List<List<KeyboardKey>>,
+        state: KeyboardState,
+        rowHeightScale: Float = 1f
+    ): LinearLayout {
         ensureCacheValid()
         val n = group.maxOf { rowMaxHeightRows(it) }
-        val keyHeight = requireDim("keyHeight")
-        val minTarget = requireDim("minTarget")
+        val baseKeyHeight = requireDim("keyHeight")
+        val baseMinTarget = requireDim("minTarget")
+        // Edge-row height factor for a top/bottom column band (1.0 = identical to the un-scaled band).
+        val keyHeight = if (rowHeightScale == 1f) baseKeyHeight else (baseKeyHeight * rowHeightScale).toInt().coerceAtLeast(1)
+        val minTarget = if (rowHeightScale == 1f) baseMinTarget else (baseMinTarget * rowHeightScale).toInt().coerceAtLeast(1)
         val visualHeight = keyHeight + 2
         val verticalMargin = ((minTarget - visualHeight) / 2).coerceAtLeast(0)
         val horizontalMargin = requireDim("horizontalMargin")
@@ -958,7 +985,8 @@ class KeyboardLayoutManager(
     private fun createRowView(
         keys: List<KeyboardKey>,
         state: KeyboardState,
-        hasNumberRowGutter: Boolean = false
+        hasNumberRowGutter: Boolean = false,
+        rowHeightScale: Float = 1f
     ): LinearLayout {
         val is9LetterRow = is9CharacterLetterRow(keys)
         val shouldSplit = splitGapPx > 0 && !containsSpacebar(keys)
@@ -999,12 +1027,12 @@ class KeyboardLayoutManager(
                 }
             val rightKeys = keys.subList(midpoint, keys.size)
 
-            val leftContainer = createHalfRowContainer(leftKeys, state)
+            val leftContainer = createHalfRowContainer(leftKeys, state, rowHeightScale)
             val gapSpacer =
                 View(context).apply {
                     layoutParams = LinearLayout.LayoutParams(splitGapPx, LinearLayout.LayoutParams.MATCH_PARENT)
                 }
-            val rightContainer = createHalfRowContainer(rightKeys, state)
+            val rightContainer = createHalfRowContainer(rightKeys, state, rowHeightScale)
 
             rowLayout.addView(leftContainer)
             rowLayout.addView(gapSpacer)
@@ -1026,7 +1054,7 @@ class KeyboardLayoutManager(
                         }
                     rowLayout.addView(spacer)
                 } else {
-                    val keyButton = getOrCreateKeyButton(key, state, keys)
+                    val keyButton = getOrCreateKeyButton(key, state, keys, rowHeightScale)
                     rowLayout.addView(keyButton)
                 }
             }
@@ -1043,7 +1071,11 @@ class KeyboardLayoutManager(
         return rowLayout
     }
 
-    private fun createHalfRowContainer(keys: List<KeyboardKey>, state: KeyboardState): LinearLayout =
+    private fun createHalfRowContainer(
+        keys: List<KeyboardKey>,
+        state: KeyboardState,
+        rowHeightScale: Float = 1f
+    ): LinearLayout =
         LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
@@ -1057,7 +1089,7 @@ class KeyboardLayoutManager(
                         }
                     addView(spacer)
                 } else {
-                    val keyButton = getOrCreateKeyButton(key, state, keys)
+                    val keyButton = getOrCreateKeyButton(key, state, keys, rowHeightScale)
                     addView(keyButton)
                 }
             }
@@ -1075,7 +1107,12 @@ class KeyboardLayoutManager(
         }
     }
 
-    private fun getOrCreateKeyButton(key: KeyboardKey, state: KeyboardState, rowKeys: List<KeyboardKey>): Button {
+    private fun getOrCreateKeyButton(
+        key: KeyboardKey,
+        state: KeyboardState,
+        rowKeys: List<KeyboardKey>,
+        rowHeightScale: Float = 1f
+    ): Button {
         val button =
             if (buttonPool.isNotEmpty()) {
                 buttonPool.removeAt(buttonPool.size - 1).apply {
@@ -1085,7 +1122,7 @@ class KeyboardLayoutManager(
                 Button(context)
             }
 
-        configureButton(button, key, state, rowKeys)
+        configureButton(button, key, state, rowKeys, rowHeightScale)
         activeButtons.add(button)
 
         return button
@@ -1158,7 +1195,13 @@ class KeyboardLayoutManager(
 
     @SuppressLint("ClickableViewAccessibility")
     @Suppress("CyclomaticComplexMethod")
-    private fun configureButton(button: Button, key: KeyboardKey, state: KeyboardState, rowKeys: List<KeyboardKey>) {
+    private fun configureButton(
+        button: Button,
+        key: KeyboardKey,
+        state: KeyboardState,
+        rowKeys: List<KeyboardKey>,
+        rowHeightScale: Float = 1f
+    ) {
         ensureCacheValid()
 
         button.apply {
@@ -1169,8 +1212,14 @@ class KeyboardLayoutManager(
             val minTarget = requireDim("minTarget")
             val keyHeight = requireDim("keyHeight")
             val gutterReduction = if (isTopNumberRow(rowKeys)) requireDim("numberRowGutter") else 0
-            val adjustedKeyHeight = (keyHeight - gutterReduction).coerceAtLeast(keyHeight / 2)
-            val adjustedMinTarget = (minTarget - gutterReduction).coerceAtLeast(minTarget / 2)
+            // Edge-row height factor (top/bottom rows only; 1.0 = no change → identical to the un-scaled path).
+            val scaledKeyHeight =
+                if (rowHeightScale == 1f) keyHeight else (keyHeight * rowHeightScale).toInt().coerceAtLeast(1)
+            val adjustedKeyHeight = (scaledKeyHeight - gutterReduction).coerceAtLeast(scaledKeyHeight / 2)
+            // The touch target tracks the (scaled) key height so a shorter/taller edge row still centres
+            // its key; at scale 1.0 this is the original minTarget.
+            val scaledMinTarget = if (rowHeightScale == 1f) minTarget else (minTarget * rowHeightScale).toInt().coerceAtLeast(1)
+            val adjustedMinTarget = (scaledMinTarget - gutterReduction).coerceAtLeast(scaledMinTarget / 2)
             val visualHeight = adjustedKeyHeight + 2
             val verticalMargin = ((adjustedMinTarget - visualHeight) / 2).coerceAtLeast(0)
 
@@ -2194,12 +2243,29 @@ class KeyboardLayoutManager(
     /** The per-key appearance overrides (futokxkb), or null to inherit theme / look-knob colours + sizes. */
     private fun keyAppearance(key: KeyboardKey): KeyAppearance? = key.appearance
 
+    /**
+     * A functional (non-letter) key — shift / backspace / enter / space / mode-switch — i.e. any
+     * [KeyboardKey.Action], or any key whose futokxkb `style` attribute is "Action". Letter / cluster /
+     * column / character keys are NOT functional. Drives the optional functional-key background colour.
+     */
+    private fun isFunctionalKey(key: KeyboardKey): Boolean =
+        key is KeyboardKey.Action ||
+            key.attributes?.style.equals("Action", ignoreCase = true) ||
+            // A compass/flick key whose CENTRE tap is a non-text binding is functional too — e.g. the column
+            // layout's Enter (tap = FlickBinding.Action("enter")) or a symbols/mode Layer key. Letter, cluster
+            // and column keys commit a plain character on tap (no "center" binding), so they stay non-functional.
+            (key is KeyboardKey.FlickKey && key.bindings.containsKey("center"))
+
     private fun getKeyBackground(key: KeyboardKey): Drawable {
         ensureCacheValid()
         val theme = themeManager.currentTheme.value
         val app = keyAppearance(key)
+        // Functional keys may carry a separate background colour (null = inherit the normal key-bg override).
+        val keyBgOverride = adaptiveDimensions?.keyBgColor
+        val functionalBgOverride =
+            if (isFunctionalKey(key)) adaptiveDimensions?.functionalKeyBgColor ?: keyBgOverride else keyBgOverride
         // Per-key appearance wins, then the per-geometry colour overrides (null = use the theme colour).
-        val bgOverride = app?.backgroundColor ?: adaptiveDimensions?.keyBgColor
+        val bgOverride = app?.backgroundColor ?: functionalBgOverride
         val borderColor =
             app?.borderColor ?: adaptiveDimensions?.keyBorderColor ?: theme.colors.keyBorder
 

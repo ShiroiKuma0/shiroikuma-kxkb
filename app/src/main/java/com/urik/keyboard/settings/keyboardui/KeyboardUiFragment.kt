@@ -38,6 +38,8 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
     private lateinit var geometryPref: ListPreference
     private lateinit var localePref: ListPreference
     private lateinit var heightPref: SeekBarPreference
+    private lateinit var topRowHeightPref: SeekBarPreference
+    private lateinit var bottomRowHeightPref: SeekBarPreference
     private lateinit var widthPref: SeekBarPreference
     private lateinit var splitPref: SeekBarPreference
     private lateinit var liftPref: SeekBarPreference
@@ -54,6 +56,7 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
     private lateinit var weightPref: SeekBarPreference
     private lateinit var keyboardBgColorPref: ColorSwatchPreference
     private lateinit var keyBgColorPref: ColorSwatchPreference
+    private lateinit var functionalKeyBgColorPref: ColorSwatchPreference
     private lateinit var keyTextColorPref: ColorSwatchPreference
     private lateinit var keyBorderColorPref: ColorSwatchPreference
     private lateinit var capsLockShiftColorPref: ColorSwatchPreference
@@ -172,6 +175,8 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                 summaryProvider = ListPreference.SimpleSummaryProvider.getInstance()
             }
         heightPref = seekBar("kb_ui_height", R.string.keyboard_ui_item_height, min = 50, max = 200)
+        topRowHeightPref = seekBar("kb_ui_top_row_height", R.string.keyboard_ui_item_top_row_height, min = 50, max = 200)
+        bottomRowHeightPref = seekBar("kb_ui_bottom_row_height", R.string.keyboard_ui_item_bottom_row_height, min = 50, max = 200)
         widthPref = seekBar("kb_ui_width", R.string.keyboard_ui_item_width, min = 50, max = 100)
         splitPref = seekBar("kb_ui_split", R.string.keyboard_ui_item_split, min = 0, max = 200)
         liftPref = seekBar("kb_ui_lift", R.string.keyboard_ui_bottom_lift, min = 0, max = 200)
@@ -193,6 +198,8 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         hintColorPref = colorPref("kb_ui_hint_col", R.string.keyboard_ui_item_colour, sub = true)
         // Key body.
         keyBgColorPref = colorPref("kb_ui_col_key_bg", R.string.keyboard_ui_item_background, sub = true)
+        functionalKeyBgColorPref =
+            colorPref("kb_ui_col_functional_key_bg", R.string.keyboard_ui_item_functional_key_colour, sub = true)
         cornerPref = seekBar("kb_ui_corner", R.string.keyboard_ui_corner_radius, min = 0, max = 24, sub = true)
         borderPref = seekBar("kb_ui_border", R.string.keyboard_ui_border_width, min = 0, max = 8, sub = true)
         keyBorderColorPref = colorPref("kb_ui_col_key_border", R.string.keyboard_ui_item_border_colour, sub = true)
@@ -259,6 +266,8 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         screen.addPreference(keyboardCategory)
         keyboardCategory.addPreference(localePref)
         keyboardCategory.addPreference(heightPref)
+        keyboardCategory.addPreference(topRowHeightPref)
+        keyboardCategory.addPreference(bottomRowHeightPref)
         keyboardCategory.addPreference(widthPref)
         keyboardCategory.addPreference(splitPref)
         keyboardCategory.addPreference(liftPref)
@@ -280,6 +289,7 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         keysCategory.addPreference(hintColorPref)
         keysCategory.addPreference(subHeader(R.string.keyboard_ui_sub_key_body))
         keysCategory.addPreference(keyBgColorPref)
+        keysCategory.addPreference(functionalKeyBgColorPref)
         keysCategory.addPreference(cornerPref)
         keysCategory.addPreference(borderPref)
         keysCategory.addPreference(keyBorderColorPref)
@@ -456,6 +466,14 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
             viewModel.updateHeightScale(newValue as Int)
             true
         }
+        topRowHeightPref.setOnPreferenceChangeListener { _, newValue ->
+            viewModel.updateTopRowHeight(newValue as Int)
+            true
+        }
+        bottomRowHeightPref.setOnPreferenceChangeListener { _, newValue ->
+            viewModel.updateBottomRowHeight(newValue as Int)
+            true
+        }
         widthPref.setOnPreferenceChangeListener { _, newValue ->
             viewModel.updateWidth(newValue as Int)
             true
@@ -486,6 +504,12 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         }
         keyBgColorPref.setOnPreferenceClickListener {
             ColorPicker.show(requireContext(), viewModel.uiState.value.keyBgColor) { viewModel.updateKeyBgColor(it) }
+            true
+        }
+        functionalKeyBgColorPref.setOnPreferenceClickListener {
+            ColorPicker.show(requireContext(), viewModel.uiState.value.functionalKeyBgColor) {
+                viewModel.updateFunctionalKeyBgColor(it)
+            }
             true
         }
         keyTextColorPref.setOnPreferenceClickListener {
@@ -655,6 +679,8 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                     viewModel.uiState.collect { state ->
                         geometryPref.value = state.geometry
                         heightPref.value = state.keyHeightScalePct
+                        topRowHeightPref.value = state.topRowHeightPct
+                        bottomRowHeightPref.value = state.bottomRowHeightPct
                         widthPref.value = state.keyboardWidthPct
                         splitPref.value = state.splitFractionPct
                         liftPref.value = state.bottomLiftDp
@@ -671,6 +697,8 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                         keyboardBgColorPref.color = state.keyboardBgColor
                         keyBgColorPref.summary = hex(state.keyBgColor)
                         keyBgColorPref.color = state.keyBgColor
+                        functionalKeyBgColorPref.summary = hex(state.functionalKeyBgColor)
+                        functionalKeyBgColorPref.color = state.functionalKeyBgColor
                         keyTextColorPref.summary = hex(state.keyTextColor)
                         keyTextColorPref.color = state.keyTextColor
                         keyBorderColorPref.summary = hex(state.keyBorderColor)

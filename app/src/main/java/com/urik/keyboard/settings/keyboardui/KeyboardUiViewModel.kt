@@ -131,6 +131,10 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
 
     fun updateHeightScale(pct: Int) = persist(current.copy(keyHeightScale = pct / 100f))
 
+    fun updateTopRowHeight(pct: Int) = persist(current.copy(topRowHeightScale = pct / 100f))
+
+    fun updateBottomRowHeight(pct: Int) = persist(current.copy(bottomRowHeightScale = pct / 100f))
+
     fun updateKeySpacingH(pct: Int) = persist(current.copy(keySpacingHScale = pct / 100f))
 
     fun updateKeySpacingV(pct: Int) = persist(current.copy(keySpacingVScale = pct / 100f))
@@ -156,6 +160,8 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
     fun updateKeyboardBgColor(c: Int) = persist(current.copy(keyboardBgColor = c))
 
     fun updateKeyBgColor(c: Int) = persist(current.copy(keyBgColor = c))
+
+    fun updateFunctionalKeyBgColor(c: Int) = persist(current.copy(functionalKeyBgColor = c))
 
     fun updateKeyTextColor(c: Int) = persist(current.copy(keyTextColor = c))
 
@@ -227,6 +233,8 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
         boldKeyLabels = boldKeyLabels ?: true,
         keyFontScalePct = ((keyFontScale ?: 1f) * 100).toInt(),
         keyHeightScalePct = ((keyHeightScale ?: 1f) * 100).toInt(),
+        topRowHeightPct = ((topRowHeightScale ?: 1f) * 100).toInt(),
+        bottomRowHeightPct = ((bottomRowHeightScale ?: 1f) * 100).toInt(),
         keySpacingHPct = ((keySpacingHScale ?: 1f) * 100).toInt(),
         keySpacingVPct = ((keySpacingVScale ?: 1f) * 100).toInt(),
         keyboardWidthPct = ((keyboardWidthScale ?: 1f) * 100).toInt(),
@@ -239,6 +247,7 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
         fontFamily = fontFamily ?: "",
         keyboardBgColor = keyboardBgColor ?: DEFAULT_KEYBOARD_BG,
         keyBgColor = keyBgColor ?: DEFAULT_KEY_BG,
+        functionalKeyBgColor = functionalKeyBgColor ?: DEFAULT_KEY_BG,
         keyTextColor = keyTextColor ?: DEFAULT_KEY_TEXT,
         keyBorderColor = keyBorderColor ?: DEFAULT_KEY_BORDER,
         capsLockShiftColor = capsLockShiftColor ?: DEFAULT_KEY_TEXT,
@@ -284,6 +293,8 @@ data class KeyboardUiUiState(
     val boldKeyLabels: Boolean = true,
     val keyFontScalePct: Int = 100,
     val keyHeightScalePct: Int = 100,
+    val topRowHeightPct: Int = 100,
+    val bottomRowHeightPct: Int = 100,
     val keySpacingHPct: Int = 100,
     val keySpacingVPct: Int = 100,
     val keyboardWidthPct: Int = 100,
@@ -296,6 +307,7 @@ data class KeyboardUiUiState(
     val fontFamily: String = "",
     val keyboardBgColor: Int = 0xFF000000.toInt(),
     val keyBgColor: Int = 0xFF000000.toInt(),
+    val functionalKeyBgColor: Int = 0xFF000000.toInt(),
     val keyTextColor: Int = 0xFFFFFF00.toInt(),
     val keyBorderColor: Int = 0xFFFFFF00.toInt(),
     val capsLockShiftColor: Int = 0xFFFFFF00.toInt(),

@@ -24,6 +24,13 @@ data class KeyboardLookKnobs(
     val keyFontScale: Float? = null,
     /** Multiplier on the key height (1.0 = unchanged). */
     val keyHeightScale: Float? = null,
+    /**
+     * Per-edge-row height multipliers (1.0 = unchanged) — scale ONLY the first row (the number/function row)
+     * and the last row (the space/bottom row) relative to the letter rows, like futokxkb's
+     * top/bottom row height factors. null = inherit (no change), so existing looks render identically.
+     */
+    val topRowHeightScale: Float? = null,
+    val bottomRowHeightScale: Float? = null,
     /** Multipliers on the inter-key gap, per axis (1.0 = unchanged, 0 = no gap — keys abut into a grid). */
     val keySpacingHScale: Float? = null,
     val keySpacingVScale: Float? = null,
@@ -47,6 +54,8 @@ data class KeyboardLookKnobs(
     /** Per-geometry colour overrides (ARGB Int; null = use the active theme's colour). */
     val keyboardBgColor: Int? = null,
     val keyBgColor: Int? = null,
+    /** Background for FUNCTIONAL keys (shift/backspace/enter/space/mode-switch). null = inherit [keyBgColor]. */
+    val functionalKeyBgColor: Int? = null,
     val keyTextColor: Int? = null,
     val keyBorderColor: Int? = null,
     /** Colour the Shift icon turns when caps lock is on (null = the key text colour). */
@@ -81,6 +90,8 @@ data class KeyboardLookKnobs(
 ) {
     fun applyTo(base: AdaptiveDimensions, density: Float): AdaptiveDimensions = base.copy(
         keyHeightPx = keyHeightScale?.let { (base.keyHeightPx * it).toInt().coerceAtLeast(1) } ?: base.keyHeightPx,
+        topRowHeightScale = topRowHeightScale ?: base.topRowHeightScale,
+        bottomRowHeightScale = bottomRowHeightScale ?: base.bottomRowHeightScale,
         splitGapPx =
             splitFraction?.let { (it.coerceAtLeast(0f) * MAX_SPLIT_GAP_DP * density).toInt() } ?: base.splitGapPx,
         keyMarginHorizontalPx =
@@ -100,6 +111,7 @@ data class KeyboardLookKnobs(
         fontFamily = fontFamily ?: base.fontFamily,
         keyboardBgColor = keyboardBgColor ?: base.keyboardBgColor,
         keyBgColor = keyBgColor ?: base.keyBgColor,
+        functionalKeyBgColor = functionalKeyBgColor ?: base.functionalKeyBgColor,
         keyTextColor = keyTextColor ?: base.keyTextColor,
         keyBorderColor = keyBorderColor ?: base.keyBorderColor,
         capsLockShiftColor = capsLockShiftColor ?: base.capsLockShiftColor,
@@ -133,6 +145,8 @@ data class KeyboardLookKnobs(
         boldKeyLabels = o.boldKeyLabels ?: boldKeyLabels,
         keyFontScale = o.keyFontScale ?: keyFontScale,
         keyHeightScale = o.keyHeightScale ?: keyHeightScale,
+        topRowHeightScale = o.topRowHeightScale ?: topRowHeightScale,
+        bottomRowHeightScale = o.bottomRowHeightScale ?: bottomRowHeightScale,
         keySpacingHScale = o.keySpacingHScale ?: keySpacingHScale,
         keySpacingVScale = o.keySpacingVScale ?: keySpacingVScale,
         hintScale = o.hintScale ?: hintScale,
@@ -145,6 +159,7 @@ data class KeyboardLookKnobs(
         fontFamily = o.fontFamily ?: fontFamily,
         keyboardBgColor = o.keyboardBgColor ?: keyboardBgColor,
         keyBgColor = o.keyBgColor ?: keyBgColor,
+        functionalKeyBgColor = o.functionalKeyBgColor ?: functionalKeyBgColor,
         keyTextColor = o.keyTextColor ?: keyTextColor,
         keyBorderColor = o.keyBorderColor ?: keyBorderColor,
         capsLockShiftColor = o.capsLockShiftColor ?: capsLockShiftColor,
@@ -176,6 +191,8 @@ data class KeyboardLookKnobs(
         boldKeyLabels?.let { add("bold=${if (it) 1 else 0}") }
         keyFontScale?.let { add("fs=$it") }
         keyHeightScale?.let { add("hs=$it") }
+        topRowHeightScale?.let { add("trh=$it") }
+        bottomRowHeightScale?.let { add("brh=$it") }
         keySpacingHScale?.let { add("ksh=$it") }
         keySpacingVScale?.let { add("ksv=$it") }
         hintScale?.let { add("hn=$it") }
@@ -188,6 +205,7 @@ data class KeyboardLookKnobs(
         fontFamily?.let { add("ff=$it") }
         keyboardBgColor?.let { add("cbg=$it") }
         keyBgColor?.let { add("kbg=$it") }
+        functionalKeyBgColor?.let { add("fkbg=$it") }
         keyTextColor?.let { add("ktx=$it") }
         keyBorderColor?.let { add("kbr=$it") }
         capsLockShiftColor?.let { add("clc=$it") }
@@ -234,6 +252,8 @@ data class KeyboardLookKnobs(
             var bold: Boolean? = null
             var fs: Float? = null
             var hs: Float? = null
+            var trh: Float? = null
+            var brh: Float? = null
             var ksh: Float? = null
             var ksv: Float? = null
             var hn: Float? = null
@@ -243,6 +263,7 @@ data class KeyboardLookKnobs(
             var ff: String? = null
             var cbg: Int? = null
             var kbg: Int? = null
+            var fkbg: Int? = null
             var ktx: Int? = null
             var kbr: Int? = null
             var clc: Int? = null
@@ -278,6 +299,8 @@ data class KeyboardLookKnobs(
                     "bold" -> bold = value.toIntOrNull()?.let { it != 0 }
                     "fs" -> fs = value.toFloatOrNull()
                     "hs" -> hs = value.toFloatOrNull()
+                    "trh" -> trh = value.toFloatOrNull()
+                    "brh" -> brh = value.toFloatOrNull()
                     "ks" -> value.toFloatOrNull()?.let { ksh = it; ksv = it } // legacy: one spacing -> both axes
                     "ksh" -> ksh = value.toFloatOrNull()
                     "ksv" -> ksv = value.toFloatOrNull()
@@ -288,6 +311,7 @@ data class KeyboardLookKnobs(
                     "ff" -> ff = value
                     "cbg" -> cbg = value.toIntOrNull()
                     "kbg" -> kbg = value.toIntOrNull()
+                    "fkbg" -> fkbg = value.toIntOrNull()
                     "ktx" -> ktx = value.toIntOrNull()
                     "kbr" -> kbr = value.toIntOrNull()
                     "clc" -> clc = value.toIntOrNull()
@@ -318,10 +342,12 @@ data class KeyboardLookKnobs(
             }
             return KeyboardLookKnobs(
                 cornerRadiusDp = cr, keyBorderWidthDp = bw, boldKeyLabels = bold, keyFontScale = fs,
-                keyHeightScale = hs, keySpacingHScale = ksh, keySpacingVScale = ksv, hintScale = hn,
+                keyHeightScale = hs, topRowHeightScale = trh, bottomRowHeightScale = brh,
+                keySpacingHScale = ksh, keySpacingVScale = ksv, hintScale = hn,
                 hintColor = hc, hintFont = hf, hintWeight = hw,
                 keyboardWidthScale = kw, splitFraction = spf, bottomLiftDp = bl, fontFamily = ff,
-                keyboardBgColor = cbg, keyBgColor = kbg, keyTextColor = ktx, keyBorderColor = kbr,
+                keyboardBgColor = cbg, keyBgColor = kbg, functionalKeyBgColor = fkbg,
+                keyTextColor = ktx, keyBorderColor = kbr,
                 capsLockShiftColor = clc, labelWeight = lw,
                 hintTopColor = htc, hintTopScale = hts, hintTopFont = htf, hintTopMarginDp = htm,
                 hintBottomColor = hbc, hintBottomScale = hbs, hintBottomFont = hbf, hintBottomMarginDp = hbm,
