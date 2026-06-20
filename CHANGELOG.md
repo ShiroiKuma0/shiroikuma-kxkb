@@ -4,7 +4,74 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+72 — current
+## 0.23.1+147 — current
+
+Built on Urik `0.23.1-beta`. A large release: the whole **Library** (browse, a visual editor, and a
+git archive), **Keyboard-UI parity** with the futokxkb reference (floating mode, key preview, a mode
+picker, per-row sizing), and Czech / Japanese input work.
+
+### The Library — browse every layout
+
+- A **Library** screen listing every layout grouped per language, each rendered as a **true live
+  keyboard** (the real renderer + the resolved look) without switching to it; **Activate** makes it a
+  language’s active layout in place.
+- **Duplicate / Delete** layouts into an app-private custom store; a custom copy can **shadow** the
+  stock it derives from (the stock returns when the copy is deleted).
+- Full **futokxkb key-type capabilities** are now representable, editable and rendered: multi-state
+  **case** keys, **column** (vertical predictive band), **cycle**, first-class **macro** / **chord**
+  tap keys, per-key **appearance** and **attributes** (named widths, tri-states) — and the shipped
+  cs/en/ru/gnu/ja layouts were re-imported at full fidelity.
+
+### Visual Keyboard editor
+
+- A View-based editor mirroring futokxkb: a tappable live preview + the editable grid, a recursive
+  per-key editor (9 key types, slot drill-in, breadcrumb, single-key preview, appearance/attributes),
+  **Special-key** and **Icon** pickers, alt-pages, per-key width sliders, top-bar and number-row.
+- Reached from the **space-slide** and **Settings**; editing the active keyboard auto-creates an
+  editable copy. **Export YAML** for portability with futokxkb.
+
+### Git archive (in-app JGit, Library-tab only)
+
+- A real git repo at a **settable real path** (All-Files-Access, an in-app folder picker — no SAF):
+  **init**, **import**, and **commit** the whole effective layout set under clean names.
+- **HTTPS remotes** — set origin, **clone / pull / push** (token stored in app settings).
+- **History browser** — browse the commit log and **preview / restore** a layout as it was at any
+  commit (live-rendered from the git blob).
+- **Commit messages** — committing prompts for a description; the **Keyboard editor** has its own
+  **Commit** with the message pre-stamped `<language> · <layout-id>:`.
+
+### Keyboard look & modes
+
+- A per-geometry **Mode** picker (Standard / Split / One-handed L·R / **Floating**), also reachable
+  from the space-slide.
+- **Floating keyboard mode** — a movable, resizable floating panel (drag grip + corner handle),
+  position and size persisted per geometry.
+- **Key-preview popup** — a magnified glyph above a pressed character key (on by default; toggle in
+  Keys → Key body).
+- New look knobs: **functional-key colour** (functional keys distinct from letters) and independent
+  **top-row / bottom-row height**.
+- **Split keyboard** with a see-through gap (the app shows through), and a custom **suggestion row**.
+- All Settings dialogs — Library, theme, and the choice pickers — are the black / yellow house style
+  (including yellow list-item text and the selected radio).
+
+### Czech & Japanese input
+
+- **Czech dead keys**: `´ ˇ ¨ ˚ ¯` are combining now — type the diacritic then the base letter and it
+  composes (`ˇ`+`c` → `č`, `´`+`e` → `é`, `˚`+`u` → `ů`); shift composes too.
+- **Japanese**: no trailing space when Space commits a conversion candidate; **register an unknown
+  reading→kanji** (a `＋登録` chip → a registration screen → it’s offered afterward, and replaces the
+  composing reading on save) with a **user-dictionary editor**; Japanese layouts **never
+  auto-capitalise** (katakana only on an explicit Shift).
+
+### Fixes
+
+- **Enter** committed a newline that single-line fields turned into a **space** (search boxes, the
+  browser address bar) — Enter now performs the field’s action or a real key event.
+- The **half-keyboard on cold start** (bottom row clipped at a large Height scale) is fixed.
+- Japanese selections weren’t learned when `ja` wasn’t the primary language; cluster punctuation,
+  casing, contractions and auto-spacing refinements throughout.
+
+## 0.23.1+72
 
 Built on Urik `0.23.1-beta`. The features below are cumulative across the fork so far.
 
