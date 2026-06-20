@@ -2,6 +2,7 @@ package com.urik.keyboard.settings.keyboardui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.urik.keyboard.model.KeyboardDisplayMode
 import com.urik.keyboard.service.GeometryBucket
 import com.urik.keyboard.service.KeyboardLookKnobs
 import com.urik.keyboard.service.LibraryLook
@@ -53,6 +54,58 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
                 started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
                 initialValue = ""
             )
+
+    // The keyboard display mode (a global setting, not per-geometry) — read from the SAME two settings
+    // keys the one-handed toggle and the space-slide Actions menu drive, resolved exactly as
+    // KeyboardModeManager.determineMode does: one-handed-enabled wins (left/right from keyboardDisplayMode),
+    // else an explicit SPLIT, else STANDARD.
+    val keyboardDisplayMode: StateFlow<KeyboardDisplayMode> =
+        settingsRepository.settings
+            .map { settings ->
+                when {
+                    settings.oneHandedModeEnabled ->
+                        if (settings.keyboardDisplayMode == KeyboardDisplayMode.ONE_HANDED_RIGHT) {
+                            KeyboardDisplayMode.ONE_HANDED_RIGHT
+                        } else {
+                            KeyboardDisplayMode.ONE_HANDED_LEFT
+                        }
+
+                    settings.keyboardDisplayMode == KeyboardDisplayMode.SPLIT -> KeyboardDisplayMode.SPLIT
+                    else -> KeyboardDisplayMode.STANDARD
+                }
+            }.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
+                initialValue = KeyboardDisplayMode.STANDARD
+            )
+
+    /**
+     * Persist a manual keyboard mode through the SAME two SettingsRepository keys
+     * ([SettingsRepository.updateOneHandedModeEnabled] + [SettingsRepository.updateKeyboardDisplayMode])
+     * that the one-handed toggle and `KeyboardModeManager.setManualMode` write — so the picker, the toggle
+     * and the space-slide Actions menu stay one source of truth. The running keyboard re-resolves its live
+     * mode from these via the settings flow it already observes.
+     */
+    fun updateKeyboardDisplayMode(mode: KeyboardDisplayMode) {
+        viewModelScope.launch {
+            when (mode) {
+                KeyboardDisplayMode.STANDARD ->
+                    settingsRepository.updateOneHandedModeEnabled(false)
+
+                KeyboardDisplayMode.ONE_HANDED_LEFT,
+                KeyboardDisplayMode.ONE_HANDED_RIGHT
+                -> {
+                    settingsRepository.updateKeyboardDisplayMode(mode)
+                    settingsRepository.updateOneHandedModeEnabled(true)
+                }
+
+                KeyboardDisplayMode.SPLIT -> {
+                    settingsRepository.updateKeyboardDisplayMode(mode)
+                    settingsRepository.updateOneHandedModeEnabled(false)
+                }
+            }
+        }
+    }
 
     init {
         // Follow the geometry the running keyboard is actually using (published by the IME service),

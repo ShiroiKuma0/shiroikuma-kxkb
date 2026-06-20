@@ -153,8 +153,25 @@ constructor(
 
     private fun isSentenceEndingPunctuation(char: Char): Boolean = char in SENTENCE_TERMINAL_CHARS
 
-    fun checkAndApplyAutoCapitalization(textBeforeCursor: String?, autoCapEnabled: Boolean = true) {
+    /**
+     * @param suppressAutoShift when true, NEVER engage auto-shift (and clear any auto-shift already armed).
+     *   Japanese layouts pass this: there Shift = katakana, so auto-capitalisation would silently turn
+     *   katakana on. Katakana must engage only on an explicit Shift tap, never automatically. The explicit
+     *   Shift key path is untouched, so manual katakana still works. (Japanese — no auto-capitalisation.)
+     */
+    fun checkAndApplyAutoCapitalization(
+        textBeforeCursor: String?,
+        autoCapEnabled: Boolean = true,
+        suppressAutoShift: Boolean = false
+    ) {
         if (!autoCapEnabled) return
+        if (suppressAutoShift) {
+            // Don't leave a previously-armed auto-shift latched on a Japanese field.
+            if (_state.value.isAutoShift) {
+                updateState { it.copy(isShiftPressed = false, isAutoShift = false) }
+            }
+            return
+        }
         if (shouldAutoCapitalize(textBeforeCursor) && !_state.value.isCapsLockOn) {
             // Don't re-arm auto-shift if the user just pressed Shift to type lowercase here: a spurious
             // onUpdateSelection at the same sentence start would otherwise re-capitalise. (Bug B.)

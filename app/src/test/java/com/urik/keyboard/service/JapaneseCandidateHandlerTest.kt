@@ -76,4 +76,31 @@ class JapaneseCandidateHandlerTest {
         handler.onNextCandidate() // from 0 → 1 again
         verify(outputBridge, times(2)).setComposingText("とうきょう", 1)
     }
+
+    // ---- Japanese FIX 2: Space-cycling skips the trailing "＋登録" registration affordance. ----
+
+    @Test
+    fun `onNextCandidate skips the register affordance`() {
+        val skipping = JapaneseCandidateHandler(
+            inputState, outputBridge, onCommit,
+            isRegisterAffordance = { it == "＋登録" }
+        )
+        whenever(inputState.pendingSuggestions).thenReturn(listOf("東京", "とうきょう", "＋登録"))
+        skipping.onNextCandidate() // 0 → 1 (real candidate)
+        skipping.onNextCandidate() // 1 → would be 2 (affordance) → skipped → wraps to 0
+        verify(outputBridge).setComposingText("とうきょう", 1)
+        verify(outputBridge).setComposingText("東京", 1)
+    }
+
+    @Test
+    fun `onCommitCandidate never commits the register affordance`() {
+        val skipping = JapaneseCandidateHandler(
+            inputState, outputBridge, onCommit,
+            isRegisterAffordance = { it == "＋登録" }
+        )
+        // Index 0 is the affordance; a deliberate commit there must not insert it as text.
+        whenever(inputState.pendingSuggestions).thenReturn(listOf("＋登録", "東京"))
+        skipping.onCommitCandidate()
+        verify(onCommit, never()).invoke(org.mockito.kotlin.any())
+    }
 }

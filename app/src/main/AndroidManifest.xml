@@ -77,6 +77,17 @@
             android:taskAffinity=""
             android:theme="@style/Theme.Urik.NoActionBar" />
 
+        <!-- Japanese reading→surface word registration. Launched from the ＋登録 affordance in the candidate
+             row (FLAG_ACTIVITY_NEW_TASK, own task affinity so it doesn't stack onto Settings). A real Activity
+             avoids the focus war the former in-IME attached dialog suffered. (Japanese FIX 2 / BUG B.) -->
+        <activity
+            android:name=".RegisterWordActivity"
+            android:exported="false"
+            android:taskAffinity=""
+            android:label="@string/ja_register_dialog_title"
+            android:theme="@style/Theme.Urik"
+            android:windowSoftInputMode="adjustResize|stateVisible" />
+
         <activity
             android:name=".settings.OssLicensesActivity"
             android:exported="false"

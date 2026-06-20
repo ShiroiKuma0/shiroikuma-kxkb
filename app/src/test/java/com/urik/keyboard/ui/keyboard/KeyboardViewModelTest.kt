@@ -408,6 +408,61 @@ class KeyboardViewModelTest {
         assertFalse(viewModel.state.value.isShiftPressed)
     }
 
+    // Japanese layouts pass suppressAutoShift = true (Shift = katakana there): the SAME inputs that auto-shift
+    // a Latin layout must NOT engage auto-shift on Japanese, so katakana is never silently turned on.
+
+    @Test
+    fun `Latin layout auto-shifts at sentence start but Japanese does not`() {
+        // Baseline: a Latin layout (suppressAutoShift defaults false) auto-shifts after a sentence end.
+        viewModel.checkAndApplyAutoCapitalization("Hello. ")
+        assertTrue(viewModel.state.value.isShiftPressed)
+        assertTrue(viewModel.state.value.isAutoShift)
+
+        viewModel.clearShiftAndCapsState()
+
+        // Japanese (suppressAutoShift = true): identical input must leave shift/katakana off.
+        viewModel.checkAndApplyAutoCapitalization("Hello. ", suppressAutoShift = true)
+        assertFalse(viewModel.state.value.isShiftPressed)
+        assertFalse(viewModel.state.value.isAutoShift)
+    }
+
+    @Test
+    fun `Japanese layout does not auto-shift on empty field where Latin would`() {
+        // Latin: an empty field auto-shifts.
+        viewModel.checkAndApplyAutoCapitalization("")
+        assertTrue(viewModel.state.value.isShiftPressed)
+
+        viewModel.clearShiftAndCapsState()
+
+        // Japanese: an empty field must NOT auto-shift (would silently enable katakana).
+        viewModel.checkAndApplyAutoCapitalization("", suppressAutoShift = true)
+        assertFalse(viewModel.state.value.isShiftPressed)
+        assertFalse(viewModel.state.value.isAutoShift)
+    }
+
+    @Test
+    fun `suppressAutoShift clears an already-armed auto-shift (switch to Japanese)`() {
+        // Arm auto-shift as a Latin layout would.
+        viewModel.enableAutoCapitalization()
+        assertTrue(viewModel.state.value.isAutoShift)
+
+        // A subsequent Japanese-layout check must drop the latched auto-shift.
+        viewModel.checkAndApplyAutoCapitalization("", suppressAutoShift = true)
+        assertFalse(viewModel.state.value.isShiftPressed)
+        assertFalse(viewModel.state.value.isAutoShift)
+    }
+
+    @Test
+    fun `explicit shift still works on Japanese (manual katakana toggle unaffected)`() {
+        // The Japanese auto-shift suppression must not break the EXPLICIT Shift key (manual katakana on).
+        viewModel.onEvent(KeyboardEvent.ShiftStateChanged(isPressed = true))
+        assertTrue(viewModel.state.value.isShiftPressed)
+
+        // A Japanese auto-cap check leaves the explicit (non-auto) shift untouched: only auto-shift is cleared.
+        viewModel.checkAndApplyAutoCapitalization("", suppressAutoShift = true)
+        assertTrue(viewModel.state.value.isShiftPressed)
+    }
+
     @Test
     fun `disableCapsLockAfterPunctuation turns off caps lock and enables shift`() = runTest {
         viewModel.onEvent(KeyboardEvent.CapsLockToggled)

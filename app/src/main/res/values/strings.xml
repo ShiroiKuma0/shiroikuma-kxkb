@@ -334,6 +334,11 @@
     <string name="space_menu_all_settings">All settings</string>
     <string name="keyboard_ui_app_language">App language</string>
     <string name="keyboard_ui_app_language_system">System default</string>
+    <string name="keyboard_ui_mode">Mode</string>
+    <string name="keyboard_ui_mode_standard">Standard</string>
+    <string name="keyboard_ui_mode_split">Split</string>
+    <string name="keyboard_ui_mode_one_handed_left">One-handed left</string>
+    <string name="keyboard_ui_mode_one_handed_right">One-handed right</string>
     <string name="keyboard_ui_section_rows">Rows</string>
     <string name="keyboard_ui_sub_primary">Primary character</string>
     <string name="keyboard_ui_sub_secondary">Secondary character</string>
@@ -663,6 +668,22 @@
     <string name="remove_suggestion">Remove %1$s from suggestions?</string>
     <string name="remove_cancel">Cancel</string>
     <string name="remove_confirm">Remove</string>
+
+    <!-- Japanese reading→surface registration -->
+    <string name="ja_register_candidate_label">＋登録</string>
+    <string name="ja_register_dialog_title">単語登録</string>
+    <string name="ja_register_reading_label">よみ</string>
+    <string name="ja_register_surface_label">単語</string>
+    <string name="ja_register_surface_hint">変換後の語（例: 白い熊）</string>
+    <string name="ja_register_confirm">登録</string>
+    <string name="ja_register_cancel">キャンセル</string>
+    <string name="ja_register_saved_toast">「%1$s」を登録しました</string>
+    <string name="ja_register_empty">よみと単語の両方を入力してください</string>
+
+    <!-- Japanese user-dictionary editor (settings) -->
+    <string name="ja_dictionary_title">Japanese user dictionary</string>
+    <string name="ja_dictionary_summary">View and remove learned and registered reading → word entries</string>
+    <string name="ja_dictionary_empty">登録された単語はありません</string>
 
     <!-- Tips -->
     <string name="tip_1_title">Learning Words</string>

@@ -385,15 +385,23 @@ class SuggestionPipeline(
                 // (no-op for any other word / non-English layout). (Bug D.)
                 val committed = applyPronounCorrection(recaseForCommit(suggestion))
 
+                // Japanese text has no inter-word spaces: committing a converted/selected Japanese candidate
+                // (the first Space accepts the highlighted conversion, a tap accepts a tapped one) must insert
+                // the surface ONLY, with no trailing " ". Every other (Latin / cluster) path still appends a
+                // space so words stay separated. The trailing space is the only Japanese difference here; the
+                // cursor math below accounts for it via [trailingSpaceLen]. (Japanese FIX 1.)
+                val trailing = if (isJapaneseLayout) "" else " "
+                val trailingSpaceLen = trailing.length
+
                 outputBridge.beginBatchEdit()
                 try {
-                    outputBridge.commitText("$committed ")
+                    outputBridge.commitText("$committed$trailing")
 
                     val expectedNewPosition =
                         if (state.composingRegionStart != -1) {
-                            state.composingRegionStart + committed.length + 1
+                            state.composingRegionStart + committed.length + trailingSpaceLen
                         } else {
-                            actualCursorPos + committed.length + 1
+                            actualCursorPos + committed.length + trailingSpaceLen
                         }
                     state.selectionStateTracker.setExpectedPositionAfterOperation(expectedNewPosition)
                     state.lastKnownCursorPosition = expectedNewPosition
@@ -572,15 +580,48 @@ class SuggestionPipeline(
                     source = "katakana"
                 )
 
-                val combined = (conversionCandidates + dictCompletions + hiraganaCandidate + katakanaCandidate)
+                // The plain typed reading (its hiragana) is the always-available base candidate: it must NEVER be
+                // pushed out of the row by conversions/learned entries, otherwise a mis-learned surface (BUG A)
+                // could leave the row with no way back to the literal reading. Reserve it a guaranteed slot, fill
+                // the remaining slots with conversions/completions, then append it (and the katakana form when it
+                // still fits). distinctBy collapses any conversion that happens to equal the kana. (BUG A.)
+                val cap = host.effectiveSuggestionCount()
+                val conversions = (conversionCandidates + dictCompletions)
                     .distinctBy { it.word }
-                    .take(host.effectiveSuggestionCount())
+                    .filter { it.word != hiraganaCandidate.word }
+                val reservedForBase = if (cap > 0) 1 else 0
+                val combined = (
+                    conversions.take((cap - reservedForBase).coerceAtLeast(0)) +
+                        hiraganaCandidate +
+                        katakanaCandidate
+                    )
+                    .distinctBy { it.word }
+                    .take(cap)
+
+                // Trailing inline-registration affordance: a special "＋登録" candidate at the end of the row.
+                // Tapping it opens the reading→surface registration dialog (handled in the service) rather than
+                // committing — the easy way to teach an unknown reading like しろいくま → 白い熊. Marked with a
+                // dedicated source so the commit path can recognise and intercept it. Skipped if the label
+                // would collide with a real candidate. (Japanese FIX 2.)
+                val registerLabel = host.japaneseRegisterLabel()
+                val registerCandidate =
+                    if (hiraganaBuffer.isNotEmpty() && combined.none { it.word == registerLabel }) {
+                        SpellingSuggestion(
+                            word = registerLabel,
+                            confidence = -100.0,
+                            ranking = 0,
+                            source = JA_REGISTER_SOURCE
+                        )
+                    } else {
+                        null
+                    }
+                val withRegister = combined + listOfNotNull(registerCandidate)
 
                 withContext(Dispatchers.Main) {
-                    if (combined.isNotEmpty()) {
-                        state.pendingSuggestions = combined.map { it.word }
-                        state.currentRawSuggestions = combined
-                        state.updateSuggestionDisplay(combined.map { it.word })
+                    if (withRegister.isNotEmpty()) {
+                        state.pendingSuggestions = withRegister.map { it.word }
+                        state.currentRawSuggestions = withRegister
+                        state.updateSuggestionDisplay(withRegister.map { it.word })
                     } else {
                         state.pendingSuggestions = emptyList()
                         state.clearSuggestionDisplay()
@@ -601,8 +642,20 @@ class SuggestionPipeline(
         suggestionDebounceJob?.cancel()
     }
 
-    private companion object {
-        const val SUGGESTION_DEBOUNCE_MS = 10L
-        val CASELESS_LANGUAGES = setOf("ar", "fa", "ja")
+    /**
+     * True if [suggestion] is the trailing Japanese registration affordance ("＋登録") rather than a real
+     * conversion candidate — matched by its source so the service can intercept the tap and open the
+     * registration dialog instead of committing it. (Japanese FIX 2.)
+     */
+    fun isJapaneseRegisterAffordance(suggestion: String): Boolean =
+        isJapaneseLayout &&
+            state.currentRawSuggestions.any { it.word == suggestion && it.source == JA_REGISTER_SOURCE }
+
+    companion object {
+        /** Source tag marking the trailing "＋登録" registration affordance in the Japanese candidate row. */
+        const val JA_REGISTER_SOURCE = "ja_register"
+
+        private const val SUGGESTION_DEBOUNCE_MS = 10L
+        private val CASELESS_LANGUAGES = setOf("ar", "fa", "ja")
     }
 }

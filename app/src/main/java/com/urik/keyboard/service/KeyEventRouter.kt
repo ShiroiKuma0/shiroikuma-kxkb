@@ -34,6 +34,10 @@ constructor() {
     private var searchInputHandler: (KeyboardKey) -> Boolean = { false }
     private var viewModel: KeyboardViewModel? = null
 
+    // An armed combining diacritic (Czech ´ ˇ ¨ ˚ ¯): the next base letter composes with it. Lives here, on
+    // the single dispatch chokepoint, so flick/cluster/plain characters all feed it. Cleared by any action key.
+    private var pendingDeadKey: Char? = null
+
     fun configure(
         handler: KeyEventHandler,
         searchInputHandler: (KeyboardKey) -> Boolean,
@@ -61,13 +65,36 @@ constructor() {
                         !shiftState.isAutoShift &&
                         !shiftState.isCapsLockOn
                 viewModel?.clearShiftAfterCharacter(key)
+
+                // Dead keys (Czech ´ ˇ ¨ ˚ ¯): an armed diacritic composes with this base letter (ˇ+c → č,
+                // ´+E → É); a diacritic character arms a new dead key instead of being emitted. If the base
+                // has no precomposed form, emit the spacing diacritic and then the base normally.
+                val pending = pendingDeadKey
+                if (pending != null) {
+                    pendingDeadKey = null
+                    val composed = DeadKeys.compose(char, pending)
+                    if (composed != null) {
+                        handler?.onLetterInput(composed, wasAutoShifted, wasManualShifted)
+                        return
+                    }
+                    handler?.onNonLetterInput(DeadKeys.spacingFor(pending))
+                }
+                val arming = DeadKeys.combiningFor(char)
+                if (arming != null) {
+                    pendingDeadKey = arming
+                    return
+                }
+
                 if (key.type == KeyboardKey.KeyType.LETTER) {
                     handler?.onLetterInput(char, wasAutoShifted, wasManualShifted)
                 } else {
                     handler?.onNonLetterInput(char)
                 }
             }
-            is KeyboardKey.Action -> routeAction(key)
+            is KeyboardKey.Action -> {
+                pendingDeadKey = null
+                routeAction(key)
+            }
             KeyboardKey.Spacer -> {}
             is KeyboardKey.FlickKey -> {}
         }

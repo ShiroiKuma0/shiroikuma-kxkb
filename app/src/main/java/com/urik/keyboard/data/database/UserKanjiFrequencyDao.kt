@@ -18,6 +18,9 @@ interface UserKanjiFrequencyDao {
     )
     suspend fun incrementBy(reading: String, surface: String, amount: Long, lastUsed: Long)
 
+    @Query("DELETE FROM user_kanji_frequency WHERE reading = :reading AND surface = :surface")
+    suspend fun delete(reading: String, surface: String): Int
+
     @Query("DELETE FROM user_kanji_frequency")
     suspend fun clearAll(): Int
 }

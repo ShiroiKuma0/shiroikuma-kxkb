@@ -20,6 +20,7 @@ import androidx.preference.PreferenceCategory
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.SeekBarPreference
 import com.urik.keyboard.R
+import com.urik.keyboard.model.KeyboardDisplayMode
 import com.urik.keyboard.service.GeometryBucket
 import com.urik.keyboard.service.KeyboardFonts
 import com.urik.keyboard.settings.SettingsEventHandler
@@ -37,6 +38,7 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
 
     private lateinit var geometryPref: ListPreference
     private lateinit var localePref: ListPreference
+    private lateinit var modePref: ListPreference
     private lateinit var heightPref: SeekBarPreference
     private lateinit var topRowHeightPref: SeekBarPreference
     private lateinit var bottomRowHeightPref: SeekBarPreference
@@ -174,6 +176,30 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                 entryValues = arrayOf("", "en", "ja", "ru", "cs")
                 summaryProvider = ListPreference.SimpleSummaryProvider.getInstance()
             }
+        // Keyboard display mode — Standard / Split / One-handed left / One-handed right. Surfaces the same
+        // global mode the one-handed toggle (Layout & input) and the space-slide Actions menu drive.
+        modePref =
+            ListPreference(context).apply {
+                key = "kb_ui_mode"
+                isPersistent = false
+                layoutResource = R.layout.preference_item_kxkb
+                title = resources.getString(R.string.keyboard_ui_mode)
+                entries =
+                    arrayOf(
+                        resources.getString(R.string.keyboard_ui_mode_standard),
+                        resources.getString(R.string.keyboard_ui_mode_split),
+                        resources.getString(R.string.keyboard_ui_mode_one_handed_left),
+                        resources.getString(R.string.keyboard_ui_mode_one_handed_right)
+                    )
+                entryValues =
+                    arrayOf(
+                        KeyboardDisplayMode.STANDARD.name,
+                        KeyboardDisplayMode.SPLIT.name,
+                        KeyboardDisplayMode.ONE_HANDED_LEFT.name,
+                        KeyboardDisplayMode.ONE_HANDED_RIGHT.name
+                    )
+                summaryProvider = ListPreference.SimpleSummaryProvider.getInstance()
+            }
         heightPref = seekBar("kb_ui_height", R.string.keyboard_ui_item_height, min = 50, max = 200)
         topRowHeightPref = seekBar("kb_ui_top_row_height", R.string.keyboard_ui_item_top_row_height, min = 50, max = 200)
         bottomRowHeightPref = seekBar("kb_ui_bottom_row_height", R.string.keyboard_ui_item_bottom_row_height, min = 50, max = 200)
@@ -265,6 +291,7 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
 
         screen.addPreference(keyboardCategory)
         keyboardCategory.addPreference(localePref)
+        keyboardCategory.addPreference(modePref)
         keyboardCategory.addPreference(heightPref)
         keyboardCategory.addPreference(topRowHeightPref)
         keyboardCategory.addPreference(bottomRowHeightPref)
@@ -460,6 +487,10 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                 if (tag.isEmpty()) androidx.core.os.LocaleListCompat.getEmptyLocaleList()
                 else androidx.core.os.LocaleListCompat.forLanguageTags(tag)
             androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(locales)
+            true
+        }
+        modePref.setOnPreferenceChangeListener { _, newValue ->
+            viewModel.updateKeyboardDisplayMode(KeyboardDisplayMode.valueOf(newValue as String))
             true
         }
         heightPref.setOnPreferenceChangeListener { _, newValue ->
@@ -738,6 +769,11 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                 launch {
                     viewModel.customSuggestions.collect { raw ->
                         if (customSuggestionsPref.text != raw) customSuggestionsPref.text = raw
+                    }
+                }
+                launch {
+                    viewModel.keyboardDisplayMode.collect { mode ->
+                        modePref.value = mode.name
                     }
                 }
                 launch {

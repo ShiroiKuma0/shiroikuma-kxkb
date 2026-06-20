@@ -20,6 +20,7 @@ import com.urik.keyboard.settings.keyboardui.KeyboardUiFragment
 import com.urik.keyboard.settings.layoutinput.LayoutInputFragment
 import com.urik.keyboard.settings.library.KeyboardEditorActivity
 import com.urik.keyboard.settings.library.LibraryFragment
+import com.urik.keyboard.settings.japanesedictionary.JapaneseDictionaryFragment
 import com.urik.keyboard.settings.learnedwords.LearnedWordsFragment
 import com.urik.keyboard.settings.privacydata.PrivacyDataFragment
 import com.urik.keyboard.settings.typingbehavior.TypingBehaviorFragment
@@ -92,6 +93,7 @@ class SettingsActivity : AppCompatActivity() {
                 is LibraryFragment -> getString(R.string.library_settings_title)
                 is PrivacyDataFragment -> getString(R.string.privacy_settings_title)
                 is LearnedWordsFragment -> getString(R.string.learned_words_title)
+                is JapaneseDictionaryFragment -> getString(R.string.ja_dictionary_title)
                 else -> getString(R.string.settings_title)
             }
         supportActionBar?.title = title

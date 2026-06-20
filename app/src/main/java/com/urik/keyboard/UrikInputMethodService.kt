@@ -53,6 +53,7 @@ import com.urik.keyboard.service.ClipboardPanelHost
 import com.urik.keyboard.service.EmojiSearchManager
 import com.urik.keyboard.service.ImeStateCoordinator
 import com.urik.keyboard.service.InputFieldClassifier
+import com.urik.keyboard.service.InputMethod
 import com.urik.keyboard.service.InputStateManager
 import com.urik.keyboard.service.JapaneseCandidateHandler
 import com.urik.keyboard.service.KeyEventHandler
@@ -240,6 +241,7 @@ open class UrikInputMethodService :
     override fun shouldAutoCapitalize(text: String): Boolean = viewModel.shouldAutoCapitalize(text)
     override fun currentLanguage(): String = languageManager.currentLanguage.value
     override fun currentLayoutLanguage(): String = languageManager.currentLayoutLanguage.value
+    override fun japaneseRegisterLabel(): String = getString(R.string.ja_register_candidate_label)
 
     private fun setAcceleratedDeletion(active: Boolean) {
         inputState.isAcceleratedDeletion = active
@@ -277,7 +279,16 @@ open class UrikInputMethodService :
         // Code / no-predict fields suppress auto-capitalization along with suggestions and
         // autocorrect, so typed text is left exactly as entered.
         if (inputState.isSuggestionsDisabled) return
-        viewModel.checkAndApplyAutoCapitalization(textBefore, currentSettings.autoCapitalizationEnabled)
+        // Japanese layouts must NEVER auto-capitalise: on Japanese, Shift = katakana, so any auto-shift
+        // (sentence start, after . ! ?, empty/field-start) would silently turn katakana ON — wrong. Katakana
+        // engages only when the user taps Shift explicitly. This is the single choke point every auto-cap
+        // trigger funnels through (onStartInput, onStartInputView, performInputAction, the suggestion-selection
+        // and swipe/onUpdateSelection callbacks), so suppressing here covers them all.
+        viewModel.checkAndApplyAutoCapitalization(
+            textBefore,
+            currentSettings.autoCapitalizationEnabled,
+            suppressAutoShift = suggestionPipeline.isJapaneseLayout
+        )
     }
 
     private fun sendCharacterAsKeyEvents(char: String) {
@@ -477,7 +488,10 @@ open class UrikInputMethodService :
             japaneseCandidateHandler = JapaneseCandidateHandler(
                 inputState = inputState,
                 outputBridge = outputBridge,
-                onCommit = { suggestion -> handleSuggestionSelected(suggestion) }
+                onCommit = { suggestion -> handleSuggestionSelected(suggestion) },
+                isRegisterAffordance = { suggestion ->
+                    suggestionPipeline.isJapaneseRegisterAffordance(suggestion)
+                }
             )
             letterInputHandler = LetterInputHandler(
                 inputState = inputState,
@@ -1775,8 +1789,50 @@ open class UrikInputMethodService :
 
         updateKeyboardForCurrentAction()
 
+        // If the ＋登録 Activity just registered a new word, replace the still-typed reading with the
+        // registered surface (しろいくま → 白い熊). Runs after the field/state setup above, with the input
+        // connection live. (Japanese FIX 2 — register-then-insert.)
+        applyPendingRegistrationReplacement()
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             autofillCoordinator.onInputViewStarted(swipeKeyboardView != null)
+        }
+    }
+
+    /**
+     * Consume the one-shot registration signal set by [RegisterWordActivity] on a successful Save and, if the
+     * text immediately before the cursor is exactly the registered reading, replace it with the registered
+     * surface. The reading was committed (no longer composing) when the IME lost focus to the Activity, so a
+     * plain [OutputBridge.finishComposingText] + surrounding-text guard is enough.
+     *
+     * The guard is deliberately strict: only delete when `getTextBeforeCursor(reading.length) == reading`. If
+     * the user edited the reading in the Activity, moved the cursor, or focus landed in a different field, the
+     * text won't match and NOTHING is deleted — the entry is still saved, we just don't touch the field.
+     */
+    private fun applyPendingRegistrationReplacement() {
+        val (reading, surface) = scriptConverterRegistry.consumePendingRegistration() ?: return
+        if (reading.isEmpty() || surface.isEmpty()) return
+        try {
+            outputBridge.beginBatchEdit()
+            try {
+                // Finalise any leftover composing region first so the surrounding-text read is committed text.
+                outputBridge.finishComposingText()
+                val before = outputBridge.safeGetTextBeforeCursor(reading.length)
+                if (before == reading) {
+                    outputBridge.deleteSurroundingText(reading.length, 0)
+                    outputBridge.commitText(surface, 1)
+                    coordinateStateClear()
+                }
+            } finally {
+                outputBridge.endBatchEdit()
+            }
+        } catch (e: Exception) {
+            ErrorLogger.logException(
+                component = "UrikInputMethodService",
+                severity = ErrorLogger.Severity.LOW,
+                exception = e,
+                context = mapOf("operation" to "applyPendingRegistrationReplacement")
+            )
         }
     }
 
@@ -2000,11 +2056,25 @@ open class UrikInputMethodService :
             }
 
             if (suggestionPipeline.isJapaneseLayout) {
+                // A tap on the trailing "＋登録" affordance opens the reading→surface registration dialog
+                // instead of committing it as text. (Japanese FIX 2.)
+                if (suggestionPipeline.isJapaneseRegisterAffordance(suggestion)) {
+                    val reading = inputState.displayBuffer
+                    // Open the registration screen as a real Activity (not an in-IME dialog): the keyboard
+                    // keeps working there with no focus war, so the user can type the kanji into the surface
+                    // field with this keyboard itself. (Japanese FIX 2 / BUG B.)
+                    startActivity(RegisterWordActivity.intentForReading(this@UrikInputMethodService, reading))
+                    return@launch
+                }
                 val reading = inputState.displayBuffer
                 val rawSource = inputState.currentRawSuggestions
                     .firstOrNull { it.word.equals(suggestion, ignoreCase = true) }?.source
                 if (rawSource == "learned" || rawSource == "dictionary") {
-                    scriptConverterRegistry.forLanguage(languageManager.currentLanguage.value)
+                    // Look up the converter by the active LAYOUT language ("ja"), not the primary language:
+                    // when ja is active but not primary, currentLanguage() is e.g. "en" and forLanguage()
+                    // would return null, so the selection would never be persisted. (Mirrors the lookup in
+                    // requestJapaneseSuggestions.) (Japanese FIX 2.)
+                    scriptConverterRegistry.forLanguage(languageManager.currentLayoutLanguage.value)
                         ?.recordSelection(reading, suggestion)
                 }
             }

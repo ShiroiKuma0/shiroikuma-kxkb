@@ -253,6 +253,135 @@ class SuggestionPipelineTest {
         assertEquals("hello", inputState.lastCommittedWord)
     }
 
+    // ---- Japanese FIX 1: a Japanese candidate commits with NO trailing space. ----
+
+    @Test
+    fun `coordinateSuggestionSelection commits a Japanese candidate without a trailing space`() =
+        runTest(testDispatcher) {
+            val japanesePipeline = SuggestionPipeline(
+                state = inputState,
+                outputBridge = outputBridge,
+                textInputProcessor = mockTextInputProcessor,
+                spellCheckManager = mockSpellCheckManager,
+                wordLearningEngine = mockWordLearningEngine,
+                wordFrequencyRepository = mockWordFrequencyRepository,
+                languageManager = mockLanguageManager,
+                caseTransformer = mockCaseTransformer,
+                scriptConverterRegistry = mockScriptConverterRegistry,
+                serviceScope = kotlinx.coroutines.CoroutineScope(testDispatcher),
+                host = FakeJapanesePipelineHost()
+            )
+            japanesePipeline.setJapaneseLayout(true)
+
+            inputState.displayBuffer = "とうきょう"
+            inputState.composingRegionStart = 0
+            whenever(mockIc.getTextBeforeCursor(any(), any())).thenReturn("とうきょう")
+            // ja is caseless, so recaseForCommit echoes the surface unchanged.
+
+            japanesePipeline.coordinateSuggestionSelection("東京", checkAutoCapitalization = {})
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            verify(mockIc).commitText("東京", 1)
+        }
+
+    @Test
+    fun `coordinateSuggestionSelection still appends a space for a non-Japanese commit`() =
+        runTest(testDispatcher) {
+            // Same call without the Japanese layout flag keeps the Latin trailing-space behaviour.
+            inputState.displayBuffer = "hel"
+            inputState.composingRegionStart = 0
+            whenever(mockIc.getTextBeforeCursor(any(), any())).thenReturn("hel")
+            whenever(
+                mockCaseTransformer.applyCasing(
+                    any<SpellingSuggestion>(),
+                    any<KeyboardState>(),
+                    any<Boolean>(),
+                    any<java.util.Locale>()
+                )
+            ).thenAnswer { inv -> (inv.arguments[0] as SpellingSuggestion).word }
+
+            pipeline.coordinateSuggestionSelection("hello", checkAutoCapitalization = {})
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            verify(mockIc).commitText("hello ", 1)
+        }
+
+    // ---- Japanese FIX 2: the trailing "＋登録" registration affordance. ----
+
+    @Test
+    fun `requestJapaneseSuggestions appends the register affordance after the candidates`() =
+        runTest(testDispatcher) {
+            val japanesePipeline = SuggestionPipeline(
+                state = inputState,
+                outputBridge = outputBridge,
+                textInputProcessor = mockTextInputProcessor,
+                spellCheckManager = mockSpellCheckManager,
+                wordLearningEngine = mockWordLearningEngine,
+                wordFrequencyRepository = mockWordFrequencyRepository,
+                languageManager = mockLanguageManager,
+                caseTransformer = mockCaseTransformer,
+                scriptConverterRegistry = mockScriptConverterRegistry,
+                serviceScope = kotlinx.coroutines.CoroutineScope(testDispatcher),
+                host = FakeJapanesePipelineHost()
+            )
+            japanesePipeline.setJapaneseLayout(true)
+
+            val mockConverter = mock<ScriptConverter>()
+            whenever(mockScriptConverterRegistry.forLanguage("ja")).thenReturn(mockConverter)
+            whenever(mockConverter.getCandidates("か", "ja")).thenReturn(
+                listOf(ConversionCandidate(surface = "化", reading = "か", frequency = 19992, source = "dictionary"))
+            )
+            whenever(mockSpellCheckManager.getSpellingSuggestionsWithConfidence("か")).thenReturn(emptyList())
+
+            inputState.updateDisplayBuffer("か")
+            japanesePipeline.requestSuggestions("か", InputMethod.TYPED)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // The affordance is the LAST entry, and isJapaneseRegisterAffordance recognises it (and only it).
+            assertEquals("＋登録", capturedSuggestions.last())
+            assert(japanesePipeline.isJapaneseRegisterAffordance("＋登録"))
+            assert(!japanesePipeline.isJapaneseRegisterAffordance("化"))
+        }
+
+    @Test
+    fun `requestJapaneseSuggestions always keeps the plain reading even when many conversions are offered`() =
+        runTest(testDispatcher) {
+            // BUG A: a mis-learned surface (or simply many conversions) must never push the literal typed
+            // reading out of the row. Offer far more conversions than the cap and assert the hiragana reading
+            // survives.
+            val japanesePipeline = SuggestionPipeline(
+                state = inputState,
+                outputBridge = outputBridge,
+                textInputProcessor = mockTextInputProcessor,
+                spellCheckManager = mockSpellCheckManager,
+                wordLearningEngine = mockWordLearningEngine,
+                wordFrequencyRepository = mockWordFrequencyRepository,
+                languageManager = mockLanguageManager,
+                caseTransformer = mockCaseTransformer,
+                scriptConverterRegistry = mockScriptConverterRegistry,
+                serviceScope = kotlinx.coroutines.CoroutineScope(testDispatcher),
+                host = FakeJapanesePipelineHost()
+            )
+            japanesePipeline.setJapaneseLayout(true)
+
+            val mockConverter = mock<ScriptConverter>()
+            whenever(mockScriptConverterRegistry.forLanguage("ja")).thenReturn(mockConverter)
+            // 20 high-frequency conversions for しろい — far more than effectiveSuggestionCount (5).
+            val manyConversions = (1..20).map {
+                ConversionCandidate(surface = "白$it", reading = "しろい", frequency = 20000L - it, source = "dictionary")
+            }
+            whenever(mockConverter.getCandidates("しろい", "ja")).thenReturn(manyConversions)
+            whenever(mockSpellCheckManager.getSpellingSuggestionsWithConfidence("しろい")).thenReturn(emptyList())
+
+            inputState.updateDisplayBuffer("しろい")
+            japanesePipeline.requestSuggestions("しろい", InputMethod.TYPED)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assert(capturedSuggestions.contains("しろい")) {
+                "The plain typed reading must always remain in the row, was: $capturedSuggestions"
+            }
+        }
+
     // ---- Bug D: a standalone English pronoun "i" cluster candidate commits as "I". ----
 
     @Test
