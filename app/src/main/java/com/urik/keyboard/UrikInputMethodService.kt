@@ -732,6 +732,9 @@ open class UrikInputMethodService :
                     setOnModeToggleListener { mode ->
                         keyboardModeManager.setManualMode(mode)
                     }
+                    setOnFloatingRectChangeListener { x, y, w, h ->
+                        commitFloatingRect(x, y, w, h)
+                    }
                 }
 
             adaptiveContainer = adaptive
@@ -822,19 +825,50 @@ open class UrikInputMethodService :
      */
     override fun onComputeInsets(outInsets: Insets) {
         super.onComputeInsets(outInsets)
+        val root = keyboardRootContainer ?: return
+        if (root.height <= 0) return
+
+        // FLOATING: the input view fills the screen but only the panel's rect is touchable — taps outside it
+        // pass through to the app. Report the full input-view height as occupied so the app lays out behind
+        // the (floating) panel (it "jumps" under), exactly like the split recipe, but with a tighter region.
+        val container = adaptiveContainer
+        val panelRect = android.graphics.Rect()
+        if (container != null && container.getFloatingPanelRect(panelRect)) {
+            // Offset the container-local panel rect into root/window coordinates.
+            val containerTop = offsetTopWithinRoot(container, root)
+            val left = panelRect.left
+            val top = (panelRect.top + containerTop).coerceAtLeast(0)
+            val right = panelRect.right.coerceAtMost(root.width)
+            val bottom = (panelRect.bottom + containerTop).coerceAtMost(root.height)
+            outInsets.contentTopInsets = root.height
+            outInsets.visibleTopInsets = root.height
+            outInsets.touchableInsets = Insets.TOUCHABLE_INSETS_REGION
+            outInsets.touchableRegion.set(left, top, right, bottom)
+            return
+        }
+
+        // SPLIT (and any look that produces a split gap): the docked "floating" recipe — the whole input-view
+        // area is touchable (the opaque keys cover the app; only the centre gap shows through).
         val splitGap = keyboardModeManager.currentMode.value.adaptiveDimensions
             ?.let { withLookKnobs(it).splitGapPx } ?: 0
-        val root = keyboardRootContainer
-        if (splitGap > 0 && root != null && root.height > 0) {
-            // Floating keyboard recipe: report NO occupied content/visible height so the app lays out
-            // full-screen behind the keyboard (it "jumps" under), and mark the keyboard area touchable so the
-            // keys still receive input. The opaque keys cover the app; only the centre gap shows through.
+        if (splitGap > 0) {
             val h = root.height
             outInsets.contentTopInsets = h
             outInsets.visibleTopInsets = h
             outInsets.touchableInsets = Insets.TOUCHABLE_INSETS_REGION
             outInsets.touchableRegion.set(0, 0, root.width, h)
         }
+    }
+
+    /** Sum the top offsets from [descendant] up to [ancestor] (both in the same view tree). */
+    private fun offsetTopWithinRoot(descendant: View, ancestor: View): Int {
+        var top = 0
+        var v: View? = descendant
+        while (v != null && v !== ancestor) {
+            top += v.top
+            v = v.parent as? View
+        }
+        return top
     }
 
     private fun createSwipeKeyboardView(): View? = try {
@@ -1071,6 +1105,10 @@ open class UrikInputMethodService :
             startActivity(editorIntent)
             return
         }
+        if (action == "mode") {
+            showModePicker()
+            return
+        }
         val intent = when (action) {
             "kxkb_ui" -> com.urik.keyboard.settings.SettingsActivity.createIntent(
                 this, com.urik.keyboard.settings.SettingsActivity.PAGE_KEYBOARD_UI
@@ -1085,6 +1123,47 @@ open class UrikInputMethodService :
         }
         intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
         startActivity(intent)
+    }
+
+    /**
+     * Space-slide "Keyboard mode" → one themed selection dialog over the keyboard. Selection-only (no text
+     * field) so there's no IME focus war; it's an attached dialog on the input view's window token. Picking a
+     * mode routes through the same setManualMode the kxkb-UI Mode picker + one-handed toggle use.
+     */
+    private fun showModePicker() {
+        val anchor = swipeKeyboardView ?: return
+        val anchorToken = anchor.windowToken ?: return
+        val modes = listOf(
+            KeyboardDisplayMode.STANDARD,
+            KeyboardDisplayMode.SPLIT,
+            KeyboardDisplayMode.ONE_HANDED_LEFT,
+            KeyboardDisplayMode.ONE_HANDED_RIGHT,
+            KeyboardDisplayMode.FLOATING
+        )
+        val labels = arrayOf(
+            getString(R.string.keyboard_ui_mode_standard),
+            getString(R.string.keyboard_ui_mode_split),
+            getString(R.string.keyboard_ui_mode_one_handed_left),
+            getString(R.string.keyboard_ui_mode_one_handed_right),
+            getString(R.string.keyboard_ui_mode_floating)
+        )
+        val checked = modes.indexOf(keyboardModeManager.currentMode.value.mode).coerceAtLeast(0)
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this, R.style.Theme_Urik_Dialog)
+            .setTitle(R.string.space_menu_mode)
+            .setSingleChoiceItems(labels, checked) { d, which ->
+                keyboardModeManager.setManualMode(modes[which])
+                d.dismiss()
+            }
+            .setNegativeButton(R.string.library_git_cancel, null)
+            .create()
+        dialog.window?.let { w ->
+            val lp = w.attributes
+            lp.token = anchorToken
+            lp.type = android.view.WindowManager.LayoutParams.TYPE_APPLICATION_ATTACHED_DIALOG
+            w.attributes = lp
+            w.addFlags(android.view.WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM)
+        }
+        dialog.show()
     }
 
     private val virtualKeyCharMap by lazy { KeyCharacterMap.load(KeyCharacterMap.VIRTUAL_KEYBOARD) }
@@ -1303,6 +1382,7 @@ open class UrikInputMethodService :
                         layoutManager.updateShowLanguageSwitchKey(newSettings.showLanguageSwitchKey)
                         layoutManager.updateNumberHints(newSettings.showNumberHints)
                         layoutManager.updatePressHighlight(newSettings.keyPressHighlightEnabled)
+                        layoutManager.updateKeyPreview(newSettings.keyPreviewEnabled)
 
                         if (layoutChanged) {
                             repository.cleanup()
@@ -1587,7 +1667,18 @@ open class UrikInputMethodService :
     private fun forceInputViewRemeasure() {
         val root = keyboardRootContainer ?: return
         root.post {
-            if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+            if (!lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) return@post
+            swipeKeyboardView?.requestLayout()
+            adaptiveContainer?.requestLayout()
+            root.requestLayout()
+            // A second pass on the NEXT frame: with a large height scale the grow can be big, and the first
+            // posted requestLayout above may be coalesced into / consumed by a layout traversal that ran
+            // before the keyboard view finished growing — so the IME window keeps the short height and the
+            // bottom row stays clipped until the keyboard is dismissed and reopened. Re-posting once the grow
+            // has settled forces a fresh measure→layout→onComputeInsets cycle that resizes the window to the
+            // final tall height. Idempotent when nothing changed (a no-delta requestLayout is cheap).
+            root.post {
+                if (!lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) return@post
                 swipeKeyboardView?.requestLayout()
                 adaptiveContainer?.requestLayout()
                 root.requestLayout()
@@ -1601,6 +1692,42 @@ open class UrikInputMethodService :
         val widthScale = activeLookKnobs.keyboardWidthScale ?: 1f
         val liftPx = ((activeLookKnobs.bottomLiftDp ?: 0f) * density).toInt()
         adaptiveContainer?.applyLookKnobs(widthScale, liftPx)
+        // Floating-panel rect (used only in FLOATING display mode; null fields → the centred default).
+        adaptiveContainer?.applyFloatingKnobs(
+            activeLookKnobs.floatXFraction,
+            activeLookKnobs.floatYFraction,
+            activeLookKnobs.floatWidthFraction,
+            activeLookKnobs.floatHeightScale
+        )
+    }
+
+    /**
+     * Persist a floating-panel drag/resize into the SAME per-geometry baseline the Keyboard UI sliders edit
+     * (merged so other knobs survive) — mirroring [commitResize]. Also keeps [activeLookKnobs] in sync so a
+     * concurrent re-resolve doesn't snap the panel back.
+     */
+    private fun commitFloatingRect(xFraction: Float, yFraction: Float, widthFraction: Float, heightScale: Float) {
+        activeLookKnobs =
+            activeLookKnobs.copy(
+                floatXFraction = xFraction,
+                floatYFraction = yFraction,
+                floatWidthFraction = widthFraction,
+                floatHeightScale = heightScale
+            )
+        serviceScope.launch {
+            val geometry =
+                postureDetector?.postureInfo?.value?.let { geometryKey(it) } ?: GeometryBucket.FOLDED_PORT.key
+            val existing = settingsRepository.getGeometryBaselineLook(geometry) ?: KeyboardLookKnobs()
+            settingsRepository.updateGeometryBaselineLook(
+                geometry,
+                existing.copy(
+                    floatXFraction = xFraction,
+                    floatYFraction = yFraction,
+                    floatWidthFraction = widthFraction,
+                    floatHeightScale = heightScale
+                )
+            )
+        }
     }
 
     /** Wire the seamless resize overlay (1C) to the look store: live-apply on drag, persist on release. */
@@ -1722,6 +1849,7 @@ open class UrikInputMethodService :
         layoutManager.updateShowLanguageSwitchKey(currentSettings.showLanguageSwitchKey)
         layoutManager.updateNumberHints(currentSettings.showNumberHints)
         layoutManager.updatePressHighlight(currentSettings.keyPressHighlightEnabled)
+        layoutManager.updateKeyPreview(currentSettings.keyPreviewEnabled)
 
         if (serviceJob.isCancelled) {
             serviceJob = SupervisorJob()

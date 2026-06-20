@@ -83,6 +83,7 @@ class KeyboardLayoutManager(
     private var showNumberHints = false
     private var hasMultipleImes = false
     private var pressHighlightEnabled = true
+    private var keyPreviewEnabled = true
 
     var effectiveLayout: KeyboardLayout? = null
         private set
@@ -168,6 +169,9 @@ class KeyboardLayoutManager(
         })
     }
     private var flickPopup: FlickPopup? = null
+
+    /** Single reusable magnified key-preview bubble (lazily created the first time it's enabled+shown). */
+    private var keyPreviewPopup: KeyPreviewPopup? = null
 
     private fun flickCharAt(key: KeyboardKey.FlickKey, pos: String): String? = when (pos) {
         "center" -> key.center
@@ -358,6 +362,47 @@ class KeyboardLayoutManager(
         }
     }
 
+    /**
+     * Show the magnified key-preview bubble for a pressed character [button], if the preview is enabled.
+     * Only shows for character-bearing keys whose centre tap commits a glyph — plain [KeyboardKey.Character]
+     * keys, and a [KeyboardKey.FlickKey] whose centre tap is a character (NOT a `bindings["center"]` action).
+     * The glyph is the label the renderer already computed for the key (shift/uppercase honoured); colours
+     * resolve from the per-geometry look knobs, falling back to the active theme. Reuses one popup instance.
+     */
+    private fun showKeyPreview(button: Button) {
+        if (!keyPreviewEnabled) return
+        val key = button.getTag(R.id.key_data) as? KeyboardKey ?: return
+
+        val glyph: String =
+            when (key) {
+                is KeyboardKey.Character -> getKeyLabel(key, lastKeyboardState)
+                is KeyboardKey.FlickKey -> {
+                    // A FlickKey whose centre tap is an editor action (not a character) is out of scope.
+                    if (key.bindings.containsKey("center")) return
+                    flickFace(key, lastKeyboardState).center
+                }
+                else -> return
+            }
+        if (glyph.isEmpty()) return
+
+        val colors = themeManager.currentTheme.value.colors
+        val textColor = getKeyTextColor(key)
+        val bgColor = adaptiveDimensions?.keyBgColor ?: colors.keyBackgroundCharacter
+        val borderColor = adaptiveDimensions?.keyBorderColor ?: colors.keyBorder
+
+        val popup = keyPreviewPopup ?: KeyPreviewPopup(context, themeManager).also { keyPreviewPopup = it }
+        popup.show(
+            glyph = glyph,
+            anchorView = button,
+            // Render relative to the key's own label size (px) so the bubble tracks the look's font scale.
+            labelTextSizePx = button.textSize,
+            textColor = textColor,
+            bgColor = bgColor,
+            borderColor = borderColor,
+            typeface = button.typeface ?: keyLabelTypeface()
+        )
+    }
+
     /** Draws each character of a cluster band centred in its own horizontal slot at (fit-to-width) primary size. */
     private class ClusterMainsDrawable(
         private val mains: String,
@@ -490,7 +535,9 @@ class KeyboardLayoutManager(
         backspaceController = backspaceController,
         setSwipePopupActive = { active -> swipeKeyboardView?.setPopupActive(active) },
         getCurrentVariationKeyType = { currentVariationKeyType },
-        accessibilityManager = accessibilityManager
+        accessibilityManager = accessibilityManager,
+        showKeyPreview = { button -> showKeyPreview(button) },
+        dismissKeyPreview = { keyPreviewPopup?.hide() }
     )
 
     private var variationPopup: CharacterVariationPopup? = null
@@ -640,6 +687,11 @@ class KeyboardLayoutManager(
 
     fun updatePressHighlight(enabled: Boolean) {
         pressHighlightEnabled = enabled
+    }
+
+    fun updateKeyPreview(enabled: Boolean) {
+        keyPreviewEnabled = enabled
+        if (!enabled) keyPreviewPopup?.hide()
     }
 
     fun updateCustomKeyMappings(mappings: Map<String, List<String>>) {
@@ -1138,6 +1190,8 @@ class KeyboardLayoutManager(
                 characterLongPressFired.add(button)
                 longPressConsumedButtons.add(button)
                 performContextualHaptic(key)
+                // The character-variation popup is taking over — drop the preview so they don't stack.
+                keyPreviewPopup?.hide()
                 handleCharacterLongPress(key, button, button)
             }
 
@@ -1516,6 +1570,8 @@ class KeyboardLayoutManager(
                         // intercepting and cancelling the flick mid-swipe — without this, certain
                         // keys (e.g. さ) had their flick cancelled on longer swipes, dropping input.
                         view.parent?.requestDisallowInterceptTouchEvent(true)
+                        // The FlickPopup is this key's own (richer) preview — never stack the plain bubble on top.
+                        keyPreviewPopup?.hide()
                         val popup = FlickPopup(context, themeManager)
                         flickPopup?.dismiss()
                         flickPopup = popup
@@ -1554,6 +1610,7 @@ class KeyboardLayoutManager(
     private fun returnActiveButtonsToPool() {
         variationPopup?.dismiss()
         languagePickerPopup?.dismiss()
+        keyPreviewPopup?.hide()
 
         activeButtons.forEach { button ->
             cleanupButton(button)
@@ -1633,6 +1690,7 @@ class KeyboardLayoutManager(
             items = listOf(
                 SpaceMenuItem(context.getString(R.string.space_menu_kxkb_ui), false) { onMenuAction("kxkb_ui") },
                 SpaceMenuItem(context.getString(R.string.space_menu_editor), false) { onMenuAction("editor") },
+                SpaceMenuItem(context.getString(R.string.space_menu_mode), false) { onMenuAction("mode") },
                 SpaceMenuItem(context.getString(R.string.space_menu_languages_action), false) { onMenuAction("languages") },
                 SpaceMenuItem(context.getString(R.string.space_menu_all_settings), false) { onMenuAction("settings") }
             )
@@ -2390,6 +2448,8 @@ class KeyboardLayoutManager(
         variationPopup = null
         languagePickerPopup?.dismiss()
         languagePickerPopup = null
+        keyPreviewPopup?.hide()
+        keyPreviewPopup = null
         punctuationLoader.cleanup()
     }
 

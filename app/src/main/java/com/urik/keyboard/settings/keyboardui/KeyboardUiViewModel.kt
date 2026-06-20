@@ -55,6 +55,16 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
                 initialValue = ""
             )
 
+    // The key-preview bubble toggle (a global setting, surfaced in the Keys section). Default OFF.
+    val keyPreviewEnabled: StateFlow<Boolean> =
+        settingsRepository.settings
+            .map { it.keyPreviewEnabled }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
+                initialValue = true
+            )
+
     // The keyboard display mode (a global setting, not per-geometry) — read from the SAME two settings
     // keys the one-handed toggle and the space-slide Actions menu drive, resolved exactly as
     // KeyboardModeManager.determineMode does: one-handed-enabled wins (left/right from keyboardDisplayMode),
@@ -71,6 +81,7 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
                         }
 
                     settings.keyboardDisplayMode == KeyboardDisplayMode.SPLIT -> KeyboardDisplayMode.SPLIT
+                    settings.keyboardDisplayMode == KeyboardDisplayMode.FLOATING -> KeyboardDisplayMode.FLOATING
                     else -> KeyboardDisplayMode.STANDARD
                 }
             }.stateIn(
@@ -89,8 +100,12 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
     fun updateKeyboardDisplayMode(mode: KeyboardDisplayMode) {
         viewModelScope.launch {
             when (mode) {
-                KeyboardDisplayMode.STANDARD ->
+                KeyboardDisplayMode.STANDARD -> {
+                    // Clear the persisted explicit mode too, so a previously saved FLOATING / SPLIT (or a
+                    // stale one-handed L/R) isn't re-resolved by KeyboardModeManager.determineMode.
+                    settingsRepository.updateKeyboardDisplayMode(null)
                     settingsRepository.updateOneHandedModeEnabled(false)
+                }
 
                 KeyboardDisplayMode.ONE_HANDED_LEFT,
                 KeyboardDisplayMode.ONE_HANDED_RIGHT
@@ -99,7 +114,9 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
                     settingsRepository.updateOneHandedModeEnabled(true)
                 }
 
-                KeyboardDisplayMode.SPLIT -> {
+                KeyboardDisplayMode.SPLIT,
+                KeyboardDisplayMode.FLOATING
+                -> {
                     settingsRepository.updateKeyboardDisplayMode(mode)
                     settingsRepository.updateOneHandedModeEnabled(false)
                 }
@@ -265,6 +282,14 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
             settingsRepository
                 .updateCustomSuggestions(raw)
                 .onFailure { _events.emit(SettingsEvent.Error.CustomSuggestionsUpdateFailed) }
+        }
+    }
+
+    fun updateKeyPreviewEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository
+                .updateKeyPreviewEnabled(enabled)
+                .onFailure { _events.emit(SettingsEvent.Error.KeyboardUiUpdateFailed) }
         }
     }
 

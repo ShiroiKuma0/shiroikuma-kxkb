@@ -95,6 +95,7 @@ constructor(
         val SHOW_NUMBER_HINTS = booleanPreferencesKey("show_number_hints")
         val RESET_TO_LETTERS_ON_DISMISS = booleanPreferencesKey("reset_to_letters_on_dismiss")
         val PRESS_HIGHLIGHT_ENABLED = booleanPreferencesKey("press_highlight_enabled")
+        val KEY_PREVIEW_ENABLED = booleanPreferencesKey("key_preview_enabled")
         val CUSTOM_SUGGESTIONS = stringPreferencesKey("custom_suggestions")
     }
 
@@ -251,6 +252,7 @@ constructor(
                     showNumberHints = preferences[PreferenceKeys.SHOW_NUMBER_HINTS] ?: false,
                     resetToLettersOnDismiss = preferences[PreferenceKeys.RESET_TO_LETTERS_ON_DISMISS] ?: true,
                     keyPressHighlightEnabled = preferences[PreferenceKeys.PRESS_HIGHLIGHT_ENABLED] ?: true,
+                    keyPreviewEnabled = preferences[PreferenceKeys.KEY_PREVIEW_ENABLED] ?: true,
                     customSuggestions =
                         preferences[PreferenceKeys.CUSTOM_SUGGESTIONS]?.takeIf { it.isNotBlank() }
                             ?: KeyboardSettings.DEFAULT_CUSTOM_SUGGESTIONS
@@ -902,6 +904,13 @@ constructor(
         Result.failure(e)
     }
 
+    suspend fun updateKeyPreviewEnabled(enabled: Boolean): Result<Unit> = try {
+        dataStore.edit { it[PreferenceKeys.KEY_PREVIEW_ENABLED] = enabled }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
     /**
      * Irreversible. Clears all supported languages atomically within a single transaction.
      */
@@ -1040,7 +1049,8 @@ constructor(
             PreferenceKeys.AUTOCORRECTION_ENABLED,
             PreferenceKeys.SHOW_NUMBER_HINTS,
             PreferenceKeys.RESET_TO_LETTERS_ON_DISMISS,
-            PreferenceKeys.PRESS_HIGHLIGHT_ENABLED
+            PreferenceKeys.PRESS_HIGHLIGHT_ENABLED,
+            PreferenceKeys.KEY_PREVIEW_ENABLED
         )
 
         internal val intExportKeys: List<Preferences.Key<Int>> = listOf(

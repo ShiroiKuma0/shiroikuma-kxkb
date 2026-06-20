@@ -98,6 +98,10 @@ class KeyboardModeManagerTest {
         keyboardDisplayMode = KeyboardDisplayMode.ONE_HANDED_RIGHT
     )
 
+    private fun settingsWithFloating() = KeyboardSettings(
+        keyboardDisplayMode = KeyboardDisplayMode.FLOATING
+    )
+
     private fun settingsWithAdaptiveDisabled() = KeyboardSettings(
         adaptiveKeyboardModesEnabled = false
     )
@@ -179,6 +183,32 @@ class KeyboardModeManagerTest {
         val config = manager.determineMode(defaultSettings(), foldableHalfOpened())
 
         assertEquals(20, config.adaptiveDimensions!!.splitGapPx)
+    }
+
+    @Test
+    fun `floating mode resolved from settings`() {
+        val config = manager.determineMode(settingsWithFloating(), phonePortrait())
+
+        assertEquals(KeyboardDisplayMode.FLOATING, config.mode)
+        assertNotNull(config.adaptiveDimensions)
+    }
+
+    @Test
+    fun `floating mode kept in landscape (not overridden to standard)`() {
+        val config = manager.determineMode(settingsWithFloating(), phoneLandscape())
+
+        assertEquals(KeyboardDisplayMode.FLOATING, config.mode)
+    }
+
+    @Test
+    fun `one-handed wins over a persisted floating display mode`() {
+        val settings = KeyboardSettings(
+            oneHandedModeEnabled = true,
+            keyboardDisplayMode = KeyboardDisplayMode.FLOATING
+        )
+        val config = manager.determineMode(settings, phonePortrait())
+
+        assertEquals(KeyboardDisplayMode.ONE_HANDED_LEFT, config.mode)
     }
 
     @Test

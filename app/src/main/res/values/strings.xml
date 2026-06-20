@@ -330,6 +330,7 @@
     <string name="space_menu_keyboard">Keyboards…</string>
     <string name="space_menu_kxkb_ui">白い熊 kxkb UI</string>
     <string name="space_menu_editor">Keyboard editor</string>
+    <string name="space_menu_mode">Keyboard mode</string>
     <string name="space_menu_languages_action">Languages</string>
     <string name="space_menu_all_settings">All settings</string>
     <string name="keyboard_ui_app_language">App language</string>
@@ -339,6 +340,7 @@
     <string name="keyboard_ui_mode_split">Split</string>
     <string name="keyboard_ui_mode_one_handed_left">One-handed left</string>
     <string name="keyboard_ui_mode_one_handed_right">One-handed right</string>
+    <string name="keyboard_ui_mode_floating">Floating</string>
     <string name="keyboard_ui_section_rows">Rows</string>
     <string name="keyboard_ui_sub_primary">Primary character</string>
     <string name="keyboard_ui_sub_secondary">Secondary character</string>
@@ -360,6 +362,9 @@
     <string name="keyboard_ui_item_distance">Distance</string>
     <string name="keyboard_ui_item_border_colour">Border colour</string>
     <string name="keyboard_ui_item_caps_shift">Caps-lock shift colour</string>
+    <string name="keyboard_ui_key_preview">Key preview popup</string>
+    <string name="keyboard_ui_key_preview_on">Magnified glyph shown above a pressed key</string>
+    <string name="keyboard_ui_key_preview_off">No preview above a pressed key</string>
     <string name="keyboard_ui_sub_key_spacing">Key spacing</string>
     <string name="keyboard_ui_item_h_gap">Horizontal gap (%)</string>
     <string name="keyboard_ui_item_v_gap">Vertical gap (%)</string>

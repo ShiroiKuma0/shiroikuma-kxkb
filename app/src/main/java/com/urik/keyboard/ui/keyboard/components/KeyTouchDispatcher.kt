@@ -40,7 +40,13 @@ internal class KeyTouchDispatcher(
     private val backspaceController: BackspaceController?,
     private val setSwipePopupActive: (Boolean) -> Unit,
     private val getCurrentVariationKeyType: () -> KeyboardKey.KeyType?,
-    private val accessibilityManager: AccessibilityManager
+    private val accessibilityManager: AccessibilityManager,
+    // Key-preview bubble: shown on a character key's press, dismissed on release/cancel/slide-away. The
+    // host (KeyboardLayoutManager) owns the single reusable popup and gates it on the toggle — these are
+    // no-ops when the preview is disabled. Reusing the existing press lifecycle avoids a second listener
+    // fighting the dispatcher.
+    private val showKeyPreview: (Button) -> Unit = {},
+    private val dismissKeyPreview: () -> Unit = {}
 ) {
     internal var shiftLongPressFired = false
     internal var commaLongPressFired = false
@@ -88,6 +94,7 @@ internal class KeyTouchDispatcher(
                     getLongPressConsumedButtons().remove(button)
                     getHapticDownFiredButtons().add(button)
                     performHaptic(key)
+                    showKeyPreview(button)
                     getPressStartTimes()[button] = SystemClock.uptimeMillis()
                     longPressStartX = event.rawX
                     longPressStartY = event.rawY
@@ -100,6 +107,8 @@ internal class KeyTouchDispatcher(
                 MotionEvent.ACTION_MOVE -> {
                     val button = view as Button
                     if (getPopupSelectionMode() && getVariationPopup()?.isShowing == true) {
+                        // The variation popup has taken over — drop the preview so they don't stack.
+                        dismissKeyPreview()
                         val previousChar = getVariationPopup()?.getHighlightedCharacter()
                         val char = getVariationPopup()?.getCharacterAt(event.rawX, event.rawY)
                         getVariationPopup()?.setHighlighted(char)
@@ -109,12 +118,15 @@ internal class KeyTouchDispatcher(
                         return@OnTouchListener true
                     }
                     if (getCharacterLongPressFired().contains(button)) {
+                        dismissKeyPreview()
                         return@OnTouchListener true
                     }
                     val dx = event.rawX - longPressStartX
                     val dy = event.rawY - longPressStartY
                     val distance = kotlin.math.sqrt(dx * dx + dy * dy)
                     if (distance > longPressCancelThresholdPx) {
+                        // The finger slid off the key — dismiss the preview (a swipe/glide is taking over).
+                        dismissKeyPreview()
                         getButtonPendingCallbacks().remove(button)?.let { pending ->
                             pending.handler.removeCallbacks(pending.runnable)
                         }
@@ -124,6 +136,7 @@ internal class KeyTouchDispatcher(
 
                 MotionEvent.ACTION_UP -> {
                     val button = view as Button
+                    dismissKeyPreview()
                     getButtonPendingCallbacks().remove(button)?.let { pending ->
                         pending.handler.removeCallbacks(pending.runnable)
                     }
@@ -161,6 +174,7 @@ internal class KeyTouchDispatcher(
 
                 MotionEvent.ACTION_CANCEL -> {
                     val button = view as Button
+                    dismissKeyPreview()
                     getButtonPendingCallbacks().remove(button)?.let { pending ->
                         pending.handler.removeCallbacks(pending.runnable)
                     }

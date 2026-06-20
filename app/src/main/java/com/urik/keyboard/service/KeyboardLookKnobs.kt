@@ -86,7 +86,15 @@ data class KeyboardLookKnobs(
     val suggestionFont: String? = null,
     val suggestionWeight: Int? = null,
     val suggestionTextScale: Float? = null,
-    val suggestionColor: Int? = null
+    val suggestionColor: Int? = null,
+    // --- Floating-keyboard panel rect (used only in FLOATING display mode; persisted per geometry).
+    //     x/y are fractions [0..1] of the free travel (left/top edge .. right/bottom edge) so the rect
+    //     survives density/orientation reasonably; width is a fraction [0..1] of screen width; height is
+    //     a multiplier on the keyboard's natural height. null = use the centred ~85% default the first time. ---
+    val floatXFraction: Float? = null,
+    val floatYFraction: Float? = null,
+    val floatWidthFraction: Float? = null,
+    val floatHeightScale: Float? = null
 ) {
     fun applyTo(base: AdaptiveDimensions, density: Float): AdaptiveDimensions = base.copy(
         keyHeightPx = keyHeightScale?.let { (base.keyHeightPx * it).toInt().coerceAtLeast(1) } ?: base.keyHeightPx,
@@ -181,7 +189,11 @@ data class KeyboardLookKnobs(
         suggestionFont = o.suggestionFont ?: suggestionFont,
         suggestionWeight = o.suggestionWeight ?: suggestionWeight,
         suggestionTextScale = o.suggestionTextScale ?: suggestionTextScale,
-        suggestionColor = o.suggestionColor ?: suggestionColor
+        suggestionColor = o.suggestionColor ?: suggestionColor,
+        floatXFraction = o.floatXFraction ?: floatXFraction,
+        floatYFraction = o.floatYFraction ?: floatYFraction,
+        floatWidthFraction = o.floatWidthFraction ?: floatWidthFraction,
+        floatHeightScale = o.floatHeightScale ?: floatHeightScale
     )
 
     /** Compact `k=v;` encoding; null fields are omitted. Pairs with [decode] (lenient). */
@@ -228,6 +240,10 @@ data class KeyboardLookKnobs(
         suggestionWeight?.let { add("sbw=$it") }
         suggestionTextScale?.let { add("sbs=$it") }
         suggestionColor?.let { add("sbc=$it") }
+        floatXFraction?.let { add("flx=$it") }
+        floatYFraction?.let { add("fly=$it") }
+        floatWidthFraction?.let { add("flw=$it") }
+        floatHeightScale?.let { add("flh=$it") }
     }.joinToString(";")
 
     companion object {
@@ -289,6 +305,10 @@ data class KeyboardLookKnobs(
             var hc: Int? = null
             var hf: String? = null
             var hw: Int? = null
+            var flx: Float? = null
+            var fly: Float? = null
+            var flw: Float? = null
+            var flh: Float? = null
             for (token in raw.split(";")) {
                 val i = token.indexOf('=')
                 if (i <= 0) continue
@@ -338,6 +358,10 @@ data class KeyboardLookKnobs(
                     "hc" -> hc = value.toIntOrNull()
                     "hf" -> hf = value
                     "hw" -> hw = value.toIntOrNull()
+                    "flx" -> flx = value.toFloatOrNull()
+                    "fly" -> fly = value.toFloatOrNull()
+                    "flw" -> flw = value.toFloatOrNull()
+                    "flh" -> flh = value.toFloatOrNull()
                 }
             }
             return KeyboardLookKnobs(
@@ -354,7 +378,9 @@ data class KeyboardLookKnobs(
                 hintLeftMarginDp = hlm, hintRightMarginDp = hrm,
                 clusterLeftOffsetDp = cll, clusterRightOffsetDp = clr,
                 suggestionBarHeightScale = sbh, suggestionBgColor = sbg, suggestionFont = sbf,
-                suggestionWeight = sbw, suggestionTextScale = sbs, suggestionColor = sbc
+                suggestionWeight = sbw, suggestionTextScale = sbs, suggestionColor = sbc,
+                floatXFraction = flx, floatYFraction = fly,
+                floatWidthFraction = flw, floatHeightScale = flh
             )
         }
     }

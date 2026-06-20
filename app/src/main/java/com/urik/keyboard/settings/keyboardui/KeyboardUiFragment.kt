@@ -19,6 +19,7 @@ import androidx.preference.Preference
 import androidx.preference.PreferenceCategory
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.SeekBarPreference
+import androidx.preference.SwitchPreferenceCompat
 import com.urik.keyboard.R
 import com.urik.keyboard.model.KeyboardDisplayMode
 import com.urik.keyboard.service.GeometryBucket
@@ -62,6 +63,7 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
     private lateinit var keyTextColorPref: ColorSwatchPreference
     private lateinit var keyBorderColorPref: ColorSwatchPreference
     private lateinit var capsLockShiftColorPref: ColorSwatchPreference
+    private lateinit var keyPreviewPref: SwitchPreferenceCompat
     private lateinit var hintTopColorPref: ColorSwatchPreference
     private lateinit var hintTopScalePref: SeekBarPreference
     private lateinit var hintTopFontPref: Preference
@@ -189,14 +191,16 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                         resources.getString(R.string.keyboard_ui_mode_standard),
                         resources.getString(R.string.keyboard_ui_mode_split),
                         resources.getString(R.string.keyboard_ui_mode_one_handed_left),
-                        resources.getString(R.string.keyboard_ui_mode_one_handed_right)
+                        resources.getString(R.string.keyboard_ui_mode_one_handed_right),
+                        resources.getString(R.string.keyboard_ui_mode_floating)
                     )
                 entryValues =
                     arrayOf(
                         KeyboardDisplayMode.STANDARD.name,
                         KeyboardDisplayMode.SPLIT.name,
                         KeyboardDisplayMode.ONE_HANDED_LEFT.name,
-                        KeyboardDisplayMode.ONE_HANDED_RIGHT.name
+                        KeyboardDisplayMode.ONE_HANDED_RIGHT.name,
+                        KeyboardDisplayMode.FLOATING.name
                     )
                 summaryProvider = ListPreference.SimpleSummaryProvider.getInstance()
             }
@@ -230,6 +234,15 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         borderPref = seekBar("kb_ui_border", R.string.keyboard_ui_border_width, min = 0, max = 8, sub = true)
         keyBorderColorPref = colorPref("kb_ui_col_key_border", R.string.keyboard_ui_item_border_colour, sub = true)
         capsLockShiftColorPref = colorPref("kb_ui_col_caps_shift", R.string.keyboard_ui_item_caps_shift, sub = true)
+        keyPreviewPref =
+            SwitchPreferenceCompat(context).apply {
+                key = "kb_ui_key_preview"
+                isPersistent = false
+                layoutResource = R.layout.preference_item_kxkb_l2
+                title = resources.getString(R.string.keyboard_ui_key_preview)
+                summaryOn = resources.getString(R.string.keyboard_ui_key_preview_on)
+                summaryOff = resources.getString(R.string.keyboard_ui_key_preview_off)
+            }
 
         // --- ROWS: the horizontal bands, top to bottom — suggestion bar, then the secondary char rows. ---
         val rowsCategory = sectionCategory("kb_ui_cat_rows", R.string.keyboard_ui_section_rows)
@@ -321,6 +334,7 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         keysCategory.addPreference(borderPref)
         keysCategory.addPreference(keyBorderColorPref)
         keysCategory.addPreference(capsLockShiftColorPref)
+        keysCategory.addPreference(keyPreviewPref)
 
         screen.addPreference(rowsCategory)
         rowsCategory.addPreference(subHeader(R.string.keyboard_ui_section_suggestion))
@@ -555,6 +569,10 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
             ColorPicker.show(requireContext(), viewModel.uiState.value.capsLockShiftColor) { viewModel.updateCapsLockShiftColor(it) }
             true
         }
+        keyPreviewPref.setOnPreferenceChangeListener { _, newValue ->
+            viewModel.updateKeyPreviewEnabled(newValue as Boolean)
+            true
+        }
         hintPref.setOnPreferenceChangeListener { _, newValue ->
             viewModel.updateHintScale(newValue as Int)
             true
@@ -769,6 +787,11 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                 launch {
                     viewModel.customSuggestions.collect { raw ->
                         if (customSuggestionsPref.text != raw) customSuggestionsPref.text = raw
+                    }
+                }
+                launch {
+                    viewModel.keyPreviewEnabled.collect { enabled ->
+                        if (keyPreviewPref.isChecked != enabled) keyPreviewPref.isChecked = enabled
                     }
                 }
                 launch {

@@ -83,6 +83,13 @@ constructor(
             return base.copy(adaptiveDimensions = dimensions)
         }
 
+        // Floating is an explicit mode (chosen from the Mode picker, persisted via KEYBOARD_DISPLAY_MODE),
+        // resolved here like a persisted mode. It is checked BEFORE the landscape-compact override so the
+        // floating panel keeps floating in landscape too (it sizes itself from its own persisted rect).
+        if (settings.keyboardDisplayMode == KeyboardDisplayMode.FLOATING) {
+            return KeyboardModeConfig.floating().copy(adaptiveDimensions = dimensions)
+        }
+
         val isLandscapeCompact = postureInfo.orientation == Configuration.ORIENTATION_LANDSCAPE &&
             postureInfo.sizeClass == DeviceSizeClass.COMPACT
         if (isLandscapeCompact) {
@@ -135,12 +142,18 @@ constructor(
                         splitGapPx = dimensions.splitGapPx,
                         adaptiveDimensions = dimensions
                     )
+
+                KeyboardDisplayMode.FLOATING ->
+                    KeyboardModeConfig.floating().copy(adaptiveDimensions = dimensions)
             }
 
         applicationScope.launch {
             withContext(Dispatchers.IO) {
                 when (mode) {
                     KeyboardDisplayMode.STANDARD -> {
+                        // Clear the persisted explicit mode too, so a previously saved FLOATING (or a stale
+                        // one-handed L/R) isn't re-resolved by determineMode on the next settings emission.
+                        settingsRepository.updateKeyboardDisplayMode(null)
                         settingsRepository.updateOneHandedModeEnabled(false)
                     }
 
@@ -151,8 +164,11 @@ constructor(
                         settingsRepository.updateOneHandedModeEnabled(true)
                     }
 
-                    KeyboardDisplayMode.SPLIT -> {
+                    KeyboardDisplayMode.SPLIT,
+                    KeyboardDisplayMode.FLOATING
+                    -> {
                         settingsRepository.updateKeyboardDisplayMode(mode)
+                        settingsRepository.updateOneHandedModeEnabled(false)
                     }
                 }
             }

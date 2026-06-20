@@ -107,6 +107,8 @@ data class KeyboardSettings(
     val showNumberHints: Boolean = false,
     val resetToLettersOnDismiss: Boolean = true,
     val keyPressHighlightEnabled: Boolean = true,
+    /** Magnified key-preview bubble above a pressed character key. Default ON. */
+    val keyPreviewEnabled: Boolean = true,
     /**
      * User-defined custom suggestions, newline-separated. Shown in the candidate bar as the default row
      * when nothing is predicted, and appended after live predictions otherwise. Empty = feature off.

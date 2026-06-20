@@ -55,7 +55,10 @@
         <item name="colorSurfaceContainerHigh">@color/kxkb_black</item>
         <item name="android:textColorPrimary">@color/kxkb_yellow</item>
         <item name="android:textColorSecondary">@color/kxkb_yellow</item>
-        <!-- The single-/multi-choice list items + their radio/check indicator: yellow text, yellow circle. -->
+        <!-- The single-/multi-choice list items + their radio/check indicator: yellow text, yellow circle.
+             AppCompat's select_dialog_singlechoice layout colours its text from the NON-android
+             ?attr/textColorAlertDialogListItem, so set both the AppCompat and the framework attr. -->
+        <item name="textColorAlertDialogListItem">@color/kxkb_yellow</item>
         <item name="android:textColorAlertDialogListItem">@color/kxkb_yellow</item>
         <item name="colorControlNormal">@color/kxkb_yellow</item>
         <item name="colorControlActivated">@color/kxkb_yellow</item>

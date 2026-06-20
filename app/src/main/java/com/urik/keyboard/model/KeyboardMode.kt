@@ -6,7 +6,15 @@ enum class KeyboardDisplayMode {
     STANDARD,
     ONE_HANDED_LEFT,
     ONE_HANDED_RIGHT,
-    SPLIT
+    SPLIT,
+
+    /**
+     * Floating keyboard: a movable, resizable panel drawn at a persisted on-screen rect (NOT full-width
+     * docked). Like [SPLIT] it's an explicit mode chosen from the Mode picker; the input view stays full
+     * height but transparent except the panel, and `onComputeInsets` exposes only the panel rect as
+     * touchable so the app behind stays interactive. The rect is persisted per geometry in the look store.
+     */
+    FLOATING
 }
 
 data class KeyboardModeConfig(
@@ -21,6 +29,12 @@ data class KeyboardModeConfig(
 
         fun standard() = KeyboardModeConfig(
             mode = KeyboardDisplayMode.STANDARD,
+            widthFactor = 1.0f,
+            offsetX = 0f
+        )
+
+        fun floating() = KeyboardModeConfig(
+            mode = KeyboardDisplayMode.FLOATING,
             widthFactor = 1.0f,
             offsetX = 0f
         )
