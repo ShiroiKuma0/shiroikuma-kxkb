@@ -19,7 +19,32 @@ object CustomLayoutStore {
 
     private fun registryFile(context: Context): File = File(dir(context), "custom_registry.json")
 
+    private fun stockNamesFile(context: Context): File = File(dir(context), "stock_names.json")
+
     fun hasLayout(context: Context, id: String): Boolean = layoutFile(context, id).exists()
+
+    /** User display-name overrides for BUNDLED (stock) layouts, `id → name`. Empty if none set. */
+    fun stockNameOverrides(context: Context): Map<String, String> = try {
+        val f = stockNamesFile(context)
+        if (!f.exists()) {
+            emptyMap()
+        } else {
+            JSONObject(f.readText()).let { o -> buildMap { o.keys().forEach { k -> put(k, o.getString(k)) } } }
+        }
+    } catch (_: Exception) {
+        emptyMap()
+    }
+
+    /** Set (or, with a blank [name], clear) the display-name override for a bundled stock layout [id]. */
+    fun setStockName(context: Context, id: String, name: String) {
+        val o = try {
+            JSONObject(stockNamesFile(context).readText())
+        } catch (_: Exception) {
+            JSONObject()
+        }
+        if (name.isBlank()) o.remove(id) else o.put(id, name)
+        stockNamesFile(context).writeText(o.toString(2))
+    }
 
     /** The custom-store layout JSON text for [id], or null when there's no override (use the bundled asset). */
     fun customLayoutText(context: Context, id: String): String? {

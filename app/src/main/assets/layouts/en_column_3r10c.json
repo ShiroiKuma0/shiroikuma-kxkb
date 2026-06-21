@@ -364,6 +364,10 @@
               "left": {
                 "chord": "M-TAB",
                 "label": "M-TAB"
+              },
+              "right": {
+                "layer": "alt3",
+                "label": "Num"
               }
             },
             "width": 1.0

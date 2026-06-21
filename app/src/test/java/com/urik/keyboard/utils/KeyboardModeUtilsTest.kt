@@ -80,7 +80,7 @@ class KeyboardModeUtilsTest {
     }
 
     @Test
-    fun `determineTargetMode switches to NUMBERS for number input`() {
+    fun `determineTargetMode stays on LETTERS for number input`() {
         val editorInfo =
             EditorInfo().apply {
                 inputType = InputType.TYPE_CLASS_NUMBER
@@ -88,7 +88,7 @@ class KeyboardModeUtilsTest {
 
         val targetMode = KeyboardModeUtils.determineTargetMode(editorInfo, KeyboardMode.LETTERS)
 
-        assertEquals(KeyboardMode.NUMBERS, targetMode)
+        assertEquals(KeyboardMode.LETTERS, targetMode)
     }
 
     @Test
@@ -128,7 +128,7 @@ class KeyboardModeUtilsTest {
     }
 
     @Test
-    fun `determineTargetMode switches from SYMBOLS to NUMBERS for number input`() {
+    fun `determineTargetMode keeps SYMBOLS for number input`() {
         val editorInfo =
             EditorInfo().apply {
                 inputType = InputType.TYPE_CLASS_NUMBER
@@ -136,7 +136,7 @@ class KeyboardModeUtilsTest {
 
         val targetMode = KeyboardModeUtils.determineTargetMode(editorInfo, KeyboardMode.SYMBOLS)
 
-        assertEquals(KeyboardMode.NUMBERS, targetMode)
+        assertEquals(KeyboardMode.SYMBOLS, targetMode)
     }
 
     @Test
@@ -175,7 +175,7 @@ class KeyboardModeUtilsTest {
     }
 
     @Test
-    fun `determineTargetMode forces NUMBERS for number input from any mode`() {
+    fun `determineTargetMode never auto-switches to NUMBERS for number input`() {
         val editorInfo =
             EditorInfo().apply {
                 inputType = InputType.TYPE_CLASS_NUMBER
@@ -185,13 +185,13 @@ class KeyboardModeUtilsTest {
         val fromSymbols = KeyboardModeUtils.determineTargetMode(editorInfo, KeyboardMode.SYMBOLS)
         val fromNumbers = KeyboardModeUtils.determineTargetMode(editorInfo, KeyboardMode.NUMBERS)
 
-        assertEquals(KeyboardMode.NUMBERS, fromLetters)
-        assertEquals(KeyboardMode.NUMBERS, fromSymbols)
-        assertEquals(KeyboardMode.NUMBERS, fromNumbers)
+        assertEquals(KeyboardMode.LETTERS, fromLetters)
+        assertEquals(KeyboardMode.SYMBOLS, fromSymbols)
+        assertEquals(KeyboardMode.LETTERS, fromNumbers)
     }
 
     @Test
-    fun `determineTargetMode mode sequence LETTERS to NUMBERS to LETTERS`() {
+    fun `determineTargetMode stays on LETTERS across number then text inputs`() {
         val numberInput =
             EditorInfo().apply {
                 inputType = InputType.TYPE_CLASS_NUMBER
@@ -204,7 +204,7 @@ class KeyboardModeUtilsTest {
         var currentMode = KeyboardMode.LETTERS
 
         currentMode = KeyboardModeUtils.determineTargetMode(numberInput, currentMode)
-        assertEquals(KeyboardMode.NUMBERS, currentMode)
+        assertEquals(KeyboardMode.LETTERS, currentMode)
 
         currentMode = KeyboardModeUtils.determineTargetMode(textInput, currentMode)
         assertEquals(KeyboardMode.LETTERS, currentMode)
@@ -355,7 +355,7 @@ class KeyboardModeUtilsTest {
     }
 
     @Test
-    fun `determineTargetMode switches from SYMBOLS_SECONDARY to NUMBERS for number input`() {
+    fun `determineTargetMode keeps SYMBOLS_SECONDARY for number input`() {
         val editorInfo =
             EditorInfo().apply {
                 inputType = InputType.TYPE_CLASS_NUMBER
@@ -363,7 +363,7 @@ class KeyboardModeUtilsTest {
 
         val targetMode = KeyboardModeUtils.determineTargetMode(editorInfo, KeyboardMode.SYMBOLS_SECONDARY)
 
-        assertEquals(KeyboardMode.NUMBERS, targetMode)
+        assertEquals(KeyboardMode.SYMBOLS_SECONDARY, targetMode)
     }
 
     @Test

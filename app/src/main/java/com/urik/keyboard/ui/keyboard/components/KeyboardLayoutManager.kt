@@ -88,6 +88,13 @@ class KeyboardLayoutManager(
     var effectiveLayout: KeyboardLayout? = null
         private set
 
+    /**
+     * Total height (in keyHeight units) of the last-rendered LETTERS page — the keyboard's "home" height. The
+     * fixed-grid Number pad has its own row count, so it is scaled to this so switching to it never resizes
+     * the keyboard. 0 until a letters page has rendered (then the numpad renders un-scaled, a safe fallback).
+     */
+    private var referenceHeightUnits: Float = 0f
+
     @Volatile
     private var customKeyMappings: Map<String, List<String>> = emptyMap()
     private val keyHintRenderer = KeyHintRenderer(context)
@@ -902,6 +909,18 @@ class KeyboardLayoutManager(
                 contentDescription = context.getString(R.string.keyboard_description)
             }
 
+        // Keep the keyboard the same height across pages: the LETTERS page sets the reference height, and the
+        // fixed-grid Number pad (its own row count) is scaled to fill it, so switching to Num never resizes the
+        // keyboard. Only NUMPAD is scaled — the authored alt pages already match the letters row count.
+        val pageUnits = pageHeightUnits(processedRows)
+        if (layout.mode == KeyboardMode.LETTERS && pageUnits > 0f) referenceHeightUnits = pageUnits
+        val pageHeightScale =
+            if (layout.mode == KeyboardMode.NUMPAD && referenceHeightUnits > 0f && pageUnits > 0f) {
+                referenceHeightUnits / pageUnits
+            } else {
+                1f
+            }
+
         // A futokxkb column board is a row of tall `heightRows` column keys; the rows it spans hold spacers
         // (under the columns) and any stacked continuation keys (e.g. a 3-key compass column). Render such a
         // group as a transposed band of vertical columns; everything else is an ordinary horizontal row.
@@ -911,8 +930,10 @@ class KeyboardLayoutManager(
             val span = columnBandSpan(processedRows, index)
             // The first row (top) and the last row (bottom) get their own height multiplier; everything in
             // between renders at 1.0. A column band that starts at row 0 is the top; one ending at the last
-            // row is the bottom. Defaults are 1.0, so an un-tuned layout renders identically.
-            val rowHeightScale = edgeRowHeightScale(startIndex = index, span = maxOf(span, 1), lastRowIndex = lastRowIndex)
+            // row is the bottom. Defaults are 1.0, so an un-tuned layout renders identically. The numpad's
+            // page scale (1.0 for every other page) keeps its total height equal to the letters page.
+            val rowHeightScale =
+                edgeRowHeightScale(startIndex = index, span = maxOf(span, 1), lastRowIndex = lastRowIndex) * pageHeightScale
             if (span > 0) {
                 keyboardContainer.addView(
                     createColumnBandView(processedRows.subList(index, index + span), state, rowHeightScale)
@@ -962,6 +983,22 @@ class KeyboardLayoutManager(
             if (next.size == len && next.any { it is KeyboardKey.Spacer }) span++ else break
         }
         return span
+    }
+
+    /**
+     * The page's total height in keyHeight units — the SAME walk the render loop does (column bands counted by
+     * their span, top/bottom rows by their edge factor). Used to scale the Number pad to the LETTERS height.
+     */
+    private fun pageHeightUnits(rows: List<List<KeyboardKey>>): Float {
+        var units = 0f
+        var i = 0
+        val last = rows.size - 1
+        while (i < rows.size) {
+            val span = maxOf(columnBandSpan(rows, i), 1)
+            units += edgeRowHeightScale(i, span, last) * span
+            i += span
+        }
+        return units
     }
 
     /**
@@ -1805,6 +1842,10 @@ class KeyboardLayoutManager(
                     context.getString(R.string.symbols_secondary_mode_label)
                 }
 
+                KeyboardKey.ActionType.MODE_SWITCH_NUMPAD -> {
+                    context.getString(R.string.numpad_mode_label)
+                }
+
                 KeyboardKey.ActionType.LANGUAGE_SWITCH -> {
                     languageManager.currentLayoutLanguage.value
                         .take(
@@ -1924,6 +1965,10 @@ class KeyboardLayoutManager(
 
                 KeyboardKey.ActionType.MODE_SWITCH_SYMBOLS_SECONDARY -> {
                     context.getString(R.string.symbols_secondary_mode_description)
+                }
+
+                KeyboardKey.ActionType.MODE_SWITCH_NUMPAD -> {
+                    context.getString(R.string.numpad_mode_description)
                 }
 
                 KeyboardKey.ActionType.CAPS_LOCK -> {

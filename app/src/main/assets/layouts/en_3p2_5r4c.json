@@ -598,6 +598,10 @@
               "up": {
                 "layer": "alt1",
                 "label": "altGr"
+              },
+              "down": {
+                "layer": "alt3",
+                "label": "Num"
               }
             },
             "attributes": {

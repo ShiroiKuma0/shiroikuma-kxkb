@@ -475,6 +475,7 @@ object KeyboardJsonCodec {
         "mode_switch_letters" -> KeyboardKey.ActionType.MODE_SWITCH_LETTERS
         "mode_switch_symbols" -> KeyboardKey.ActionType.MODE_SWITCH_SYMBOLS
         "mode_switch_symbols_secondary" -> KeyboardKey.ActionType.MODE_SWITCH_SYMBOLS_SECONDARY
+        "mode_switch_numpad" -> KeyboardKey.ActionType.MODE_SWITCH_NUMPAD
         "caps_lock" -> KeyboardKey.ActionType.CAPS_LOCK
         "dynamic_action" -> currentAction
         "dakuten" -> KeyboardKey.ActionType.DAKUTEN
@@ -496,6 +497,7 @@ object KeyboardJsonCodec {
         KeyboardKey.ActionType.MODE_SWITCH_LETTERS -> "mode_switch_letters"
         KeyboardKey.ActionType.MODE_SWITCH_SYMBOLS -> "mode_switch_symbols"
         KeyboardKey.ActionType.MODE_SWITCH_SYMBOLS_SECONDARY -> "mode_switch_symbols_secondary"
+        KeyboardKey.ActionType.MODE_SWITCH_NUMPAD -> "mode_switch_numpad"
         KeyboardKey.ActionType.CAPS_LOCK -> "caps_lock"
         KeyboardKey.ActionType.DAKUTEN -> "dakuten"
         KeyboardKey.ActionType.SMALL_KANA -> "small_kana"

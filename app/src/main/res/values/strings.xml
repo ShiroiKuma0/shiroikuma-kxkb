@@ -92,6 +92,15 @@
     <string name="library_delete">Delete</string>
     <string name="library_deleted_toast">Deleted “%1$s”</string>
     <string name="library_edit">Edit</string>
+    <string name="library_rename">Rename</string>
+    <string name="library_rename_title">Rename layout</string>
+    <string name="library_rename_failed">Could not rename layout</string>
+    <string name="library_renamed_toast">Renamed to “%1$s”</string>
+    <string name="library_pill_stock">stock</string>
+    <string name="library_pill_custom">custom</string>
+    <string name="library_resync">Re-sync</string>
+    <string name="library_resync_failed">Could not re-sync from stock</string>
+    <string name="library_resynced_toast">Re-synced “%1$s” from stock</string>
     <string name="library_git_heading">Git archive</string>
     <string name="library_git_path_label">Repository path</string>
     <string name="library_git_path_unset">Not set</string>
@@ -155,6 +164,7 @@
     <string name="editor_mode_numbers">Numbers</string>
     <string name="editor_mode_symbols">Symbols</string>
     <string name="editor_mode_symbols2">Symbols₂</string>
+    <string name="editor_mode_numpad">Number pad</string>
     <string name="editor_add_row">+ Row</string>
     <string name="editor_add_row_below">Add row below</string>
     <string name="editor_move_row_up">Move row up</string>
@@ -619,6 +629,7 @@
     <string name="numbers_mode_label">123</string>
     <string name="symbols_mode_label">+=&lt;</string>
     <string name="symbols_secondary_mode_label" translatable="false">SYM</string>
+    <string name="numpad_mode_label">Num</string>
 
     <!-- Accessibility descriptions -->
     <string name="key_character_description">Type %1$s</string>
@@ -633,6 +644,7 @@
     <string name="numbers_mode_description">Switch to number keyboard</string>
     <string name="symbols_mode_description">Switch to symbol keyboard</string>
     <string name="symbols_secondary_mode_description">Switch to extended symbol keyboard</string>
+    <string name="numpad_mode_description">Switch to number pad</string>
     <string name="language_switch_description">Switch keyboard language</string>
     <string name="ime_prediction_description">Prediction: %1$s</string>
 

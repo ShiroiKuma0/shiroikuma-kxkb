@@ -333,6 +333,7 @@ class KeyboardEditorActivity : AppCompatActivity() {
                 "numbers" -> KeyboardMode.NUMBERS
                 "symbols" -> KeyboardMode.SYMBOLS
                 "symbols_secondary" -> KeyboardMode.SYMBOLS_SECONDARY
+                "numpad" -> KeyboardMode.NUMPAD
                 else -> KeyboardMode.LETTERS
             }
             val layout = keyboardRepository.loadLayoutById(entry.id, kbMode) ?: return@launch
@@ -848,6 +849,7 @@ class KeyboardEditorActivity : AppCompatActivity() {
         "shift" -> "⇧"; "backspace" -> "⌫"; "space" -> "␣"; "caps_lock" -> "⇪"
         "mode_switch_letters" -> "ABC"; "mode_switch_numbers" -> "123"
         "mode_switch_symbols" -> "#+="; "mode_switch_symbols_secondary" -> "{ }"
+        "mode_switch_numpad" -> "Num"
         "language_switch" -> "🌐"; "emoji" -> "☺"; "tab" -> "⇥"
         "dakuten" -> "゛"; "handakuten" -> "゜"; "small_kana" -> "小"
         "next_candidate" -> "▶"; "commit_candidate" -> "確"
@@ -860,6 +862,7 @@ class KeyboardEditorActivity : AppCompatActivity() {
         "numbers" -> getString(R.string.editor_mode_numbers)
         "symbols" -> getString(R.string.editor_mode_symbols)
         "symbols_secondary" -> getString(R.string.editor_mode_symbols2)
+        "numpad" -> getString(R.string.editor_mode_numpad)
         else -> m
     }
 
@@ -934,7 +937,7 @@ class KeyboardEditorActivity : AppCompatActivity() {
         private const val EXTRA_WIDTH = "layout_width"
         private const val EXTRA_EDIT_ACTIVE = "edit_active"
 
-        private val MODE_ORDER = listOf("letters", "numbers", "symbols", "symbols_secondary")
+        private val MODE_ORDER = listOf("letters", "numbers", "symbols", "symbols_secondary", "numpad")
 
         fun intent(context: Context, entry: LayoutEntry): Intent =
             Intent(context, KeyboardEditorActivity::class.java).apply {

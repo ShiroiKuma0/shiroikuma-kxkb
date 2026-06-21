@@ -1058,6 +1058,10 @@
               "up": {
                 "layer": "alt0",
                 "label": "sym"
+              },
+              "down": {
+                "layer": "alt3",
+                "label": "Num"
               }
             },
             "attributes": {

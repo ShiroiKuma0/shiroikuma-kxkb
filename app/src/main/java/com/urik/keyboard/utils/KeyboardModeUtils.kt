@@ -21,12 +21,9 @@ object KeyboardModeUtils {
         currentMode != KeyboardMode.LETTERS && isTextClassInput(editorInfo)
 
     fun determineTargetMode(editorInfo: EditorInfo?, currentMode: KeyboardMode): KeyboardMode {
-        val isNumberInput = isNumberInputType(editorInfo)
-
-        return when {
-            isNumberInput -> KeyboardMode.NUMBERS
-            currentMode == KeyboardMode.NUMBERS -> KeyboardMode.LETTERS
-            else -> currentMode
-        }
+        // A number-entry field must NOT auto-switch to the NUMBERS page (the "sym"-style layout):
+        // the user types numbers from the main LETTERS layout. We only drop back to LETTERS when we
+        // somehow arrive in NUMBERS, which is now reachable solely via the manual mode-switch key.
+        return if (currentMode == KeyboardMode.NUMBERS) KeyboardMode.LETTERS else currentMode
     }
 }

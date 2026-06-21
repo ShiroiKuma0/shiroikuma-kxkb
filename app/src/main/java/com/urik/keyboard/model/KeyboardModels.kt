@@ -4,7 +4,15 @@ enum class KeyboardMode {
     LETTERS,
     NUMBERS,
     SYMBOLS,
-    SYMBOLS_SECONDARY
+    SYMBOLS_SECONDARY,
+
+    /**
+     * The Multiling-style dedicated number pad (a 6×4 calculator grid: 1-9/0 with math operators and
+     * punctuation). A fourth alt page reached via the `alt3` layer / [KeyboardKey.ActionType.MODE_SWITCH_NUMPAD],
+     * distinct from the legacy symbol-ish [NUMBERS] page (`alt0`). Its design is a fixed shared layout
+     * supplied by the repository fallback, so layouts need not each declare a `numpad` section.
+     */
+    NUMPAD
 }
 
 /**
@@ -157,6 +165,7 @@ sealed class KeyboardKey {
         MODE_SWITCH_NUMBERS,
         MODE_SWITCH_SYMBOLS,
         MODE_SWITCH_SYMBOLS_SECONDARY,
+        MODE_SWITCH_NUMPAD,
         CAPS_LOCK,
         LANGUAGE_SWITCH,
         DAKUTEN,

@@ -71,14 +71,14 @@ class LayoutRegistry private constructor(
                         )
                     }
                 }
-                // Merge the user's custom layouts. A copy that shadows a stock (derivedFrom) REPLACES it in
-                // its slot so the stock is hidden; stand-alone duplicates (and copies whose stock no longer
-                // exists) are appended.
-                val customs = CustomLayoutStore.customEntries(context)
-                val byShadow = customs.filter { it.derivedFrom != null }.associateBy { it.derivedFrom }
-                val bundledIds = list.map { it.id }.toSet()
-                val effective = list.map { stock -> byShadow[stock.id] ?: stock } +
-                    customs.filter { it.derivedFrom == null || it.derivedFrom !in bundledIds }
+                // Stock (bundled) and custom (the user's copies/edits) layouts COEXIST in the list — the
+                // Library pills them apart ("stock"/"custom"); a custom no longer hides its origin stock.
+                // `derivedFrom` is retained only for re-sync provenance and delete-reinstate. Custom ids are
+                // always fresh, so appending never collides with a bundled id. A stock layout may carry a
+                // user-set display-name override (the asset itself stays read-only).
+                val overrides = CustomLayoutStore.stockNameOverrides(context)
+                val stock = list.map { e -> overrides[e.id]?.let { e.copy(name = it) } ?: e }
+                val effective = stock + CustomLayoutStore.customEntries(context)
                 LayoutRegistry(defaults, effective)
             } catch (_: Exception) {
                 LayoutRegistry(emptyMap(), CustomLayoutStore.customEntries(context))

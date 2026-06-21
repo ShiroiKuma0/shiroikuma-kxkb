@@ -765,6 +765,10 @@
                 "layer": "alt0",
                 "label": "sym"
               },
+              "right": {
+                "layer": "alt3",
+                "label": "Num"
+              },
               "down": {
                 "chord": "C-SPC",
                 "label": "C-SPC"

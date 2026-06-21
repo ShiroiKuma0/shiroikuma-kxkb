@@ -273,6 +273,10 @@ constructor(
                 switchMode(KeyboardMode.SYMBOLS_SECONDARY)
             }
 
+            KeyboardKey.ActionType.MODE_SWITCH_NUMPAD -> {
+                switchMode(KeyboardMode.NUMPAD)
+            }
+
             else -> { }
         }
     }

@@ -105,8 +105,8 @@ object KeyboardYamlEmitter {
         sb.append('\n').append("rows:\n")
         emitPage(sb, modes.optJSONObject("letters")?.optJSONArray("rows"), indent = 0)
 
-        // altPages: numbers / symbols / symbols_secondary, in the converter's argv order.
-        val altModes = listOf("numbers", "symbols", "symbols_secondary").mapNotNull { name ->
+        // altPages: numbers / symbols / symbols_secondary / numpad, in the converter's argv order.
+        val altModes = listOf("numbers", "symbols", "symbols_secondary", "numpad").mapNotNull { name ->
             modes.optJSONObject(name)?.optJSONArray("rows")
         }
         if (altModes.isNotEmpty()) {

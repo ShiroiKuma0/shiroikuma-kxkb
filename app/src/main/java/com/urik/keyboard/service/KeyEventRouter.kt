@@ -127,6 +127,7 @@ constructor() {
             KeyboardKey.ActionType.MODE_SWITCH_SYMBOLS_SECONDARY -> handler?.onModeSwitch(
                 KeyboardMode.SYMBOLS_SECONDARY
             )
+            KeyboardKey.ActionType.MODE_SWITCH_NUMPAD -> handler?.onModeSwitch(KeyboardMode.NUMPAD)
             KeyboardKey.ActionType.SHIFT -> handler?.onShift()
             KeyboardKey.ActionType.CAPS_LOCK -> handler?.onCapsLock()
             KeyboardKey.ActionType.LANGUAGE_SWITCH -> handler?.onLanguageSwitch()

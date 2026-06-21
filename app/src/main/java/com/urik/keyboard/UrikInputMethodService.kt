@@ -1209,6 +1209,7 @@ open class UrikInputMethodService :
             "alt0" -> KeyboardMode.NUMBERS
             "alt1" -> KeyboardMode.SYMBOLS
             "alt2" -> KeyboardMode.SYMBOLS_SECONDARY
+            "alt3" -> KeyboardMode.NUMPAD
             else -> KeyboardMode.LETTERS
         }
         onModeSwitch(mode)

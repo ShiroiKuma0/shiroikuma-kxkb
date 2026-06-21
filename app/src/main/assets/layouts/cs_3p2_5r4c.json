@@ -700,6 +700,10 @@
               "down": {
                 "layer": "alt0",
                 "label": "sym"
+              },
+              "right": {
+                "layer": "alt3",
+                "label": "Num"
               }
             },
             "attributes": {

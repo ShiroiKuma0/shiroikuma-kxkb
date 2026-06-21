@@ -459,6 +459,10 @@
               "down": {
                 "chord": "C-SPC",
                 "label": "C-SPC"
+              },
+              "right": {
+                "layer": "alt3",
+                "label": "Num"
               }
             }
           },

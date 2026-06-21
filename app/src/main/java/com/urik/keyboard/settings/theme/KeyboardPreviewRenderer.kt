@@ -341,6 +341,7 @@ class KeyboardPreviewRenderer(private val context: Context) {
             when (key.action) {
                 KeyboardKey.ActionType.MODE_SWITCH_LETTERS -> context.getString(R.string.letters_mode_label)
                 KeyboardKey.ActionType.MODE_SWITCH_NUMBERS -> context.getString(R.string.numbers_mode_label)
+                KeyboardKey.ActionType.MODE_SWITCH_NUMPAD -> context.getString(R.string.numpad_mode_label)
                 KeyboardKey.ActionType.MODE_SWITCH_SYMBOLS -> context.getString(R.string.symbols_mode_label)
                 else -> ""
             }

@@ -429,6 +429,10 @@
               "up": {
                 "layer": "alt0",
                 "label": "sym"
+              },
+              "down": {
+                "layer": "alt3",
+                "label": "Num"
               }
             },
             "width": 1.0

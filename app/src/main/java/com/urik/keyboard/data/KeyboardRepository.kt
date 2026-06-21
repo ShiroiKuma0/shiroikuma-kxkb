@@ -267,6 +267,17 @@ constructor(
         val modeKey = mode.name.lowercase()
 
         if (!modes.has(modeKey)) {
+            // The Number pad (alt3) is a fixed shared design supplied by the fallback, so layouts need not
+            // each declare a `numpad` section — render the canonical calc-pad whenever it is absent.
+            if (mode == KeyboardMode.NUMPAD) {
+                return KeyboardLayout(
+                    mode = mode,
+                    rows = getFallbackNumpadLayout(currentAction),
+                    isRTL = isRTL,
+                    script = script,
+                    showFlickHints = showFlickHints
+                )
+            }
             error("Layout data missing mode: $modeKey")
         }
 
@@ -356,6 +367,7 @@ constructor(
                 KeyboardMode.NUMBERS -> getFallbackNumbersLayout(currentAction)
                 KeyboardMode.SYMBOLS -> getFallbackSymbolsLayout(currentAction)
                 KeyboardMode.SYMBOLS_SECONDARY -> getFallbackSymbolsSecondaryLayout(currentAction)
+                KeyboardMode.NUMPAD -> getFallbackNumpadLayout(currentAction)
             }
         return KeyboardLayout(mode = mode, rows = rows)
     }
@@ -409,6 +421,43 @@ constructor(
             KeyboardKey.Action(actionType)
         )
     )
+
+    /**
+     * The dedicated Number pad ([KeyboardMode.NUMPAD]) — re-derived from the Multiling "num" keypad (its one
+     * canonical design): an even 6-column × 4-row calculator grid. Columns 0-1 carry the math/punctuation
+     * operators, columns 2-4 the 1-9 numpad with 0 below, and column 5 the edit keys. Every key is given an
+     * explicit width of 1 cell so the functional-key heuristic does not inflate Backspace / Space / Enter and
+     * break the grid (getKeyWeight honours an explicit width over its heuristics). The bottom-left is a `←`
+     * back-to-letters key — a compass key with the same centre `alpha0` layer binding the GNU alt pages use
+     * (which also makes it functional-coloured like Space/Enter); the Multiling pad toggled via its persistent
+     * bar, so an on-page return key is needed here.
+     */
+    private fun getFallbackNumpadLayout(actionType: KeyboardKey.ActionType): List<List<KeyboardKey>> {
+        fun num(c: String) = KeyboardKey.Character(c, KeyboardKey.KeyType.NUMBER, width = 1f)
+        fun sym(c: String) = KeyboardKey.Character(c, KeyboardKey.KeyType.SYMBOL, width = 1f)
+        fun punct(c: String) = KeyboardKey.Character(c, KeyboardKey.KeyType.PUNCTUATION, width = 1f)
+        fun act(a: KeyboardKey.ActionType) = KeyboardKey.Action(a, width = 1f)
+        val back = KeyboardKey.FlickKey(
+            center = "←",
+            up = null, right = null, down = null, left = null,
+            type = KeyboardKey.KeyType.SYMBOL,
+            bindings = mapOf("center" to KeyboardKey.FlickBinding.Layer("alpha0")),
+            width = 1f
+        )
+        return listOf(
+            listOf(sym("#"), sym(";"), num("1"), num("2"), num("3"), act(KeyboardKey.ActionType.BACKSPACE)),
+            listOf(sym("*"), sym("/"), num("4"), num("5"), num("6"), sym("~")),
+            listOf(sym("+"), sym("-"), num("7"), num("8"), num("9"), sym(":")),
+            listOf(
+                back,
+                punct(","),
+                punct("."),
+                num("0"),
+                act(KeyboardKey.ActionType.SPACE),
+                act(actionType)
+            )
+        )
+    }
 
     private fun getFallbackSymbolsLayout(actionType: KeyboardKey.ActionType): List<List<KeyboardKey>> = listOf(
         listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0").map {

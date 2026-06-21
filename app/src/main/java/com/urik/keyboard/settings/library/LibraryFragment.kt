@@ -29,6 +29,7 @@ import com.urik.keyboard.data.GitArchive
 import com.urik.keyboard.data.KeyboardRepository
 import com.urik.keyboard.data.LayoutEntry
 import com.urik.keyboard.data.LayoutRegistry
+import com.urik.keyboard.data.LayoutResync
 import com.urik.keyboard.data.LibraryArchive
 import com.urik.keyboard.model.KeyboardState
 import com.urik.keyboard.service.AdaptiveDimensions
@@ -177,11 +178,12 @@ class LibraryFragment : Fragment() {
             // off the main thread, only when this section builds, never on the keyboard hot path or boot.
             val gitSection = LinearLayout(requireContext()).apply { orientation = LinearLayout.VERTICAL }
             listContainer.addView(gitSection)
+            val customIds = CustomLayoutStore.customEntries(requireContext()).map { it.id }.toSet()
             for (lang in langs) {
                 listContainer.addView(heading(langDisplay(lang)))
                 val entries = registry.forLanguage(lang)
                 entries.forEachIndexed { i, entry ->
-                    listContainer.addView(layoutRow(entry, entry.id == active[lang]))
+                    listContainer.addView(layoutRow(entry, entry.id == active[lang], entry.id in customIds))
                     if (i < entries.lastIndex) listContainer.addView(separator())
                 }
             }
@@ -815,7 +817,7 @@ class LibraryFragment : Fragment() {
         setPadding(0, dp(16), 0, dp(6))
     }
 
-    private fun layoutRow(entry: LayoutEntry, isActive: Boolean): View {
+    private fun layoutRow(entry: LayoutEntry, isActive: Boolean, isCustom: Boolean): View {
         val spacing = look.rowSpacingDp ?: LibraryLook.DEF_ROW_SPACING
         val row = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -844,8 +846,26 @@ class LibraryFragment : Fragment() {
             )
         }
         row.addView(name)
+        row.addView(statusPill(isCustom))
         row.addView(badge)
         return row
+    }
+
+    /** A small "stock"/"custom" tag so the two kinds of layout are unmistakable at a glance (custom = filled). */
+    private fun statusPill(isCustom: Boolean): View = TextView(requireContext()).apply {
+        text = getString(if (isCustom) R.string.library_pill_custom else R.string.library_pill_stock)
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+        val px = dp(7)
+        setPadding(px, dp(1), px, dp(1))
+        background = android.graphics.drawable.GradientDrawable().apply {
+            cornerRadius = dp(4).toFloat()
+            if (isCustom) setColor(0xFFFFFF00.toInt())
+            else { setColor(0xFF000000.toInt()); setStroke(dp(1), 0xFF8A8A00.toInt()) }
+        }
+        setTextColor(if (isCustom) 0xFF000000.toInt() else 0xFFB4B400.toInt())
+        layoutParams = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply { marginEnd = dp(10) }
     }
 
     private fun separator(): View = View(requireContext()).apply {
@@ -946,10 +966,16 @@ class LibraryFragment : Fragment() {
             }
         )
         addView(pillButton(getString(R.string.library_duplicate)) { duplicate(entry) })
+        // Rename works on stock too (via a name override) — stock asset stays read-only.
+        addView(pillButton(getString(R.string.library_rename)) { renameDialog(entry) })
         if (CustomLayoutStore.hasLayout(requireContext(), entry.id)) {
             addView(pillButton(getString(R.string.library_edit)) {
                 startActivity(KeyboardEditorActivity.intent(requireContext(), entry))
             })
+            // An edited stock (shadow) can pull in later bundled-asset changes without losing the user's edits.
+            if (entry.derivedFrom != null) {
+                addView(pillButton(getString(R.string.library_resync)) { resync(entry) })
+            }
             addView(pillButton(getString(R.string.library_delete)) { delete(entry) })
         }
         addView(pillButton(getString(R.string.library_activate)) { activate(entry) })
@@ -1002,6 +1028,75 @@ class LibraryFragment : Fragment() {
             previewContainer.visibility = View.GONE
             rebuild()
             flash(getString(R.string.library_deleted_toast, entry.name))
+        }
+    }
+
+    /** Rename a custom layout from the list (a themed text dialog → persist the new display name). */
+    private fun renameDialog(entry: LayoutEntry) {
+        val input = EditText(requireContext()).apply {
+            setText(entry.name)
+            setSingleLine()
+            setSelection(text.length)
+        }
+        val pad = dp(20)
+        val box = FrameLayout(requireContext()).apply { setPadding(pad, dp(8), pad, 0); addView(input) }
+        AlertDialog.Builder(requireContext(), R.style.Theme_Urik_Dialog)
+            .setTitle(R.string.library_rename_title)
+            .setView(box)
+            .setPositiveButton(R.string.library_git_save) { _, _ ->
+                val newName = input.text.toString().trim()
+                if (newName.isNotEmpty() && newName != entry.name) rename(entry, newName)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun rename(entry: LayoutEntry, newName: String) {
+        lifecycleScope.launch {
+            if (CustomLayoutStore.hasLayout(requireContext(), entry.id)) {
+                val json = CustomLayoutStore.rawJson(requireContext(), entry.id)
+                if (json == null) {
+                    flash(getString(R.string.library_rename_failed))
+                    return@launch
+                }
+                json.put("name", newName) // keep the layout JSON's own name field in step with the entry
+                CustomLayoutStore.saveLayout(requireContext(), entry.copy(name = newName), json)
+            } else {
+                // A bundled stock layout: persist a display-name override; the asset itself stays untouched.
+                CustomLayoutStore.setStockName(requireContext(), entry.id, newName)
+                LayoutRegistry.invalidate()
+            }
+            previewContainer.visibility = View.GONE
+            rebuild()
+            flash(getString(R.string.library_renamed_toast, newName))
+        }
+    }
+
+    /**
+     * Re-sync an edited shadow ([LayoutEntry.derivedFrom] = its stock) with the current bundled stock —
+     * additively pulls in new stock structure (e.g. a newly added Number-pad flick / alt page) while keeping
+     * the user's edits ([LayoutResync]). Non-destructive, so no confirmation prompt.
+     */
+    private fun resync(entry: LayoutEntry) {
+        val stockId = entry.derivedFrom ?: return
+        lifecycleScope.launch {
+            val shadow = CustomLayoutStore.rawJson(requireContext(), entry.id)
+            val stock = try {
+                requireContext().assets.open("layouts/$stockId.json").bufferedReader().use {
+                    JSONObject(it.readText())
+                }
+            } catch (_: Exception) {
+                null
+            }
+            if (shadow == null || stock == null) {
+                flash(getString(R.string.library_resync_failed))
+                return@launch
+            }
+            CustomLayoutStore.saveLayout(requireContext(), entry, LayoutResync.mergeFromStock(shadow, stock))
+            keyboardRepository.invalidateLayoutCache()
+            previewContainer.visibility = View.GONE
+            rebuild()
+            flash(getString(R.string.library_resynced_toast, entry.name))
         }
     }
 
