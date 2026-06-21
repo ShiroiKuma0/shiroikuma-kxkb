@@ -4,7 +4,35 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+147 — current
+## 0.23.1+156 — current
+
+Built on Urik `0.23.1-beta`. A dedicated **Number pad**, a way to **re-sync** edited layouts with
+bundled updates, and a clearer **Library** list.
+
+### A dedicated Number pad
+
+- A new **Number pad** page — a 6×4 calculator grid (1–9 / 0 with the math and punctuation operators),
+  re-derived from the Multiling “num” keypad — reachable on **every** layout via a **“Num”** flick on
+  the layers key (the `Ctrl` / `⇥` key that also hosts `sym`).
+- Its bottom-left is a **`←`** back-to-letters key, and the page is **height-matched to the letters
+  layout** so switching to it never resizes the keyboard.
+- **Number-entry fields no longer force the symbol page** — focusing a numeric field stays on the main
+  letters layout instead of jumping to “sym”.
+
+### Re-sync an edited layout with its stock
+
+- An edited layout (a **shadow** of a bundled one) can now **Re-sync from stock**: it pulls in later
+  bundled-asset changes — new keys, flicks and pages — **without discarding your edits** (an additive,
+  identity-matched merge).
+
+### A clearer Library
+
+- Stock and custom layouts now **coexist** in the list, each tagged with a **`stock` / `custom` pill**
+  (a custom no longer hides the stock it derives from).
+- **Rename** any layout in place — custom layouts, and the bundled stock ones too via a persisted name
+  override (the bundled asset itself stays read-only).
+
+## 0.23.1+147
 
 Built on Urik `0.23.1-beta`. A large release: the whole **Library** (browse, a visual editor, and a
 git archive), **Keyboard-UI parity** with the futokxkb reference (floating mode, key preview, a mode
