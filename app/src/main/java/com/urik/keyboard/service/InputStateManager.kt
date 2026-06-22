@@ -275,10 +275,14 @@ class InputStateManager(
      * [pendingSuggestions] to the merged list so Space / Tab / tap all operate on what the bar shows.
      */
     private fun mergeCustomRow(predictions: List<String>): List<String> {
+        // The custom row is a STATIC toolbar, independent of word prediction — so it shows even where
+        // prediction is off (the GNU code layout, the manual no-prediction mode, number fields). It is only
+        // suppressed where a bar is inappropriate: secure fields, raw/terminal (direct-commit) fields, or
+        // while a Japanese reading is composing — and, of course, when nothing is configured.
         if (customSuggestions.isEmpty() ||
             customRowSuppressed ||
-            isSuggestionsDisabled ||
-            requiresDirectCommit
+            requiresDirectCommit ||
+            isSecureField
         ) {
             return predictions
         }
@@ -294,8 +298,8 @@ class InputStateManager(
     fun withCustomRow(predictions: List<String>): List<String> {
         if (customSuggestions.isEmpty() ||
             customRowSuppressed ||
-            isSuggestionsDisabled ||
-            requiresDirectCommit
+            requiresDirectCommit ||
+            isSecureField
         ) {
             return predictions
         }

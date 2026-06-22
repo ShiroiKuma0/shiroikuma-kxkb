@@ -459,6 +459,66 @@ class SuggestionPipeline(
         }
     }
 
+    /**
+     * Commit a special-token result: [prefix] + [suffix], leaving the cursor BETWEEN them for a cursor pair
+     * like `(…)`. An empty [suffix] is a plain commit (a date template or a literal). The pair is committed as
+     * one string, then the caret is walked back over [suffix] via [moveCursorLeft] (a real LEFT keypress) —
+     * `commitText(_, 0)` is not honoured by every editor, but caret-left navigation is. Mirrors
+     * [coordinateCustomSuggestionSelection]'s finish-composing → commit → state-clear flow.
+     */
+    suspend fun coordinateSpecialCommit(
+        prefix: String,
+        suffix: String,
+        moveCursorLeft: () -> Unit,
+        checkAutoCapitalization: (String) -> Unit
+    ) {
+        withContext(Dispatchers.Main) {
+            try {
+                state.isActivelyEditing = true
+                outputBridge.beginBatchEdit()
+                try {
+                    outputBridge.finishComposingText()
+                    outputBridge.commitText(prefix + suffix, 1)
+                    state.clearInternalStateOnly()
+                    showBigramPredictions()
+                    checkAutoCapitalization(outputBridge.safeGetTextBeforeCursor(50))
+                } finally {
+                    outputBridge.endBatchEdit()
+                }
+                repeat(suffix.length) { moveCursorLeft() }
+            } catch (e: Exception) {
+                ErrorLogger.logException(
+                    component = "SuggestionPipeline",
+                    severity = ErrorLogger.Severity.HIGH,
+                    exception = e,
+                    context = mapOf("operation" to "coordinateSpecialCommit")
+                )
+                outputBridge.coordinateStateClear()
+            }
+        }
+    }
+
+    /** Run a special-token editor action ([performAction] = the service dispatcher) after finishing any word. */
+    suspend fun coordinateSpecialAction(performAction: () -> Unit) {
+        withContext(Dispatchers.Main) {
+            try {
+                state.isActivelyEditing = true
+                outputBridge.finishComposingText()
+                state.clearInternalStateOnly()
+                performAction()
+                showBigramPredictions()
+            } catch (e: Exception) {
+                ErrorLogger.logException(
+                    component = "SuggestionPipeline",
+                    severity = ErrorLogger.Severity.HIGH,
+                    exception = e,
+                    context = mapOf("operation" to "coordinateSpecialAction")
+                )
+                outputBridge.coordinateStateClear()
+            }
+        }
+    }
+
     suspend fun coordinatePostCommitReplacement(
         selectedSuggestion: String,
         replacementState: PostCommitReplacementState,

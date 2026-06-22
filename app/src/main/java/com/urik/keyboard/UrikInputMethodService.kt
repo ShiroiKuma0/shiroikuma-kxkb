@@ -67,6 +67,7 @@ import com.urik.keyboard.service.OnUpdateSelectionHandler
 import com.urik.keyboard.service.OutputBridge
 import com.urik.keyboard.service.SpaceInputHandler
 import com.urik.keyboard.service.SpellCheckManager
+import com.urik.keyboard.service.SpecialTokens
 import com.urik.keyboard.service.SuggestionPipeline
 import com.urik.keyboard.service.SuggestionPipelineHost
 import com.urik.keyboard.service.SwipeWordHandler
@@ -461,7 +462,13 @@ open class UrikInputMethodService :
                         val preserveBigrams = inputState.clusterLayoutActive &&
                             key is KeyboardKey.Action && key.action == KeyboardKey.ActionType.SPACE
                         if (!preserveBigrams) inputState.clearBigramPredictions()
-                        keyEventRouter.route(key)
+                        // A key (e.g. a macro key) whose text is a special-key shortcut — a cursor pair,
+                        // [Paste], a date template — runs the shortcut instead of committing the raw text.
+                        if (key is KeyboardKey.Character && SpecialTokens.isSpecial(key.value)) {
+                            applySpecialToken(key.value)
+                        } else {
+                            keyEventRouter.route(key)
+                        }
                     },
                     onAcceleratedDeletionChanged = { active -> setAcceleratedDeletion(active) },
                     onSymbolsLongPress = { handleClipboardButtonClick() },
@@ -1234,6 +1241,10 @@ open class UrikInputMethodService :
             "arrow_right" -> sendKeyEventWithMeta(KeyEvent.KEYCODE_DPAD_RIGHT, 0)
             "undo" -> currentInputConnection?.performContextMenuAction(android.R.id.undo)
             "redo" -> currentInputConnection?.performContextMenuAction(android.R.id.redo)
+            "cut" -> currentInputConnection?.performContextMenuAction(android.R.id.cut)
+            "copy" -> currentInputConnection?.performContextMenuAction(android.R.id.copy)
+            "paste" -> currentInputConnection?.performContextMenuAction(android.R.id.paste)
+            "select_all" -> currentInputConnection?.performContextMenuAction(android.R.id.selectAll)
             "hide" -> requestHideSelf(0)
             "next_language" -> handleLanguageSwitch(languageManager.getNextLayoutLanguage())
         }
@@ -2160,6 +2171,27 @@ open class UrikInputMethodService :
 
     private fun handleSwipeWord(validatedWord: String) = swipeWordHandler.handle(validatedWord)
 
+    /**
+     * Apply a special-key shortcut ([SpecialTokens]) tapped on the toolbar or pressed as a layout key: a
+     * cursor pair leaves the caret between the inserts, a date template expands, an action token runs the
+     * editor action via [handleGnuAction].
+     */
+    private fun applySpecialToken(token: String) {
+        serviceScope.launch {
+            when (val effect = SpecialTokens.interpret(token)) {
+                is SpecialTokens.Effect.Action ->
+                    suggestionPipeline.coordinateSpecialAction { handleGnuAction(effect.name) }
+                is SpecialTokens.Effect.Commit ->
+                    suggestionPipeline.coordinateSpecialCommit(
+                        effect.prefix,
+                        effect.suffix,
+                        moveCursorLeft = { sendKeyEventWithMeta(KeyEvent.KEYCODE_DPAD_LEFT, 0) },
+                        checkAutoCapitalization = ::checkAutoCapitalization
+                    )
+            }
+        }
+    }
+
     private fun handleSuggestionSelected(suggestion: String) {
         serviceScope.launch {
             if (inputState.requiresDirectCommit) {
@@ -2170,7 +2202,13 @@ open class UrikInputMethodService :
             // a real top prediction (isCustomSuggestion excludes words that are also live predictions), so
             // this only fires for the empty-buffer default row or the appended custom suffix.
             if (inputState.isCustomSuggestion(suggestion)) {
-                suggestionPipeline.coordinateCustomSuggestionSelection(suggestion, ::checkAutoCapitalization)
+                // Toolbar special-key shortcuts (cursor pairs like “…”, [Paste], date templates) DO their
+                // action; everything else commits its literal text as before.
+                if (SpecialTokens.isSpecial(suggestion)) {
+                    applySpecialToken(suggestion)
+                } else {
+                    suggestionPipeline.coordinateCustomSuggestionSelection(suggestion, ::checkAutoCapitalization)
+                }
                 return@launch
             }
 
