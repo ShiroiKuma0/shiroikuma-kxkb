@@ -262,6 +262,7 @@ constructor(
         val isRTL = layoutData.optBoolean("isRTL", false)
         val script = layoutData.optString("script", "Latn")
         val showFlickHints = layoutData.optBoolean("showFlickHints", false)
+        val hardwareKeymap = layoutData.optBoolean("hardwareKeymap", false)
 
         val modes = layoutData.getJSONObject("modes")
         val modeKey = mode.name.lowercase()
@@ -304,7 +305,8 @@ constructor(
             rows = rows,
             isRTL = isRTL,
             script = script,
-            showFlickHints = showFlickHints
+            showFlickHints = showFlickHints,
+            hardwareKeymap = hardwareKeymap
         )
     }
 

@@ -18,6 +18,7 @@
     { "id": "ru_3p2_5r4c", "lang": "ru", "name": "Cluster 4c", "kind": "cluster", "width": "4c" },
     { "id": "gnu_5r13c", "lang": "gnu", "name": "GNU 13c", "kind": "compass", "width": "13c" },
     { "id": "gnu_5r15c", "lang": "gnu", "name": "GNU 15c", "kind": "compass", "width": "15c" },
+    { "id": "gnu_nexdock_xl", "lang": "gnu", "name": "NexDock XL", "kind": "hwkeymap", "width": "hw" },
     { "id": "ja_gojuon", "lang": "ja", "name": "五十音", "kind": "grid", "width": "10c" },
     { "id": "ja_kana", "lang": "ja", "name": "かな", "kind": "grid", "width": "10c" },
     { "id": "ja_ketai", "lang": "ja", "name": "携帯", "kind": "flick", "width": "5c" },

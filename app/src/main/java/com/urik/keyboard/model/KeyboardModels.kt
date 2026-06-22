@@ -40,7 +40,13 @@ data class KeyboardLayout(
     val isRTL: Boolean = false,
     val script: String = "Latn",
     /** Draw each flick key's direction labels at rest (compass layouts like GNU); off for the JP 12-key. */
-    val showFlickHints: Boolean = false
+    val showFlickHints: Boolean = false,
+    /**
+     * A hardware-keyboard keymap: when this layout is active, a physical keyboard's keys are remapped to this
+     * grid by position (row/col). Each single-character key emits its char (shifted face when Shift/Caps is
+     * held); multi-char / action / function keys pass through unchanged. Off for normal on-screen layouts.
+     */
+    val hardwareKeymap: Boolean = false
 )
 
 sealed class KeyboardKey {

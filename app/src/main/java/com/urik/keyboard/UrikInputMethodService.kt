@@ -10,6 +10,7 @@ import android.os.SystemClock
 import android.util.Size
 import android.view.Gravity
 import android.view.KeyCharacterMap
+import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
@@ -2554,6 +2555,9 @@ open class UrikInputMethodService :
      */
     private fun restoreLayoutLanguageForApp(packageName: String?) {
         if (packageName.isNullOrBlank()) return
+        // A hardware-keymap layout (NexDock etc.) stays active across apps — on a physical keyboard the user
+        // doesn't want it swapped out per-app, which would silently drop the remapping.
+        if (::viewModel.isInitialized && viewModel.layout.value?.hardwareKeymap == true) return
         serviceScope.launch {
             try {
                 val remembered = settingsRepository.getPerAppLayoutLanguage(packageName) ?: return@launch
@@ -2588,6 +2592,94 @@ open class UrikInputMethodService :
         val isGnuLayout = languageManager.currentLayoutLanguage.value.substringBefore("-") == "gnu"
         inputState.isSuggestionsDisabled =
             c.isSuggestionsDisabled || currentSettings.forceNoPredict || isGnuLayout
+    }
+
+    // ---- Hardware-keyboard remapping -----------------------------------------------------------------
+    // Map a physical keyboard's keys onto the active layout's grid by position (its rows correspond to the
+    // function / number / qwerty / home / bottom / modifier rows of a standard board). Active only when the
+    // current layout is a `hardwareKeymap` (e.g. "NexDock XL"); otherwise physical keys behave normally.
+    private val hwKeymap: Map<Int, Pair<Int, Int>> by lazy {
+        buildMap {
+            fun row(r: Int, vararg codes: Int) {
+                codes.forEachIndexed { c, code -> if (code != 0) put(code, r to c) }
+            }
+            row(
+                0, KeyEvent.KEYCODE_ESCAPE, KeyEvent.KEYCODE_F1, KeyEvent.KEYCODE_F2, KeyEvent.KEYCODE_F3,
+                KeyEvent.KEYCODE_F4, KeyEvent.KEYCODE_F5, KeyEvent.KEYCODE_F6, KeyEvent.KEYCODE_F7,
+                KeyEvent.KEYCODE_F8, KeyEvent.KEYCODE_F9, KeyEvent.KEYCODE_F10, KeyEvent.KEYCODE_F11,
+                KeyEvent.KEYCODE_F12, KeyEvent.KEYCODE_FORWARD_DEL
+            )
+            row(
+                1, KeyEvent.KEYCODE_GRAVE, KeyEvent.KEYCODE_1, KeyEvent.KEYCODE_2, KeyEvent.KEYCODE_3,
+                KeyEvent.KEYCODE_4, KeyEvent.KEYCODE_5, KeyEvent.KEYCODE_6, KeyEvent.KEYCODE_7,
+                KeyEvent.KEYCODE_8, KeyEvent.KEYCODE_9, KeyEvent.KEYCODE_0, KeyEvent.KEYCODE_MINUS,
+                KeyEvent.KEYCODE_EQUALS, KeyEvent.KEYCODE_DEL
+            )
+            row(
+                2, KeyEvent.KEYCODE_TAB, KeyEvent.KEYCODE_Q, KeyEvent.KEYCODE_W, KeyEvent.KEYCODE_E,
+                KeyEvent.KEYCODE_R, KeyEvent.KEYCODE_T, KeyEvent.KEYCODE_Y, KeyEvent.KEYCODE_U,
+                KeyEvent.KEYCODE_I, KeyEvent.KEYCODE_O, KeyEvent.KEYCODE_P, KeyEvent.KEYCODE_LEFT_BRACKET,
+                KeyEvent.KEYCODE_RIGHT_BRACKET, KeyEvent.KEYCODE_BACKSLASH
+            )
+            row(
+                3, KeyEvent.KEYCODE_CAPS_LOCK, KeyEvent.KEYCODE_A, KeyEvent.KEYCODE_S, KeyEvent.KEYCODE_D,
+                KeyEvent.KEYCODE_F, KeyEvent.KEYCODE_G, KeyEvent.KEYCODE_H, KeyEvent.KEYCODE_J,
+                KeyEvent.KEYCODE_K, KeyEvent.KEYCODE_L, KeyEvent.KEYCODE_SEMICOLON, KeyEvent.KEYCODE_APOSTROPHE,
+                KeyEvent.KEYCODE_ENTER
+            )
+            row(
+                4, KeyEvent.KEYCODE_SHIFT_LEFT, KeyEvent.KEYCODE_Z, KeyEvent.KEYCODE_X, KeyEvent.KEYCODE_C,
+                KeyEvent.KEYCODE_V, KeyEvent.KEYCODE_B, KeyEvent.KEYCODE_N, KeyEvent.KEYCODE_M,
+                KeyEvent.KEYCODE_COMMA, KeyEvent.KEYCODE_PERIOD, KeyEvent.KEYCODE_SLASH, KeyEvent.KEYCODE_SHIFT_RIGHT
+            )
+            row(
+                5, KeyEvent.KEYCODE_CTRL_LEFT, 0, 0, KeyEvent.KEYCODE_ALT_LEFT, KeyEvent.KEYCODE_SPACE,
+                KeyEvent.KEYCODE_ALT_RIGHT, KeyEvent.KEYCODE_CTRL_RIGHT, KeyEvent.KEYCODE_DPAD_LEFT,
+                KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_RIGHT
+            )
+            // The up/down half-key shares the up-slot's column.
+            put(KeyEvent.KEYCODE_DPAD_DOWN, 5 to 8)
+        }
+    }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean =
+        handleHardwareRemap(keyCode, event) || super.onKeyDown(keyCode, event)
+
+    /** Emit the active hardware-keymap layout's char for a physical key; returns true if it was handled. */
+    private fun handleHardwareRemap(keyCode: Int, event: KeyEvent): Boolean {
+        // Source the layout from the viewModel (loaded in onCreate, persists in a StateFlow), NOT the rendered
+        // view — so remapping keeps working when the soft keyboard is hidden (the point of a NexDock: a
+        // physical keyboard + external monitor with no on-screen keyboard eating the screen).
+        val layout = (if (::viewModel.isInitialized) viewModel.layout.value else null)
+            ?: layoutManager.takeIf { ::layoutManager.isInitialized }?.effectiveLayout
+            ?: return false
+        if (!layout.hardwareKeymap || !isPhysicalKeyboardEvent(event)) return false
+        val (r, c) = hwKeymap[keyCode] ?: return false
+        val key = layout.rows.getOrNull(r)?.getOrNull(c) ?: return false
+        val ch = remappedChar(key, event) ?: return false
+        outputBridge.sendCharacter(ch)
+        return true
+    }
+
+    private fun isPhysicalKeyboardEvent(event: KeyEvent): Boolean {
+        if (event.deviceId == KeyCharacterMap.VIRTUAL_KEYBOARD) return false
+        val device = InputDevice.getDevice(event.deviceId) ?: return false
+        return device.supportsSource(InputDevice.SOURCE_KEYBOARD) &&
+            device.keyboardType == InputDevice.KEYBOARD_TYPE_ALPHABETIC
+    }
+
+    /**
+     * The character a layout [key] emits under the event's shift/caps state — or null if the key isn't a
+     * plain single-character key (function / action / binding keys, and multi-char labels, pass through). A
+     * letter honours Caps (shift XOR caps); a symbol only Shift. The explicit shifted face wins; else uppercase.
+     */
+    private fun remappedChar(key: KeyboardKey, event: KeyEvent): String? {
+        if (key !is KeyboardKey.FlickKey || key.bindings.isNotEmpty()) return null
+        val base = key.center
+        if (base.length != 1) return null
+        val useShifted =
+            if (base[0].isLetter()) event.isShiftPressed != event.isCapsLockOn else event.isShiftPressed
+        return if (useShifted) key.shifted?.center ?: base.uppercase() else base
     }
 
     override fun onFinishInput() {

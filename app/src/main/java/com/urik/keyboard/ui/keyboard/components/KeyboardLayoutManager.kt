@@ -877,7 +877,8 @@ class KeyboardLayoutManager(
                 rows = processedRows,
                 isRTL = layout.isRTL,
                 script = layout.script,
-                showFlickHints = layout.showFlickHints
+                showFlickHints = layout.showFlickHints,
+                hardwareKeymap = layout.hardwareKeymap
             )
 
         val keyboardContainer =
