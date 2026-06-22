@@ -4,7 +4,39 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+156 — current
+## 0.23.1+164 — current
+
+Built on Urik `0.23.1-beta`. The keyboard now works **on the lock screen** before first unlock,
+**remaps a physical keyboard** to a layout, and turns the **toolbar shortcuts** into real actions.
+
+### Type on the lock screen (before first unlock)
+
+- kxkb is now usable **before the device is first unlocked** (Direct Boot) — pick it on the lock
+  screen to enter your PIN. It comes up as the bundled **GNU 15c** keymap (no prediction, so no
+  dictionary is needed) and restarts itself into the full keyboard the moment you unlock.
+- Built to be **un-brickable**: while locked, every credential-protected store (settings, the
+  database, custom layouts, even the error log) is bypassed or made safe, so nothing on the lock
+  screen can crash.
+- The lock-screen keyboard renders **tall, gapless and edge-to-edge with double-size glyphs** for fast
+  PIN entry; your normal look is untouched.
+
+### Remap a physical keyboard
+
+- A layout can now drive a **hardware (Bluetooth/USB) keyboard**: switch to a `hardwareKeymap` layout
+  and the physical keys produce that layout's characters by position — Multiling-style, no separate
+  setting.
+- Ships a **NexDock XL** GNU keymap matching that board (every key with an explicit shifted face); it
+  stays active across apps and keeps working with the on-screen keyboard hidden.
+
+### Functional toolbar shortcuts
+
+- The custom-toolbar / layout shortcuts now **act** instead of typing their label: **cursor-pair**
+  tokens (e.g. `"…"`, `(…)`) insert the pair and drop the cursor between them; **`[Paste]` / `[Copy]`
+  / `[Cut]` / `[All]` / `[Tab]`** run the editor action; **`{{`-date** tokens insert a formatted date.
+- The **custom toolbar with candidates now shows in no-prediction layouts** (e.g. GNU), which have no
+  suggestion strip.
+
+## 0.23.1+156
 
 Built on Urik `0.23.1-beta`. A dedicated **Number pad**, a way to **re-sync** edited layouts with
 bundled updates, and a clearer **Library** list.
