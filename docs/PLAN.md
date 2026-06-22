@@ -109,6 +109,30 @@ the **Mode** picker incl. **floating keyboard mode**; the **key-preview popup**;
 Japanese reading→kanji registration + no-auto-caps; black/yellow Settings dialogs throughout.
 Remaining tail (low priority): number/arrow rows on the look page; quick-period flick; scoped backup.
 
+### Shipped since 0.23.1+147 (beyond the original milestones)
+- **Number pad** — a canonical 6×4 calculator page (1–9 / 0 + operators, re-derived from Multiling “num”)
+  reachable on every layout via a **“Num”** flick on the layers key; **height-matched** to letters; numeric
+  fields no longer force the symbol page.
+- **Re-sync from stock** — an edited shadow layout pulls in later bundled-asset changes (new keys / flicks /
+  pages) via an **additive, identity-matched merge**, without discarding edits.
+- **Library** — stock + custom now **coexist** with `stock` / `custom` pills; **in-list rename** (custom
+  layouts, and bundled stock via a persisted name-override).
+- **Functional toolbar shortcuts** — `service/SpecialTokens.kt`: **cursor-pair** tokens insert the pair and
+  drop the caret between them; **`[Paste]`/`[Copy]`/`[Cut]`/`[All]`/`[Tab]`** run the editor action;
+  **`{{`-date** tokens insert a formatted date; the custom candidate toolbar now shows in **no-prediction**
+  layouts (GNU).
+- **Hardware-keyboard remapping** — a top-level `hardwareKeymap` layout drives a physical (BT/USB) keyboard
+  by **position** (Multiling-style, no separate setting); ships the **NexDock XL** keymap; sticky across
+  apps; works with the on-screen keyboard hidden. `UrikInputMethodService.onKeyDown` + `gnu_nexdock_xl.json`.
+- **Before-first-unlock (Direct Boot)** — the IME is `directBootAware` and usable on the **lock screen** as
+  **GNU 15c** (no-prediction). Built **un-brickable**: while locked, every credential-protected store
+  (DataStore / Room / `filesDir` / ErrorLogger) is bypassed or made safe so injection and rendering can't
+  crash; it **restarts into the full keyboard on unlock**; a tall / gapless / edge-to-edge BFU look.
+  `utils/DeviceLock.kt` (`isUserUnlocked` gate) is the single seam.
+
+**Released `0.23.1+164`** (2026-06-23) — tagged `v0.23.1+164`, APK attached, on the fork's GitHub; default
+branch `custom`. Earlier fork releases: `+72`, `+147`, `+156`.
+
 ## Cross-cutting
 - `.urik` dict build pipeline (upstream gitignores its tooling) — our own encoder from `UrikFormat`.
 - The `cluster-prediction-testing` skill + a Multiling-layout conversion skill (ports of futokxkb's).

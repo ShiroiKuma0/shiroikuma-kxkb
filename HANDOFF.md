@@ -30,12 +30,17 @@ today). Japanese is single-reading for now; full native Mozc is deferred (see `d
 
 ## 3. What's already done
 
-**Current state (2026-06-20):** the roadmap is largely complete — **M1–M4 done, M5 substantially done**,
-**released `0.23.1+147`**. That spans the per-geometry look system + the 白い熊 kxkb UI page, cluster-word
+**Current state (2026-06-23):** the roadmap is largely complete — **M1–M4 done, M5 substantially done**,
+**released `0.23.1+164`**. That spans the per-geometry look system + the 白い熊 kxkb UI page, cluster-word
 prediction, the whole **Library** (browse + a visual Keyboard editor + an in-app git archive with HTTPS
 remotes and a history browser), and Keyboard-UI parity (a Mode picker incl. **floating mode**, a
 **key-preview popup**, Czech dead keys, the Japanese reading→kanji registration, black/yellow dialogs).
-The authoritative, up-to-date status is **`CLAUDE.md` → “Current status”**; the per-release detail is
+**Shipped since `+147`:** a dedicated **Number pad** page, **re-sync** of an edited layout with bundled
+updates, **Library stock/custom pills + in-list rename**, **functional toolbar shortcuts** (cursor pairs,
+`[Paste]`/`[Copy]`/`[Cut]`, date tokens) + the custom toolbar in no-prediction layouts, **hardware-keyboard
+remapping** (a `hardwareKeymap` layout drives a physical keyboard; the NexDock XL keymap), and
+**before-first-unlock (Direct Boot)** — GNU 15c usable on the lock screen, built un-brickable.
+The authoritative, up-to-date status is **`CLAUDE.md` → "Current status"**; the per-release detail is
 **`CHANGELOG.md`**; the milestone breakdown is **`docs/PLAN.md`**. The remaining M5 tail (low priority):
 number/arrow rows on the look page, quick-period flick, scoped backup.
 
@@ -98,10 +103,12 @@ land) the patched keyboard/prediction sources.
 
 ## 8. The roadmap & current status
 
-Full phased plan: **`docs/PLAN.md`**. Phases: 0 identity/icon ✅ → 1 quick wins (remove 3-language cap +
-easy typing tweaks) ✅ → **2 compass/cluster layouts ← NEXT** → 3 cluster prediction (the soul) → 4 typing
-refinements → 5 visual layout editor → 6 per-key appearance → 7 Japanese (Mozc deferred). Cross-cutting:
-our own `.urik` dict-build tool, a cluster-prediction-testing skill, a Multiling-conversion skill.
+Full phased plan: **`docs/PLAN.md`** (milestones M1–M5). Phases: 0 identity/icon ✅ → 1 quick wins ✅ →
+2 compass/cluster layouts ✅ → 3 cluster prediction (the soul) ✅ → 4 typing refinements ✅ → 5 visual
+layout editor ✅ → 6 per-key appearance ✅ → 7 Japanese (single-reading ✅; native Mozc deferred). Beyond
+the original plan we've since added the **Number pad**, **hardware-keyboard remapping** and
+**before-first-unlock** support (see §3). Cross-cutting still open: our own `.urik` dict-build tool, a
+cluster-prediction-testing skill, a Multiling-conversion skill.
 
 **Phase 1 done (all four items):** removed the 3-active-language cap (`MAX_ACTIVE_LANGUAGES =
 SUPPORTED_LANGUAGES.size` — cs/en/ru/ja coexist); Tab → real `KEYCODE_TAB` (`ActionType.TAB`/`onTab()`,

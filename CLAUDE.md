@@ -140,6 +140,20 @@ editor), never auto-capitalises (katakana on explicit Shift only); every Setting
 black/yellow house style. Fixes along the way: Enter committing a space in single-line fields; the
 half-keyboard on cold start.
 
-**Released `0.23.1+147`** (2026-06-20; first fork release since `+72`) — tagged, APK attached, on the
-fork's GitHub; default branch `custom`. Remaining M5 tail (low priority): number/arrow rows on the look
-page, quick-period flick. Full architecture + milestone sequence in `docs/PLAN.md`.
+**Shipped since `+147`** (beyond the original milestones): a dedicated **Number pad** (6×4 calc page on a
+"Num" flick, height-matched to letters; numeric fields no longer force the symbol page); **re-sync** of an
+edited shadow layout with bundled updates (additive, identity-matched merge); **Library** stock/custom
+pills + in-list rename (custom + a persisted name-override for bundled stock); **functional toolbar
+shortcuts** (`service/SpecialTokens.kt` — cursor pairs place the caret between, `[Paste]`/`[Copy]`/`[Cut]`/
+`[All]`/`[Tab]` run the editor action, `{{`-date tokens) + the custom candidate toolbar in no-prediction
+layouts; **hardware-keyboard remapping** (a top-level `hardwareKeymap` layout drives a physical BT/USB
+keyboard by position — `onKeyDown` + `gnu_nexdock_xl.json`; sticky across apps, works with the soft
+keyboard hidden); **before-first-unlock (Direct Boot)** — the IME is `directBootAware` and usable on the
+lock screen as **GNU 15c** (no-prediction), built **un-brickable** (every credential-protected store —
+DataStore/Room/`filesDir`/ErrorLogger — bypassed or made injection-safe; `utils/DeviceLock.kt` is the
+gate), restarting into the full keyboard on unlock with a tall/gapless/edge-to-edge BFU look.
+
+**Released `0.23.1+164`** (2026-06-23; tagged `v0.23.1+164`, APK attached, on the fork's GitHub; default
+branch `custom`). Earlier fork releases: `+72`, `+147`, `+156`. Remaining M5 tail (low priority):
+number/arrow rows on the look page, quick-period flick. Full architecture + milestone sequence in
+`docs/PLAN.md`.
