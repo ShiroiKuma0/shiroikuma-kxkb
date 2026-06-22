@@ -97,6 +97,7 @@
         <service
             android:name=".UrikInputMethodService"
             android:exported="true"
+            android:directBootAware="true"
             android:label="@string/ime_name"
             android:permission="android.permission.BIND_INPUT_METHOD"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|locale|layoutDirection">

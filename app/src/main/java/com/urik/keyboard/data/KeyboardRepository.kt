@@ -7,6 +7,7 @@ import com.urik.keyboard.model.KeyboardMode
 import com.urik.keyboard.utils.CacheMemoryManager
 import com.urik.keyboard.utils.ErrorLogger
 import com.urik.keyboard.utils.ManagedCache
+import com.urik.keyboard.utils.isUserUnlocked
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.FileNotFoundException
 import java.util.Locale
@@ -118,6 +119,16 @@ constructor(
         locale: Locale,
         currentAction: KeyboardKey.ActionType = KeyboardKey.ActionType.ENTER
     ): Result<KeyboardLayout> = withContext(Dispatchers.IO) {
+        // BFU / Direct Boot: the active-layout setting is in locked storage and prediction isn't available.
+        // Force the bundled GNU 15c keymap (a no-prediction code layout, loaded straight from the APK assets)
+        // so the keyboard works on the lock screen without touching credential-protected storage.
+        if (!context.isUserUnlocked) {
+            return@withContext try {
+                Result.success(loadLayoutFromAssets(mode, BFU_LAYOUT_ID, currentAction, locale))
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
         val settings = settingsRepository.settings.first()
         val alternativeLayout = settings.alternativeKeyboardLayout
 
@@ -533,6 +544,8 @@ constructor(
     }
 
     private companion object {
+        /** The bundled, no-prediction layout forced before first unlock (Direct Boot). */
+        const val BFU_LAYOUT_ID = "gnu_5r15c"
         const val LAYOUT_CACHE_SIZE = 20
         const val MAX_LAYOUT_RETRIES = 3
         const val LAYOUT_ERROR_COOLDOWN_MS = 60000L

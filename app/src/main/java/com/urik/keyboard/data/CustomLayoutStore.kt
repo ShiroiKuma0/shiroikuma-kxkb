@@ -1,6 +1,7 @@
 package com.urik.keyboard.data
 
 import android.content.Context
+import com.urik.keyboard.utils.isUserUnlocked
 import java.io.File
 import org.json.JSONArray
 import org.json.JSONObject
@@ -21,10 +22,16 @@ object CustomLayoutStore {
 
     private fun stockNamesFile(context: Context): File = File(dir(context), "stock_names.json")
 
-    fun hasLayout(context: Context, id: String): Boolean = layoutFile(context, id).exists()
+    // The custom store lives in credential-protected filesDir, which is LOCKED before first unlock (BFU).
+    // Every method bails to a safe no-op/empty/asset path while locked, so a lock-screen render never touches
+    // it (a throw there could brick PIN entry). The runtime then falls back to the bundled assets.
+
+    fun hasLayout(context: Context, id: String): Boolean =
+        context.isUserUnlocked && layoutFile(context, id).exists()
 
     /** User display-name overrides for BUNDLED (stock) layouts, `id → name`. Empty if none set. */
     fun stockNameOverrides(context: Context): Map<String, String> = try {
+        if (!context.isUserUnlocked) return emptyMap()
         val f = stockNamesFile(context)
         if (!f.exists()) {
             emptyMap()
@@ -37,6 +44,7 @@ object CustomLayoutStore {
 
     /** Set (or, with a blank [name], clear) the display-name override for a bundled stock layout [id]. */
     fun setStockName(context: Context, id: String, name: String) {
+        if (!context.isUserUnlocked) return
         val o = try {
             JSONObject(stockNamesFile(context).readText())
         } catch (_: Exception) {
@@ -48,12 +56,14 @@ object CustomLayoutStore {
 
     /** The custom-store layout JSON text for [id], or null when there's no override (use the bundled asset). */
     fun customLayoutText(context: Context, id: String): String? {
+        if (!context.isUserUnlocked) return null
         val f = layoutFile(context, id)
         return if (f.exists()) f.readText().takeIf { it.isNotBlank() } else null
     }
 
     /** The custom registry entries (empty if none / unreadable). */
     fun customEntries(context: Context): List<LayoutEntry> = try {
+        if (!context.isUserUnlocked) return emptyList()
         val f = registryFile(context)
         if (!f.exists()) emptyList()
         else JSONArray(f.readText()).let { arr ->
@@ -75,9 +85,10 @@ object CustomLayoutStore {
 
     /** Raw layout JSON for [id] — custom store first, then the bundled asset. Null if neither parses. */
     fun rawJson(context: Context, id: String): JSONObject? = try {
-        val custom = layoutFile(context, id)
+        // Locked (BFU): skip the custom store entirely and read the bundled asset (always available).
+        val custom = if (context.isUserUnlocked) layoutFile(context, id) else null
         val text =
-            if (custom.exists()) custom.readText()
+            if (custom != null && custom.exists()) custom.readText()
             else context.assets.open("layouts/$id.json").bufferedReader().use { it.readText() }
         JSONObject(text)
     } catch (_: Exception) {
@@ -86,6 +97,7 @@ object CustomLayoutStore {
 
     /** Save a custom layout (JSON + registry entry), then invalidate the registry cache so it shows up. */
     fun saveLayout(context: Context, entry: LayoutEntry, json: JSONObject) {
+        if (!context.isUserUnlocked) return
         layoutFile(context, entry.id).writeText(json.toString(2))
         val entries = customEntries(context).filter { it.id != entry.id } + entry
         writeRegistry(context, entries)
@@ -93,6 +105,7 @@ object CustomLayoutStore {
     }
 
     fun deleteLayout(context: Context, id: String) {
+        if (!context.isUserUnlocked) return
         layoutFile(context, id).delete()
         writeRegistry(context, customEntries(context).filter { it.id != id })
         LayoutRegistry.invalidate()

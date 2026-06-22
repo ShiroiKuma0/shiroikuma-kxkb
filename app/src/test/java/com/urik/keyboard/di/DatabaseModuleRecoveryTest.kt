@@ -4,6 +4,7 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabaseCorruptException
 import com.urik.keyboard.data.database.DatabaseSecurityManager
 import com.urik.keyboard.data.database.KeyboardDatabase
+import com.urik.keyboard.markUserUnlocked
 import com.urik.keyboard.utils.ErrorLogger
 import java.io.File
 import net.zetetic.database.sqlcipher.SQLiteNotADatabaseException
@@ -37,6 +38,7 @@ class DatabaseModuleRecoveryTest {
     fun setUp() {
         closeable = MockitoAnnotations.openMocks(this)
         context = RuntimeEnvironment.getApplication()
+        context.markUserUnlocked()
         ErrorLogger.resetForTesting()
         ErrorLogger.init(context)
         whenever(securityManager.shouldMigrateToEncrypted(any())).thenReturn(false)

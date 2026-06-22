@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.test.core.app.ApplicationProvider
 import com.urik.keyboard.data.database.KeyboardDatabase
+import com.urik.keyboard.markUserUnlocked
 import com.urik.keyboard.settings.KeyboardSettings
 import com.urik.keyboard.settings.SettingsRepository
 import com.urik.keyboard.utils.CacheMemoryManager
@@ -34,13 +35,14 @@ class SettingsRepositoryActiveLanguagesTest {
     @Before
     fun setup() {
         context = ApplicationProvider.getApplicationContext()
+        context.markUserUnlocked()
         repository = SettingsRepository(
             context,
             mock<KeyboardDatabase>(),
             mock<CacheMemoryManager>(),
             mock<WordFrequencyRepository>()
         )
-        val field = SettingsRepository::class.java.getDeclaredField("dataStore")
+        val field = SettingsRepository::class.java.getDeclaredField("realDataStore")
         field.isAccessible = true
         @Suppress("UNCHECKED_CAST")
         dataStore = field.get(repository) as DataStore<Preferences>

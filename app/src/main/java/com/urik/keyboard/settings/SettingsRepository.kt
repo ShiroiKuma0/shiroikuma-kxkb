@@ -4,7 +4,9 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
@@ -16,6 +18,7 @@ import com.urik.keyboard.service.KeyboardLookKnobs
 import com.urik.keyboard.settings.SettingsRepository.Companion.EXPORT_SET_DELIMITER
 import com.urik.keyboard.utils.CacheMemoryManager
 import com.urik.keyboard.utils.ErrorLogger
+import com.urik.keyboard.utils.isUserUnlocked
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.Locale
 import javax.inject.Inject
@@ -24,6 +27,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
 private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(
@@ -40,7 +44,32 @@ constructor(
     private val cacheMemoryManager: CacheMemoryManager,
     private val wordFrequencyRepository: com.urik.keyboard.data.WordFrequencyRepository
 ) {
-    private val dataStore = context.settingsDataStore
+    private val realDataStore = context.settingsDataStore
+
+    /**
+     * BFU-safe DataStore wrapper — ALL settings access goes through it. While the device is locked (Direct
+     * Boot), reads emit EMPTY preferences (so the `?: default` mapping below yields all-defaults) and writes
+     * are dropped: the credential-protected DataStore must never be touched on the lock screen, where a throw
+     * could brick PIN entry. Each access re-checks `isUserUnlocked`, so it transitions to the real store the
+     * instant the user unlocks — no restart needed. Reads are also `.catch`-guarded; writes are try/caught.
+     */
+    private val dataStore = object {
+        val data: Flow<Preferences>
+            get() = if (context.isUserUnlocked) {
+                realDataStore.data.catch { emit(emptyPreferences()) }
+            } else {
+                flowOf(emptyPreferences())
+            }
+
+        suspend fun edit(transform: suspend (MutablePreferences) -> Unit) {
+            if (!context.isUserUnlocked) return
+            try {
+                realDataStore.edit(transform)
+            } catch (_: Throwable) {
+                // A settings write must never crash the keyboard.
+            }
+        }
+    }
 
     private object PreferenceKeys {
         val SHOW_SUGGESTIONS = booleanPreferencesKey("show_suggestions")

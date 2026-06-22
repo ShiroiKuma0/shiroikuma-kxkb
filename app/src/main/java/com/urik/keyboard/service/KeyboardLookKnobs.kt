@@ -261,6 +261,18 @@ data class KeyboardLookKnobs(
             splitFraction = 0f
         )
 
+        /**
+         * Hardcoded look for the lock-screen (Direct Boot / BFU) keyboard, where the saved per-geometry look
+         * lives in locked storage and can't be read. Tall, gapless keys with double-size primary glyphs for
+         * fast, legible PIN entry. Built on [DEFAULT] (the 白い熊 square-key signature).
+         */
+        val BFU = DEFAULT.copy(
+            keyHeightScale = 1.8f,
+            keySpacingHScale = 0f,
+            keySpacingVScale = 0f,
+            keyFontScale = 2.0f
+        )
+
         /** Lenient inverse of [encode]; unknown/garbled tokens are ignored (= inherit). */
         fun decode(raw: String): KeyboardLookKnobs {
             var cr: Float? = null

@@ -1,7 +1,10 @@
 package com.urik.keyboard
 
 import android.annotation.SuppressLint
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.icu.lang.UScript
 import android.icu.util.ULocale
 import android.inputmethodservice.InputMethodService
@@ -25,6 +28,7 @@ import androidx.autofill.inline.UiVersions
 import androidx.autofill.inline.common.TextViewStyle
 import androidx.autofill.inline.common.ViewStyle
 import androidx.autofill.inline.v1.InlineSuggestionUi
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Lifecycle
@@ -90,6 +94,7 @@ import com.urik.keyboard.utils.CacheMemoryManager
 import com.urik.keyboard.utils.ErrorLogger
 import com.urik.keyboard.utils.KanaTransformUtils
 import com.urik.keyboard.utils.KeyboardModeUtils
+import com.urik.keyboard.utils.isUserUnlocked
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlin.coroutines.resume
@@ -322,6 +327,10 @@ open class UrikInputMethodService :
 
     override fun onCreate() {
         super.onCreate()
+        // Before first unlock (Direct Boot), arrange to restart the process the instant the user unlocks, so
+        // the IME comes back fully featured (real storage/prediction). Registered first, robustly, so it works
+        // even if the init below degrades.
+        if (!isUserUnlocked) registerUnlockRestart()
         try {
             lifecycleRegistry = LifecycleRegistry(this)
             lifecycleRegistry.currentState = Lifecycle.State.CREATED
@@ -341,16 +350,56 @@ open class UrikInputMethodService :
             initializeCoreComponents()
 
             serviceScope.launch {
-                initializeServices()
+                try {
+                    initializeServices()
+                } catch (e: Throwable) {
+                    ErrorLogger.logException(
+                        component = "UrikInputMethodService",
+                        severity = ErrorLogger.Severity.HIGH,
+                        exception = e,
+                        context = mapOf("phase" to "initializeServices", "locked" to (!isUserUnlocked).toString())
+                    )
+                }
             }
         } catch (e: Exception) {
             ErrorLogger.logException(
                 component = "UrikInputMethodService",
                 severity = ErrorLogger.Severity.CRITICAL,
                 exception = e,
-                context = mapOf("phase" to "onCreate")
+                context = mapOf("phase" to "onCreate", "locked" to (!isUserUnlocked).toString())
             )
-            throw e
+            // On the lock screen (BFU) a crash here could brick PIN entry — degrade and let the system fall
+            // back to another IME, never die. When unlocked, keep failing loud (a real bug).
+            if (isUserUnlocked) throw e
+        }
+    }
+
+    private var unlockReceiver: BroadcastReceiver? = null
+
+    /** When the user unlocks, end this (Direct-Boot) process so the IME restarts with real storage. */
+    private fun registerUnlockRestart() {
+        try {
+            val receiver = object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    try {
+                        unregisterReceiver(this)
+                    } catch (_: Throwable) {
+                    }
+                    unlockReceiver = null
+                    // Simplest robust path to a full re-init: end the process. The system recreates the IME on
+                    // next use, now with unlocked storage; FUTO covers the brief gap.
+                    android.os.Process.killProcess(android.os.Process.myPid())
+                }
+            }
+            ContextCompat.registerReceiver(
+                this,
+                receiver,
+                IntentFilter(Intent.ACTION_USER_UNLOCKED),
+                ContextCompat.RECEIVER_NOT_EXPORTED
+            )
+            unlockReceiver = receiver
+        } catch (_: Throwable) {
+            // Receiver setup must never crash the IME; without it the user just relaunches after unlock.
         }
     }
 
@@ -1580,8 +1629,13 @@ open class UrikInputMethodService :
      * The single seam every [AdaptiveDimensions] push routes through: overlays [activeLookKnobs] onto
      * the mode's base dimensions before they reach the renderer / swipe views.
      */
-    private fun withLookKnobs(dims: AdaptiveDimensions): AdaptiveDimensions =
-        activeLookKnobs.applyTo(dims, resources.displayMetrics.density)
+    private fun withLookKnobs(dims: AdaptiveDimensions): AdaptiveDimensions {
+        if (isUserUnlocked) return activeLookKnobs.applyTo(dims, resources.displayMetrics.density)
+        // On the lock screen (BFU) the saved per-geometry look is unreadable — force the tall, gapless,
+        // double-primary-font BFU look for fast PIN entry, full-bleed (no side inset) to the screen edges.
+        return KeyboardLookKnobs.BFU.applyTo(dims, resources.displayMetrics.density)
+            .copy(keyboardPaddingHorizontalPx = 0)
+    }
 
     /**
      * Re-resolve the active look knobs from the store for the current geometry / layout language /
@@ -2902,6 +2956,13 @@ open class UrikInputMethodService :
     }
 
     override fun onDestroy() {
+        unlockReceiver?.let {
+            try {
+                unregisterReceiver(it)
+            } catch (_: Throwable) {
+            }
+            unlockReceiver = null
+        }
         streamingScoringEngine.cancelActiveGesture()
         wordFrequencyRepository.clearCache()
         autofillCoordinator.cleanup()

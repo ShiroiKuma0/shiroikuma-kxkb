@@ -98,18 +98,34 @@ object ErrorLogger {
             return
         }
 
-        logFile = File(context.filesDir, LOG_FILE_NAME)
-        fallbackFile = File(context.filesDir, FALLBACK_FILE_NAME)
+        // Use DEVICE-protected storage: it's available both before first unlock (Direct Boot) and after, so
+        // logging — which runs inside catch blocks everywhere — can never throw on the lock screen and brick
+        // the keyboard. Error logs are sanitized (no user data), so the un-credential-encrypted area is fine.
+        val ctx = try {
+            context.createDeviceProtectedStorageContext() ?: context
+        } catch (_: Throwable) {
+            context
+        }
+        logFile = File(ctx.filesDir, LOG_FILE_NAME)
+        fallbackFile = File(ctx.filesDir, FALLBACK_FILE_NAME)
 
-        validateOrCreateLogFile()
-        logFile?.let { file ->
-            file.setReadable(false, false)
-            file.setReadable(true, true)
+        try {
+            validateOrCreateLogFile()
+            logFile?.let { file ->
+                file.setReadable(false, false)
+                file.setReadable(true, true)
+            }
+        } catch (_: Throwable) {
+            // Logging setup must never crash app/IME startup.
         }
 
         scope.launch {
             for (entry in logChannel) {
-                writeEntryToFile(entry)
+                try {
+                    writeEntryToFile(entry)
+                } catch (_: Throwable) {
+                    // A failed log write must never crash the logging actor.
+                }
             }
         }
     }

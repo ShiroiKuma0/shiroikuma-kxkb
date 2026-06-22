@@ -3,6 +3,8 @@ package com.urik.keyboard.di
 import android.content.Context
 import android.database.sqlite.SQLiteDatabaseCorruptException
 import androidx.annotation.VisibleForTesting
+import androidx.room.Room
+import com.urik.keyboard.utils.isUserUnlocked
 import com.urik.keyboard.data.database.ClipboardDao
 import com.urik.keyboard.data.database.CustomKeyMappingDao
 import com.urik.keyboard.data.database.DatabaseSecurityManager
@@ -68,6 +70,23 @@ object DatabaseModule {
         @ApplicationContext context: Context,
         securityManager: DatabaseSecurityManager
     ): KeyboardDatabase {
+        // BFU / Direct Boot: credential-protected storage and the unlock-gated keystore are unavailable, and
+        // Hilt injects this at the IME's onCreate — BEFORE any try/catch of ours — so it must NEVER throw on
+        // the lock screen (that could brick PIN entry). Return a throwaway in-memory DB; the keyboard runs
+        // no-prediction in BFU and never needs real data. When unlocked, the real path keeps its existing
+        // behaviour (it may throw on genuine corruption — the app's recovery handler deals with that).
+        if (!context.isUserUnlocked) return inMemoryDatabase(context)
+        return buildEncryptedDatabase(context, securityManager)
+    }
+
+    /** A throwaway empty DB with no storage/keystore dependency — used while the device is locked (BFU). */
+    private fun inMemoryDatabase(context: Context): KeyboardDatabase =
+        Room.inMemoryDatabaseBuilder(context, KeyboardDatabase::class.java)
+            .allowMainThreadQueries()
+            .build()
+
+    @Suppress("ThrowsCount", "InstanceOfCheckForException")
+    private fun buildEncryptedDatabase(context: Context, securityManager: DatabaseSecurityManager): KeyboardDatabase {
         var alreadyLogged = false
         try {
             if (securityManager.shouldMigrateToEncrypted(context)) {
