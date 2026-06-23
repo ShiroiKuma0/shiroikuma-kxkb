@@ -69,6 +69,7 @@ import com.urik.keyboard.service.LanguageManager
 import com.urik.keyboard.service.LetterInputHandler
 import com.urik.keyboard.service.NonLetterInputHandler
 import com.urik.keyboard.service.OnUpdateSelectionHandler
+import com.urik.keyboard.service.DeadKeys
 import com.urik.keyboard.service.OutputBridge
 import com.urik.keyboard.service.SpaceInputHandler
 import com.urik.keyboard.service.SpellCheckManager
@@ -1651,8 +1652,12 @@ open class UrikInputMethodService :
             // Publish the live layout language so the settings-side editor entry points can target the
             // keyboard that's actually on screen (this runs on language switch too — see the collector above).
             settingsRepository.setCurrentLayoutLanguage(language)
-            val layout = currentSettings.alternativeKeyboardLayout.name
-            val resolved = settingsRepository.resolveLookKnobs(language, layout, geometry)
+            // Key the size override by the SAME registry layout id getLayoutForMode loads + the focused app, so
+            // each (app · layout · geometry) keeps its own height/width/lift/split and one resize never bleeds
+            // into other layouts. A null app (nothing focused) resolves the geometry baseline only.
+            val layoutId = repository.resolveActiveLayoutId(language)
+            val app = currentInputEditorInfo?.packageName
+            val resolved = settingsRepository.resolveLookKnobs(app, layoutId, geometry)
             // Cache for the next cold start so the first render is already correct (see seedLookKnobsFromCache).
             cacheLookKnobSeed(geometry, resolved)
             // Publish the live key-height scale so the Library preview can match the real on-screen height.
@@ -1828,28 +1833,36 @@ open class UrikInputMethodService :
     }
 
     /**
-     * Commit a resize: snap-to-dock dead zone, then persist into the SAME per-geometry baseline the Keyboard
-     * UI sliders edit (merged so other knobs survive) — so resize and the sliders stay consistent rather than
-     * a per-combo fork shadowing them.
+     * Commit a resize: snap-to-dock dead zone, then persist the four size knobs into the per-(app·layout·
+     * geometry) size override (merged so a prior one's values survive) — so each layout remembers its own size
+     * per app and geometry and resizing one never changes the others. Float position stays in the per-geometry
+     * baseline (commitFloatingRect). No focused app (shouldn't happen mid-resize) → fall back to the baseline.
      */
     private fun commitResize(height: Float, width: Float, liftDp: Float, splitFraction: Float) {
         val w = if (width >= 0.98f) 1f else width
         val lift = if (liftDp <= 5f) 0f else liftDp
         val split = if (splitFraction <= 0.02f) 0f else splitFraction
         liveResize(height, w, lift, split)
+        val app = currentInputEditorInfo?.packageName
         serviceScope.launch {
             val geometry =
                 postureDetector?.postureInfo?.value?.let { geometryKey(it) } ?: GeometryBucket.FOLDED_PORT.key
-            val existing = settingsRepository.getGeometryBaselineLook(geometry) ?: KeyboardLookKnobs()
-            settingsRepository.updateGeometryBaselineLook(
-                geometry,
-                existing.copy(
-                    keyHeightScale = height,
-                    keyboardWidthScale = w,
-                    bottomLiftDp = lift,
-                    splitFraction = split
+            if (app.isNullOrEmpty()) {
+                val existing = settingsRepository.getGeometryBaselineLook(geometry) ?: KeyboardLookKnobs()
+                settingsRepository.updateGeometryBaselineLook(
+                    geometry,
+                    existing.copy(keyHeightScale = height, keyboardWidthScale = w, bottomLiftDp = lift, splitFraction = split)
                 )
-            )
+            } else {
+                val layoutId = repository.resolveActiveLayoutId(languageManager.currentLayoutLanguage.value)
+                val existing = settingsRepository.getSizeOverride(app, layoutId, geometry) ?: KeyboardLookKnobs()
+                settingsRepository.updateSizeOverride(
+                    app,
+                    layoutId,
+                    geometry,
+                    existing.copy(keyHeightScale = height, keyboardWidthScale = w, bottomLiftDp = lift, splitFraction = split)
+                )
+            }
         }
     }
 
@@ -2696,6 +2709,11 @@ open class UrikInputMethodService :
         }
     }
 
+    // A pending combining diacritic (Czech ´ ˇ) armed by a hardware-keymap dead key: the next character key
+    // composes with it (´ then a → á, ˇ then c → č). Mirrors KeyEventRouter.pendingDeadKey but on the
+    // physical-key path, which commits straight to the field and never reaches the soft dispatch chain.
+    private var hwPendingDeadKey: Char? = null
+
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean =
         handleHardwareRemap(keyCode, event) || super.onKeyDown(keyCode, event)
 
@@ -2708,11 +2726,31 @@ open class UrikInputMethodService :
             ?: layoutManager.takeIf { ::layoutManager.isInitialized }?.effectiveLayout
             ?: return false
         if (!layout.hardwareKeymap || !isPhysicalKeyboardEvent(event)) return false
-        val (r, c) = hwKeymap[keyCode] ?: return false
-        val key = layout.rows.getOrNull(r)?.getOrNull(c) ?: return false
-        val ch = remappedChar(key, event) ?: return false
+        val (r, c) = hwKeymap[keyCode] ?: return dropDeadKeyUnlessModifier(keyCode)
+        val key = layout.rows.getOrNull(r)?.getOrNull(c)
+        val ch = key?.let { remappedChar(it, event) } ?: return dropDeadKeyUnlessModifier(keyCode)
+        // A character key: run it through the dead-key state machine (Czech ´ ˇ on this layout), then commit.
+        val pending = hwPendingDeadKey
+        if (pending != null) {
+            hwPendingDeadKey = null
+            DeadKeys.compose(ch, pending)?.let { outputBridge.sendCharacter(it); return true }
+            // No precomposed form: emit the spacing diacritic literally, then fall through to emit / re-arm `ch`.
+            outputBridge.sendCharacter(DeadKeys.spacingFor(pending))
+        }
+        DeadKeys.combiningFor(ch)?.let { hwPendingDeadKey = it; return true }
         outputBridge.sendCharacter(ch)
         return true
+    }
+
+    /**
+     * An action / modifier / unmapped physical key reached the remap while a dead key may be armed. A modifier
+     * (Shift/Ctrl/Alt) is transparent — held alongside the next letter to make Á/Č — so it leaves the pending
+     * mark intact; anything else (space, enter, arrows…) drops it, matching the soft path. Always returns false
+     * so the system still handles the key normally.
+     */
+    private fun dropDeadKeyUnlessModifier(keyCode: Int): Boolean {
+        if (!KeyEvent.isModifierKey(keyCode)) hwPendingDeadKey = null
+        return false
     }
 
     private fun isPhysicalKeyboardEvent(event: KeyEvent): Boolean {
@@ -2738,6 +2776,8 @@ open class UrikInputMethodService :
 
     override fun onFinishInput() {
         super.onFinishInput()
+
+        hwPendingDeadKey = null
 
         if (::layoutManager.isInitialized) {
             layoutManager.stopAcceleratedBackspace()

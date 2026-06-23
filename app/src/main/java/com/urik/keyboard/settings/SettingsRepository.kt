@@ -635,20 +635,28 @@ constructor(
         null
     }
 
-    private fun comboLookKey(language: String, layout: String, geometry: String): String =
-        "$language|$layout|$geometry"
+    /**
+     * The per-(app·layout·geometry) SIZE-override key — the on-keyboard resize writes the four size knobs
+     * (height/width/lift/split) here so each layout's size is remembered per app, per layout, per device
+     * geometry. Distinguished from the bare-`geometry` baseline key (which has no separators) by its two `|`.
+     */
+    private fun sizeOverrideKey(app: String, layoutId: String, geometry: String): String =
+        "$app|$layoutId|$geometry"
 
     /**
-     * The effective knob set for a combo: DEFAULT overlaid by the per-geometry baseline. The per-combo fork
-     * layer is currently NOT resolved — both the Keyboard UI sliders and the on-keyboard resize write the
-     * geometry baseline, so resolving forks would let stale ones shadow the baseline. (The combo machinery is
-     * retained for a future per-(language·layout) override model.)
+     * The effective knob set for a context: DEFAULT overlaid by the per-geometry baseline (the general default
+     * + floating position, edited by the Keyboard UI sliders), then — when an [app] is given — by the
+     * per-(app·layout·geometry) size override the on-keyboard resize writes. So each layout keeps its own
+     * height/width/lift/split per app and geometry, and one resize never bleeds into other layouts. Callers
+     * with no app context (Library / editor previews) pass app = null to resolve just the baseline.
      */
-    @Suppress("UNUSED_PARAMETER")
-    suspend fun resolveLookKnobs(language: String, layout: String, geometry: String): KeyboardLookKnobs = try {
+    suspend fun resolveLookKnobs(app: String?, layoutId: String, geometry: String): KeyboardLookKnobs = try {
         val map = dataStore.data.first()[PreferenceKeys.PER_GEOMETRY_LOOK]?.let { decodeLookMap(it) } ?: emptyMap()
         var resolved = KeyboardLookKnobs.DEFAULT
         map[geometry]?.let { resolved = resolved.overlay(it) }
+        if (!app.isNullOrEmpty()) {
+            map[sizeOverrideKey(app, layoutId, geometry)]?.let { resolved = resolved.overlay(it) }
+        }
         resolved
     } catch (e: Exception) {
         KeyboardLookKnobs.DEFAULT
@@ -687,12 +695,20 @@ constructor(
     suspend fun updateGeometryBaselineLook(geometry: String, knobs: KeyboardLookKnobs): Result<Unit> =
         putLook(geometry, knobs)
 
-    suspend fun updateComboLook(
-        language: String,
-        layout: String,
+    /** The per-(app·layout·geometry) size override as stored (null = none yet), for the resize commit to merge. */
+    suspend fun getSizeOverride(app: String, layoutId: String, geometry: String): KeyboardLookKnobs? = try {
+        dataStore.data.first()[PreferenceKeys.PER_GEOMETRY_LOOK]
+            ?.let { decodeLookMap(it)[sizeOverrideKey(app, layoutId, geometry)] }
+    } catch (e: Exception) {
+        null
+    }
+
+    suspend fun updateSizeOverride(
+        app: String,
+        layoutId: String,
         geometry: String,
         knobs: KeyboardLookKnobs
-    ): Result<Unit> = putLook(comboLookKey(language, layout, geometry), knobs)
+    ): Result<Unit> = putLook(sizeOverrideKey(app, layoutId, geometry), knobs)
 
     private suspend fun putLook(key: String, knobs: KeyboardLookKnobs): Result<Unit> = try {
         dataStore.edit { preferences ->

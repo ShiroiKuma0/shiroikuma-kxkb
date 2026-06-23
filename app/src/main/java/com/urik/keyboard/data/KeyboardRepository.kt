@@ -130,26 +130,7 @@ constructor(
             }
         }
         val settings = settingsRepository.settings.first()
-        val alternativeLayout = settings.alternativeKeyboardLayout
-
-        val layoutIdentifier =
-            when (alternativeLayout) {
-                com.urik.keyboard.settings.AlternativeKeyboardLayout.DEFAULT -> {
-                    // Per-language active layout (1D switcher) -> registry default -> bundled <lang>.json.
-                    val lang = locale.toLanguageTag()
-                    val registry = LayoutRegistry.load(context)
-                    settingsRepository.getActiveLayoutForLanguage(lang)?.takeIf { registry.has(it) }
-                        ?: registry.defaultFor(lang) ?: lang
-                }
-                com.urik.keyboard.settings.AlternativeKeyboardLayout.QWERTY -> "en"
-                com.urik.keyboard.settings.AlternativeKeyboardLayout.AZERTY -> "azerty"
-                com.urik.keyboard.settings.AlternativeKeyboardLayout.QWERTZ -> "qwertz"
-                com.urik.keyboard.settings.AlternativeKeyboardLayout.DVORAK -> "dvorak"
-                com.urik.keyboard.settings.AlternativeKeyboardLayout.COLEMAK -> "colemak"
-                com.urik.keyboard.settings.AlternativeKeyboardLayout.WORKMAN -> "workman"
-                com.urik.keyboard.settings.AlternativeKeyboardLayout.HCESAR -> "hcesar"
-                com.urik.keyboard.settings.AlternativeKeyboardLayout.BDS -> "bds"
-            }
+        val layoutIdentifier = resolveLayoutIdentifier(settings.alternativeKeyboardLayout, locale.toLanguageTag())
 
         val cacheKey = "${layoutIdentifier}_${mode.name}_${currentAction.name}"
 
@@ -165,6 +146,38 @@ constructor(
             Result.failure(e)
         }
     }
+
+    /**
+     * The registry id of the layout the keyboard would load for [language] right now — the 1D-switcher active
+     * layout → registry default → bundled fallback, honouring the alternative-layout setting. Exposed so the
+     * IME can key the per-(app·layout·geometry) size override by the SAME id [getLayoutForMode] loads. BFU →
+     * the forced bundled keymap.
+     */
+    suspend fun resolveActiveLayoutId(language: String): String = withContext(Dispatchers.IO) {
+        if (!context.isUserUnlocked) return@withContext BFU_LAYOUT_ID
+        resolveLayoutIdentifier(settingsRepository.settings.first().alternativeKeyboardLayout, language)
+    }
+
+    private suspend fun resolveLayoutIdentifier(
+        alternativeLayout: com.urik.keyboard.settings.AlternativeKeyboardLayout,
+        language: String
+    ): String =
+        when (alternativeLayout) {
+            com.urik.keyboard.settings.AlternativeKeyboardLayout.DEFAULT -> {
+                // Per-language active layout (1D switcher) -> registry default -> bundled <lang>.json.
+                val registry = LayoutRegistry.load(context)
+                settingsRepository.getActiveLayoutForLanguage(language)?.takeIf { registry.has(it) }
+                    ?: registry.defaultFor(language) ?: language
+            }
+            com.urik.keyboard.settings.AlternativeKeyboardLayout.QWERTY -> "en"
+            com.urik.keyboard.settings.AlternativeKeyboardLayout.AZERTY -> "azerty"
+            com.urik.keyboard.settings.AlternativeKeyboardLayout.QWERTZ -> "qwertz"
+            com.urik.keyboard.settings.AlternativeKeyboardLayout.DVORAK -> "dvorak"
+            com.urik.keyboard.settings.AlternativeKeyboardLayout.COLEMAK -> "colemak"
+            com.urik.keyboard.settings.AlternativeKeyboardLayout.WORKMAN -> "workman"
+            com.urik.keyboard.settings.AlternativeKeyboardLayout.HCESAR -> "hcesar"
+            com.urik.keyboard.settings.AlternativeKeyboardLayout.BDS -> "bds"
+        }
 
     /**
      * Load an arbitrary registry layout by its id (`layouts/<id>.json`), off the active-layout path — for

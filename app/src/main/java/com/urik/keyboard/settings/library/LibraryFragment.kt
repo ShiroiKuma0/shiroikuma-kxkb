@@ -903,7 +903,7 @@ class LibraryFragment : Fragment() {
             // the whole per-geometry look (spacing, square keys, colours, borders) hangs off it.
             val geometry = settingsRepository.currentGeometry.first()
                 ?: GeometryBucket.fromConfiguration(resources.configuration).key
-            val knobs = settingsRepository.resolveLookKnobs(lang, id, geometry)
+            val knobs = settingsRepository.resolveLookKnobs(null, id, geometry)
             // Render at the live keyboard's actual height when the IME has published one (its on-keyboard
             // resize lives in a per-combo fork that a different previewed layout wouldn't otherwise pick up).
             val baseDims = AdaptiveDimensions.compute(posture, settings.keySize, density)

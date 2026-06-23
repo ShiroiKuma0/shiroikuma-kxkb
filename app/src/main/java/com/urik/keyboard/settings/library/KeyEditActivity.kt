@@ -1035,7 +1035,7 @@ class KeyEditActivity : AppCompatActivity() {
             val posture = PostureDetector(this@KeyEditActivity, lifecycleScope).postureInfo.value
             val geometry = settingsRepository.currentGeometry.first()
                 ?: GeometryBucket.fromConfiguration(resources.configuration).key
-            val knobs = settingsRepository.resolveLookKnobs(entry.lang, entry.id, geometry)
+            val knobs = settingsRepository.resolveLookKnobs(null, entry.id, geometry)
             val baseDims = AdaptiveDimensions.compute(posture, settings.keySize, density)
             val dims = knobs.applyTo(baseDims, density)
             layoutManager.updateKeySize(settings.keySize)

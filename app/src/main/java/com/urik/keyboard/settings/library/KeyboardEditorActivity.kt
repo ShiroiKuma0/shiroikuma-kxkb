@@ -342,7 +342,7 @@ class KeyboardEditorActivity : AppCompatActivity() {
             val posture = PostureDetector(this@KeyboardEditorActivity, lifecycleScope).postureInfo.value
             val geometry = settingsRepository.currentGeometry.first()
                 ?: GeometryBucket.fromConfiguration(resources.configuration).key
-            val knobs = settingsRepository.resolveLookKnobs(entry.lang, entry.id, geometry)
+            val knobs = settingsRepository.resolveLookKnobs(null, entry.id, geometry)
             val baseDims = AdaptiveDimensions.compute(posture, settings.keySize, density)
             val liveHeightScale = settingsRepository.getCurrentKeyHeightScale()
             val dims = knobs.applyTo(baseDims, density).let { d ->

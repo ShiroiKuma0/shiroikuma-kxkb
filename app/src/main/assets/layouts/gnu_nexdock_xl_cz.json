@@ -4,7 +4,7 @@
   "isRTL": false,
   "showFlickHints": false,
   "hardwareKeymap": true,
-  "name": "NexDock XL",
+  "name": "NexDock XL CZ",
   "modes": {
     "letters": {
       "rows": [
@@ -83,98 +83,98 @@
           },
           {
             "type": "compass",
-            "char": "—",
+            "char": "–",
             "shifted": {
               "type": "compass",
-              "char": "%"
+              "char": "—"
             }
           },
           {
             "type": "compass",
-            "char": "1",
+            "char": "ů",
             "shifted": {
               "type": "compass",
-              "char": "@"
+              "char": "1"
             }
           },
           {
             "type": "compass",
-            "char": "2",
+            "char": "ž",
             "shifted": {
               "type": "compass",
-              "char": "&"
+              "char": "2"
             }
           },
           {
             "type": "compass",
-            "char": "3",
+            "char": "á",
             "shifted": {
               "type": "compass",
-              "char": "("
+              "char": "3"
             }
           },
           {
             "type": "compass",
-            "char": "4",
+            "char": "ř",
             "shifted": {
               "type": "compass",
-              "char": "#"
+              "char": "4"
             }
           },
           {
             "type": "compass",
-            "char": "5",
+            "char": "ý",
             "shifted": {
               "type": "compass",
-              "char": "^"
+              "char": "5"
             }
           },
           {
             "type": "compass",
-            "char": "6",
+            "char": "č",
             "shifted": {
               "type": "compass",
-              "char": "="
+              "char": "6"
             }
           },
           {
             "type": "compass",
-            "char": "7",
+            "char": "ě",
             "shifted": {
               "type": "compass",
-              "char": "*"
+              "char": "7"
             }
           },
           {
             "type": "compass",
-            "char": "8",
+            "char": "í",
             "shifted": {
               "type": "compass",
-              "char": ")"
+              "char": "8"
             }
           },
           {
             "type": "compass",
-            "char": "9",
+            "char": "é",
             "shifted": {
               "type": "compass",
-              "char": "$"
+              "char": "9"
             }
           },
           {
             "type": "compass",
-            "char": "0",
+            "char": "š",
             "shifted": {
               "type": "compass",
-              "char": "+"
+              "char": "0"
             }
           },
           {
             "type": "compass",
-            "char": "<",
+            "char": "´",
             "shifted": {
               "type": "compass",
-              "char": ">"
+              "char": "ˇ"
             }
           },
           {
@@ -261,7 +261,7 @@
           },
           {
             "type": "compass",
-            "char": "'",
+            "char": "’",
             "shifted": {
               "type": "compass",
               "char": "\""
@@ -269,26 +269,26 @@
           },
           {
             "type": "compass",
+            "char": "„",
+            "shifted": {
+              "type": "compass",
+              "char": "("
+            }
+          },
+          {
+            "type": "compass",
             "char": "“",
             "shifted": {
               "type": "compass",
+              "char": ")"
+            }
+          },
+          {
+            "type": "compass",
+            "char": "]",
+            "shifted": {
+              "type": "compass",
               "char": "["
-            }
-          },
-          {
-            "type": "compass",
-            "char": "”",
-            "shifted": {
-              "type": "compass",
-              "char": "]"
-            }
-          },
-          {
-            "type": "compass",
-            "char": "}",
-            "shifted": {
-              "type": "compass",
-              "char": "{"
             }
           }
         ],

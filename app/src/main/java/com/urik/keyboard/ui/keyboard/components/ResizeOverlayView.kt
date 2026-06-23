@@ -127,6 +127,7 @@ class ResizeOverlayView(context: Context) : View(context) {
         splitId = -1
         downInGrip = false
         movedBeforeActivate = false
+        parent?.requestDisallowInterceptTouchEvent(false)
         invalidate()
     }
 
@@ -144,6 +145,10 @@ class ResizeOverlayView(context: Context) : View(context) {
                 primaryDrawX = event.x
                 primaryDrawY = event.y
                 postDelayed(activateRunnable, longPressMs)
+                // Own the gesture for the whole grip interaction: stop the parent (SwipeKeyboardView) from
+                // re-intercepting MOVEs — otherwise its onInterceptTouchEvent resolves the grip's corner DOWN
+                // to the (nearest) Space key and a drag opens the space-slide menu mid-resize.
+                parent?.requestDisallowInterceptTouchEvent(true)
                 return true
             }
 
