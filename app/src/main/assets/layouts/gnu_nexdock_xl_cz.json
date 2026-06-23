@@ -70,6 +70,16 @@
           {
             "type": "compass",
             "char": "Del"
+          },
+          {
+            "type": "compass",
+            "char": "HIDE",
+            "flick": {
+              "center": {
+                "action": "hide",
+                "label": "HIDE"
+              }
+            }
           }
         ],
         [
@@ -489,11 +499,11 @@
         [
           {
             "type": "compass",
-            "char": "Ctrl",
+            "char": "Alt",
             "flick": {
               "center": {
-                "action": "ctrl",
-                "label": "Ctrl"
+                "action": "alt",
+                "label": "Alt"
               }
             }
           },
@@ -507,15 +517,17 @@
           },
           {
             "type": "compass",
-            "char": "Alt"
+            "char": "Ctrl",
+            "flick": {
+              "center": {
+                "action": "ctrl",
+                "label": "Ctrl"
+              }
+            }
           },
           {
             "type": "action",
             "action": "space"
-          },
-          {
-            "type": "compass",
-            "char": "Alt"
           },
           {
             "type": "compass",
@@ -524,6 +536,16 @@
               "center": {
                 "action": "ctrl",
                 "label": "Ctrl"
+              }
+            }
+          },
+          {
+            "type": "compass",
+            "char": "Alt",
+            "flick": {
+              "center": {
+                "action": "alt",
+                "label": "Alt"
               }
             }
           },

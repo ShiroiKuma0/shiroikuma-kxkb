@@ -2714,43 +2714,207 @@ open class UrikInputMethodService :
     // physical-key path, which commits straight to the field and never reaches the soft dispatch chain.
     private var hwPendingDeadKey: Char? = null
 
+    // META bitmask of the command modifiers (Ctrl/Alt/Meta) a hardware-keymap layout currently holds — driven
+    // by the layout, NOT the OS metaState, so a physical Ctrl/Alt key reassigned to a letter types the letter
+    // (no stray Ctrl on the next key) and any key assigned a Ctrl/Alt/Meta action becomes that modifier at its
+    // position. Shift stays native (see handleHardwareRemap). Cleared per-key in onKeyUp and wholesale in
+    // onFinishInput so a missed release can't stick.
+    private var hwHeldModifiers = 0
+
+    /** The active layout for the physical-key path — the StateFlow value, falling back to the rendered one. */
+    private fun activeHwLayout(): KeyboardLayout? =
+        (if (::viewModel.isInitialized) viewModel.layout.value else null)
+            ?: layoutManager.takeIf { ::layoutManager.isInitialized }?.effectiveLayout
+
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean =
         handleHardwareRemap(keyCode, event) || super.onKeyDown(keyCode, event)
 
-    /** Emit the active hardware-keymap layout's char for a physical key; returns true if it was handled. */
+    override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean =
+        releaseHeldModifier(keyCode, event) || super.onKeyUp(keyCode, event)
+
+    /**
+     * Map a physical key to whatever the hardware-keymap layout puts at its position — a character, a command
+     * modifier, an action, or a soft action — so EVERY physical key (Ctrl and Alt included) is reassignable.
+     * Returns true if handled. Modifier state is read from the layout-driven latch, never the OS metaState, so
+     * a Ctrl/Alt key reassigned to a letter just types the letter. Shift stays native so Shift+navigation and
+     * the caps interplay keep working.
+     */
     private fun handleHardwareRemap(keyCode: Int, event: KeyEvent): Boolean {
-        // Source the layout from the viewModel (loaded in onCreate, persists in a StateFlow), NOT the rendered
-        // view — so remapping keeps working when the soft keyboard is hidden (the point of a NexDock: a
-        // physical keyboard + external monitor with no on-screen keyboard eating the screen).
-        val layout = (if (::viewModel.isInitialized) viewModel.layout.value else null)
-            ?: layoutManager.takeIf { ::layoutManager.isInitialized }?.effectiveLayout
-            ?: return false
+        // Source the layout from the viewModel (a StateFlow), NOT the rendered view, so remapping keeps working
+        // when the soft keyboard is hidden (the point of a NexDock: a physical keyboard + external monitor).
+        val layout = activeHwLayout() ?: return false
         if (!layout.hardwareKeymap || !isPhysicalKeyboardEvent(event)) return false
         val (r, c) = hwKeymap[keyCode] ?: return dropDeadKeyUnlessModifier(keyCode)
-        val key = layout.rows.getOrNull(r)?.getOrNull(c)
-        val ch = key?.let { remappedChar(it, event) } ?: return dropDeadKeyUnlessModifier(keyCode)
-        // A character key: run it through the dead-key state machine (Czech ´ ˇ on this layout), then commit.
-        val pending = hwPendingDeadKey
-        if (pending != null) {
+        val key = layout.rows.getOrNull(r)?.getOrNull(c) ?: return dropDeadKeyUnlessModifier(keyCode)
+
+        // 1) A layout command modifier (Ctrl/Alt/Meta) on this key — latch it; this is how relocation works
+        //    (Caps assigned Ctrl) AND how a kept Ctrl works (driven by the layout, not the OS). A physical
+        //    modifier key keeps going native too (so apps reading real modifier key events still see it); a
+        //    relocated one is consumed so its own meaning (Caps Lock, a letter) is suppressed.
+        modifierFlagOf(key).takeIf { it != 0 }?.let { flag ->
+            hwHeldModifiers = hwHeldModifiers or flag
             hwPendingDeadKey = null
-            DeadKeys.compose(ch, pending)?.let { outputBridge.sendCharacter(it); return true }
-            // No precomposed form: emit the spacing diacritic literally, then fall through to emit / re-arm `ch`.
-            outputBridge.sendCharacter(DeadKeys.spacingFor(pending))
+            // Pass the event native ONLY when the physical key's own modifier matches what the layout assigns
+            // here (so apps still see a real modifier key); otherwise consume, so a reassigned modifier — a
+            // physical Ctrl set to Alt, or Caps set to Ctrl — doesn't leak its native modifier alongside the
+            // synthesized one.
+            return physicalModifierFlag(keyCode) != flag
         }
-        DeadKeys.combiningFor(ch)?.let { hwPendingDeadKey = it; return true }
-        outputBridge.sendCharacter(ch)
-        return true
+
+        val command = hwHeldModifiers
+        val shift = event.isShiftPressed
+        val meta = command or (if (shift) KeyEvent.META_SHIFT_ON else 0)
+
+        // 2) A character key — a chord under a command modifier (Ctrl + the "g" key → C-g), else dead-key + text.
+        remappedChar(key, shift, event.isCapsLockOn)?.let { ch ->
+            if (command != 0) {
+                hwPendingDeadKey = null
+                // remappedChar only returns non-null for a single-char FlickKey, so the cast is safe; the chord
+                // uses the unshifted base char's keycode (shift rides `meta`).
+                return emitCharChord((key as KeyboardKey.FlickKey).center[0], meta)
+            }
+            val pending = hwPendingDeadKey
+            if (pending != null) {
+                hwPendingDeadKey = null
+                DeadKeys.compose(ch, pending)?.let { c2 -> outputBridge.sendCharacter(c2); return true }
+                // No precomposed form: emit the spacing diacritic literally, then fall through to emit / re-arm.
+                outputBridge.sendCharacter(DeadKeys.spacingFor(pending))
+            }
+            DeadKeys.combiningFor(ch)?.let { hwPendingDeadKey = it; return true }
+            outputBridge.sendCharacter(ch)
+            return true
+        }
+
+        // 3) An action key (Enter/Space/Backspace/Tab/Esc/arrows) — emit its keycode so a REASSIGNED key fires
+        //    the action (physical Alt assigned Enter → Enter) and command/Shift combine (C-Space, S-Tab). A
+        //    key already on its native keycode with no command modifier passes through natively (unchanged).
+        actionKeyCode(key)?.let { kc ->
+            if (kc == keyCode && command == 0) return dropDeadKeyUnlessModifier(keyCode)
+            hwPendingDeadKey = null
+            sendChordKeyEvent(kc, meta)
+            return true
+        }
+
+        // 4) A soft-keyboard action with no key event (hide, language switch, editor ops) — route it through the
+        //    GNU handler so a reassigned physical key can trigger it too.
+        softActionName(key)?.let {
+            hwPendingDeadKey = null
+            handleGnuAction(it)
+            return true
+        }
+
+        // 5) Anything else (F-keys, Caps Lock, bare labels) — the native physical key.
+        return dropDeadKeyUnlessModifier(keyCode)
+    }
+
+    /** Clear a latched command modifier when its physical key is released; mirrors handleHardwareRemap step 1. */
+    private fun releaseHeldModifier(keyCode: Int, event: KeyEvent): Boolean {
+        val layout = activeHwLayout() ?: return false
+        if (!layout.hardwareKeymap || !isPhysicalKeyboardEvent(event)) return false
+        val (r, c) = hwKeymap[keyCode] ?: return false
+        val key = layout.rows.getOrNull(r)?.getOrNull(c) ?: return false
+        val flag = modifierFlagOf(key)
+        if (flag == 0) return false
+        hwHeldModifiers = hwHeldModifiers and flag.inv()
+        return physicalModifierFlag(keyCode) != flag
+    }
+
+    /** The modifier a physical key natively IS (Ctrl/Alt/Shift/Meta), as a META bit, or 0. */
+    private fun physicalModifierFlag(keyCode: Int): Int = when (keyCode) {
+        KeyEvent.KEYCODE_CTRL_LEFT, KeyEvent.KEYCODE_CTRL_RIGHT -> KeyEvent.META_CTRL_ON
+        KeyEvent.KEYCODE_ALT_LEFT, KeyEvent.KEYCODE_ALT_RIGHT -> KeyEvent.META_ALT_ON
+        KeyEvent.KEYCODE_SHIFT_LEFT, KeyEvent.KEYCODE_SHIFT_RIGHT -> KeyEvent.META_SHIFT_ON
+        KeyEvent.KEYCODE_META_LEFT, KeyEvent.KEYCODE_META_RIGHT -> KeyEvent.META_META_ON
+        else -> 0
     }
 
     /**
-     * An action / modifier / unmapped physical key reached the remap while a dead key may be armed. A modifier
-     * (Shift/Ctrl/Alt) is transparent — held alongside the next letter to make Á/Č — so it leaves the pending
-     * mark intact; anything else (space, enter, arrows…) drops it, matching the soft path. Always returns false
-     * so the system still handles the key normally.
+     * An action / unmapped physical key reached the remap while a dead key may be armed. Anything that isn't a
+     * modifier (space, enter, arrows…) drops the pending mark, matching the soft path. Always returns false so
+     * the system still handles the key normally.
      */
     private fun dropDeadKeyUnlessModifier(keyCode: Int): Boolean {
         if (!KeyEvent.isModifierKey(keyCode)) hwPendingDeadKey = null
         return false
+    }
+
+    /**
+     * The command modifier (Ctrl/Alt/Meta) a layout key holds while pressed, as a META bit, or 0. Shift is NOT
+     * here — it stays native so Shift+navigation and the caps interplay keep working; only the command
+     * modifiers are layout-driven (and thus relocatable / reassignable).
+     */
+    private fun modifierFlagOf(key: KeyboardKey?): Int = when (key) {
+        is KeyboardKey.FlickKey -> when ((key.bindings["center"] as? KeyboardKey.FlickBinding.Action)?.name) {
+            "ctrl" -> KeyEvent.META_CTRL_ON
+            "alt" -> KeyEvent.META_ALT_ON
+            "meta", "super" -> KeyEvent.META_META_ON
+            else -> 0
+        }
+        else -> 0
+    }
+
+    /** Soft-keyboard binding actions (no key event) a reassigned physical key may trigger via [handleGnuAction]. */
+    private val hwSoftActions =
+        setOf("hide", "next_language", "undo", "redo", "cut", "copy", "paste", "select_all")
+
+    private fun softActionName(key: KeyboardKey): String? =
+        ((key as? KeyboardKey.FlickKey)?.bindings?.get("center") as? KeyboardKey.FlickBinding.Action)
+            ?.name?.takeIf { it in hwSoftActions }
+
+    /** Send a Ctrl/Alt/Meta chord for the REMAPPED base char [ch] (Ctrl + the key that types "g" → C-g). */
+    private fun emitCharChord(ch: Char, meta: Int): Boolean {
+        val (kc, charNeedsShift) = keycodeForChar(ch) ?: return false
+        val command = meta and (KeyEvent.META_CTRL_ON or KeyEvent.META_ALT_ON or KeyEvent.META_META_ON)
+        val shift = if ((meta and KeyEvent.META_SHIFT_ON) != 0 || charNeedsShift) KeyEvent.META_SHIFT_ON else 0
+        sendChordKeyEvent(kc, command or shift)
+        return true
+    }
+
+    /** The (keyCode, needsShift) that types [ch] on a virtual keyboard, or null if it has no plausible event. */
+    private fun keycodeForChar(ch: Char): Pair<Int, Boolean>? {
+        val events = virtualKeyCharMap.getEvents(charArrayOf(ch)) ?: return null
+        val down = events.firstOrNull {
+            it.action == KeyEvent.ACTION_DOWN && !KeyEvent.isModifierKey(it.keyCode)
+        } ?: return null
+        return down.keyCode to down.isShiftPressed
+    }
+
+    /** The keycode a layout action / centre-bound binding sends under a modifier (C-Space, C-←), or null. */
+    private fun actionKeyCode(key: KeyboardKey): Int? = when (key) {
+        is KeyboardKey.Action -> when (key.action) {
+            KeyboardKey.ActionType.SPACE -> KeyEvent.KEYCODE_SPACE
+            KeyboardKey.ActionType.ENTER -> KeyEvent.KEYCODE_ENTER
+            KeyboardKey.ActionType.BACKSPACE -> KeyEvent.KEYCODE_DEL
+            KeyboardKey.ActionType.TAB -> KeyEvent.KEYCODE_TAB
+            else -> null
+        }
+        is KeyboardKey.FlickKey -> when ((key.bindings["center"] as? KeyboardKey.FlickBinding.Action)?.name) {
+            "space" -> KeyEvent.KEYCODE_SPACE
+            "enter" -> KeyEvent.KEYCODE_ENTER
+            "backspace" -> KeyEvent.KEYCODE_DEL
+            "tab" -> KeyEvent.KEYCODE_TAB
+            "escape" -> KeyEvent.KEYCODE_ESCAPE
+            "arrow_left" -> KeyEvent.KEYCODE_DPAD_LEFT
+            "arrow_right" -> KeyEvent.KEYCODE_DPAD_RIGHT
+            "arrow_up" -> KeyEvent.KEYCODE_DPAD_UP
+            "arrow_down" -> KeyEvent.KEYCODE_DPAD_DOWN
+            else -> null
+        }
+        else -> null
+    }
+
+    /**
+     * Send one [keyCode] down/up stamped with [metaState] (Ctrl/Alt/Meta/Shift). Unlike [sendKeyEventWithMeta]
+     * it does NOT wrap the key in synthetic modifier down/up events: the modifier rides the event's metaState,
+     * which is what apps (terminals included) read — correct whether the modifier is physically held or a
+     * relocated latch, and avoiding a spurious "modifier released" mid-chord when it is physically held.
+     */
+    private fun sendChordKeyEvent(keyCode: Int, metaState: Int) {
+        val ic = currentInputConnection ?: return
+        val now = SystemClock.uptimeMillis()
+        val flags = KeyEvent.FLAG_SOFT_KEYBOARD or KeyEvent.FLAG_KEEP_TOUCH_MODE
+        ic.sendKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_DOWN, keyCode, 0, metaState, KeyCharacterMap.VIRTUAL_KEYBOARD, 0, flags))
+        ic.sendKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_UP, keyCode, 0, metaState, KeyCharacterMap.VIRTUAL_KEYBOARD, 0, flags))
     }
 
     private fun isPhysicalKeyboardEvent(event: KeyEvent): Boolean {
@@ -2761,16 +2925,15 @@ open class UrikInputMethodService :
     }
 
     /**
-     * The character a layout [key] emits under the event's shift/caps state — or null if the key isn't a
-     * plain single-character key (function / action / binding keys, and multi-char labels, pass through). A
-     * letter honours Caps (shift XOR caps); a symbol only Shift. The explicit shifted face wins; else uppercase.
+     * The character a layout [key] emits under the effective [shiftActive]/[capsOn] state — or null if the key
+     * isn't a plain single-character key (function / action / binding keys, and multi-char labels, pass
+     * through). A letter honours Caps (shift XOR caps); a symbol only Shift. The explicit shifted face wins.
      */
-    private fun remappedChar(key: KeyboardKey, event: KeyEvent): String? {
+    private fun remappedChar(key: KeyboardKey, shiftActive: Boolean, capsOn: Boolean): String? {
         if (key !is KeyboardKey.FlickKey || key.bindings.isNotEmpty()) return null
         val base = key.center
         if (base.length != 1) return null
-        val useShifted =
-            if (base[0].isLetter()) event.isShiftPressed != event.isCapsLockOn else event.isShiftPressed
+        val useShifted = if (base[0].isLetter()) shiftActive != capsOn else shiftActive
         return if (useShifted) key.shifted?.center ?: base.uppercase() else base
     }
 
@@ -2778,6 +2941,7 @@ open class UrikInputMethodService :
         super.onFinishInput()
 
         hwPendingDeadKey = null
+        hwHeldModifiers = 0
 
         if (::layoutManager.isInitialized) {
             layoutManager.stopAcceleratedBackspace()
