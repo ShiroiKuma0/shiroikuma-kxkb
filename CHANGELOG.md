@@ -4,7 +4,47 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+164 — current
+## 0.23.1+172 — current
+
+Built on Urik `0.23.1-beta`. A **NexDock XL** focus: a Czech variant with dead keys on the physical
+keyboard and a **fully reassignable** hardware keymap (move Ctrl/Alt anywhere), plus **per-layout**
+keyboard sizing and a resize-gesture fix.
+
+### NexDock XL CZ + dead keys on the physical keyboard
+
+- New **NexDock XL CZ** layout — a no-prediction Czech variant of the NexDock XL hardware keymap: a
+  Czech number row (`ě š č ř ž ý á í é` and `ů` as the base faces, digits on Shift) and Czech
+  quotes/brackets (`„ " ’ ( ) [ ]`).
+- **`´` and `ˇ` are dead keys on the physical keyboard** — press the accent, then a letter, to compose
+  (`´`+a → á, `ˇ`+c → č); held modifiers stay transparent. The hardware keymap commits straight to the
+  field, so no prediction candidates ever appear while typing on the physical board.
+- The base **NexDock XL** top rows gained the curly quotes `“ ”` and reshuffled brackets.
+
+### A fully reassignable hardware keymap
+
+- **Modifier chords now follow the remap.** Holding Ctrl/Alt and pressing a key sends the modifier with
+  the **remapped** key — `Ctrl` + the key that types “g” → `C-g`, not the physical g — so Emacs-style
+  chords match your layout, not the key labels. Action chords work too (`C-Space`, `C-←`, `S-Tab`).
+- **Ctrl / Alt / Meta are layout-driven and fully reassignable.** Assign a modifier to **any** key
+  (Caps → Ctrl), reassign a Ctrl/Alt key to a regular letter, or turn a modifier key into an action
+  (Alt → Enter). Shift stays native, so Shift+navigation and the caps interplay keep working.
+- A **HIDE key** sits at the right end of the top (F-key) row on both NexDock layouts — tap it to
+  dismiss the on-screen keyboard while the physical keyboard keeps typing.
+- On both NexDock layouts the **Ctrl and Alt keys are swapped** — the physical Ctrl keys act as Alt,
+  the Alt keys as Ctrl.
+
+### Per-layout keyboard size
+
+- Keyboard size — height, width, bottom-lift and split — is now remembered **per app, per layout, per
+  geometry**. Resizing one layout (e.g. the tall NexDock) no longer changes the size of your other
+  layouts; the Keyboard-UI sliders still set the general default.
+
+### Fixes
+
+- The on-keyboard **resize gesture no longer opens the space-slide menu**: long-pressing the top-left
+  grip and dragging now resizes cleanly instead of popping the layout/language menu.
+
+## 0.23.1+164
 
 Built on Urik `0.23.1-beta`. The keyboard now works **on the lock screen** before first unlock,
 **remaps a physical keyboard** to a layout, and turns the **toolbar shortcuts** into real actions.
