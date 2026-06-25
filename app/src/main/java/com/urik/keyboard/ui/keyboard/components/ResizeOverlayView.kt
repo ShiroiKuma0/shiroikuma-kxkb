@@ -79,6 +79,10 @@ class ResizeOverlayView(context: Context) : View(context) {
     /** Pixels of gap at split fraction 1.0 — set by the host so the dots sit on the real split edges. */
     var maxSplitPx = 0f
 
+    /** Upper bound on the height scale — the host sets it to the largest scale that still fits the screen for
+     *  the current layout, so dragging up stops exactly where the keyboard fills its budget (no dead zone). */
+    var maxHeightScale = 4f
+
     private var cur = ResizeValues(1f, 1f, 0f, 0f)
     // The keyboard's unscaled height in px, captured at grab — the 1:1 reference so the top tracks the finger.
     private var baseHeightPx = 1f
@@ -191,7 +195,7 @@ class ResizeOverlayView(context: Context) : View(context) {
                     } else {
                         // 1:1 with the finger: dragging up by N px grows the keyboard by N px (top tracks finger).
                         cur = cur.copy(
-                            heightScale = (cur.heightScale + (primaryPrevScreenY - sy) / baseHeightPx).coerceIn(0.5f, 5.0f),
+                            heightScale = (cur.heightScale + (primaryPrevScreenY - sy) / baseHeightPx).coerceIn(0.5f, maxHeightScale),
                             widthScale = (cur.widthScale + (primaryPrevScreenX - sx) / refW).coerceIn(0.5f, 1.0f)
                         )
                     }
@@ -215,7 +219,7 @@ class ResizeOverlayView(context: Context) : View(context) {
                         val liftDeltaPx = (newLift - oldLift) * density
                         cur = cur.copy(
                             bottomLiftDp = newLift,
-                            heightScale = (cur.heightScale - liftDeltaPx / baseHeightPx).coerceIn(0.5f, 5.0f),
+                            heightScale = (cur.heightScale - liftDeltaPx / baseHeightPx).coerceIn(0.5f, maxHeightScale),
                             widthScale = (cur.widthScale + (lsx - liftPrevScreenX) / refW).coerceIn(0.5f, 1.0f)
                         )
                         liftPrevScreenX = lsx

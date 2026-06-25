@@ -330,6 +330,10 @@
     <string name="keyboard_ui_geometry_unfolded_port">Unfolded · Portrait</string>
     <string name="keyboard_ui_geometry_unfolded_land">Unfolded · Landscape</string>
     <string name="keyboard_ui_category_geometry">Geometry</string>
+    <string name="keyboard_ui_reset_layout">Reset layout to default</string>
+    <string name="keyboard_ui_reset_layout_summary">Resets the size of the app you last typed in — other apps keep their own</string>
+    <string name="keyboard_ui_reset_layout_done">Reset %1$s to default</string>
+    <string name="keyboard_ui_reset_layout_none">No keyboard app to reset yet</string>
     <string name="keyboard_ui_category_size">Size</string>
     <string name="keyboard_ui_category_text">Text</string>
     <!-- Reorganized hierarchy: sections, sub-categories and contextual short item names. -->

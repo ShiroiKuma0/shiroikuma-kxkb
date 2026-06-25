@@ -96,6 +96,9 @@ constructor(
         val LIBRARY_REPO_USER = stringPreferencesKey("library_repo_user")
         val LIBRARY_REPO_TOKEN = stringPreferencesKey("library_repo_token")
         val CURRENT_KEY_HEIGHT_SCALE = stringPreferencesKey("current_key_height_scale")
+        // The last REAL (non-self) app·layout·geometry the keyboard was shown in, so the Keyboard UI "Reset
+        // layout to default" button can target the app the user was actually typing in (not the settings app).
+        val CURRENT_SIZE_TARGET = stringPreferencesKey("current_size_target")
         val HAPTIC_FEEDBACK = booleanPreferencesKey("haptic_feedback")
         val VIBRATION_STRENGTH = intPreferencesKey("vibration_strength")
         val DOUBLE_SPACE_PERIOD = booleanPreferencesKey("double_space_period")
@@ -496,6 +499,14 @@ constructor(
             .distinctUntilChanged()
 
     /**
+     * The DECODED look map (key -> knobs), emitted on change. The IME caches this in memory so it can resolve
+     * the per-(app·layout·geometry) size SYNCHRONOUSLY on the show path — an async resolve sized the window a
+     * frame late and clipped the keyboard.
+     */
+    val perGeometryLookMap: Flow<Map<String, KeyboardLookKnobs>> =
+        perGeometryLook.map { raw -> raw?.let { decodeLookMap(it) } ?: emptyMap() }
+
+    /**
      * The geometry bucket the running keyboard is currently using, published by the IME service so the
      * Keyboard UI screen can follow it live (e.g. update the selector when the user rotates or folds).
      */
@@ -513,6 +524,24 @@ constructor(
             }
         } catch (e: Exception) {
             // best-effort; the UI falls back to a Configuration-derived guess
+        }
+    }
+
+    /** The last REAL app's size-override key (`app|layoutId|geometry`), for the Keyboard UI reset button. */
+    val currentSizeTarget: Flow<String?> =
+        dataStore.data
+            .map { it[PreferenceKeys.CURRENT_SIZE_TARGET] }
+            .distinctUntilChanged()
+
+    suspend fun setCurrentSizeTarget(key: String) {
+        try {
+            dataStore.edit {
+                if (it[PreferenceKeys.CURRENT_SIZE_TARGET] != key) {
+                    it[PreferenceKeys.CURRENT_SIZE_TARGET] = key
+                }
+            }
+        } catch (e: Exception) {
+            // best-effort; the reset button just stays a no-op if this never published
         }
     }
 
@@ -709,6 +738,24 @@ constructor(
         geometry: String,
         knobs: KeyboardLookKnobs
     ): Result<Unit> = putLook(sizeOverrideKey(app, layoutId, geometry), knobs)
+
+    /**
+     * Per-app "reset layout to default": remove ONLY this (app·layout·geometry) size override, so this app's
+     * keyboard falls back to the geometry baseline while every OTHER app keeps the size it was resized to.
+     * No-op if there's no override for this combo.
+     */
+    suspend fun clearSizeOverride(app: String, layoutId: String, geometry: String): Result<Unit> = try {
+        dataStore.edit { preferences ->
+            val current = preferences[PreferenceKeys.PER_GEOMETRY_LOOK]?.let { decodeLookMap(it) }
+            val key = sizeOverrideKey(app, layoutId, geometry)
+            if (current != null && current.containsKey(key)) {
+                preferences[PreferenceKeys.PER_GEOMETRY_LOOK] = encodeLookMap(current - key)
+            }
+        }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
 
     private suspend fun putLook(key: String, knobs: KeyboardLookKnobs): Result<Unit> = try {
         dataStore.edit { preferences ->

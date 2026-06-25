@@ -124,7 +124,7 @@ constructor(
         // so the keyboard works on the lock screen without touching credential-protected storage.
         if (!context.isUserUnlocked) {
             return@withContext try {
-                Result.success(loadLayoutFromAssets(mode, BFU_LAYOUT_ID, currentAction, locale))
+                Result.success(loadLayoutFromAssets(mode, BFU_LAYOUT_ID, currentAction, locale).copy(id = BFU_LAYOUT_ID))
             } catch (e: Exception) {
                 Result.failure(e)
             }
@@ -139,7 +139,9 @@ constructor(
         }
 
         return@withContext try {
-            val layout = loadLayoutFromAssets(mode, layoutIdentifier, currentAction, locale)
+            // Stamp the registry id onto the layout so the IME can read it synchronously (per-(app·layout·
+            // geometry) size resolution on the show path must not block on an async id lookup).
+            val layout = loadLayoutFromAssets(mode, layoutIdentifier, currentAction, locale).copy(id = layoutIdentifier)
             layoutCache.put(cacheKey, layout)
             Result.success(layout)
         } catch (e: Exception) {
@@ -291,6 +293,10 @@ constructor(
         val modes = layoutData.getJSONObject("modes")
         val modeKey = mode.name.lowercase()
 
+        // The letters page's row count — carried on EVERY mode so the height clamp uses one reference and the
+        // keyboard stays the same height across pages (see KeyboardLayout.referenceRows).
+        val referenceRows = modes.optJSONObject("letters")?.optJSONArray("rows")?.length() ?: 0
+
         if (!modes.has(modeKey)) {
             // The Number pad (alt3) is a fixed shared design supplied by the fallback, so layouts need not
             // each declare a `numpad` section — render the canonical calc-pad whenever it is absent.
@@ -300,7 +306,8 @@ constructor(
                     rows = getFallbackNumpadLayout(currentAction),
                     isRTL = isRTL,
                     script = script,
-                    showFlickHints = showFlickHints
+                    showFlickHints = showFlickHints,
+                    referenceRows = referenceRows
                 )
             }
             error("Layout data missing mode: $modeKey")
@@ -330,7 +337,8 @@ constructor(
             isRTL = isRTL,
             script = script,
             showFlickHints = showFlickHints,
-            hardwareKeymap = hardwareKeymap
+            hardwareKeymap = hardwareKeymap,
+            referenceRows = referenceRows
         )
     }
 

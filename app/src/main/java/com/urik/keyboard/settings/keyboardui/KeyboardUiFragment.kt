@@ -40,6 +40,7 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
     private lateinit var geometryPref: ListPreference
     private lateinit var localePref: ListPreference
     private lateinit var modePref: ListPreference
+    private lateinit var resetPref: Preference
     private lateinit var heightPref: SeekBarPreference
     private lateinit var topRowHeightPref: SeekBarPreference
     private lateinit var bottomRowHeightPref: SeekBarPreference
@@ -204,7 +205,7 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                     )
                 summaryProvider = ListPreference.SimpleSummaryProvider.getInstance()
             }
-        heightPref = seekBar("kb_ui_height", R.string.keyboard_ui_item_height, min = 50, max = 200)
+        heightPref = seekBar("kb_ui_height", R.string.keyboard_ui_item_height, min = 50, max = 400)
         topRowHeightPref = seekBar("kb_ui_top_row_height", R.string.keyboard_ui_item_top_row_height, min = 50, max = 200)
         bottomRowHeightPref = seekBar("kb_ui_bottom_row_height", R.string.keyboard_ui_item_bottom_row_height, min = 50, max = 200)
         widthPref = seekBar("kb_ui_width", R.string.keyboard_ui_item_width, min = 50, max = 100)
@@ -405,6 +406,18 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         libraryCategory.addPreference(libBadgeSizePref)
         libraryCategory.addPreference(libBadgeColorPref)
 
+        // Bottom of the page: per-app reset. Clears ONLY the size of the app the user was last typing in
+        // (published by the IME), so that app reverts to default while every other app keeps its own size.
+        resetPref =
+            Preference(context).apply {
+                key = "kb_ui_reset"
+                isPersistent = false
+                layoutResource = R.layout.preference_item_kxkb
+                title = resources.getString(R.string.keyboard_ui_reset_layout)
+                summary = resources.getString(R.string.keyboard_ui_reset_layout_summary)
+            }
+        screen.addPreference(resetPref)
+
         preferenceScreen = screen
     }
 
@@ -491,6 +504,21 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
 
         geometryPref.setOnPreferenceChangeListener { _, newValue ->
             viewModel.selectGeometry(newValue as String)
+            true
+        }
+        resetPref.setOnPreferenceClickListener {
+            val app = viewModel.resetCurrentApp()
+            val msg =
+                if (app == null) {
+                    getString(R.string.keyboard_ui_reset_layout_none)
+                } else {
+                    val pm = requireContext().packageManager
+                    val label =
+                        runCatching { pm.getApplicationLabel(pm.getApplicationInfo(app, 0)).toString() }
+                            .getOrNull() ?: app
+                    getString(R.string.keyboard_ui_reset_layout_done, label)
+                }
+            Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show()
             true
         }
         // App interface language — independent of the phone locale and the keyboard's layout language.

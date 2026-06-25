@@ -124,6 +124,10 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
         }
     }
 
+    // The last REAL app's size-override key (`app|layoutId|geometry`), published by the IME — the target for
+    // the "Reset layout to default" button (the app the user was typing in, not the settings app).
+    @Volatile private var sizeTarget: String? = null
+
     init {
         // Follow the geometry the running keyboard is actually using (published by the IME service),
         // so rotating/folding while the keyboard is shown moves the selector + sliders to that bucket.
@@ -131,6 +135,9 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
             settingsRepository.currentGeometry.collect { live ->
                 if (live != null && live != _uiState.value.geometry) selectGeometry(live)
             }
+        }
+        viewModelScope.launch {
+            settingsRepository.currentSizeTarget.collect { sizeTarget = it }
         }
         viewModelScope.launch {
             currentLibrary = settingsRepository.getLibraryLook()
@@ -291,6 +298,29 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
                 .updateKeyPreviewEnabled(enabled)
                 .onFailure { _events.emit(SettingsEvent.Error.KeyboardUiUpdateFailed) }
         }
+    }
+
+    /**
+     * Escape hatch: reset THIS geometry's size knobs to a known-usable state — a large height, full width, no
+     * split, no bottom-lift, no per-axis key gaps and no per-row height tweaks — so a resize/look that left the
+     * keyboard unusable can be recovered from the settings screen. Colours/fonts are preserved.
+     */
+    /**
+     * "Reset layout to default": clear the size override for the app the user was last typing in (published by
+     * the IME as `app|layoutId|geometry`, NOT the settings app), so that app reverts to the default size while
+     * every other app keeps its own. Returns the target app's package for the confirmation toast, or null if
+     * there's nothing to reset.
+     */
+    fun resetCurrentApp(): String? {
+        val parts = sizeTarget?.split("|") ?: return null
+        if (parts.size != 3) return null
+        val (app, layoutId, geometry) = parts
+        viewModelScope.launch {
+            settingsRepository
+                .clearSizeOverride(app, layoutId, geometry)
+                .onFailure { _events.emit(SettingsEvent.Error.KeyboardUiUpdateFailed) }
+        }
+        return app
     }
 
     private fun persist(updated: KeyboardLookKnobs) {

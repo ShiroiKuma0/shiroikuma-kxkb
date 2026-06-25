@@ -1507,6 +1507,10 @@ open class UrikInputMethodService :
                 viewModel.layout.collect { layout ->
                     if (layout != null) {
                         updateSwipeKeyboard()
+                        // The layout id is now known — re-resolve the per-(app·layout·geometry) size with the
+                        // real id (the first show may have resolved before the layout finished loading) and
+                        // re-measure so the window matches the now-correct height (cold-start clip fix).
+                        refreshLookKnobs()
                         val locale = ULocale.forLanguageTag(languageManager.currentLayoutLanguage.value)
                         updateScriptContext(locale)
                     }
@@ -1566,9 +1570,15 @@ open class UrikInputMethodService :
 
         observerJobs.add(
             serviceScope.launch {
-                // Re-resolve + re-apply the per-geometry look whenever the look store changes
-                // (e.g. the Keyboard UI sliders or the on-keyboard resize gesture wrote a knob).
-                settingsRepository.perGeometryLook.collect { refreshLookKnobs() }
+                // Cache the decoded look map in memory and re-resolve + re-apply whenever it changes (the
+                // Keyboard UI sliders or the on-keyboard resize wrote a knob). The cache lets refreshLookKnobs
+                // resolve the per-(app·layout·geometry) size SYNCHRONOUSLY on the show path (serviceScope is
+                // Main), so the window is sized to the right height up front instead of a frame late (clipping).
+                settingsRepository.perGeometryLookMap.collect {
+                    lookMapCache = it
+                    lookMapLoaded = true
+                    refreshLookKnobs()
+                }
             }
         )
 
@@ -1631,42 +1641,114 @@ open class UrikInputMethodService :
      * the mode's base dimensions before they reach the renderer / swipe views.
      */
     private fun withLookKnobs(dims: AdaptiveDimensions): AdaptiveDimensions {
-        if (isUserUnlocked) return activeLookKnobs.applyTo(dims, resources.displayMetrics.density)
+        if (isUserUnlocked) return clampKeyboardHeight(activeLookKnobs.applyTo(dims, resources.displayMetrics.density))
         // On the lock screen (BFU) the saved per-geometry look is unreadable — force the tall, gapless,
         // double-primary-font BFU look for fast PIN entry, full-bleed (no side inset) to the screen edges.
-        return KeyboardLookKnobs.BFU.applyTo(dims, resources.displayMetrics.density)
-            .copy(keyboardPaddingHorizontalPx = 0)
+        return clampKeyboardHeight(
+            KeyboardLookKnobs.BFU.applyTo(dims, resources.displayMetrics.density)
+                .copy(keyboardPaddingHorizontalPx = 0)
+        )
+    }
+
+    /**
+     * HARD CEILING on per-row key height so the whole keyboard can never exceed the display. A large
+     * keyHeightScale makes the IME window taller than the screen, which the framework rejects → the keyboard
+     * opens-and-closes (it bricks). This caps keyHeightPx so (rows + the suggestion bar) stay within ~62% of
+     * the screen height; it ONLY shrinks an oversized value, so normal sizes are untouched. This is also the
+     * recovery path for an already-saved oversized value — no data wipe needed.
+     */
+    /**
+     * The row count height math uses: the layout's LETTERS-page rows, so the per-key height clamp resolves to
+     * the SAME value on every page (symbols/alt/numpad then normalise to the letters height — see
+     * KeyboardLayoutManager.pageHeightScale). Falls back to the current page's rows.
+     */
+    private fun referenceRowCount(): Int {
+        if (!::viewModel.isInitialized) return 5
+        val layout = viewModel.layout.value ?: return 5
+        return (layout.referenceRows.takeIf { it > 0 } ?: layout.rows.size).coerceAtLeast(1)
+    }
+
+    private fun clampKeyboardHeight(dims: AdaptiveDimensions): AdaptiveDimensions {
+        val rows = referenceRowCount()
+        val screenH = resources.displayMetrics.heightPixels
+        val maxKeyHeightPx = (screenH * 0.93f / (rows.coerceAtLeast(1) + 1)).toInt().coerceAtLeast(1)
+        return if (dims.keyHeightPx > maxKeyHeightPx) dims.copy(keyHeightPx = maxKeyHeightPx) else dims
+    }
+
+    /**
+     * The largest keyHeightScale that still fits the screen for the CURRENT layout (its row count) — the same
+     * ceiling [clampKeyboardHeight] enforces, expressed as a scale. The resolved scale is clamped to this and
+     * the resize drag is bounded by it, so the stored scale and the visible height stay in sync: dragging up
+     * stops exactly where the keyboard fills its budget (instead of a dead zone above it).
+     */
+    private fun maxHeightScale(): Float {
+        val base = keyboardModeManager.currentMode.value.adaptiveDimensions?.keyHeightPx ?: return 4f
+        if (base <= 0) return 4f
+        val rows = referenceRowCount()
+        val maxKeyHeightPx = resources.displayMetrics.heightPixels * 0.93f / (rows.coerceAtLeast(1) + 1)
+        return (maxKeyHeightPx / base).coerceIn(1f, 4f)
     }
 
     /**
      * Re-resolve the active look knobs from the store for the current geometry / layout language /
      * alternative layout (off the main thread), and re-apply if they changed. Idempotent.
      */
+    // The decoded per-geometry look map mirrored from the store, so refreshLookKnobs resolves the
+    // per-(app·layout·geometry) size SYNCHRONOUSLY — the keyboard is then sized right up front, not a frame
+    // late (which clipped it). Updated by the perGeometryLookMap collector.
+    @Volatile private var lookMapCache: Map<String, KeyboardLookKnobs> = emptyMap()
+    // False until the look map has been read from the store once. Until then refreshLookKnobs keeps the
+    // synchronous cold-start seed instead of resolving to DEFAULT (which would shrink-then-grow → flicker/clip).
+    @Volatile private var lookMapLoaded = false
+
+    /**
+     * Re-resolve the per-(app·layout·geometry) look from [lookMapCache] and re-apply if it changed.
+     * SYNCHRONOUS and on Main (every caller — the collectors and onStartInputView — runs on Main), so
+     * activeLookKnobs is correct BEFORE the IME window is sized. The async tail just publishes values for the
+     * settings screen / Library preview.
+     */
     private fun refreshLookKnobs() {
+        if (!lookMapLoaded) return // keep the synchronous cold-start seed until the map is read once
+        val geometry = postureDetector?.postureInfo?.value?.let { geometryKey(it) } ?: GeometryBucket.FOLDED_PORT.key
+        val app = currentInputEditorInfo?.packageName
+        val layoutId = if (::viewModel.isInitialized) viewModel.layout.value?.id.orEmpty() else ""
+        val resolved = resolveLookSync(app, layoutId, geometry)
+        if (resolved != activeLookKnobs) {
+            activeLookKnobs = resolved
+            reapplyLookKnobs()
+        }
         serviceScope.launch {
-            val geometry =
-                postureDetector?.postureInfo?.value?.let { geometryKey(it) } ?: GeometryBucket.FOLDED_PORT.key
-            // Publish the live geometry so the Keyboard UI screen can follow it (rotate/fold while shown).
             settingsRepository.setCurrentGeometry(geometry)
-            val language = languageManager.currentLayoutLanguage.value
-            // Publish the live layout language so the settings-side editor entry points can target the
-            // keyboard that's actually on screen (this runs on language switch too — see the collector above).
-            settingsRepository.setCurrentLayoutLanguage(language)
-            // Key the size override by the SAME registry layout id getLayoutForMode loads + the focused app, so
-            // each (app · layout · geometry) keeps its own height/width/lift/split and one resize never bleeds
-            // into other layouts. A null app (nothing focused) resolves the geometry baseline only.
-            val layoutId = repository.resolveActiveLayoutId(language)
-            val app = currentInputEditorInfo?.packageName
-            val resolved = settingsRepository.resolveLookKnobs(app, layoutId, geometry)
-            // Cache for the next cold start so the first render is already correct (see seedLookKnobsFromCache).
-            cacheLookKnobSeed(geometry, resolved)
-            // Publish the live key-height scale so the Library preview can match the real on-screen height.
+            settingsRepository.setCurrentLayoutLanguage(languageManager.currentLayoutLanguage.value)
             settingsRepository.setCurrentKeyHeightScale(resolved.keyHeightScale)
-            if (resolved != activeLookKnobs) {
-                activeLookKnobs = resolved
-                withContext(Dispatchers.Main) { reapplyLookKnobs() }
+            cacheLookKnobSeed(geometry, resolved)
+            // Remember the focused REAL app's override key so the Keyboard UI "Reset layout to default" button
+            // can target the app the user was typing in. Skip our own package (the settings test field) so a
+            // visit to the settings screen never overwrites the real target.
+            if (!app.isNullOrEmpty() && app != packageName) {
+                settingsRepository.setCurrentSizeTarget("$app|$layoutId|$geometry")
             }
         }
+    }
+
+    /**
+     * The effective knobs for [app]·[layoutId]·[geometry]: DEFAULT overlaid by the per-geometry baseline, then
+     * by the per-(app·layout·geometry) size override (the four resize knobs). app null/empty → baseline only.
+     * Reads only the in-memory [lookMapCache] (key format matches SettingsRepository.sizeOverrideKey), so it's
+     * cheap enough to call on the show path.
+     */
+    private fun resolveLookSync(app: String?, layoutId: String, geometry: String): KeyboardLookKnobs {
+        var resolved = KeyboardLookKnobs.DEFAULT
+        lookMapCache[geometry]?.let { resolved = resolved.overlay(it) }
+        if (!app.isNullOrEmpty()) {
+            lookMapCache["$app|$layoutId|$geometry"]?.let { resolved = resolved.overlay(it) }
+        }
+        // Clamp the height scale to what fits this layout so the stored scale never sits ABOVE the visible
+        // ceiling — otherwise the resize drag has a dead zone (moving the finger changes the scale but the
+        // clamped height doesn't budge). Also recovers a previously-saved oversized value.
+        val maxH = maxHeightScale()
+        resolved.keyHeightScale?.let { if (it > maxH) resolved = resolved.copy(keyHeightScale = maxH) }
+        return resolved
     }
 
     /**
@@ -1755,6 +1837,16 @@ open class UrikInputMethodService :
                 adaptiveContainer?.requestLayout()
                 root.requestLayout()
             }
+            // A third pass a few frames later: on the very first show the height can settle (caches + layout
+            // load async) AFTER both posted passes above ran against the still-short view, so the IME window
+            // keeps the short height and the bottom rows stay clipped until dismiss+reopen. A short delay lets
+            // the grow land, then this fresh requestLayout drives a measure→onComputeInsets→window-resize.
+            root.postDelayed({
+                if (!lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) return@postDelayed
+                swipeKeyboardView?.requestLayout()
+                adaptiveContainer?.requestLayout()
+                root.requestLayout()
+            }, 80)
         }
     }
 
@@ -1809,6 +1901,9 @@ open class UrikInputMethodService :
         overlay.onHaptic = { if (::layoutManager.isInitialized) layoutManager.triggerHapticFeedback() }
         overlay.maxSplitPx = KeyboardLookKnobs.MAX_SPLIT_GAP_DP * resources.displayMetrics.density
         overlay.onBegin = {
+            // Bound the drag to the screen-fit ceiling for the CURRENT layout, so dragging up stops where the
+            // keyboard fills its budget instead of running into a clamped dead zone.
+            overlay.maxHeightScale = maxHeightScale()
             ResizeValues(
                 activeLookKnobs.keyHeightScale ?: 1f,
                 activeLookKnobs.keyboardWidthScale ?: 1f,
@@ -1834,9 +1929,10 @@ open class UrikInputMethodService :
 
     /**
      * Commit a resize: snap-to-dock dead zone, then persist the four size knobs into the per-(app·layout·
-     * geometry) size override (merged so a prior one's values survive) — so each layout remembers its own size
-     * per app and geometry and resizing one never changes the others. Float position stays in the per-geometry
-     * baseline (commitFloatingRect). No focused app (shouldn't happen mid-resize) → fall back to the baseline.
+     * geometry) size override — keyed by the SYNCHRONOUS live layout id (viewModel.layout.value.id) + the
+     * focused app — so each layout keeps its own size per app and geometry, and resizing one never changes the
+     * others. Merged so a prior override's values survive. Float position stays in the per-geometry baseline.
+     * No focused app (shouldn't happen mid-resize) → the geometry baseline.
      */
     private fun commitResize(height: Float, width: Float, liftDp: Float, splitFraction: Float) {
         val w = if (width >= 0.98f) 1f else width
@@ -1844,6 +1940,7 @@ open class UrikInputMethodService :
         val split = if (splitFraction <= 0.02f) 0f else splitFraction
         liveResize(height, w, lift, split)
         val app = currentInputEditorInfo?.packageName
+        val layoutId = if (::viewModel.isInitialized) viewModel.layout.value?.id.orEmpty() else ""
         serviceScope.launch {
             val geometry =
                 postureDetector?.postureInfo?.value?.let { geometryKey(it) } ?: GeometryBucket.FOLDED_PORT.key
@@ -1854,7 +1951,6 @@ open class UrikInputMethodService :
                     existing.copy(keyHeightScale = height, keyboardWidthScale = w, bottomLiftDp = lift, splitFraction = split)
                 )
             } else {
-                val layoutId = repository.resolveActiveLayoutId(languageManager.currentLayoutLanguage.value)
                 val existing = settingsRepository.getSizeOverride(app, layoutId, geometry) ?: KeyboardLookKnobs()
                 settingsRepository.updateSizeOverride(
                     app,
@@ -1947,6 +2043,10 @@ open class UrikInputMethodService :
         }
 
         applyFieldTypeFromEditorInfo(info)
+
+        // Re-resolve the per-(app·layout·geometry) size for THIS app synchronously (the app changed on this
+        // show), so the keyboard is at the right height before the window is sized — no clip on every open.
+        refreshLookKnobs()
 
         // Sync the custom-suggestion row from the latest settings synchronously: the settings Flow collector
         // is async, so on a fresh focus its first emission can land AFTER this method's clearSuggestionDisplay()

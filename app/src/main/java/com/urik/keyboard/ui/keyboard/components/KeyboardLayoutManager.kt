@@ -910,13 +910,14 @@ class KeyboardLayoutManager(
                 contentDescription = context.getString(R.string.keyboard_description)
             }
 
-        // Keep the keyboard the same height across pages: the LETTERS page sets the reference height, and the
-        // fixed-grid Number pad (its own row count) is scaled to fill it, so switching to Num never resizes the
-        // keyboard. Only NUMPAD is scaled — the authored alt pages already match the letters row count.
+        // Keep the keyboard the SAME total height on EVERY page: the LETTERS page sets the reference height,
+        // and any other page (symbols, alt, number pad — whatever its row count) is scaled to fill exactly
+        // that height, so a page with more rows gets proportionally shorter keys instead of a taller keyboard.
+        // A page that already matches the letters row count scales by 1.0 (unchanged).
         val pageUnits = pageHeightUnits(processedRows)
         if (layout.mode == KeyboardMode.LETTERS && pageUnits > 0f) referenceHeightUnits = pageUnits
         val pageHeightScale =
-            if (layout.mode == KeyboardMode.NUMPAD && referenceHeightUnits > 0f && pageUnits > 0f) {
+            if (layout.mode != KeyboardMode.LETTERS && referenceHeightUnits > 0f && pageUnits > 0f) {
                 referenceHeightUnits / pageUnits
             } else {
                 1f

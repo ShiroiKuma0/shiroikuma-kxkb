@@ -46,7 +46,19 @@ data class KeyboardLayout(
      * grid by position (row/col). Each single-character key emits its char (shifted face when Shift/Caps is
      * held); multi-char / action / function keys pass through unchanged. Off for normal on-screen layouts.
      */
-    val hardwareKeymap: Boolean = false
+    val hardwareKeymap: Boolean = false,
+    /**
+     * The registry id this layout was loaded as (e.g. "gnu_nexdock_xl", "cs_3p2_5r9c"), set by
+     * KeyboardRepository when loading. Lets the IME key the per-(app·layout·geometry) size override by the live
+     * layout SYNCHRONOUSLY (no async id resolution on the show path). "" when unknown.
+     */
+    val id: String = "",
+    /**
+     * The LETTERS page's row count for this layout (set on every mode's load), so the height clamp resolves to
+     * the SAME per-key height on every page — symbols/alt/numpad then normalise to the letters height instead
+     * of each page being clamped to its own row count. 0 when unknown.
+     */
+    val referenceRows: Int = 0
 )
 
 sealed class KeyboardKey {
