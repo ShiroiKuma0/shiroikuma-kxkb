@@ -897,8 +897,13 @@
         ],
         [
           {
-            "type": "action",
-            "action": "settings",
+            "type": "cluster",
+            "cluster": " 「」",
+            "char": "「",
+            "flick": {
+              "left": " ",
+              "right": "」"
+            },
             "width": 1.0
           },
           {
@@ -911,13 +916,10 @@
           },
           {
             "type": "cluster",
-            "cluster": ";.,",
-            "char": ".",
+            "cluster": " 。、",
+            "char": "。",
             "flick": {
-              "left": ";",
-              "right": ",",
-              "up": ":",
-              "down": "…"
+              "right": "、"
             },
             "width": 1.0
           },
@@ -951,12 +953,8 @@
           },
           {
             "type": "compass",
-            "char": "Ctrl",
+            "char": "〜",
             "flick": {
-              "center": {
-                "action": "ctrl",
-                "label": "Ctrl"
-              },
               "up": {
                 "layer": "alt0",
                 "label": "sym"
@@ -973,11 +971,10 @@
           },
           {
             "type": "cluster",
-            "cluster": "?!@%",
-            "char": "@",
+            "cluster": " ？！",
+            "char": "？",
             "flick": {
-              "left": "!",
-              "right": "%"
+              "right": "！"
             },
             "width": 1.0
           },

@@ -447,8 +447,13 @@
         ],
         [
           {
-            "type": "action",
-            "action": "settings",
+            "type": "cluster",
+            "cluster": " 「」",
+            "char": "「",
+            "flick": {
+              "left": " ",
+              "right": "」"
+            },
             "attributes": {
               "widthClass": "Custom1"
             },
@@ -464,12 +469,10 @@
           },
           {
             "type": "cluster",
-            "cluster": ";.,",
-            "char": ".",
+            "cluster": " 。、",
+            "char": "。",
             "flick": {
-              "left": ";",
-              "right": ",",
-              "up": "…"
+              "right": "、"
             },
             "attributes": {
               "widthClass": "Custom1"
@@ -513,12 +516,8 @@
           },
           {
             "type": "compass",
-            "char": "Ctrl",
+            "char": "〜",
             "flick": {
-              "center": {
-                "action": "ctrl",
-                "label": "Ctrl"
-              },
               "up": {
                 "layer": "alt0",
                 "label": "sym"
@@ -534,13 +533,11 @@
             "width": 1.0
           },
           {
-            "type": "compass",
-            "char": "Esc",
+            "type": "cluster",
+            "cluster": " ？！",
+            "char": "？",
             "flick": {
-              "center": {
-                "action": "escape",
-                "label": "Esc"
-              },
+              "right": "！",
               "up": {
                 "layer": "alt1",
                 "label": "altGr"

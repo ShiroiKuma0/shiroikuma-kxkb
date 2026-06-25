@@ -978,20 +978,12 @@
         ],
         [
           {
-            "type": "action",
-            "action": "settings",
-            "attributes": {
-              "style": "Functional"
-            },
-            "width": 1.0
-          },
-          {
             "type": "cluster",
-            "cluster": "?!@%",
-            "char": "@",
+            "cluster": " 「」",
+            "char": "「",
             "flick": {
-              "left": "!",
-              "right": "%"
+              "left": " ",
+              "right": "」"
             },
             "attributes": {
               "style": "Functional"
@@ -1000,13 +992,22 @@
           },
           {
             "type": "cluster",
-            "cluster": ";.,",
-            "char": ".",
+            "cluster": " ？！",
+            "char": "？",
             "flick": {
-              "left": ";",
-              "right": ",",
-              "up": ":",
-              "down": "…"
+              "right": "！"
+            },
+            "attributes": {
+              "style": "Functional"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "cluster",
+            "cluster": " 。、",
+            "char": "。",
+            "flick": {
+              "right": "、"
             },
             "attributes": {
               "style": "Functional"
@@ -1049,12 +1050,8 @@
           },
           {
             "type": "compass",
-            "char": "Ctrl",
+            "char": "〜",
             "flick": {
-              "center": {
-                "action": "ctrl",
-                "label": "Ctrl"
-              },
               "up": {
                 "layer": "alt0",
                 "label": "sym"
