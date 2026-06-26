@@ -13,6 +13,7 @@ import android.graphics.drawable.LayerDrawable
 import android.graphics.drawable.RippleDrawable
 import android.graphics.drawable.StateListDrawable
 import android.os.Handler
+import android.os.Looper
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
@@ -570,6 +571,104 @@ class KeyboardLayoutManager(
         val punctuationKey = KeyboardKey.Character(selectedPunctuation, KeyboardKey.KeyType.PUNCTUATION)
         performContextualHaptic(punctuationKey)
         onKeyClick(punctuationKey)
+    }
+
+    // --- Compass long-press extra-key strip ("XK") ------------------------------------------------------
+    private val flickStripHandler = Handler(Looper.getMainLooper())
+    private var flickStripRunnable: Runnable? = null
+    private var flickStripActive = false
+    private var flickStripDownX = 0f
+    private var flickStripDownY = 0f
+    private var flickStripDownRawX = 0f
+    private var flickStripDownRawY = 0f
+    private var flickStripLastChar: String? = null
+    private var extraStripPopup: ExtraKeyStripPopup? = null
+    private val flickStripSlopPx = 20f * context.resources.displayMetrics.density
+
+    /** Arm the long-press strip for a held compass key that defines extra keys (cancelled by a flick-sized move). */
+    private fun scheduleFlickStrip(key: KeyboardKey.FlickKey, view: View) {
+        if (key.longPressExtraKeys.isEmpty()) return
+        cancelFlickStripTimer()
+        val r = Runnable { showFlickStrip(key, view) }
+        flickStripRunnable = r
+        flickStripHandler.postDelayed(r, currentLongPressDuration.durationMs)
+    }
+
+    private fun cancelFlickStripTimer() {
+        flickStripRunnable?.let { flickStripHandler.removeCallbacks(it) }
+        flickStripRunnable = null
+    }
+
+    /** Long-press fired: the packed strip takes over the touch; the compass preview stays put, strip above it. */
+    private fun showFlickStrip(key: KeyboardKey.FlickKey, view: View) {
+        flickGestureDetector.cancel() // the strip owns the gesture now — no flick commit on release
+        currentVariationKeyType = key.type
+        val density = context.resources.displayMetrics.density
+        val chars = listOf(key.center) + key.longPressExtraKeys // centre first = the highlighted base char
+        val popup = ExtraKeyStripPopup(context, themeManager)
+        extraStripPopup?.dismiss()
+        extraStripPopup = popup
+        popup.setChars(
+            chars = chars,
+            baseIndex = 0,
+            textSizePx = 14f * (adaptiveDimensions?.extraStripFontScale ?: 2.5f) * density,
+            maxWidthPx = context.resources.displayMetrics.widthPixels - (16 * density).toInt(),
+            downRawX = flickStripDownRawX,
+            downRawY = flickStripDownRawY,
+            onSelected = characterVariationCallback
+        )
+        popup.showAboveCompass(view, flickPopup?.height ?: 0)
+        flickStripLastChar = key.center
+        flickStripActive = true
+        popupSelectionMode = true
+        swipeKeyboardView?.setPopupActive(true)
+        performContextualHaptic(null)
+    }
+
+    private fun onFlickStripMove(rawX: Float, rawY: Float) {
+        val char = extraStripPopup?.moveTo(rawX, rawY)
+        if (char != flickStripLastChar) {
+            flickStripLastChar = char
+            if (char != null) performContextualHaptic(null)
+        }
+    }
+
+    private fun commitFlickStrip() {
+        extraStripPopup?.commitHighlighted()
+        dismissFlickStrip()
+    }
+
+    /** Released over the lock: drop the compass, keep the strip up and tappable (tap a glyph to enter, tap
+     *  outside to close). The gesture is over, but the strip stays modal until it's dismissed. */
+    private fun lockFlickStrip() {
+        flickStripActive = false
+        flickPopup?.dismiss()
+        flickPopup = null
+        extraStripPopup?.enterLockMode(
+            onPick = { ch -> characterVariationCallback(ch); extraStripPopup?.dismiss() },
+            onDismiss = { resetFlickStripState() }
+        )
+    }
+
+    /** Reset the strip bookkeeping WITHOUT dismissing (the popup is already dismissing — called from its
+     *  onDismiss in lock mode). */
+    private fun resetFlickStripState() {
+        flickStripActive = false
+        flickStripLastChar = null
+        extraStripPopup = null
+        popupSelectionMode = false
+        swipeKeyboardView?.setPopupActive(false)
+    }
+
+    private fun dismissFlickStrip() {
+        flickStripActive = false
+        flickStripLastChar = null
+        flickPopup?.dismiss()
+        flickPopup = null
+        extraStripPopup?.dismiss()
+        extraStripPopup = null
+        popupSelectionMode = false
+        swipeKeyboardView?.setPopupActive(false)
     }
 
     @VisibleForTesting internal val keyClickListener get() = touchDispatcher.keyClickListener
@@ -1604,20 +1703,63 @@ class KeyboardLayoutManager(
             if (key is KeyboardKey.FlickKey) {
                 setOnClickListener(null)
                 setOnTouchListener { view, event ->
-                    if (event.action == MotionEvent.ACTION_DOWN) {
-                        // Flick keys own their whole gesture. Stop the parent keyboard view from
-                        // intercepting and cancelling the flick mid-swipe — without this, certain
-                        // keys (e.g. さ) had their flick cancelled on longer swipes, dropping input.
-                        view.parent?.requestDisallowInterceptTouchEvent(true)
-                        // The FlickPopup is this key's own (richer) preview — never stack the plain bubble on top.
-                        keyPreviewPopup?.hide()
-                        val popup = FlickPopup(context, themeManager)
-                        flickPopup?.dismiss()
-                        flickPopup = popup
-                        popup.show(key, view)
-                    }
-                    flickGestureDetector.handleTouchEvent(event) { _, _ ->
-                        view.getTag(R.id.key_data) as? KeyboardKey
+                    val keyAt = { _: Float, _: Float -> view.getTag(R.id.key_data) as? KeyboardKey }
+                    when (event.action) {
+                        MotionEvent.ACTION_DOWN -> {
+                            // Flick keys own their whole gesture. Stop the parent keyboard view from
+                            // intercepting and cancelling the flick mid-swipe — without this, certain
+                            // keys (e.g. さ) had their flick cancelled on longer swipes, dropping input.
+                            view.parent?.requestDisallowInterceptTouchEvent(true)
+                            // The FlickPopup is this key's own (richer) preview — never stack the plain bubble on top.
+                            keyPreviewPopup?.hide()
+                            val popup = FlickPopup(context, themeManager, 18f * (adaptiveDimensions?.compassFontScale ?: 2f))
+                            flickPopup?.dismiss()
+                            flickPopup = popup
+                            popup.show(key, view)
+                            flickStripActive = false
+                            flickStripDownX = event.x
+                            flickStripDownY = event.y
+                            flickStripDownRawX = event.rawX
+                            flickStripDownRawY = event.rawY
+                            scheduleFlickStrip(key, view) // arm the long-press extra-key strip
+                            flickGestureDetector.handleTouchEvent(event, keyAt)
+                        }
+                        MotionEvent.ACTION_MOVE ->
+                            if (flickStripActive) {
+                                onFlickStripMove(event.rawX, event.rawY) // slide picks an extra
+                                true
+                            } else {
+                                // A flick-sized move means the user is flicking, not holding — drop the strip.
+                                val dx = event.x - flickStripDownX
+                                val dy = event.y - flickStripDownY
+                                if (dx * dx + dy * dy >= flickStripSlopPx * flickStripSlopPx) cancelFlickStripTimer()
+                                flickGestureDetector.handleTouchEvent(event, keyAt)
+                            }
+                        MotionEvent.ACTION_UP -> {
+                            cancelFlickStripTimer()
+                            if (flickStripActive) {
+                                when (extraStripPopup?.releaseAction()) {
+                                    ExtraKeyStripPopup.Release.LOCK -> lockFlickStrip()
+                                    ExtraKeyStripPopup.Release.CANCEL -> dismissFlickStrip()
+                                    else -> commitFlickStrip()
+                                }
+                                flickGestureDetector.cancel()
+                                true
+                            } else {
+                                flickGestureDetector.handleTouchEvent(event, keyAt)
+                            }
+                        }
+                        MotionEvent.ACTION_CANCEL -> {
+                            cancelFlickStripTimer()
+                            if (flickStripActive) {
+                                dismissFlickStrip()
+                                flickGestureDetector.cancel()
+                                true
+                            } else {
+                                flickGestureDetector.handleTouchEvent(event, keyAt)
+                            }
+                        }
+                        else -> flickGestureDetector.handleTouchEvent(event, keyAt)
                     }
                 }
             }

@@ -148,6 +148,13 @@ sealed class KeyboardKey {
         val tapKind: TapKind = TapKind.NORMAL,
         /** Ordered entries a CYCLE key steps through on repeated taps (delete previous, commit next, wrap). */
         val cycleTaps: List<String> = emptyList(),
+        /**
+         * Long-press extra keys ("XK"): a horizontal strip shown when this compass key is HELD past the
+         * long-press timeout, picked by sliding the held finger left/right (release commits). Empty = no strip;
+         * the quick 8-way flicks are unaffected (a flick-sized motion cancels the long-press). Ordered
+         * own-case-first; each entry is committed verbatim.
+         */
+        val longPressExtraKeys: List<String> = emptyList(),
         override val appearance: KeyAppearance? = null,
         override val attributes: KeyAttributes? = null,
         override val width: Float = 0f

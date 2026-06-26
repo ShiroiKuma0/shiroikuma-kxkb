@@ -26,6 +26,8 @@ class CharacterVariationPopup(private val context: Context, private val themeMan
     private var highlightedButton: Button? = null
     private var baseCharButton: Button? = null
     private val density = context.resources.displayMetrics.density
+    /** Multiplies item + text size (the compass long-press strip sets this so its glyphs are larger). */
+    var itemScale: Float = 1f
     private val cachedCornerRadius = 8f * density
     private val cachedStrokeWidth = (1 * density).toInt()
 
@@ -108,7 +110,7 @@ class CharacterVariationPopup(private val context: Context, private val themeMan
             setHighlighted(variations[0])
         }
 
-        val itemSize = (40 * density).toInt()
+        val itemSize = (40 * density * itemScale).toInt()
         val idealWidth = totalCount * itemSize + (16 * density).toInt()
         val popupHeight = itemSize + (8 * density).toInt()
 
@@ -124,14 +126,14 @@ class CharacterVariationPopup(private val context: Context, private val themeMan
             Button(context).apply {
                 text = char
 
-                val buttonSize = (36 * density).toInt()
+                val buttonSize = (36 * density * itemScale).toInt()
                 layoutParams =
                     LinearLayout.LayoutParams(buttonSize, buttonSize).apply {
                         val margin = (2 * density).toInt()
                         setMargins(margin, 0, margin, 0)
                     }
 
-                textSize = 14f
+                textSize = 14f * itemScale
 
                 val theme = themeManager.currentTheme.value
                 setTextColor(

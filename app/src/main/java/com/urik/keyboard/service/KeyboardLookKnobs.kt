@@ -36,6 +36,10 @@ data class KeyboardLookKnobs(
     val keySpacingVScale: Float? = null,
     /** Multiplier on the secondary / flick-hint label size (1.0 = unchanged) — the base for both rows. */
     val hintScale: Float? = null,
+    /** Glyph-size multiplier for the long-press COMPASS preview (FlickPopup). null = renderer default (2×). */
+    val compassFontScale: Float? = null,
+    /** Glyph-size multiplier for the long-press extra-key STRIP. null = renderer default (2.5×). */
+    val extraStripFontScale: Float? = null,
     /** General secondary-character colour / font / weight (the rows inherit these unless they override). */
     val hintColor: Int? = null,
     val hintFont: String? = null,
@@ -113,6 +117,8 @@ data class KeyboardLookKnobs(
         boldKeyLabels = boldKeyLabels ?: base.boldKeyLabels,
         keyFontScale = keyFontScale ?: base.keyFontScale,
         hintScale = hintScale ?: base.hintScale,
+        compassFontScale = compassFontScale ?: base.compassFontScale,
+        extraStripFontScale = extraStripFontScale ?: base.extraStripFontScale,
         hintColor = hintColor ?: base.hintColor,
         hintFont = hintFont ?: base.hintFont,
         hintWeight = hintWeight ?: base.hintWeight,
@@ -152,6 +158,8 @@ data class KeyboardLookKnobs(
         keyBorderWidthDp = o.keyBorderWidthDp ?: keyBorderWidthDp,
         boldKeyLabels = o.boldKeyLabels ?: boldKeyLabels,
         keyFontScale = o.keyFontScale ?: keyFontScale,
+        compassFontScale = o.compassFontScale ?: compassFontScale,
+        extraStripFontScale = o.extraStripFontScale ?: extraStripFontScale,
         keyHeightScale = o.keyHeightScale ?: keyHeightScale,
         topRowHeightScale = o.topRowHeightScale ?: topRowHeightScale,
         bottomRowHeightScale = o.bottomRowHeightScale ?: bottomRowHeightScale,
@@ -202,6 +210,8 @@ data class KeyboardLookKnobs(
         keyBorderWidthDp?.let { add("bw=$it") }
         boldKeyLabels?.let { add("bold=${if (it) 1 else 0}") }
         keyFontScale?.let { add("fs=$it") }
+        compassFontScale?.let { add("cfs=$it") }
+        extraStripFontScale?.let { add("xfs=$it") }
         keyHeightScale?.let { add("hs=$it") }
         topRowHeightScale?.let { add("trh=$it") }
         bottomRowHeightScale?.let { add("brh=$it") }
@@ -279,6 +289,8 @@ data class KeyboardLookKnobs(
             var bw: Float? = null
             var bold: Boolean? = null
             var fs: Float? = null
+            var cfs: Float? = null
+            var xfs: Float? = null
             var hs: Float? = null
             var trh: Float? = null
             var brh: Float? = null
@@ -330,6 +342,8 @@ data class KeyboardLookKnobs(
                     "bw" -> bw = value.toFloatOrNull()
                     "bold" -> bold = value.toIntOrNull()?.let { it != 0 }
                     "fs" -> fs = value.toFloatOrNull()
+                    "cfs" -> cfs = value.toFloatOrNull()
+                    "xfs" -> xfs = value.toFloatOrNull()
                     "hs" -> hs = value.toFloatOrNull()
                     "trh" -> trh = value.toFloatOrNull()
                     "brh" -> brh = value.toFloatOrNull()
@@ -378,6 +392,7 @@ data class KeyboardLookKnobs(
             }
             return KeyboardLookKnobs(
                 cornerRadiusDp = cr, keyBorderWidthDp = bw, boldKeyLabels = bold, keyFontScale = fs,
+                compassFontScale = cfs, extraStripFontScale = xfs,
                 keyHeightScale = hs, topRowHeightScale = trh, bottomRowHeightScale = brh,
                 keySpacingHScale = ksh, keySpacingVScale = ksv, hintScale = hn,
                 hintColor = hc, hintFont = hf, hintWeight = hw,

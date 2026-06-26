@@ -36,6 +36,14 @@ class FlickGestureDetector {
         this.listener = listener
     }
 
+    /**
+     * Abandon the in-progress gesture WITHOUT committing — used when a long-press hands the touch off to the
+     * extra-key strip, so the subsequent UP doesn't also fire a flick commit. No listener callback.
+     */
+    fun cancel() {
+        reset()
+    }
+
     fun updateDisplayMetrics(density: Float) {
         this.density = density
     }

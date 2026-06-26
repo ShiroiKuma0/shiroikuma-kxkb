@@ -507,7 +507,19 @@
               "upRight": "Č",
               "downLeft": "©",
               "downRight": "℃"
-            }
+            },
+            "longPressKeys": [
+              "č",
+              "ç",
+              "ć",
+              "℃",
+              "©",
+              "°",
+              "¢",
+              "Č",
+              "Ç",
+              "Ć"
+            ]
           },
           {
             "type": "compass",
@@ -524,7 +536,10 @@
               },
               "right": "¯",
               "upRight": "ʻ"
-            }
+            },
+            "longPressKeys": [
+              "µ"
+            ]
           },
           {
             "type": "compass",
@@ -539,7 +554,10 @@
                 "chord": "M-w",
                 "label": "M-w"
               }
-            }
+            },
+            "longPressKeys": [
+              "₩"
+            ]
           },
           {
             "type": "compass",
@@ -554,7 +572,10 @@
                 "chord": "M-k",
                 "label": "M-k"
               }
-            }
+            },
+            "longPressKeys": [
+              "¯"
+            ]
           },
           {
             "type": "compass",
@@ -607,7 +628,10 @@
                 "label": "M-f"
               },
               "right": "℉"
-            }
+            },
+            "longPressKeys": [
+              "℉"
+            ]
           },
           {
             "type": "compass",
@@ -627,7 +651,14 @@
               "upRight": "Ř",
               "downLeft": "®",
               "downRight": "ŕ"
-            }
+            },
+            "longPressKeys": [
+              "ř",
+              "₽",
+              "®",
+              "√",
+              "Ř"
+            ]
           },
           {
             "type": "compass",
@@ -647,7 +678,17 @@
               "upRight": "Ľ",
               "downLeft": "£",
               "downRight": "ĺ"
-            }
+            },
+            "longPressKeys": [
+              "ľ",
+              "ĺ",
+              "ł",
+              "λ",
+              "£",
+              "Ľ",
+              "Ĺ",
+              "Ł"
+            ]
           },
           {
             "type": "compass",
@@ -698,7 +739,15 @@
               "upRight": "Í",
               "downLeft": "ī",
               "downRight": "ï"
-            }
+            },
+            "longPressKeys": [
+              "í",
+              "ī",
+              "ï",
+              "Í",
+              "Ī",
+              "Ï"
+            ]
           },
           {
             "type": "compass",
@@ -718,7 +767,21 @@
               "upRight": "Ó",
               "downLeft": "ō",
               "downRight": "ö"
-            }
+            },
+            "longPressKeys": [
+              "ó",
+              "ö",
+              "ō",
+              "ő",
+              "ø",
+              "ǿ",
+              "Ó",
+              "Ö",
+              "Ō",
+              "Ő",
+              "Ø",
+              "Ǿ"
+            ]
           },
           {
             "type": "compass",
@@ -738,7 +801,24 @@
               "upRight": "Á",
               "downLeft": "ā",
               "downRight": "ä"
-            }
+            },
+            "longPressKeys": [
+              "á",
+              "ä",
+              "ā",
+              "æ",
+              "α",
+              "ą",
+              "å",
+              "&",
+              "@",
+              "Á",
+              "Ä",
+              "Ā",
+              "Æ",
+              "Ą",
+              "Å"
+            ]
           },
           {
             "type": "compass",
@@ -758,7 +838,18 @@
               "upRight": "É",
               "downLeft": "ē",
               "downRight": "ě"
-            }
+            },
+            "longPressKeys": [
+              "é",
+              "ě",
+              "ē",
+              "ę",
+              "€",
+              "É",
+              "Ě",
+              "Ē",
+              "Ę"
+            ]
           },
           {
             "type": "compass",
@@ -832,7 +923,10 @@
               },
               "right": "β",
               "upLeft": "α"
-            }
+            },
+            "longPressKeys": [
+              "β"
+            ]
           },
           {
             "type": "compass",
@@ -849,7 +943,13 @@
               },
               "right": "ť",
               "upRight": "Ť"
-            }
+            },
+            "longPressKeys": [
+              "ť",
+              "þ",
+              "Ť",
+              "Þ"
+            ]
           },
           {
             "type": "compass",
@@ -866,7 +966,15 @@
               },
               "right": "ň",
               "upRight": "Ň"
-            }
+            },
+            "longPressKeys": [
+              "ň",
+              "ń",
+              "ñ",
+              "Ň",
+              "Ń",
+              "Ñ"
+            ]
           },
           {
             "type": "compass",
@@ -883,7 +991,19 @@
               },
               "right": "š",
               "upRight": "Š"
-            }
+            },
+            "longPressKeys": [
+              "š",
+              "ß",
+              "ś",
+              "σ",
+              "/",
+              "∑",
+              "∫",
+              "~",
+              "Š",
+              "Ś"
+            ]
           },
           {
             "type": "compass",
@@ -959,7 +1079,10 @@
                 "chord": "C-S-x",
                 "label": "C-X"
               }
-            }
+            },
+            "longPressKeys": [
+              "×"
+            ]
           },
           {
             "type": "compass",
@@ -974,7 +1097,14 @@
                 "chord": "M-p",
                 "label": "M-p"
               }
-            }
+            },
+            "longPressKeys": [
+              "π",
+              "%",
+              "#",
+              "§",
+              "$"
+            ]
           },
           {
             "type": "compass",
@@ -994,7 +1124,19 @@
               "upRight": "Ú",
               "downLeft": "ū",
               "downRight": "ů"
-            }
+            },
+            "longPressKeys": [
+              "ú",
+              "ů",
+              "ü",
+              "ū",
+              "ű",
+              "Ú",
+              "Ů",
+              "Ü",
+              "Ū",
+              "Ű"
+            ]
           },
           {
             "type": "compass",
@@ -1011,7 +1153,16 @@
               },
               "right": "ž",
               "upRight": "Ž"
-            }
+            },
+            "longPressKeys": [
+              "ž",
+              "ź",
+              "ż",
+              "〇",
+              "Ž",
+              "Ź",
+              "Ż"
+            ]
           },
           {
             "type": "compass",
@@ -1044,7 +1195,12 @@
                 "chord": "M-g",
                 "label": "M-g"
               }
-            }
+            },
+            "longPressKeys": [
+              "ğ",
+              "γ",
+              "Ğ"
+            ]
           },
           {
             "type": "compass",
@@ -1064,7 +1220,18 @@
               "upRight": "Ď",
               "downLeft": "Đ",
               "downRight": "đ"
-            }
+            },
+            "longPressKeys": [
+              "ď",
+              "δ",
+              "đ",
+              "ð",
+              "$",
+              "°",
+              "Ď",
+              "Đ",
+              "Ð"
+            ]
           },
           {
             "type": "compass",
@@ -1081,7 +1248,12 @@
               },
               "right": "ý",
               "upRight": "Ý"
-            }
+            },
+            "longPressKeys": [
+              "ý",
+              "¥",
+              "Ý"
+            ]
           },
           {
             "type": "compass",

@@ -316,6 +316,9 @@ object KeyboardJsonCodec {
             columnar = columnar,
             shifted = keyData.optJSONObject("shifted")
                 ?.let { parseKey(it, currentAction) as? KeyboardKey.FlickKey },
+            longPressExtraKeys = keyData.optJSONArray("longPressKeys")?.let { a ->
+                (0 until a.length()).map { a.getString(it) }
+            } ?: emptyList(),
             width = keyData.optDouble("width", 0.0).toFloat()
         )
     }
@@ -411,6 +414,7 @@ object KeyboardJsonCodec {
         }
         if (flick.length() > 0) o.put("flick", flick)
 
+        if (key.longPressExtraKeys.isNotEmpty()) o.put("longPressKeys", JSONArray(key.longPressExtraKeys))
         key.shifted?.let { o.put("shifted", emitKey(it)) }
         o.withWidth(key.width)
         o.withAppearance(key.appearance)

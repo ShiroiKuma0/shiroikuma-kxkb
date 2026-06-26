@@ -383,6 +383,8 @@
     <string name="keyboard_ui_item_h_gap">Horizontal gap (%)</string>
     <string name="keyboard_ui_item_v_gap">Vertical gap (%)</string>
     <string name="keyboard_ui_section_compass">Compass keys</string>
+    <string name="keyboard_ui_item_compass_font">Long-press compass glyph size</string>
+    <string name="keyboard_ui_item_strip_font">Long-press extra-key glyph size</string>
     <string name="keyboard_ui_item_top_row_pos">Top row position</string>
     <string name="keyboard_ui_item_bottom_row_pos">Bottom row position</string>
     <string name="keyboard_ui_item_left_col_pos">Left column position</string>

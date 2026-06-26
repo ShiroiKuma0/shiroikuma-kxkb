@@ -1778,12 +1778,11 @@ constructor(
         val existingSuggestions = mutableListOf<String>()
         suggestionBar?.let { bar ->
             for (i in 0 until bar.childCount) {
-                val child = bar.getChildAt(i) as? TextView
-                child?.text?.toString()?.let { text ->
-                    if (text.isNotBlank()) {
-                        existingSuggestions.add(text)
-                    }
-                }
+                val child = bar.getChildAt(i) as? TextView ?: continue
+                // ONLY real suggestion chips carry this tag — never the ▾ expand button or the emoji button.
+                // Without this filter the rebuild preserved the ▾ as a "suggestion", re-spawning it each time.
+                (child.getTag(R.id.suggestion_text) as? String)?.takeIf { it.isNotBlank() }
+                    ?.let { existingSuggestions.add(it) }
             }
             (bar.parent as? ViewGroup)?.removeView(bar)
         }

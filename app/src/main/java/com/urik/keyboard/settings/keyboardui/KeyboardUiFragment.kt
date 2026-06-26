@@ -50,6 +50,8 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
     private lateinit var spacingHPref: SeekBarPreference
     private lateinit var spacingVPref: SeekBarPreference
     private lateinit var fontPref: SeekBarPreference
+    private lateinit var compassFontPref: SeekBarPreference
+    private lateinit var stripFontPref: SeekBarPreference
     private lateinit var hintPref: SeekBarPreference
     private lateinit var hintFontPref: Preference
     private lateinit var hintWeightPref: SeekBarPreference
@@ -290,6 +292,8 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
 
         // --- COMPASS KEYS: positions of the secondary-character rows / columns. ---
         val compassCategory = sectionCategory("kb_ui_cat_compass", R.string.keyboard_ui_section_compass)
+        compassFontPref = seekBar("kb_ui_compass_font", R.string.keyboard_ui_item_compass_font, min = 100, max = 400)
+        stripFontPref = seekBar("kb_ui_strip_font", R.string.keyboard_ui_item_strip_font, min = 100, max = 500)
         topRowPositionPref = seekBar("kb_ui_hint_top_dist", R.string.keyboard_ui_item_top_row_pos, min = 0, max = 60)
         bottomRowPositionPref = seekBar("kb_ui_hint_bot_dist", R.string.keyboard_ui_item_bottom_row_pos, min = 0, max = 60)
         leftColumnPositionPref = seekBar("kb_ui_hint_left_dist", R.string.keyboard_ui_item_left_col_pos, min = 0, max = 60)
@@ -356,6 +360,8 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         rowsCategory.addPreference(hintBottomFontPref)
 
         screen.addPreference(compassCategory)
+        compassCategory.addPreference(compassFontPref)
+        compassCategory.addPreference(stripFontPref)
         compassCategory.addPreference(topRowPositionPref)
         compassCategory.addPreference(bottomRowPositionPref)
         compassCategory.addPreference(leftColumnPositionPref)
@@ -657,6 +663,14 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
             showFontPicker(viewModel.uiState.value.hintBottomFont) { viewModel.updateHintBottomFont(it) }
             true
         }
+        compassFontPref.setOnPreferenceChangeListener { _, newValue ->
+            viewModel.updateCompassFontScale(newValue as Int)
+            true
+        }
+        stripFontPref.setOnPreferenceChangeListener { _, newValue ->
+            viewModel.updateExtraStripFontScale(newValue as Int)
+            true
+        }
         topRowPositionPref.setOnPreferenceChangeListener { _, newValue ->
             viewModel.updateHintTopDistance(newValue as Int)
             true
@@ -793,6 +807,8 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                         hintBottomColorPref.color = state.hintBottomColor
                         hintBottomScalePref.value = state.hintBottomScalePct
                         hintBottomFontPref.summary = KeyboardFonts.displayName(requireContext(), state.hintBottomFont)
+                        compassFontPref.value = state.compassFontScalePct
+                        stripFontPref.value = state.extraStripFontScalePct
                         topRowPositionPref.value = state.hintTopDistanceDp
                         bottomRowPositionPref.value = state.hintBottomDistanceDp
                         leftColumnPositionPref.value = state.hintLeftDistanceDp

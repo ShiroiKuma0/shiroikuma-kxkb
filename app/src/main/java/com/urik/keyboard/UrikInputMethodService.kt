@@ -3,6 +3,7 @@ package com.urik.keyboard
 import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.SharedPreferences
 import android.content.Intent
 import android.content.IntentFilter
 import android.icu.lang.UScript
@@ -219,6 +220,15 @@ open class UrikInputMethodService :
     private var filteredLayoutCacheKey: Pair<KeyboardLayout?, Boolean>? = null
     private var adaptiveContainer: com.urik.keyboard.ui.keyboard.components.AdaptiveKeyboardContainer? = null
     private var keyboardRootContainer: LinearLayout? = null
+    // Cold-start window pre-size. The last good keyboard height per app|geometry, in device-protected storage so
+    // it survives a process kill and reads synchronously (and before unlock). Read in onStartInputView to seed a
+    // height FLOOR before the async grid build runs, so a slow cold build can't leave the window short (the clip).
+    // The floor applies only while [coldBuildPending] (until the build settles), so resize-down still shrinks.
+    private val windowHeightCache: SharedPreferences by lazy {
+        createDeviceProtectedStorageContext().getSharedPreferences("kb_window_height", Context.MODE_PRIVATE)
+    }
+    private var presizeHeight: Int = -1
+    private var coldBuildPending: Boolean = false
     private var clipboardPanel: ClipboardPanel? = null
     private var lastDisplayDensity: Float = 0f
     private var lastKeyboardConfig: Int = android.content.res.Configuration.KEYBOARD_UNDEFINED
@@ -1507,10 +1517,13 @@ open class UrikInputMethodService :
                 viewModel.layout.collect { layout ->
                     if (layout != null) {
                         updateSwipeKeyboard()
+                        coldBuildPending = false // grid is built — track the real height from here (release the floor)
                         // The layout id is now known — re-resolve the per-(app·layout·geometry) size with the
-                        // real id (the first show may have resolved before the layout finished loading) and
-                        // re-measure so the window matches the now-correct height (cold-start clip fix).
+                        // real id (the first show may have resolved before the layout finished loading).
                         refreshLookKnobs()
+                        // The layout populating is the big first-show grow — pin the window to the new height
+                        // unconditionally (refreshLookKnobs only re-measures when a knob actually changed).
+                        forceInputViewRemeasure()
                         val locale = ULocale.forLanguageTag(languageManager.currentLayoutLanguage.value)
                         updateScriptContext(locale)
                     }
@@ -1818,36 +1831,73 @@ open class UrikInputMethodService :
      * grow after the window was already sized short, leaving the bottom row clipped; a posted requestLayout
      * once the window is established makes the framework resize the window to fit.
      */
+    /**
+     * Make the IME window match the keyboard's height after the (async) layout/posture/look-knob settles.
+     *
+     * ROOT CAUSE of the recurring first-show bottom-clip: the input view is WRAP_CONTENT, and the framework
+     * fixes the soft-input window height at `showWindow` time. On a cold start the keyboard is still short then
+     * (layout loads async, the foldable posture settles async, look-knobs resolve async); it grows a fraction
+     * of a second later, but a plain `requestLayout` on a WRAP_CONTENT input view does NOT make the framework
+     * re-size the already-shown window — only a fresh show does (hence dismiss+reopen "fixed" it).
+     *
+     * Fix: pin the input view to an EXPLICIT measured content height. Setting `layoutParams.height` is a real
+     * size change the framework's window layout must honour, so the window follows. We re-pin on the next two
+     * frames and again on short delays to catch a grow that lands after the first pass (the posture settle on a
+     * foldable is the slow one).
+     */
     private fun forceInputViewRemeasure() {
         val root = keyboardRootContainer ?: return
+        val pin = Runnable { if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) pinInputViewHeight(root) }
         root.post {
-            if (!lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) return@post
-            swipeKeyboardView?.requestLayout()
-            adaptiveContainer?.requestLayout()
-            root.requestLayout()
-            // A second pass on the NEXT frame: with a large height scale the grow can be big, and the first
-            // posted requestLayout above may be coalesced into / consumed by a layout traversal that ran
-            // before the keyboard view finished growing — so the IME window keeps the short height and the
-            // bottom row stays clipped until the keyboard is dismissed and reopened. Re-posting once the grow
-            // has settled forces a fresh measure→layout→onComputeInsets cycle that resizes the window to the
-            // final tall height. Idempotent when nothing changed (a no-delta requestLayout is cheap).
-            root.post {
-                if (!lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) return@post
-                swipeKeyboardView?.requestLayout()
-                adaptiveContainer?.requestLayout()
-                root.requestLayout()
-            }
-            // A third pass a few frames later: on the very first show the height can settle (caches + layout
-            // load async) AFTER both posted passes above ran against the still-short view, so the IME window
-            // keeps the short height and the bottom rows stay clipped until dismiss+reopen. A short delay lets
-            // the grow land, then this fresh requestLayout drives a measure→onComputeInsets→window-resize.
-            root.postDelayed({
-                if (!lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) return@postDelayed
-                swipeKeyboardView?.requestLayout()
-                adaptiveContainer?.requestLayout()
-                root.requestLayout()
-            }, 80)
+            pin.run()
+            root.post(pin)
+            root.postDelayed(pin, 120)
+            root.postDelayed(pin, 320)
+            // Later passes for a SLOW settle: an app that launches the keyboard mid-transition (Termux from a
+            // share) finishes its window/posture settle after the early passes. Each pass re-measures the true
+            // content height (UNSPECIFIED), so a late pass corrects an earlier short pin — no lock, no listener.
+            root.postDelayed(pin, 700)
+            root.postDelayed(pin, 1200)
         }
+    }
+
+    /**
+     * Measure the keyboard's NATURAL content height (UNSPECIFIED spec, so a previously-pinned height is ignored
+     * — this also shrinks the window on a resize-down) and pin the input view to it, then relayout up the tree.
+     * Skipped for FLOATING, which sizes its own tall container + reports its own insets.
+     */
+    private fun pinInputViewHeight(root: View) {
+        val floatRect = android.graphics.Rect()
+        if (adaptiveContainer?.getFloatingPanelRect(floatRect) == true) { root.requestLayout(); return }
+        val widthPx = root.width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
+        root.measure(
+            View.MeasureSpec.makeMeasureSpec(widthPx, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        )
+        val natural = root.measuredHeight
+        if (natural <= 0) return
+        // While the cold build is still pending, never sink below the cached good height — that floor is what
+        // keeps the window full until the (slow) grid arrives. Once the build has settled we track the real
+        // measured height exactly, so a resize-down shrinks and we record the new height for the next cold start.
+        val target = if (coldBuildPending) maxOf(natural, presizeHeight) else natural
+        root.layoutParams?.let { lp ->
+            if (lp.height != target) { lp.height = target; root.layoutParams = lp }
+        }
+        root.requestLayout()
+        (root.parent as? View)?.requestLayout()
+        if (!coldBuildPending && natural > 0) {
+            windowHeightCacheKey()?.let { k ->
+                if (windowHeightCache.getInt(k, -1) != natural) windowHeightCache.edit().putInt(k, natural).apply()
+            }
+        }
+    }
+
+    /** Key for the per-app·geometry window-height cache. Layout id is intentionally omitted: on a cold start it
+     *  isn't known yet, and one app overwhelmingly uses one layout, so app|geometry is the stable available key. */
+    private fun windowHeightCacheKey(): String? {
+        val app = currentInputEditorInfo?.packageName ?: return null
+        val geometry = postureDetector?.postureInfo?.value?.let { geometryKey(it) } ?: GeometryBucket.FOLDED_PORT.key
+        return "$app|$geometry"
     }
 
     /** Container-level look knobs (keyboard width narrowing + bottom lift) — applied to the container. */
@@ -2047,6 +2097,27 @@ open class UrikInputMethodService :
         // Re-resolve the per-(app·layout·geometry) size for THIS app synchronously (the app changed on this
         // show), so the keyboard is at the right height before the window is sized — no clip on every open.
         refreshLookKnobs()
+        // Cold-start pre-size: seed the window-height floor from the cached good height for this app|geometry, so
+        // the window is sized right BEFORE the async grid build (which may finish after the window is locked). The
+        // floor is released when the build settles (the layout collector) or after a safety timeout (warm shows
+        // that never re-collect), so resize-down keeps shrinking normally.
+        presizeHeight = windowHeightCacheKey()?.let { windowHeightCache.getInt(it, -1) } ?: -1
+        coldBuildPending = presizeHeight > 0
+        if (coldBuildPending) {
+            // Apply the cached height to the input view NOW — before the framework measures it for showWindow — so
+            // the window is correct on its first (and possibly only honoured) measure, not reliant on a late re-pin.
+            // Skipped for floating (own sizing). The floor is released by the collector / a safety timeout below.
+            keyboardRootContainer?.let { root ->
+                val rect = android.graphics.Rect()
+                if (adaptiveContainer?.getFloatingPanelRect(rect) != true) {
+                    root.layoutParams = root.layoutParams?.apply { height = presizeHeight }
+                }
+            }
+            keyboardRootContainer?.postDelayed({ coldBuildPending = false }, 1600)
+        }
+        // Pin the window to the keyboard height on every show (its delayed re-pins also catch the foldable
+        // posture / async layout-load grow that lands after this returns).
+        forceInputViewRemeasure()
 
         // Sync the custom-suggestion row from the latest settings synchronously: the settings Flow collector
         // is async, so on a fresh focus its first emission can land AFTER this method's clearSuggestionDisplay()

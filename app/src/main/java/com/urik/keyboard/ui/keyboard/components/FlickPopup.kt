@@ -19,9 +19,13 @@ import com.urik.keyboard.theme.ThemeManager
  * Call [show] when a FlickKey is pressed, [updateHighlight] on each direction change,
  * and [dismiss] on finger-up.
  */
-class FlickPopup(private val context: Context, private val themeManager: ThemeManager) : PopupWindow() {
+class FlickPopup(
+    private val context: Context,
+    private val themeManager: ThemeManager,
+    private val compassTextSp: Float = 36f // set from the look knob (18sp × compassFontScale); default = 2×
+) : PopupWindow() {
     private val density = context.resources.displayMetrics.density
-    private val cellSizePx = (44 * density).toInt()
+    private val cellSizePx = (compassTextSp * 1.55f * density).toInt() // cells grow with the font so glyphs fit
 
     private val grid = GridLayout(context).apply {
         rowCount = 3
@@ -31,13 +35,25 @@ class FlickPopup(private val context: Context, private val themeManager: ThemeMa
     private val cells = mutableMapOf<FlickGestureDetector.FlickDirection, TextView?>()
 
     init {
+        val colors = themeManager.currentTheme.value.colors
+        val pad = (6 * density).toInt()
+        grid.setPadding(pad, pad, pad, pad)
         contentView = grid
         isOutsideTouchable = true
         isFocusable = false
-        setBackgroundDrawable(Color.TRANSPARENT.toDrawable())
+        // A full-black rounded panel with a yellow border + an elevation shadow, so the compass jumps off the
+        // keyboard. The panel fills the empty cells too (instead of showing the keys behind).
+        setBackgroundDrawable(
+            GradientDrawable().apply {
+                setColor(colors.keyboardBackground)
+                cornerRadius = 14f * density
+                setStroke((2.5f * density).toInt(), colors.keyTextCharacter)
+            }
+        )
+        elevation = 12f * density
         inputMethodMode = INPUT_METHOD_NOT_NEEDED
-        width = cellSizePx * 3
-        height = cellSizePx * 3
+        width = cellSizePx * 3 + pad * 2
+        height = cellSizePx * 3 + pad * 2
     }
 
     fun show(key: KeyboardKey.FlickKey, anchorView: View) {
@@ -71,7 +87,7 @@ class FlickPopup(private val context: Context, private val themeManager: ThemeMa
                 if (dir == direction) {
                     theme.colors.statePressed
                 } else {
-                    theme.colors.keyBackgroundCharacter
+                    Color.TRANSPARENT
                 }
             )
             cell.invalidate()
@@ -122,11 +138,13 @@ class FlickPopup(private val context: Context, private val themeManager: ThemeMa
                     val cell = TextView(context).apply {
                         text = char
                         gravity = Gravity.CENTER
-                        textSize = 18f
+                        textSize = compassTextSp
+                        includeFontPadding = false
+                        setPadding(0, 0, 0, 0)
                         setTextColor(theme.colors.keyTextCharacter)
                         background = GradientDrawable().apply {
-                            setColor(theme.colors.keyBackgroundCharacter)
-                            cornerRadius = 6f * density
+                            setColor(Color.TRANSPARENT) // the panel provides the black; only the active cell lights up
+                            cornerRadius = 8f * density
                         }
                         contentDescription = "$direction: $char"
                     }
