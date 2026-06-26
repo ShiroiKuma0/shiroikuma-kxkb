@@ -359,6 +359,7 @@
     <string name="keyboard_ui_sub_primary">Primary character</string>
     <string name="keyboard_ui_sub_secondary">Secondary character</string>
     <string name="keyboard_ui_sub_key_body">Key body</string>
+    <string name="keyboard_ui_sub_popups">Popups</string>
     <string name="keyboard_ui_sub_alignment">Alignment &amp; spacing</string>
     <string name="keyboard_ui_sub_top_row">Top row</string>
     <string name="keyboard_ui_sub_bottom_row">Bottom row</string>
@@ -376,15 +377,15 @@
     <string name="keyboard_ui_item_distance">Distance</string>
     <string name="keyboard_ui_item_border_colour">Border colour</string>
     <string name="keyboard_ui_item_caps_shift">Caps-lock shift colour</string>
-    <string name="keyboard_ui_key_preview">Key preview popup</string>
+    <string name="keyboard_ui_key_preview">Key preview</string>
     <string name="keyboard_ui_key_preview_on">Magnified glyph shown above a pressed key</string>
     <string name="keyboard_ui_key_preview_off">No preview above a pressed key</string>
     <string name="keyboard_ui_sub_key_spacing">Key spacing</string>
     <string name="keyboard_ui_item_h_gap">Horizontal gap (%)</string>
     <string name="keyboard_ui_item_v_gap">Vertical gap (%)</string>
     <string name="keyboard_ui_section_compass">Compass keys</string>
-    <string name="keyboard_ui_item_compass_font">Long-press compass glyph size</string>
-    <string name="keyboard_ui_item_strip_font">Long-press extra-key glyph size</string>
+    <string name="keyboard_ui_item_compass_font">Compass glyph size</string>
+    <string name="keyboard_ui_item_strip_font">Extra-key strip glyph size</string>
     <string name="keyboard_ui_item_top_row_pos">Top row position</string>
     <string name="keyboard_ui_item_bottom_row_pos">Bottom row position</string>
     <string name="keyboard_ui_item_left_col_pos">Left column position</string>

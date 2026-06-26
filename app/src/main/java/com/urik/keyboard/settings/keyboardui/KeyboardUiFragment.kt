@@ -237,6 +237,8 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         borderPref = seekBar("kb_ui_border", R.string.keyboard_ui_border_width, min = 0, max = 8, sub = true)
         keyBorderColorPref = colorPref("kb_ui_col_key_border", R.string.keyboard_ui_item_border_colour, sub = true)
         capsLockShiftColorPref = colorPref("kb_ui_col_caps_shift", R.string.keyboard_ui_item_caps_shift, sub = true)
+
+        // Popups (sub of Keys): the over-key popups — the on-press preview + the two long-press previews.
         keyPreviewPref =
             SwitchPreferenceCompat(context).apply {
                 key = "kb_ui_key_preview"
@@ -246,6 +248,8 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                 summaryOn = resources.getString(R.string.keyboard_ui_key_preview_on)
                 summaryOff = resources.getString(R.string.keyboard_ui_key_preview_off)
             }
+        compassFontPref = seekBar("kb_ui_compass_font", R.string.keyboard_ui_item_compass_font, min = 100, max = 400, sub = true)
+        stripFontPref = seekBar("kb_ui_strip_font", R.string.keyboard_ui_item_strip_font, min = 100, max = 500, sub = true)
 
         // --- ROWS: the horizontal bands, top to bottom — suggestion bar, then the secondary char rows. ---
         val rowsCategory = sectionCategory("kb_ui_cat_rows", R.string.keyboard_ui_section_rows)
@@ -292,8 +296,6 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
 
         // --- COMPASS KEYS: positions of the secondary-character rows / columns. ---
         val compassCategory = sectionCategory("kb_ui_cat_compass", R.string.keyboard_ui_section_compass)
-        compassFontPref = seekBar("kb_ui_compass_font", R.string.keyboard_ui_item_compass_font, min = 100, max = 400)
-        stripFontPref = seekBar("kb_ui_strip_font", R.string.keyboard_ui_item_strip_font, min = 100, max = 500)
         topRowPositionPref = seekBar("kb_ui_hint_top_dist", R.string.keyboard_ui_item_top_row_pos, min = 0, max = 60)
         bottomRowPositionPref = seekBar("kb_ui_hint_bot_dist", R.string.keyboard_ui_item_bottom_row_pos, min = 0, max = 60)
         leftColumnPositionPref = seekBar("kb_ui_hint_left_dist", R.string.keyboard_ui_item_left_col_pos, min = 0, max = 60)
@@ -339,7 +341,10 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         keysCategory.addPreference(borderPref)
         keysCategory.addPreference(keyBorderColorPref)
         keysCategory.addPreference(capsLockShiftColorPref)
+        keysCategory.addPreference(subHeader(R.string.keyboard_ui_sub_popups))
         keysCategory.addPreference(keyPreviewPref)
+        keysCategory.addPreference(compassFontPref)
+        keysCategory.addPreference(stripFontPref)
 
         screen.addPreference(rowsCategory)
         rowsCategory.addPreference(subHeader(R.string.keyboard_ui_section_suggestion))
@@ -360,8 +365,6 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         rowsCategory.addPreference(hintBottomFontPref)
 
         screen.addPreference(compassCategory)
-        compassCategory.addPreference(compassFontPref)
-        compassCategory.addPreference(stripFontPref)
         compassCategory.addPreference(topRowPositionPref)
         compassCategory.addPreference(bottomRowPositionPref)
         compassCategory.addPreference(leftColumnPositionPref)
