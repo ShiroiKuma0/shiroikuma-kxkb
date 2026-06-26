@@ -4,7 +4,45 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+172 — current
+## 0.23.1+198 — current
+
+Built on Urik `0.23.1-beta`. **Compass long-press extra keys** with slide-to-pick and a lock, two
+per-geometry glyph-size sliders, a Japanese-punctuation toolbar, and a thorough rework of keyboard
+sizing — including a definitive fix for the cold-start clip.
+
+### Compass long-press extra-key strip
+
+- **Long-press a GNU compass key** to raise a strip of extra characters above the compass: slide
+  right to pick (release commits), left onto a **🔒 lock** to keep the strip up and tappable, or pull
+  down to cancel. The glyphs are a curated table derived from Multiling-O `XK:` data.
+- The strip packs its glyphs tightly with a fast linear cursor and wraps onto more rows when narrow;
+  the compass preview is enlarged into a bordered black panel with a yellow border.
+- **Per-geometry glyph-size sliders** for the compass and the extra-key strip, grouped with the key
+  preview toggle under a new **Popups** subsection of the **Keys** settings page.
+
+### Keyboard sizing
+
+- **Per-(app·layout·geometry) size resolved synchronously**, so the keyboard comes up correctly sized
+  instead of clipping a frame late; a screen-fit clamp keeps a too-large saved size on-screen.
+- **Constant keyboard height across all pages** (letters / symbols / number pad) — alternate pages no
+  longer change the keyboard height.
+- A **per-app “reset to default” button** at the bottom of the Keyboard UI page, scoped to the app you
+  were typing in.
+- **Cold-start clip fixed for good** — the keyboard height is cached per app·geometry in
+  device-protected storage and applied before the window is measured, so a slow first-open build no
+  longer leaves the bottom row clipped (or the keyboard lifted off the bottom). Verified on-device
+  against a forced build-race.
+
+### Japanese
+
+- A **Japanese-punctuation toolbar** on the bottom row of the Japanese layouts (`「」 ？！ 。、 〜`).
+
+### Fixes
+
+- The candidate bar’s **expand triangle (▾) no longer multiplies** on keyboard rebuilds — the rebuild
+  was re-adding it as a suggestion.
+
+## 0.23.1+172
 
 Built on Urik `0.23.1-beta`. A **NexDock XL** focus: a Czech variant with dead keys on the physical
 keyboard and a **fully reassignable** hardware keymap (move Ctrl/Alt anywhere), plus **per-layout**
