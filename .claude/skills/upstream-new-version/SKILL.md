@@ -75,8 +75,9 @@ upstream release tag, replay our `custom` customizations on top, and produce a f
    rebase-fragile area.
 
 7. **Build the new `+1`** via the **build-apk** skill
-   (`JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ANDROID_HOME=/home/shiroikuma/android-sdk ./gradlew buildApk < /dev/null`),
-   then **ask** before any transfer. This is the first build of the new upstream line (`<newVersion>+1`).
+   (`JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ANDROID_HOME=/home/shiroikuma/android-sdk ./gradlew buildApk < /dev/null`);
+   build-apk then delivers the APK automatically via `/after-build` (adb push if a phone is connected,
+   else scp to skhw — no prompt). This is the first build of the new upstream line (`<newVersion>+1`).
 
 8. **Stop.** Let the user test. Commit/push only on their explicit **"Push"**. Because the rebase rewrites
    `custom`'s history: `git push --force-with-lease origin custom`; `main` is `git push origin main`
