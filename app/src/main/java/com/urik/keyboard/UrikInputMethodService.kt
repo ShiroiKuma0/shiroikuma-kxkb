@@ -539,8 +539,11 @@ open class UrikInputMethodService :
                     onClusterBands = { bands ->
                         spellCheckManager.setClusterBands(bands)
                         // A cluster layout enables Space-commits-candidate / Tab-advances + the bar highlight.
+                        // Japanese uses the same model, so the highlight stays on for it too.
                         inputState.clusterLayoutActive = bands.isNotEmpty()
-                        candidateBarController.setSuggestionSelectionEnabled(bands.isNotEmpty())
+                        candidateBarController.setSuggestionSelectionEnabled(
+                            bands.isNotEmpty() || suggestionPipeline.isJapaneseLayout
+                        )
                     },
                     onSpaceLongPress = { handleSpaceLongPressLiteral() },
                     onShowInputMethodPicker = { showInputMethodPicker() },
@@ -609,7 +612,7 @@ open class UrikInputMethodService :
                 serviceScope = serviceScope,
                 onGetCurrentSettings = { currentSettings },
                 onCheckAutoCapitalization = ::checkAutoCapitalization,
-                onJapaneseSpaceNextCandidate = { japaneseCandidateHandler.onNextCandidate() }
+                onJapaneseSpaceAdvance = { advanceJapaneseCandidate() }
             )
             swipeWordHandler = SwipeWordHandler(
                 inputState = inputState,
@@ -1538,6 +1541,9 @@ open class UrikInputMethodService :
                     val isJa = detectedLanguage.split("-").first() == "ja"
                     textInputProcessor.setJapaneseLayout(isJa)
                     suggestionPipeline.setJapaneseLayout(isJa)
+                    // Japanese shares the cluster Space-commits / Tab-advances candidate model, so keep the
+                    // bar highlight on for it (and for any active cluster layout).
+                    candidateBarController.setSuggestionSelectionEnabled(isJa || inputState.clusterLayoutActive)
                     // Re-evaluate field flags so the GNU layout's forced no-prediction takes
                     // effect immediately when switching to/from it (not only on field focus).
                     applyFieldTypeFromEditorInfo(currentInputEditorInfo)
@@ -2371,18 +2377,78 @@ open class UrikInputMethodService :
     override fun onTab() {
         // Cluster typing: Tab ("tap") advances the highlighted candidate that Space will commit, rather
         // than emitting a literal tab. Falls back to a real KEYCODE_TAB when there's nothing to cycle.
-        if (inputState.clusterLayoutActive && inputState.pendingSuggestions.isNotEmpty()) {
-            // Advance over exactly the candidates the bar is showing (as many as fit), wrapping around.
-            val idx = candidateBarController.advanceSelection()
-            if (idx >= 0) {
-                inputState.selectedCandidate = idx
+        // No-prediction context (the GNU code layout, the manual no-prediction mode, secure/terminal fields):
+        // Tab is ALWAYS a literal Tab — it must never cycle the static custom toolbar. The toolbar entries
+        // there are tap-only. This keeps Tab-completion working in Emacs etc. on a GNU layout. (Mirrors Space,
+        // which already emits a literal space in these contexts.)
+        if (!inputState.isSuggestionsDisabled && !inputState.requiresDirectCommit) {
+            if (inputState.clusterLayoutActive && inputState.pendingSuggestions.isNotEmpty()) {
+                // Advance over exactly the candidates the bar is showing (as many as fit), wrapping around.
+                val idx = candidateBarController.advanceSelection()
+                if (idx >= 0) {
+                    inputState.selectedCandidate = idx
+                    return
+                }
+            }
+            // Japanese: Tab advances the highlighted candidate that Enter commits, moving the bar highlight
+            // without committing. The trailing ＋登録 affordance is skipped.
+            if (suggestionPipeline.isJapaneseLayout && inputState.pendingSuggestions.isNotEmpty()) {
+                advanceJapaneseCandidate()
                 return
             }
         }
         // Commit any in-progress composing word first; commitText/sendKeyEvent would
         // otherwise replace the composing region instead of appending the tab.
         coordinateStateClear()
-        outputBridge.sendTab()
+        // GNU "code mode": deliver a REAL Tab key event so apps like Emacs run their TAB command (completion,
+        // indentation) rather than receiving a literal tab CHARACTER (which just self-inserts). Other contexts
+        // keep the committed "\t" that normal text fields insert as a tab. (Raw/terminal fields already get a
+        // real key event inside sendTab.) This is what makes Tab-completion work in GUI Emacs on a GNU layout.
+        if (languageManager.currentLayoutLanguage.value.substringBefore("-") == "gnu") {
+            sendDownUpKeyEvents(KeyEvent.KEYCODE_TAB)
+        } else {
+            outputBridge.sendTab()
+        }
+    }
+
+    /**
+     * Commit the currently highlighted Japanese candidate (the one Enter accepts): index 0 (best conversion)
+     * by default, or the Space/Tab-advanced one. Routes through the same [handleSuggestionSelected] path a tap
+     * uses, so the ＋登録 affordance opens the dialog, the reading→surface selection is learned, and the
+     * surface is inserted with no trailing space. With no candidates yet (debounce window) it finalises the
+     * raw kana.
+     */
+    private fun commitSelectedJapaneseCandidate() {
+        val candidates = inputState.pendingSuggestions
+        if (candidates.isEmpty()) {
+            outputBridge.finishComposingText()
+            coordinateStateClear()
+            return
+        }
+        val idx = inputState.selectedCandidate.coerceIn(0, candidates.size - 1)
+        handleSuggestionSelected(candidates[idx])
+    }
+
+    /**
+     * Space or Tab on a Japanese layout: move the candidate-bar highlight to the next real candidate
+     * (wrapping), skipping the trailing ＋登録 affordance, and mirror it into
+     * [InputStateManager.selectedCandidate] so Enter commits exactly what is highlighted. Only the highlight
+     * moves — the composing text is untouched until commit, so the commit's cursor math stays valid.
+     */
+    private fun advanceJapaneseCandidate() {
+        val candidates = inputState.pendingSuggestions
+        if (candidates.isEmpty()) return
+        var idx = candidateBarController.advanceSelection()
+        if (idx < 0) return
+        var guard = 0
+        while (guard < candidates.size &&
+            suggestionPipeline.isJapaneseRegisterAffordance(candidates.getOrNull(idx).orEmpty())
+        ) {
+            idx = candidateBarController.advanceSelection()
+            if (idx < 0) return
+            guard++
+        }
+        inputState.selectedCandidate = idx
     }
 
     /**
@@ -2517,6 +2583,14 @@ open class UrikInputMethodService :
 
     private suspend fun performInputAction(imeAction: Int) {
         try {
+            // Japanese: Enter (確定) commits the highlighted candidate and is CONSUMED — accept the conversion,
+            // no newline. A second Enter (nothing composing) then performs the field's real action. Space/Tab
+            // move the highlight; Enter accepts it.
+            if (suggestionPipeline.isJapaneseLayout && inputState.displayBuffer.isNotEmpty()) {
+                commitSelectedJapaneseCandidate()
+                return
+            }
+
             if (!inputState.requiresDirectCommit && inputState.displayBuffer.isNotEmpty()) {
                 val actualTextBefore = outputBridge.safeGetTextBeforeCursor(1)
                 val actualTextAfter = outputBridge.safeGetTextAfterCursor(1)

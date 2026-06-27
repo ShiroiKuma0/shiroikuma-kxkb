@@ -58,7 +58,10 @@ constructor(
     cacheMemoryManager: CacheMemoryManager,
     private val blacklistRepository: BlacklistRepository,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
-    private val fatFingerExpander: FatFingerExpander = FatFingerExpander()
+    private val fatFingerExpander: FatFingerExpander = FatFingerExpander(),
+    // The unified per-language user dictionary (explicit words + shortcuts). Nullable so the many direct
+    // test constructions stay valid; the real instance is supplied by the Hilt provider.
+    private val userDictionaryRepository: com.urik.keyboard.data.UserDictionaryRepository? = null
 ) : MemoryPressureSubscriber {
     private val initializationComplete = CompletableDeferred<Boolean>()
     private var initializationJob: Job? = null
@@ -562,7 +565,11 @@ constructor(
         try {
             val seenWords = mutableSetOf<String>()
             val allSuggestions = mutableListOf<SpellingSuggestion>()
-            // Cluster prediction first so it owns the words it produces (highest, frequency-ranked).
+            // The user's own dictionary first — it outranks everything (see queryUserDictionarySuggestions).
+            allSuggestions += queryUserDictionarySuggestions(normalizedWord, languageCode, seenWords)
+            // Then your own TYPED words on cluster layouts, frequency-ranked (cluster-only; see the method).
+            allSuggestions += queryLearnedHeavySuggestions(normalizedWord, languageCode, seenWords)
+            // Cluster prediction next so it owns the words it produces (highest, frequency-ranked).
             allSuggestions += queryClusterSuggestions(normalizedWord, languageCode, seenWords)
             allSuggestions += queryLearnedSuggestions(normalizedWord, languageCode, seenWords)
             allSuggestions += queryCompletionSuggestions(normalizedWord, languageCode, seenWords)
@@ -774,6 +781,191 @@ constructor(
         return dict.clusterCandidates(allowedSets, maxResults)
             .mapNotNull { (w, _) -> if (isWordBlacklisted(w)) null else w }
     }
+
+    /**
+     * The user's own dictionary (explicitly added words + shortcuts), surfaced HEAVILY and ahead of the
+     * bundled dictionary, on every layout including cluster. Each entry's diacritic-folded key is matched
+     * against the typed buffer — by prefix on a normal layout, and band-by-band (the same accent-folded
+     * cluster bands the DAWG walk uses) on a cluster layout, so a phrase reappears from just its opening taps.
+     * Ranking follows 白い熊's rule: an entry typed/added once sits near the top; used twice or more it
+     * outranks even an exact dictionary match (the #1 candidate); ties break by frequency. Japanese
+     * reading→surface entries are offered by the converter path, so they are skipped here.
+     */
+    private suspend fun queryUserDictionarySuggestions(
+        normalizedWord: String,
+        languageCode: String,
+        seenWords: MutableSet<String>
+    ): List<SpellingSuggestion> {
+        val repo = userDictionaryRepository ?: return emptyList()
+        if (normalizedWord.isEmpty()) return emptyList()
+        return try {
+            val entries = repo.matchesFor(languageCode)
+            if (entries.isEmpty()) return emptyList()
+            val bufFolded = wordNormalizer.stripDiacritics(normalizedWord).lowercase()
+            if (bufFolded.isEmpty()) return emptyList()
+            val bands = clusterBands
+            val result = mutableListOf<SpellingSuggestion>()
+            entries
+                .asSequence()
+                .filter { it.kind != com.urik.keyboard.data.database.UserDictionaryKind.JAPANESE }
+                .filter { matchesTypedBuffer(it.foldedKey, bufFolded, bands) }
+                .sortedByDescending { it.frequency }
+                .forEach { entry ->
+                    val dedupeKey = entry.value.lowercase()
+                    if (dedupeKey in seenWords || isWordBlacklisted(entry.value)) return@forEach
+                    seenWords.add(dedupeKey)
+                    result.add(
+                        SpellingSuggestion(
+                            word = entry.value,
+                            confidence = userDictionaryConfidence(entry.frequency),
+                            ranking = 0,
+                            source = "userdict",
+                            preserveCase = true
+                        )
+                    )
+                }
+            result
+        } catch (e: Exception) {
+            ErrorLogger.logException(
+                component = "SpellCheckManager",
+                severity = ErrorLogger.Severity.HIGH,
+                exception = e,
+                context = mapOf("operation" to "queryUserDictionarySuggestions")
+            )
+            emptyList()
+        }
+    }
+
+    /**
+     * Does a user-dictionary entry (accent-folded [foldedKey]) match what the user has typed so far
+     * ([bufFolded], also accent-folded)? On a normal layout this is a plain prefix test. On a cluster layout
+     * each typed centre stands for its whole [bands] set, so the entry char at each position must fall in the
+     * tapped key's band — a predictive, band-constrained prefix.
+     */
+    private fun matchesTypedBuffer(foldedKey: String, bufFolded: String, bands: Map<Char, Set<Char>>): Boolean {
+        if (foldedKey.length < bufFolded.length) return false
+        if (bands.isEmpty()) return foldedKey.startsWith(bufFolded)
+        for (i in bufFolded.indices) {
+            val allowed = bands[bufFolded[i]] ?: setOf(bufFolded[i])
+            if (foldedKey[i] !in allowed) return false
+        }
+        return true
+    }
+
+    /**
+     * Confidence for a user-dictionary candidate per 白い熊's ranking rule: used once → near the top (just
+     * under an exact dictionary hit at [EXACT_MATCH_CONFIDENCE]); used twice or more → above that ceiling so
+     * it lands as the #1 candidate, with higher frequency ranking higher within that top band.
+     */
+    private fun userDictionaryConfidence(frequency: Int): Double =
+        if (frequency <= 1) {
+            USER_DICT_NEAR_TOP_CONFIDENCE
+        } else {
+            (USER_DICT_TOP_BASE_CONFIDENCE + minOf(frequency, USER_DICT_FREQ_CAP) * USER_DICT_FREQ_STEP)
+                .coerceAtMost(1.0)
+        }
+
+    /**
+     * The user dictionary's Japanese reading→surface entries whose reading the current buffer is typing
+     * toward (the typed kana is a prefix of the stored reading), highest-frequency first. The Japanese
+     * candidate path surfaces these as the TOP conversions — leading the row from the very first kana, so a
+     * registered word like しろいくま→白い熊 is offered as #1 the moment you type し. (Deliberately eager: the
+     * user's own registrations win over the bundled conversions.) The unified replacement for the old
+     * per-converter registration overlay.
+     */
+    suspend fun japaneseUserCandidates(reading: String): List<String> {
+        val repo = userDictionaryRepository ?: return emptyList()
+        if (reading.isEmpty()) return emptyList()
+        return try {
+            repo.matchesFor("ja")
+                .asSequence()
+                .filter {
+                    it.kind == com.urik.keyboard.data.database.UserDictionaryKind.JAPANESE &&
+                        it.matchKey.startsWith(reading)
+                }
+                .sortedByDescending { it.frequency }
+                .map { it.value }
+                .filter { !isWordBlacklisted(it) }
+                .distinct()
+                .toList()
+        } catch (e: Exception) {
+            ErrorLogger.logException(
+                component = "SpellCheckManager",
+                severity = ErrorLogger.Severity.HIGH,
+                exception = e,
+                context = mapOf("operation" to "japaneseUserCandidates")
+            )
+            emptyList()
+        }
+    }
+
+    /** Promote a just-committed word in the user dictionary of [languageTag] (its use count climbs). */
+    fun recordUserDictionaryUse(languageTag: String, word: String) {
+        userDictionaryRepository?.recordUse(languageTag, word)
+    }
+
+    /**
+     * Your own typed words (the learned-words store) surfaced on CLUSTER layouts and ranked by how often you
+     * have typed them: once → near the top, twice or more → the #1 candidate (a hair below a deliberate user-
+     * dictionary entry, so a deliberate add still wins a tie). Matched band-by-band, accent-folded — exactly
+     * the match the centre-letter buffer denies the similarity lookup, which is why a repeated phrase like
+     * "Teď" never used to reappear here. Cluster-only: a normal layout already surfaces learned words via
+     * [queryLearnedSuggestions], and elevating them to #1 there would over-trigger auto-replacement.
+     */
+    private suspend fun queryLearnedHeavySuggestions(
+        normalizedWord: String,
+        languageCode: String,
+        seenWords: MutableSet<String>
+    ): List<SpellingSuggestion> {
+        val bands = clusterBands
+        if (bands.isEmpty() || normalizedWord.isEmpty()) return emptyList()
+        return try {
+            val learned = wordLearningEngine.getLearnedWordsForLanguage(languageCode)
+            if (learned.isEmpty()) return emptyList()
+            val bufFolded = wordNormalizer.stripDiacritics(normalizedWord).lowercase()
+            if (bufFolded.isEmpty()) return emptyList()
+            val result = mutableListOf<SpellingSuggestion>()
+            learned
+                .asSequence()
+                .filter { (word, _) ->
+                    matchesTypedBuffer(wordNormalizer.stripDiacritics(word).lowercase(), bufFolded, bands)
+                }
+                .sortedByDescending { it.second }
+                .take(LEARNED_HEAVY_MAX_RESULTS)
+                .forEach { (word, frequency) ->
+                    val dedupeKey = word.lowercase()
+                    if (dedupeKey in seenWords || isWordBlacklisted(word)) return@forEach
+                    seenWords.add(dedupeKey)
+                    result.add(
+                        SpellingSuggestion(
+                            word = word,
+                            confidence = learnedHeavyConfidence(frequency),
+                            ranking = 0,
+                            source = "learned",
+                            preserveCase = true
+                        )
+                    )
+                }
+            result
+        } catch (e: Exception) {
+            ErrorLogger.logException(
+                component = "SpellCheckManager",
+                severity = ErrorLogger.Severity.HIGH,
+                exception = e,
+                context = mapOf("operation" to "queryLearnedHeavySuggestions")
+            )
+            emptyList()
+        }
+    }
+
+    /** Heavy ranking for a typed word; mirrors [userDictionaryConfidence] a hair lower so a deliberate entry wins. */
+    private fun learnedHeavyConfidence(frequency: Int): Double =
+        if (frequency <= 1) {
+            LEARNED_HEAVY_NEAR_TOP_CONFIDENCE
+        } else {
+            (LEARNED_HEAVY_TOP_BASE_CONFIDENCE + minOf(frequency, USER_DICT_FREQ_CAP) * USER_DICT_FREQ_STEP)
+                .coerceAtMost(1.0)
+        }
 
     private fun queryClusterSuggestions(
         normalizedWord: String,
@@ -1452,6 +1644,20 @@ constructor(
         const val DIACRITIC_PROMOTION_BOOST = 0.08
         const val EXACT_MATCH_CONFIDENCE = 0.999
         const val CONTRACTION_GUARANTEED_CONFIDENCE = 0.995
+
+        // User-dictionary ranking (queryUserDictionarySuggestions): freq 1 sits just under an exact dict hit;
+        // freq ≥ 2 sits ABOVE the exact-match ceiling so the user's own word is the #1 candidate, ordered by
+        // frequency within that top band (base + step·min(freq,cap), capped at 1.0 → never runs away).
+        const val USER_DICT_NEAR_TOP_CONFIDENCE = 0.97
+        const val USER_DICT_TOP_BASE_CONFIDENCE = 0.9995
+        const val USER_DICT_FREQ_STEP = 0.00001
+        const val USER_DICT_FREQ_CAP = 50
+
+        // Typed-word (learned) heavy ranking on cluster layouts — same shape as the user-dictionary band,
+        // a hair lower so a deliberately added entry wins a tie at equal frequency.
+        const val LEARNED_HEAVY_NEAR_TOP_CONFIDENCE = 0.96
+        const val LEARNED_HEAVY_TOP_BASE_CONFIDENCE = 0.9994
+        const val LEARNED_HEAVY_MAX_RESULTS = 8
         const val CONTRACTION_DOMINANCE_RATIO = 20L
         const val USER_FREQ_CONTRACTION_WEIGHT = 300L
 

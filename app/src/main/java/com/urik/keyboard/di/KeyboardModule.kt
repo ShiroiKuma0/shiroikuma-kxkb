@@ -145,7 +145,8 @@ object KeyboardModule {
         cacheMemoryManager: CacheMemoryManager,
         blacklistRepository: BlacklistRepository,
         wordNormalizer: WordNormalizer,
-        fatFingerExpander: FatFingerExpander
+        fatFingerExpander: FatFingerExpander,
+        userDictionaryRepository: com.urik.keyboard.data.UserDictionaryRepository
     ): SpellCheckManager = SpellCheckManager(
         context,
         languageManager,
@@ -154,7 +155,8 @@ object KeyboardModule {
         wordNormalizer,
         cacheMemoryManager,
         blacklistRepository,
-        fatFingerExpander = fatFingerExpander
+        fatFingerExpander = fatFingerExpander,
+        userDictionaryRepository = userDictionaryRepository
     )
 
     @Provides

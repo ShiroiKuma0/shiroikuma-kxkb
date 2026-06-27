@@ -709,6 +709,25 @@
     <string name="ja_dictionary_summary">View and remove learned and registered reading → word entries</string>
     <string name="ja_dictionary_empty">登録された単語はありません</string>
 
+    <!-- User dictionary (words + shortcuts + Japanese reading→kanji) -->
+    <string name="user_dictionary_title">User dictionary</string>
+    <string name="user_dictionary_summary">Your own words, shortcuts and Japanese readings — offered first as you type</string>
+    <string name="user_dictionary_empty">No entries yet. Tap “Add” to teach a word, a shortcut, or a Japanese reading.</string>
+    <string name="user_dictionary_add">Add</string>
+    <string name="user_dictionary_add_title">Add entry</string>
+    <string name="user_dictionary_edit_title">Edit entry</string>
+    <string name="user_dictionary_kind_word">Word</string>
+    <string name="user_dictionary_kind_shortcut">Shortcut</string>
+    <string name="user_dictionary_kind_japanese">Japanese</string>
+    <string name="user_dictionary_field_word">Word</string>
+    <string name="user_dictionary_field_shortcut">Shortcut</string>
+    <string name="user_dictionary_field_expansion">Expands to</string>
+    <string name="user_dictionary_field_reading">Reading (kana)</string>
+    <string name="user_dictionary_field_kanji">Word (kanji)</string>
+    <string name="user_dictionary_field_language">Language</string>
+    <string name="user_dictionary_incomplete">Please fill in every field.</string>
+    <string name="user_dictionary_freq">×%1$d</string>
+
     <!-- Tips -->
     <string name="tip_1_title">Learning Words</string>
     <string name="tip_1_description">Press space after a highlighted typo to add the word to your dictionary.</string>

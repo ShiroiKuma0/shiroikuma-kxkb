@@ -78,6 +78,7 @@ class SuggestionPipelineTest {
             kotlinx.coroutines.flow.MutableStateFlow("en")
         )
         whenever(mockWordLearningEngine.learnWord(any(), any())).thenReturn(Result.success(null as LearnedWord?))
+        whenever(mockSpellCheckManager.japaneseUserCandidates(any())).thenReturn(emptyList())
 
         val viewCallback = object : ViewCallback {
             override fun clearSuggestions() {

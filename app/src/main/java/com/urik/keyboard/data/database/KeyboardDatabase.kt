@@ -17,9 +17,10 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         CustomKeyMapping::class,
         UserWordFrequency::class,
         UserWordBigram::class,
-        UserKanjiFrequency::class
+        UserKanjiFrequency::class,
+        UserDictionaryEntry::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 2, to = 3)
@@ -37,6 +38,8 @@ abstract class KeyboardDatabase : RoomDatabase() {
     abstract fun userWordBigramDao(): UserWordBigramDao
 
     abstract fun userKanjiFrequencyDao(): UserKanjiFrequencyDao
+
+    abstract fun userDictionaryDao(): UserDictionaryDao
 
     companion object {
         const val DATABASE_NAME = "keyboard_database"
@@ -210,6 +213,47 @@ abstract class KeyboardDatabase : RoomDatabase() {
             }
 
         /**
+         * Adds the unified `user_dictionary` table (words + shortcuts + Japanese reading→surface) and carries
+         * the existing Japanese-only `user_kanji_frequency` registrations across so nothing the user already
+         * taught is lost. `user_kanji_frequency` itself is left in place (still read by the legacy converter
+         * until the Japanese path is fully folded into the new store).
+         */
+        private val MIGRATION_8_9 =
+            object : Migration(8, 9) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        """
+                        CREATE TABLE IF NOT EXISTS user_dictionary (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                            language_tag TEXT NOT NULL,
+                            kind TEXT NOT NULL,
+                            match_key TEXT NOT NULL,
+                            value TEXT NOT NULL,
+                            frequency INTEGER NOT NULL,
+                            added_at INTEGER NOT NULL,
+                            last_used INTEGER NOT NULL
+                        )
+                        """.trimIndent()
+                    )
+                    db.execSQL(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS idx_user_dict_unique " +
+                            "ON user_dictionary(language_tag, kind, match_key, value)"
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS idx_user_dict_lang ON user_dictionary(language_tag, kind)"
+                    )
+                    db.execSQL(
+                        """
+                        INSERT OR IGNORE INTO user_dictionary
+                            (language_tag, kind, match_key, value, frequency, added_at, last_used)
+                        SELECT 'ja', 'japanese', reading, surface, frequency, last_used, last_used
+                        FROM user_kanji_frequency
+                        """.trimIndent()
+                    )
+                }
+            }
+
+        /**
          * @param passphrase SQLCipher key from Android Keystore, or null for unencrypted
          * @throws IllegalStateException if encryption mode changes between calls
          */
@@ -237,7 +281,8 @@ abstract class KeyboardDatabase : RoomDatabase() {
                             MIGRATION_4_5,
                             MIGRATION_5_6,
                             MIGRATION_6_7,
-                            MIGRATION_7_8
+                            MIGRATION_7_8,
+                            MIGRATION_8_9
                         )
                         .addCallback(
                             object : Callback() {

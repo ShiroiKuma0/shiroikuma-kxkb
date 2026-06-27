@@ -95,6 +95,14 @@ class WordLearningEngine(
     @Volatile
     private var swipeWordsCacheLanguage = ""
 
+    // All learned words of one language as (word, frequency), cached for the heavy-priority suggestion path
+    // (invalidated on learn/remove). Lets typed words surface and frequency-rank on cluster layouts.
+    @Volatile
+    private var learnedListCacheLanguage = ""
+
+    @Volatile
+    private var learnedListCache = emptyList<Pair<String, Int>>()
+
     private val engineJob = SupervisorJob()
     private val engineScope = CoroutineScope(engineJob + mainDispatcher)
 
@@ -256,6 +264,7 @@ class WordLearningEngine(
             }
 
             onSuccessfulOperation()
+            invalidateLearnedListCache()
 
             Result.success(learnedWord)
         } catch (e: SQLiteDatabaseCorruptException) {
@@ -569,6 +578,34 @@ class WordLearningEngine(
         }
     }
 
+    /**
+     * All learned words of [languageTag] as (word, frequency), cached for the heavy-priority suggestion path
+     * (refreshed when a word is learned or removed). Powers cluster-layout surfacing + frequency ranking of
+     * typed words, which the similarity lookup — defeated by the centre-letter buffer — cannot do.
+     */
+    suspend fun getLearnedWordsForLanguage(languageTag: String): List<Pair<String, Int>> =
+        withContext(ioDispatcher) {
+            if (learnedListCacheLanguage == languageTag) return@withContext learnedListCache
+            val list = try {
+                learnedWordDao.getAllLearnedWordsForLanguage(languageTag).map { it.word to it.frequency }
+            } catch (e: Exception) {
+                ErrorLogger.logException(
+                    component = "WordLearningEngine",
+                    severity = ErrorLogger.Severity.HIGH,
+                    exception = e,
+                    context = mapOf("operation" to "getLearnedWordsForLanguage", "language" to languageTag)
+                )
+                emptyList()
+            }
+            learnedListCacheLanguage = languageTag
+            learnedListCache = list
+            list
+        }
+
+    private fun invalidateLearnedListCache() {
+        learnedListCacheLanguage = ""
+    }
+
     /** Uses same mutex as learnWord to prevent race conditions. */
     suspend fun removeWord(word: String): Result<Boolean> = withContext(ioDispatcher) {
         val currentLanguage = languageManager.currentLanguage.value
@@ -602,6 +639,7 @@ class WordLearningEngine(
                     }
 
                     consecutiveErrors.set(0)
+                    invalidateLearnedListCache()
 
                     Result.success(true)
                 } else {
@@ -1048,6 +1086,7 @@ class WordLearningEngine(
             hotFrequencyBuffer.clear()
             swipeWordsCache = emptyList()
             swipeWordsCacheLanguage = ""
+            invalidateLearnedListCache()
 
             Result.success(Unit)
         } catch (e: SQLiteException) {
@@ -1076,6 +1115,7 @@ class WordLearningEngine(
             hotFrequencyBuffer.clear()
             swipeWordsCache = emptyList()
             swipeWordsCacheLanguage = ""
+            invalidateLearnedListCache()
 
             Result.success(Unit)
         } catch (e: SQLiteException) {

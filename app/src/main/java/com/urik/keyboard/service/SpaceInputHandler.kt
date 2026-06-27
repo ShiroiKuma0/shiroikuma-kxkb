@@ -20,7 +20,7 @@ class SpaceInputHandler(
     private val serviceScope: CoroutineScope,
     private val onGetCurrentSettings: () -> KeyboardSettings,
     private val onCheckAutoCapitalization: (textBefore: String) -> Unit,
-    private val onJapaneseSpaceNextCandidate: () -> Unit = {}
+    private val onJapaneseSpaceAdvance: () -> Unit = {}
 ) {
     fun handle(literalSpace: Boolean = false) {
         serviceScope.launch {
@@ -35,8 +35,11 @@ class SpaceInputHandler(
                     return@launch
                 }
 
+                // Japanese: Space ADVANCES the highlighted candidate (same as Tab) — the traditional
+                // convert-on-space flow. Enter (確定) commits the highlighted candidate; tapping one commits
+                // it directly. Space never inserts a literal space while a reading is composing.
                 if (suggestionPipeline.isJapaneseLayout && inputState.displayBuffer.isNotEmpty()) {
-                    onJapaneseSpaceNextCandidate()
+                    onJapaneseSpaceAdvance()
                     return@launch
                 }
 

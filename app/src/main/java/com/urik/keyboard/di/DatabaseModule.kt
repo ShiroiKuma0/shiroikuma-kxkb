@@ -10,6 +10,7 @@ import com.urik.keyboard.data.database.CustomKeyMappingDao
 import com.urik.keyboard.data.database.DatabaseSecurityManager
 import com.urik.keyboard.data.database.KeyboardDatabase
 import com.urik.keyboard.data.database.LearnedWordDao
+import com.urik.keyboard.data.database.UserDictionaryDao
 import com.urik.keyboard.data.database.UserKanjiFrequencyDao
 import com.urik.keyboard.data.database.UserWordBigramDao
 import com.urik.keyboard.data.database.UserWordFrequencyDao
@@ -262,4 +263,8 @@ object DatabaseModule {
     @Provides
     fun provideUserKanjiFrequencyDao(database: KeyboardDatabase): UserKanjiFrequencyDao =
         database.userKanjiFrequencyDao()
+
+    @Provides
+    fun provideUserDictionaryDao(database: KeyboardDatabase): UserDictionaryDao =
+        database.userDictionaryDao()
 }

@@ -3,6 +3,9 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:background="?attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true"
     android:gravity="center_vertical"
     android:minHeight="48dp"
     android:orientation="horizontal"
@@ -16,7 +19,7 @@
         android:orientation="vertical">
 
         <TextView
-            android:id="@+id/kanji_surface_text"
+            android:id="@+id/user_dict_primary"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:ellipsize="end"
@@ -25,23 +28,21 @@
             android:textColor="?attr/colorOnSurface" />
 
         <TextView
-            android:id="@+id/kanji_reading_text"
+            android:id="@+id/user_dict_secondary"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:maxLines="1"
             android:textAppearance="?attr/textAppearanceBodySmall"
             android:textColor="?attr/colorOnSurfaceVariant" />
-
     </LinearLayout>
 
     <ImageButton
-        android:id="@+id/delete_button"
+        android:id="@+id/user_dict_delete"
         android:layout_width="48dp"
         android:layout_height="48dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:contentDescription="@string/remove_confirm"
         android:src="@drawable/ic_delete"
         app:tint="?attr/colorOnSurfaceVariant" />
-
 </LinearLayout>

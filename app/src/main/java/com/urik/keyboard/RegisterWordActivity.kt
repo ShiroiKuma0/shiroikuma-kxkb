@@ -16,12 +16,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
+import com.urik.keyboard.data.UserDictionaryRepository
+import com.urik.keyboard.data.database.UserDictionaryKind
 import com.urik.keyboard.service.ScriptConverterRegistry
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 /**
  * Reading→surface word registration screen for the Japanese user dictionary (Japanese FIX 2 / BUG B).
@@ -38,6 +38,7 @@ import kotlinx.coroutines.withContext
 @AndroidEntryPoint
 class RegisterWordActivity : AppCompatActivity() {
     @Inject lateinit var scriptConverterRegistry: ScriptConverterRegistry
+    @Inject lateinit var userDictionaryRepository: UserDictionaryRepository
 
     private lateinit var readingField: EditText
     private lateinit var surfaceField: EditText
@@ -132,9 +133,14 @@ class RegisterWordActivity : AppCompatActivity() {
         // registerEntry seeds the in-memory boost map synchronously and schedules its own off-main-thread Room
         // write; jump off the main thread anyway so the call site never touches Room on the UI thread.
         lifecycleScope.launch {
-            withContext(Dispatchers.Default) {
-                scriptConverterRegistry.forLanguage(JAPANESE_LANGUAGE)?.registerEntry(reading, surface)
-            }
+            // Registrations live in the unified user dictionary (kind = Japanese reading→surface), so they
+            // are offered while typing and manageable in the User dictionary editor. (Unified Japanese.)
+            userDictionaryRepository.add(
+                languageTag = JAPANESE_LANGUAGE,
+                kind = UserDictionaryKind.JAPANESE,
+                matchKey = reading,
+                value = surface
+            )
             // Hand the just-registered pair back to the IME so that, on regaining the input view, it replaces
             // the still-typed reading with the registered surface (しろいくま → 白い熊). Set ONLY on a successful
             // Save — Cancel/back returns without ever signalling, so a dismissed dialog leaves the reading as-is.

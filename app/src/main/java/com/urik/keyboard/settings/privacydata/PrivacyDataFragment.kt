@@ -25,7 +25,6 @@ import androidx.preference.SwitchPreferenceCompat
 import com.urik.keyboard.R
 import com.urik.keyboard.data.database.DatabaseSecurityManager
 import com.urik.keyboard.settings.SettingsEventHandler
-import com.urik.keyboard.settings.japanesedictionary.JapaneseDictionaryFragment
 import com.urik.keyboard.settings.learnedwords.LearnedWordsFragment
 import com.urik.keyboard.utils.ErrorLogger
 import dagger.hilt.android.AndroidEntryPoint
@@ -159,18 +158,6 @@ class PrivacyDataFragment : PreferenceFragmentCompat() {
                 }
             }
         screen.addPreference(manageLearnedWordsPref)
-
-        val japaneseDictionaryPref =
-            Preference(context).apply {
-                key = "manage_japanese_dictionary"
-                title = resources.getString(R.string.ja_dictionary_title)
-                summary = resources.getString(R.string.ja_dictionary_summary)
-                setOnPreferenceClickListener {
-                    navigateToJapaneseDictionary()
-                    true
-                }
-            }
-        screen.addPreference(japaneseDictionaryPref)
 
         val exportDictionaryPref =
             Preference(context).apply {
@@ -497,14 +484,6 @@ class PrivacyDataFragment : PreferenceFragmentCompat() {
         parentFragmentManager
             .beginTransaction()
             .replace(R.id.settings_container, LearnedWordsFragment())
-            .addToBackStack(null)
-            .commit()
-    }
-
-    private fun navigateToJapaneseDictionary() {
-        parentFragmentManager
-            .beginTransaction()
-            .replace(R.id.settings_container, JapaneseDictionaryFragment())
             .addToBackStack(null)
             .commit()
     }

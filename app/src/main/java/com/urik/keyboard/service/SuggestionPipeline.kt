@@ -300,6 +300,8 @@ class SuggestionPipeline(
         try {
             val currentLanguage = languageManager.currentLanguage.value
             wordFrequencyRepository.incrementFrequency(word, currentLanguage)
+            // Promote a matching user-dictionary entry so words/shortcuts/readings you reuse climb to #1.
+            spellCheckManager.recordUserDictionaryUse(currentLanguage, word)
 
             if (state.lastCommittedWord.isNotBlank()) {
                 wordFrequencyRepository.recordBigram(state.lastCommittedWord, word, currentLanguage)
@@ -627,6 +629,13 @@ class SuggestionPipeline(
                     emptyList()
                 }
 
+                // The user dictionary's registered readings (e.g. しろいくま→白い熊) LEAD the conversion list,
+                // highest-frequency first — offered as #1 from the very first kana a prefix matches.
+                // (Unified Japanese: registrations now live in the user dictionary.)
+                val userCandidates = spellCheckManager.japaneseUserCandidates(hiraganaBuffer)
+                    .map { SpellingSuggestion(word = it, confidence = 0.0, ranking = 0, source = "learned") }
+                    .filter { !spellCheckManager.isWordBlacklisted(it.word) }
+
                 val hiraganaCandidate = SpellingSuggestion(
                     word = hiraganaBuffer,
                     confidence = -1.0,
@@ -646,7 +655,7 @@ class SuggestionPipeline(
                 // the remaining slots with conversions/completions, then append it (and the katakana form when it
                 // still fits). distinctBy collapses any conversion that happens to equal the kana. (BUG A.)
                 val cap = host.effectiveSuggestionCount()
-                val conversions = (conversionCandidates + dictCompletions)
+                val conversions = (userCandidates + conversionCandidates + dictCompletions)
                     .distinctBy { it.word }
                     .filter { it.word != hiraganaCandidate.word }
                 val reservedForBase = if (cap > 0) 1 else 0
