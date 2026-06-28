@@ -4,7 +4,53 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+204 — current
+## 0.23.1+211 — current
+
+Built on Urik `0.23.1-beta`. A modular **export / import** backup system, a **per-language**
+custom-suggestion toolbar, and a deep fix to **cluster prediction** — common words now lead the bar, and
+the bundled Czech dictionary is cleaned of foreign-word pollution.
+
+### Export / import
+
+- A new **Export / import** window (space-slide Actions column, and a link at the end of the kxkb UI page)
+  backs up and restores the keyboard as a single `.zip`. Tick the parts to include — **appearance &
+  colours, settings, keyboard layouts, user dictionary, learned words, next-word predictions, blocked
+  words, per-app layout memory** — then Export or Import. Each part is one JSON file plus a manifest;
+  import merges per row (never wipes; re-import is idempotent) and one failing part never aborts the rest.
+- The backup folder is a real filesystem path (All-Files-Access, no SAF — the Library model); the page
+  scans it and shows when the last backup was made.
+
+### Suggestion bar
+
+- **Custom suggestions are now per-language.** "Custom suggestions" is a sub-category under Suggestion bar
+  with one editable row per active language; the toolbar swaps live as you switch layout language. Built-in
+  defaults are English's general set with locale-appropriate marks for Czech (`„…“`), Russian (`«…»` + `№`)
+  and Japanese (`「…」`).
+
+### Cluster prediction
+
+- **Common words now lead the bar.** The cluster word-finder no longer truncates its dictionary walk before
+  ranking by frequency — so the most frequent match (e.g. Czech `Teď`) is always offered, not dropped.
+- **Cluster suggestions are scoped to the layout language**, so a Czech cluster no longer surfaces English
+  words from the merged dictionaries (and the expand pane uses the layout language, not the primary one).
+- **Your own typing is prioritised**: usage and word-learning are now recorded under the language you're
+  actually typing, and cluster candidates are boosted by how often you've typed them — a word you use a lot
+  climbs to the top.
+
+### Dictionary
+
+- The bundled corpus-derived dictionaries inherited foreign words (the Czech dictionary literally contained
+  English `bad/bed/bag`). The **Czech dictionary is now cleaned** with a generated removal list — words a
+  real Czech spell-checker rejects while English accepts (7681 words), keeping genuine Czech loanwords and
+  inflections. The loader auto-loads any `dictionaries/<lang>.removed`; regenerate via
+  `tools/clean_dictionaries.sh`.
+
+### Input / fixes
+
+- Space-slide: the left Actions column's "Languages" entry is now **"User dictionary"** (the language
+  switcher remains its own column). The Export/import action buttons no longer clip their bottom border.
+
+## 0.23.1+204
 
 Built on Urik `0.23.1-beta`. A **unified, per-language user dictionary** — your own words, text
 shortcuts and Japanese reading→kanji registrations in one place, offered first as you type — plus a
