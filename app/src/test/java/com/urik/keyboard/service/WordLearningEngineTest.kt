@@ -92,6 +92,7 @@ class WordLearningEngineTest {
 
         languageFlow = MutableStateFlow("en")
         whenever(languageManager.currentLanguage).thenReturn(languageFlow)
+        whenever(languageManager.currentLayoutLanguage).thenReturn(languageFlow)
 
         settingsFlow = MutableStateFlow(KeyboardSettings())
         whenever(settingsRepository.settings).thenReturn(settingsFlow)

@@ -77,6 +77,9 @@ class SuggestionPipelineTest {
         whenever(mockLanguageManager.currentLanguage).thenReturn(
             kotlinx.coroutines.flow.MutableStateFlow("en")
         )
+        whenever(mockLanguageManager.currentLayoutLanguage).thenReturn(
+            kotlinx.coroutines.flow.MutableStateFlow("en")
+        )
         whenever(mockWordLearningEngine.learnWord(any(), any())).thenReturn(Result.success(null as LearnedWord?))
         whenever(mockSpellCheckManager.japaneseUserCandidates(any())).thenReturn(emptyList())
 

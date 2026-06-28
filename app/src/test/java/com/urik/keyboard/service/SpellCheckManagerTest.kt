@@ -190,6 +190,7 @@ class SpellCheckManagerTest {
 
         currentLanguageFlow = MutableStateFlow("en")
         whenever(languageManager.currentLanguage).thenReturn(currentLanguageFlow)
+        whenever(languageManager.currentLayoutLanguage).thenReturn(currentLanguageFlow)
 
         activeLanguagesFlow = MutableStateFlow(listOf("en"))
         whenever(languageManager.activeLanguages).thenReturn(activeLanguagesFlow)

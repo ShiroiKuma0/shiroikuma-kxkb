@@ -208,9 +208,22 @@ constructor(
 
     private fun loadUrikDictionary(languageCode: String): UrikDictionary? = try {
         val stream = context.assets.open("dictionaries/$languageCode.urik")
-        UrikDictionary(stream, BareFormRemovelist.forLanguage(languageCode))
+        // Removed words = the hand-curated bare-form list + (if present) the generated `<lang>.removed`
+        // cross-language pollution list, which strips foreign words the corpus-built dictionary inherited
+        // (e.g. English "bad/bed/bag" inside the Czech dictionary). Both are honoured at lookup/candidate time.
+        val removed = BareFormRemovelist.forLanguage(languageCode) + loadRemovedWords(languageCode)
+        UrikDictionary(stream, removed)
     } catch (_: Exception) {
         null
+    }
+
+    /** The generated cross-language pollution list `dictionaries/<lang>.removed` (lowercase, one per line). */
+    private fun loadRemovedWords(languageCode: String): Set<String> = try {
+        context.assets.open("dictionaries/$languageCode.removed").bufferedReader().useLines { lines ->
+            lines.map { it.trim() }.filter { it.isNotEmpty() }.toHashSet()
+        }
+    } catch (_: Exception) {
+        emptySet()
     }
 
     private fun getUrikDictionary(languageCode: String): UrikDictionary? =
@@ -247,7 +260,7 @@ constructor(
                 return@withContext false
             }
 
-            val effectiveLanguages = languageManager.effectiveDictionaryLanguages.value
+            val effectiveLanguages = suggestionLanguages()
             val locale = getLocaleForLanguage()
             val normalizedWord = word.lowercase(locale).trim()
 
@@ -384,7 +397,7 @@ constructor(
         }
 
         val results = mutableMapOf<String, Boolean>()
-        val effectiveLanguages = languageManager.effectiveDictionaryLanguages.value
+        val effectiveLanguages = suggestionLanguages()
         val locale = getLocaleForLanguage()
 
         val wordsToProcess = mutableListOf<Pair<String, String>>()
@@ -498,7 +511,7 @@ constructor(
                     return@withContext emptyList()
                 }
 
-                val effectiveLanguages = languageManager.effectiveDictionaryLanguages.value
+                val effectiveLanguages = suggestionLanguages()
                 val locale = getLocaleForLanguage()
                 val normalizedWord = word.lowercase(locale).trim()
 
@@ -967,7 +980,7 @@ constructor(
                 .coerceAtMost(1.0)
         }
 
-    private fun queryClusterSuggestions(
+    private suspend fun queryClusterSuggestions(
         normalizedWord: String,
         languageCode: String,
         seenWords: MutableSet<String>
@@ -1000,13 +1013,33 @@ constructor(
                 emptyList()
             }
 
-        val dictCandidates = dict.clusterCandidates(allowedSets, CLUSTER_BAR_POOL)
+        val rawDict = dict.clusterCandidates(allowedSets, CLUSTER_BAR_POOL)
+        // Your own usage dominates dictionary frequency on a cluster layout: a word you have committed climbs
+        // (used once → near the top, twice or more → the #1 candidate band), so a phrase you type constantly
+        // like Czech "Teď" leads the row. Without this the cluster bar ranked purely by bundled-dictionary
+        // frequency and ignored how often YOU type a word. Frequencies are keyed by the layout language (the
+        // same tag recordWordUsage now writes under), so they actually match.
+        val userFreqs = try {
+            wordFrequencyRepository.getFrequencies(rawDict.map { it.first }, languageCode)
+        } catch (e: Exception) {
+            ErrorLogger.logException(
+                component = "SpellCheckManager",
+                severity = ErrorLogger.Severity.LOW,
+                exception = e,
+                context = mapOf("operation" to "queryClusterSuggestions_userFreq")
+            )
+            emptyMap()
+        }
+        val dictCandidates = rawDict
             .mapNotNull { (word, freq) ->
                 val key = word.lowercase()
                 if (key in seenWords || isWordBlacklisted(word)) return@mapNotNull null
                 seenWords.add(key)
                 val freqScore = ln(freq.toDouble() + 1.0) / ln(MAX_DICT_FREQUENCY)
-                SpellingSuggestion(word, (0.55 + 0.44 * freqScore).coerceIn(0.0, 0.99), 0, "cluster")
+                val base = (0.55 + 0.44 * freqScore).coerceIn(0.0, 0.99)
+                val userFreq = userFreqs[word] ?: 0
+                val confidence = if (userFreq > 0) maxOf(base, learnedHeavyConfidence(userFreq)) else base
+                SpellingSuggestion(word, confidence, 0, "cluster")
             }
         return contractions + dictCandidates
     }
@@ -1177,6 +1210,20 @@ constructor(
         val codePointCount = text.codePointCount(0, text.length)
         return hasValidChars && codePointCount in 1..MAX_INPUT_CODEPOINTS
     }
+
+    /**
+     * The languages to draw suggestions from. On a CLUSTER layout this is ONLY the active LAYOUT language:
+     * the cluster bands belong to that layout, so walking other languages' dictionaries with them produces
+     * garbage (English "Bed/Bay/Tag" flooding a Czech bar, and a foreign word matching the bands wrongly
+     * counting as "in the dictionary" — which blocks learning the real word). Off cluster, the user's normal
+     * merged-dictionary set applies, so cross-language typing on a plain layout is unaffected.
+     */
+    private fun suggestionLanguages(): List<String> =
+        if (clusterActive) {
+            listOf(languageManager.currentLayoutLanguage.value.substringBefore("-"))
+        } else {
+            languageManager.effectiveDictionaryLanguages.value
+        }
 
     private fun getCurrentLanguage(): String = try {
         val currentLanguage = languageManager.currentLanguage.value

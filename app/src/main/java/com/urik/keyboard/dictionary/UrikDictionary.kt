@@ -94,6 +94,44 @@ class UrikDictionary(inputStream: InputStream, private val removedWords: Set<Str
         }
     }
 
+    /**
+     * Every (word, frequency) in the dictionary — a full DAWG traversal. Offline tooling only (dictionary
+     * cleaning); never called on the hot path. Ignores [removedWords] so the cleaner sees the raw contents.
+     */
+    fun allWords(): List<Pair<String, Long>> {
+        val results = ArrayList<Pair<String, Long>>(1 shl 18)
+        collectAllWords(stateTableOffset, StringBuilder(), 0, results)
+        return results
+    }
+
+    private fun collectAllWords(
+        stateAbsOffset: Int,
+        path: StringBuilder,
+        incomingFreqByte: Int,
+        results: MutableList<Pair<String, Long>>
+    ) {
+        val stateHeader = data[stateAbsOffset].toInt() and 0xFF
+        val arcCount = stateHeader and 0x7F
+        if ((stateHeader and 0x80) != 0 && path.isNotEmpty()) {
+            results.add(path.toString() to UrikFormat.dequantizeFreq(incomingFreqByte))
+        }
+        var arcOffset = stateAbsOffset + 1
+        repeat(arcCount) {
+            val labelHi = data[arcOffset].toInt() and 0xFF
+            val labelLo = data[arcOffset + 1].toInt() and 0xFF
+            val label = Char((labelHi shl 8) or labelLo)
+            val freqByte = data[arcOffset + 2].toInt() and 0xFF
+            val targetHi = data[arcOffset + 3].toInt() and 0xFF
+            val targetMid = data[arcOffset + 4].toInt() and 0xFF
+            val targetLo = data[arcOffset + 5].toInt() and 0xFF
+            val targetRelOffset = (targetHi shl 16) or (targetMid shl 8) or targetLo
+            arcOffset += 6
+            path.append(label)
+            collectAllWords(stateTableOffset + targetRelOffset, path, freqByte, results)
+            path.deleteCharAt(path.length - 1)
+        }
+    }
+
     fun getWordsWithPrefix(prefix: String, maxResults: Int = 10): List<Pair<String, Long>> {
         var stateOffset = stateTableOffset
         var lastFreqByte = 0
@@ -155,8 +193,14 @@ class UrikDictionary(inputStream: InputStream, private val removedWords: Set<Str
     fun clusterCandidates(allowedSets: List<Set<Char>>, maxResults: Int = 8): List<Pair<String, Long>> {
         if (allowedSets.isEmpty()) return emptyList()
         val results = mutableListOf<Pair<String, Long>>()
-        clusterDfs(stateTableOffset, allowedSets, 0, 0, StringBuilder(), results, maxResults)
-        return results.sortedByDescending { it.second }
+        // Collect a GENEROUS pool before ranking, not just maxResults: clusterDfs walks the DAWG in arc order,
+        // NOT by frequency, so capping the DFS at maxResults can drop the highest-frequency word entirely if
+        // it happens to be traversed late (Czech "teď" — by far the most frequent t·e·d match — was visited
+        // after 16 rarer band-matches and never collected). Gather up to CLUSTER_COLLECT_CAP, then sort by
+        // frequency and take the top maxResults so the bar shows the genuinely most frequent candidates.
+        val collectCap = maxOf(maxResults, CLUSTER_COLLECT_CAP)
+        clusterDfs(stateTableOffset, allowedSets, 0, 0, StringBuilder(), results, collectCap)
+        return results.sortedByDescending { it.second }.take(maxResults)
     }
 
     private fun clusterDfs(
@@ -207,6 +251,13 @@ class UrikDictionary(inputStream: InputStream, private val removedWords: Set<Str
             Character.getType(it) != Character.NON_SPACING_MARK.toInt()
         } ?: c
         return base.lowercaseChar()
+    }
+
+    private companion object {
+        // Upper bound on words gathered by a cluster DFS before frequency-ranking. Generous enough to capture
+        // every realistic band-match (cluster words are short, so the band-product space is small) while
+        // bounding worst-case cost on a long word with wide bands.
+        const val CLUSTER_COLLECT_CAP = 2000
     }
 
     private data class ArcInfo(val freq: Int, val targetRelOffset: Int)

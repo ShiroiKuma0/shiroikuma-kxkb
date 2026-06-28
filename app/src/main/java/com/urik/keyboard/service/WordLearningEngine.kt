@@ -214,8 +214,11 @@ class WordLearningEngine(
             return@withContext Result.success(null)
         }
 
+        // Learn under the LAYOUT language (what's being typed), not the primary language — otherwise a word
+        // typed in a non-primary active language is stored under the wrong tag and the cluster/learned lookups
+        // (which query per layout language) never find it. (currentLayoutLanguage = the language being typed.)
         val currentLanguage =
-            languageManager.currentLanguage.value
+            languageManager.currentLayoutLanguage.value
 
         return@withContext try {
             val cleanWord = word.trim()

@@ -155,7 +155,9 @@ class SuggestionPipeline(
         // word, re-query the DAWG, then append the custom row AFTER the predictions so the pane shows the
         // same predictions-then-custom ordering as the bar. (Bug C — custom entries in the expand pane.)
         if (buffer.isEmpty()) return state.withCustomRow(state.pendingSuggestions)
-        val lang = host.currentLanguage().split("-").first()
+        // The cluster candidates belong to the active LAYOUT language (the bands are its), NOT the primary
+        // language — using the primary made a Czech expand-pane list English words. (Cross-language pollution.)
+        val lang = host.currentLayoutLanguage().split("-").first()
         val words = spellCheckManager.clusterCandidatesFor(buffer, lang, maxResults)
         if (words.isEmpty()) return state.withCustomRow(state.pendingSuggestions)
         val predictions =
@@ -298,7 +300,11 @@ class SuggestionPipeline(
 
     internal fun recordWordUsage(word: String) {
         try {
-            val currentLanguage = languageManager.currentLanguage.value
+            // Record under the LAYOUT language (the language actually being typed), NOT the primary language.
+            // The cluster/learned suggestion paths query per active language, so usage stored under the primary
+            // (e.g. "en" while typing Czech) would never boost the Czech candidates — your typed words would
+            // never climb. (currentLanguage = primary; currentLayoutLanguage = what you're typing now.)
+            val currentLanguage = languageManager.currentLayoutLanguage.value
             wordFrequencyRepository.incrementFrequency(word, currentLanguage)
             // Promote a matching user-dictionary entry so words/shortcuts/readings you reuse climb to #1.
             spellCheckManager.recordUserDictionaryUse(currentLanguage, word)
