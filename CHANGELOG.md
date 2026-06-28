@@ -4,7 +4,48 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+198 — current
+## 0.23.1+204 — current
+
+Built on Urik `0.23.1-beta`. A **unified, per-language user dictionary** — your own words, text
+shortcuts and Japanese reading→kanji registrations in one place, offered first as you type — plus a
+reworked Japanese candidate flow and a GNU-layout Tab fix for terminal/Emacs use.
+
+### User dictionary
+
+- A new top-level **User dictionary** settings page (under Auto-Correct) lists every entry with add,
+  tap-to-edit and delete. The house-style dialog covers three kinds: a plain **word**, a
+  **shortcut → expansion** (e.g. `omw` → `on my way`), and a Japanese **reading → kanji**.
+- Entries are **strictly per-language** — a word taught in one language is never offered while typing
+  another. The add dialog shows languages by their **native name** (日本語, Čeština, …) and omits `ja`
+  (its own kind) and the no-prediction `gnu`; the 日本語 kind sits on its own row.
+- Backed by a new per-language store (database migrated to v9); existing Japanese registrations are
+  carried over. Designed to plug into the planned granular export/import.
+
+### Prediction
+
+- The user's own entries are **heavily prioritised**: used once they sit near the top, used twice or
+  more they become the **#1 candidate**, ties broken by frequency.
+- They surface on **every layout** — matched accent-folded, and **band-by-band on cluster layouts**,
+  so a registered word reappears from just its opening cluster taps. Your typed (learned) words are
+  now surfaced and frequency-ranked on cluster layouts too.
+
+### Japanese
+
+- Registrations live in the user dictionary and **lead the candidate row** from the first matching
+  kana. The in-keyboard **＋登録** flow and the editor write to the same store; the old hidden
+  Japanese-only editor is gone.
+- Candidate selection follows the **traditional flow**: **Space and Tab advance** the highlighted
+  candidate, **Enter (確定) commits** it (and is consumed — a second Enter is a newline), and a tap
+  commits directly.
+
+### Input / fixes
+
+- **GNU (no-prediction) layouts:** Tab and Space no longer cycle or commit the static custom toolbar
+  — those entries are tap-only there. On a GNU layout **Tab now sends a real Tab key event**, so apps
+  like GUI Emacs run their TAB command (completion / indent) instead of inserting a literal tab
+  character — fixing Tab-completion in the minibuffer.
+
+## 0.23.1+198
 
 Built on Urik `0.23.1-beta`. **Compass long-press extra keys** with slide-to-pick and a lock, two
 per-geometry glyph-size sliders, a Japanese-punctuation toolbar, and a thorough rework of keyboard
