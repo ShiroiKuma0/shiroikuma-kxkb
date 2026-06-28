@@ -45,7 +45,7 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
     val libraryState: StateFlow<LibraryUiState> = _libraryState.asStateFlow()
     private var currentLibrary = LibraryLook()
 
-    // The custom-suggestion row contents (a global setting), edited next to the suggestion-bar look.
+    // The legacy single custom-suggestion row (English's value / migration source).
     val customSuggestions: StateFlow<String> =
         settingsRepository.settings
             .map { it.customSuggestions }
@@ -53,6 +53,16 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
                 initialValue = ""
+            )
+
+    // Per-language custom-suggestion overrides — each language's row is edited individually in the UI.
+    val customSuggestionsByLang: StateFlow<Map<String, String>> =
+        settingsRepository.settings
+            .map { it.customSuggestionsByLang }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
+                initialValue = emptyMap()
             )
 
     // The key-preview bubble toggle (a global setting, surfaced in the Keys section). Default OFF.
@@ -292,6 +302,15 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
         viewModelScope.launch {
             settingsRepository
                 .updateCustomSuggestions(raw)
+                .onFailure { _events.emit(SettingsEvent.Error.CustomSuggestionsUpdateFailed) }
+        }
+    }
+
+    /** Save one language's custom-suggestion row. */
+    fun updateCustomSuggestionsForLanguage(lang: String, raw: String) {
+        viewModelScope.launch {
+            settingsRepository
+                .updateCustomSuggestionsForLanguage(lang, raw)
                 .onFailure { _events.emit(SettingsEvent.Error.CustomSuggestionsUpdateFailed) }
         }
     }

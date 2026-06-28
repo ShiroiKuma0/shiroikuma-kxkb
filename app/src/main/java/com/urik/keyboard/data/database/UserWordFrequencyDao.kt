@@ -60,6 +60,19 @@ interface UserWordFrequencyDao {
     )
     suspend fun incrementFrequencyBy(languageTag: String, wordNormalized: String, amount: Int, lastUsed: Long)
 
+    /** Every frequency row, for backup/export. */
+    @Query("SELECT * FROM user_word_frequency")
+    suspend fun getAll(): List<UserWordFrequency>
+
+    /** Insert-or-replace one row with an exact frequency, for backup import (idempotent on re-import). */
+    @Query(
+        """
+        INSERT OR REPLACE INTO user_word_frequency (language_tag, word_normalized, frequency, last_used)
+        VALUES (:languageTag, :wordNormalized, :frequency, :lastUsed)
+        """
+    )
+    suspend fun importRow(languageTag: String, wordNormalized: String, frequency: Int, lastUsed: Long)
+
     @Query("DELETE FROM user_word_frequency WHERE word_normalized = :normalizedWord")
     suspend fun deleteByNormalizedWord(normalizedWord: String): Int
 

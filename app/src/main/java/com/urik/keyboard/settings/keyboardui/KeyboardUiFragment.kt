@@ -20,12 +20,17 @@ import androidx.preference.PreferenceCategory
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.SeekBarPreference
 import androidx.preference.SwitchPreferenceCompat
+import android.content.Context
 import com.urik.keyboard.R
 import com.urik.keyboard.model.KeyboardDisplayMode
+import com.urik.keyboard.service.CustomSuggestionDefaults
 import com.urik.keyboard.service.GeometryBucket
 import com.urik.keyboard.service.KeyboardFonts
+import com.urik.keyboard.service.LanguageManager
 import com.urik.keyboard.settings.SettingsEventHandler
+import com.urik.keyboard.utils.LanguageDisplayNames
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import kotlinx.coroutines.launch
 
 /**
@@ -36,6 +41,11 @@ import kotlinx.coroutines.launch
 class KeyboardUiFragment : PreferenceFragmentCompat() {
     private lateinit var viewModel: KeyboardUiViewModel
     private lateinit var eventHandler: SettingsEventHandler
+
+    @Inject lateinit var languageManager: LanguageManager
+
+    /** One custom-suggestion editor per active language, keyed by base language code. */
+    private val customSuggestionPrefs = linkedMapOf<String, EditTextPreference>()
 
     private lateinit var geometryPref: ListPreference
     private lateinit var localePref: ListPreference
@@ -88,8 +98,7 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
     private lateinit var suggestionWeightPref: SeekBarPreference
     private lateinit var suggestionSizePref: SeekBarPreference
     private lateinit var suggestionColorPref: ColorSwatchPreference
-    // Custom-suggestion row contents (a global setting, edited here next to the suggestion-bar look).
-    private lateinit var customSuggestionsPref: EditTextPreference
+    // Custom-suggestion rows are per-language (built into customSuggestionPrefs at onCreatePreferences).
     // Library screen look (app-wide, not per-geometry).
     private lateinit var libSepColorPref: ColorSwatchPreference
     private lateinit var libSepThicknessPref: SeekBarPreference
@@ -260,33 +269,7 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         suggestionWeightPref = seekBar("kb_ui_sug_weight", R.string.keyboard_ui_item_weight, min = 100, max = 900, sub = true)
         suggestionSizePref = seekBar("kb_ui_sug_size", R.string.keyboard_ui_item_size, min = 50, max = 400, sub = true)
         suggestionColorPref = colorPref("kb_ui_sug_col", R.string.keyboard_ui_item_colour, sub = true)
-        customSuggestionsPref =
-            EditTextPreference(context).apply {
-                key = "kb_ui_custom_suggestions"
-                isPersistent = false
-                layoutResource = R.layout.preference_item_kxkb_l2
-                title = resources.getString(R.string.keyboard_ui_custom_suggestions)
-                dialogTitle = resources.getString(R.string.keyboard_ui_custom_suggestions)
-                dialogMessage = resources.getString(R.string.keyboard_ui_custom_suggestions_dialog)
-                setOnBindEditTextListener { editText ->
-                    editText.inputType =
-                        InputType.TYPE_CLASS_TEXT or
-                            InputType.TYPE_TEXT_FLAG_MULTI_LINE or
-                            InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
-                    editText.minLines = 4
-                    editText.setSelection(editText.text.length)
-                }
-                // Summary: a one-line preview of the configured entries, or the explanatory hint when empty.
-                summaryProvider =
-                    Preference.SummaryProvider<EditTextPreference> { pref ->
-                        val entries = pref.text.orEmpty()
-                        if (entries.isBlank()) {
-                            resources.getString(R.string.keyboard_ui_custom_suggestions_summary)
-                        } else {
-                            entries.split("\n").map { it.trim() }.filter { it.isNotEmpty() }.joinToString("  ")
-                        }
-                    }
-            }
+        buildCustomSuggestionLangPrefs(context)
         hintTopColorPref = colorPref("kb_ui_hint_top_col", R.string.keyboard_ui_item_colour, sub = true)
         hintTopScalePref = seekBar("kb_ui_hint_top_size", R.string.keyboard_ui_item_size, min = 50, max = 400, sub = true)
         hintTopFontPref = fontEntry("kb_ui_hint_top_font", R.string.keyboard_ui_item_font, sub = true)
@@ -354,7 +337,9 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         rowsCategory.addPreference(suggestionWeightPref)
         rowsCategory.addPreference(suggestionSizePref)
         rowsCategory.addPreference(suggestionColorPref)
-        rowsCategory.addPreference(customSuggestionsPref)
+        // Custom suggestions: a sub-category, with one editable row per active language.
+        rowsCategory.addPreference(subHeader(R.string.keyboard_ui_custom_suggestions))
+        customSuggestionPrefs.values.forEach { rowsCategory.addPreference(it) }
         rowsCategory.addPreference(subHeader(R.string.keyboard_ui_sub_top_row))
         rowsCategory.addPreference(hintTopColorPref)
         rowsCategory.addPreference(hintTopScalePref)
@@ -427,6 +412,28 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
             }
         screen.addPreference(resetPref)
 
+        // End of the page: a link to the Export / import window (back up & restore colours, layouts, dicts…).
+        val exportImportPref =
+            Preference(context).apply {
+                key = "kb_ui_export_import"
+                isPersistent = false
+                layoutResource = R.layout.preference_item_kxkb
+                title = resources.getString(R.string.export_import_title)
+                summary = resources.getString(R.string.export_import_summary)
+                setOnPreferenceClickListener {
+                    parentFragmentManager
+                        .beginTransaction()
+                        .replace(
+                            R.id.settings_container,
+                            com.urik.keyboard.settings.eximport.ExportImportFragment()
+                        )
+                        .addToBackStack(null)
+                        .commit()
+                    true
+                }
+            }
+        screen.addPreference(exportImportPref)
+
         preferenceScreen = screen
     }
 
@@ -446,6 +453,51 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
             layoutResource = R.layout.preference_subcategory_kxkb
             title = resources.getString(titleRes)
         }
+
+    /**
+     * Build one multi-line custom-suggestion editor per ACTIVE language (deduped by base code), each titled
+     * with its native name. The text is bound from / saved to that language's per-language setting; the
+     * effective value (override → built-in default) is filled in by the customSuggestionsByLang collector.
+     */
+    private fun buildCustomSuggestionLangPrefs(context: Context) {
+        customSuggestionPrefs.clear()
+        val langs = languageManager.activeLanguages.value.ifEmpty { listOf("en") }
+        langs.forEach { lang ->
+            val base = lang.substringBefore('-')
+            if (customSuggestionPrefs.containsKey(base)) return@forEach
+            val native = LanguageDisplayNames.nativeName(base)
+            customSuggestionPrefs[base] =
+                EditTextPreference(context).apply {
+                    key = "kb_ui_custom_suggestions_$base"
+                    isPersistent = false
+                    layoutResource = R.layout.preference_item_kxkb_l2
+                    title = native
+                    dialogTitle = native
+                    dialogMessage = resources.getString(R.string.keyboard_ui_custom_suggestions_dialog)
+                    setOnBindEditTextListener { editText ->
+                        editText.inputType =
+                            InputType.TYPE_CLASS_TEXT or
+                                InputType.TYPE_TEXT_FLAG_MULTI_LINE or
+                                InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+                        editText.minLines = 4
+                        editText.setSelection(editText.text.length)
+                    }
+                    summaryProvider =
+                        Preference.SummaryProvider<EditTextPreference> { pref ->
+                            val entries = pref.text.orEmpty()
+                            if (entries.isBlank()) {
+                                resources.getString(R.string.keyboard_ui_custom_suggestions_lang_summary, native)
+                            } else {
+                                entries.split("\n").map { it.trim() }.filter { it.isNotEmpty() }.joinToString("  ")
+                            }
+                        }
+                    setOnPreferenceChangeListener { _, newValue ->
+                        viewModel.updateCustomSuggestionsForLanguage(base, newValue as String)
+                        true
+                    }
+                }
+        }
+    }
 
     private fun fontEntry(prefKey: String, titleRes: Int, sub: Boolean = false): Preference =
         Preference(preferenceManager.context).apply {
@@ -722,11 +774,6 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
             ColorPicker.show(requireContext(), viewModel.uiState.value.suggestionColor) { viewModel.updateSuggestionColor(it) }
             true
         }
-        customSuggestionsPref.setOnPreferenceChangeListener { _, newValue ->
-            viewModel.updateCustomSuggestions(newValue as String)
-            true
-        }
-
         libSepColorPref.setOnPreferenceClickListener {
             ColorPicker.show(requireContext(), viewModel.libraryState.value.separatorColor) { viewModel.updateLibSeparatorColor(it) }
             true
@@ -832,8 +879,11 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                     viewModel.events.collect { event -> eventHandler.handle(event) }
                 }
                 launch {
-                    viewModel.customSuggestions.collect { raw ->
-                        if (customSuggestionsPref.text != raw) customSuggestionsPref.text = raw
+                    viewModel.customSuggestionsByLang.collect { map ->
+                        customSuggestionPrefs.forEach { (lang, pref) ->
+                            val eff = CustomSuggestionDefaults.effective(lang, map)
+                            if (pref.text != eff) pref.text = eff
+                        }
                     }
                 }
                 launch {

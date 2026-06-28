@@ -88,6 +88,7 @@ constructor(
         val CURRENT_GEOMETRY = stringPreferencesKey("current_geometry")
         val CURRENT_LAYOUT_LANGUAGE = stringPreferencesKey("current_layout_language")
         val LIBRARY_REPO_PATH = stringPreferencesKey("library_repo_path")
+        val EXPORT_IMPORT_PATH = stringPreferencesKey("export_import_path")
         val LIBRARY_GIT_FOLDED = booleanPreferencesKey("library_git_folded")
         // The Library git archive's HTTPS remote. Stored in app-private DataStore (this device already has
         // All-Files-Access); the token is a personal-access token used only for clone/pull/push, never on
@@ -129,6 +130,7 @@ constructor(
         val PRESS_HIGHLIGHT_ENABLED = booleanPreferencesKey("press_highlight_enabled")
         val KEY_PREVIEW_ENABLED = booleanPreferencesKey("key_preview_enabled")
         val CUSTOM_SUGGESTIONS = stringPreferencesKey("custom_suggestions")
+        val CUSTOM_SUGGESTIONS_BY_LANG = stringPreferencesKey("custom_suggestions_by_lang")
     }
 
     /** Falls back to system locale defaults on deserialization errors. */
@@ -287,7 +289,9 @@ constructor(
                     keyPreviewEnabled = preferences[PreferenceKeys.KEY_PREVIEW_ENABLED] ?: true,
                     customSuggestions =
                         preferences[PreferenceKeys.CUSTOM_SUGGESTIONS]?.takeIf { it.isNotBlank() }
-                            ?: KeyboardSettings.DEFAULT_CUSTOM_SUGGESTIONS
+                            ?: KeyboardSettings.DEFAULT_CUSTOM_SUGGESTIONS,
+                    customSuggestionsByLang =
+                        decodeCustomSuggestionsByLang(preferences[PreferenceKeys.CUSTOM_SUGGESTIONS_BY_LANG])
                 ).validated()
             }.catch { e ->
                 ErrorLogger.logException(
@@ -353,6 +357,30 @@ constructor(
         Result.success(Unit)
     } catch (e: Exception) {
         Result.failure(e)
+    }
+
+    /** Set one language's custom-suggestion row (stored in the per-language JSON map, keyed by base language). */
+    suspend fun updateCustomSuggestionsForLanguage(lang: String, raw: String): Result<Unit> = try {
+        dataStore.edit { prefs ->
+            val obj = runCatching {
+                org.json.JSONObject(prefs[PreferenceKeys.CUSTOM_SUGGESTIONS_BY_LANG] ?: "{}")
+            }.getOrDefault(org.json.JSONObject())
+            obj.put(lang.substringBefore('-'), raw)
+            prefs[PreferenceKeys.CUSTOM_SUGGESTIONS_BY_LANG] = obj.toString()
+        }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    private fun decodeCustomSuggestionsByLang(json: String?): Map<String, String> {
+        if (json.isNullOrBlank()) return emptyMap()
+        return try {
+            val obj = org.json.JSONObject(json)
+            buildMap { obj.keys().forEach { k -> put(k, obj.optString(k)) } }
+        } catch (_: Exception) {
+            emptyMap()
+        }
     }
 
     /**
@@ -599,6 +627,61 @@ constructor(
             val trimmed = path.trim()
             if (trimmed.isEmpty()) it.remove(PreferenceKeys.LIBRARY_REPO_PATH)
             else it[PreferenceKeys.LIBRARY_REPO_PATH] = trimmed
+        }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    /** The real filesystem directory (All-Files-Access) backups are written to / read from. Null if unset. */
+    suspend fun getExportImportPath(): String? = try {
+        dataStore.data.first()[PreferenceKeys.EXPORT_IMPORT_PATH]?.takeIf { it.isNotBlank() }
+    } catch (e: Exception) {
+        null
+    }
+
+    suspend fun setExportImportPath(path: String): Result<Unit> = try {
+        dataStore.edit {
+            val trimmed = path.trim()
+            if (trimmed.isEmpty()) it.remove(PreferenceKeys.EXPORT_IMPORT_PATH)
+            else it[PreferenceKeys.EXPORT_IMPORT_PATH] = trimmed
+        }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    /** Backup-relevant raw DataStore strings, keyed by the public RAW_KEY_* name → the actual key. */
+    private val rawBackupKeys: Map<String, Preferences.Key<String>> = mapOf(
+        RAW_KEY_PER_GEOMETRY_LOOK to PreferenceKeys.PER_GEOMETRY_LOOK,
+        RAW_KEY_LIBRARY_LOOK to PreferenceKeys.LIBRARY_LOOK,
+        RAW_KEY_ACTIVE_LAYOUT_BY_LANGUAGE to PreferenceKeys.ACTIVE_LAYOUT_BY_LANGUAGE,
+        RAW_KEY_PER_APP_LAYOUT_LANGUAGES to PreferenceKeys.PER_APP_LAYOUT_LANGUAGES,
+        RAW_KEY_CUSTOM_SUGGESTIONS to PreferenceKeys.CUSTOM_SUGGESTIONS,
+        RAW_KEY_CUSTOM_SUGGESTIONS_BY_LANG to PreferenceKeys.CUSTOM_SUGGESTIONS_BY_LANG
+    )
+
+    /**
+     * Raw encoded DataStore strings that [exportPreferences] deliberately OMITS but the backup module needs:
+     * the per-geometry look blob (colours/sizing), the library look, the active-layout-per-language
+     * selection, the per-app layout-language memory, and the custom-suggestions toolbar. Only the [names]
+     * requested (a subset of RAW_KEY_*) that are actually present are returned.
+     */
+    suspend fun exportRawBackupValues(names: Set<String>): Map<String, String> = try {
+        val prefs = dataStore.data.first()
+        buildMap {
+            rawBackupKeys.forEach { (name, key) ->
+                if (name in names) prefs[key]?.takeIf { it.isNotBlank() }?.let { put(name, it) }
+            }
+        }
+    } catch (e: Exception) {
+        emptyMap()
+    }
+
+    /** Write back raw encoded values produced by [exportRawBackupValues] (unknown names ignored). */
+    suspend fun importRawBackupValues(values: Map<String, String>): Result<Unit> = try {
+        dataStore.edit { mp ->
+            values.forEach { (name, value) -> rawBackupKeys[name]?.let { mp[it] = value } }
         }
         Result.success(Unit)
     } catch (e: Exception) {
@@ -1119,6 +1202,15 @@ constructor(
 
     companion object {
         const val EXPORT_SET_DELIMITER = ","
+
+        // Public names for the raw backup-state DataStore values (see exportRawBackupValues). Stable strings —
+        // they appear verbatim in exported backups, so do not rename.
+        const val RAW_KEY_PER_GEOMETRY_LOOK = "per_geometry_look"
+        const val RAW_KEY_LIBRARY_LOOK = "library_look"
+        const val RAW_KEY_ACTIVE_LAYOUT_BY_LANGUAGE = "active_layout_by_language"
+        const val RAW_KEY_PER_APP_LAYOUT_LANGUAGES = "per_app_layout_languages"
+        const val RAW_KEY_CUSTOM_SUGGESTIONS = "custom_suggestions"
+        const val RAW_KEY_CUSTOM_SUGGESTIONS_BY_LANG = "custom_suggestions_by_lang"
 
         internal val booleanExportKeys: List<Preferences.Key<Boolean>> = listOf(
             PreferenceKeys.SHOW_SUGGESTIONS,

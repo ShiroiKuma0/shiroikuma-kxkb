@@ -110,10 +110,16 @@ data class KeyboardSettings(
     /** Magnified key-preview bubble above a pressed character key. Default ON. */
     val keyPreviewEnabled: Boolean = true,
     /**
-     * User-defined custom suggestions, newline-separated. Shown in the candidate bar as the default row
-     * when nothing is predicted, and appended after live predictions otherwise. Empty = feature off.
+     * Legacy single custom-suggestion row, newline-separated. Retained as English's value (and the migration
+     * source) now that the row is per-language — see [customSuggestionsByLang]. Empty = English row off.
      */
-    val customSuggestions: String = DEFAULT_CUSTOM_SUGGESTIONS
+    val customSuggestions: String = DEFAULT_CUSTOM_SUGGESTIONS,
+    /**
+     * Per-language custom-suggestion overrides (`language → newline-separated raw row`). A language absent
+     * here uses its built-in default ([com.urik.keyboard.service.CustomSuggestionDefaults]); an explicit
+     * empty string means the user cleared that language's row.
+     */
+    val customSuggestionsByLang: Map<String, String> = emptyMap()
 ) {
     /**
      * Whether word learning is enabled via [learnNewWords] flag.

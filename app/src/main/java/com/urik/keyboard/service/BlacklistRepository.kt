@@ -37,6 +37,15 @@ class BlacklistRepository internal constructor(private val dataStore: DataStore<
         }
     }
 
+    /** Merge a set of words into the blacklist in a single edit (used by backup import). */
+    suspend fun addAll(words: Collection<String>) {
+        if (words.isEmpty()) return
+        dataStore.edit { preferences ->
+            val current = preferences[PreferenceKeys.BLACKLISTED_WORDS] ?: emptySet()
+            preferences[PreferenceKeys.BLACKLISTED_WORDS] = current + words
+        }
+    }
+
     suspend fun remove(word: String) {
         dataStore.edit { preferences ->
             val current = preferences[PreferenceKeys.BLACKLISTED_WORDS] ?: emptySet()

@@ -53,6 +53,7 @@ import com.urik.keyboard.service.BackspaceHandler
 import com.urik.keyboard.service.CandidateBarController
 import com.urik.keyboard.service.CharacterVariationService
 import com.urik.keyboard.service.ClipboardActionCoordinator
+import com.urik.keyboard.service.CustomSuggestionDefaults
 import com.urik.keyboard.service.CustomSuggestionRow
 import com.urik.keyboard.service.ClipboardMonitorService
 import com.urik.keyboard.service.ClipboardPanelHost
@@ -685,7 +686,7 @@ open class UrikInputMethodService :
             try {
                 val seeded = settingsRepository.settings.first()
                 currentSettings = seeded
-                inputState.setCustomSuggestions(CustomSuggestionRow.parse(seeded.customSuggestions))
+                applyCustomSuggestions(seeded)
             } catch (e: Exception) {
                 ErrorLogger.logException(
                     component = "UrikInputMethodService",
@@ -1190,6 +1191,12 @@ open class UrikInputMethodService :
             "library" -> com.urik.keyboard.settings.SettingsActivity.createIntent(
                 this, com.urik.keyboard.settings.SettingsActivity.PAGE_LIBRARY
             )
+            "export_import" -> com.urik.keyboard.settings.SettingsActivity.createIntent(
+                this, com.urik.keyboard.settings.SettingsActivity.PAGE_EXPORT_IMPORT
+            )
+            "user_dictionary" -> com.urik.keyboard.settings.SettingsActivity.createIntent(
+                this, com.urik.keyboard.settings.SettingsActivity.PAGE_USER_DICTIONARY
+            )
             else -> com.urik.keyboard.settings.SettingsActivity.createIntent(this)
         }
         intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -1426,9 +1433,9 @@ open class UrikInputMethodService :
 
                         currentSettings = newSettings
 
-                        // Custom suggestion row: parse the raw newline-separated setting once per change and
-                        // hand the clean list to the input state, which merges it into the candidate bar.
-                        inputState.setCustomSuggestions(CustomSuggestionRow.parse(newSettings.customSuggestions))
+                        // Custom suggestion row: resolve the CURRENT layout language's row (per-language, with
+                        // built-in defaults) and hand the clean list to the input state for the candidate bar.
+                        applyCustomSuggestions(newSettings)
                         // If the bar is currently idle (no composing word, no live predictions), repaint the
                         // default row now so a just-saved custom row appears without needing a refocus (Bug 3).
                         if (inputState.displayBuffer.isEmpty() && inputState.pendingSuggestions.isEmpty()) {
@@ -1544,6 +1551,14 @@ open class UrikInputMethodService :
                     // Japanese shares the cluster Space-commits / Tab-advances candidate model, so keep the
                     // bar highlight on for it (and for any active cluster layout).
                     candidateBarController.setSuggestionSelectionEnabled(isJa || inputState.clusterLayoutActive)
+                    // The custom-suggestion row is per-language: re-resolve it for the new layout language, then
+                    // repaint the idle default row NOW. The bar's pendingSuggestions still holds the PREVIOUS
+                    // language's custom row, so without this the bar shows the prior language's entries until the
+                    // next keystroke. Gate on no composing word so an in-progress word isn't wiped.
+                    applyCustomSuggestions()
+                    if (inputState.displayBuffer.isEmpty()) {
+                        inputState.clearSuggestionDisplay()
+                    }
                     // Re-evaluate field flags so the GNU layout's forced no-prediction takes
                     // effect immediately when switching to/from it (not only on field focus).
                     applyFieldTypeFromEditorInfo(currentInputEditorInfo)
@@ -2129,7 +2144,7 @@ open class UrikInputMethodService :
         // is async, so on a fresh focus its first emission can land AFTER this method's clearSuggestionDisplay()
         // below — leaving the default row blank even though entries are configured. Re-parsing the already-held
         // currentSettings here makes the row correct immediately. (Bug C — empty custom row after newline/focus.)
-        inputState.setCustomSuggestions(CustomSuggestionRow.parse(currentSettings.customSuggestions))
+        applyCustomSuggestions(currentSettings)
 
         val targetMode = KeyboardModeUtils.determineTargetMode(info, viewModel.state.value.currentMode)
         if (targetMode != viewModel.state.value.currentMode) {
@@ -2648,6 +2663,16 @@ open class UrikInputMethodService :
     }
 
     private fun handleBackspace() = backspaceHandler.handle()
+
+    /**
+     * Resolve the CURRENT layout language's custom-suggestion row (per-language override → built-in default)
+     * and hand the parsed list to the input state.
+     */
+    private fun applyCustomSuggestions(settings: KeyboardSettings = currentSettings) {
+        val lang = languageManager.currentLayoutLanguage.value
+        val raw = CustomSuggestionDefaults.effective(lang, settings.customSuggestionsByLang)
+        inputState.setCustomSuggestions(CustomSuggestionRow.parse(raw))
+    }
 
     private fun handleSpace() = spaceInputHandler.handle()
 

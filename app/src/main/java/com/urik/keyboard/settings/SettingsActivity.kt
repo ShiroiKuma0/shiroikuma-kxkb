@@ -15,6 +15,7 @@ import com.google.android.material.appbar.MaterialToolbar
 import com.urik.keyboard.R
 import com.urik.keyboard.settings.appearance.AppearanceFragment
 import com.urik.keyboard.settings.autocorrection.AutoCorrectionFragment
+import com.urik.keyboard.settings.eximport.ExportImportFragment
 import com.urik.keyboard.settings.languages.LanguagesFragment
 import com.urik.keyboard.settings.keyboardui.KeyboardUiFragment
 import com.urik.keyboard.settings.layoutinput.LayoutInputFragment
@@ -54,6 +55,8 @@ class SettingsActivity : AppCompatActivity() {
                     PAGE_KEYBOARD_UI -> KeyboardUiFragment()
                     PAGE_LANGUAGES -> LanguagesFragment()
                     PAGE_LIBRARY -> LibraryFragment()
+                    PAGE_EXPORT_IMPORT -> ExportImportFragment()
+                    PAGE_USER_DICTIONARY -> UserDictionaryFragment()
                     else -> null
                 }
             if (page != null) {
@@ -94,6 +97,7 @@ class SettingsActivity : AppCompatActivity() {
                 is LibraryFragment -> getString(R.string.library_settings_title)
                 is PrivacyDataFragment -> getString(R.string.privacy_settings_title)
                 is LearnedWordsFragment -> getString(R.string.learned_words_title)
+                is ExportImportFragment -> getString(R.string.export_import_title)
                 else -> getString(R.string.settings_title)
             }
         supportActionBar?.title = title
@@ -130,6 +134,8 @@ class SettingsActivity : AppCompatActivity() {
         const val PAGE_KEYBOARD_UI = "keyboard_ui"
         const val PAGE_LANGUAGES = "languages"
         const val PAGE_LIBRARY = "library"
+        const val PAGE_EXPORT_IMPORT = "export_import"
+        const val PAGE_USER_DICTIONARY = "user_dictionary"
 
         fun createIntent(context: Context): Intent = Intent(context, SettingsActivity::class.java)
 

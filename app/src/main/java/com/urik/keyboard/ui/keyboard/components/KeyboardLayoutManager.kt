@@ -1872,8 +1872,9 @@ class KeyboardLayoutManager(
                 SpaceMenuItem(context.getString(R.string.space_menu_kxkb_ui), false) { onMenuAction("kxkb_ui") },
                 SpaceMenuItem(context.getString(R.string.space_menu_editor), false) { onMenuAction("editor") },
                 SpaceMenuItem(context.getString(R.string.space_menu_mode), false) { onMenuAction("mode") },
-                SpaceMenuItem(context.getString(R.string.space_menu_languages_action), false) { onMenuAction("languages") },
-                SpaceMenuItem(context.getString(R.string.space_menu_all_settings), false) { onMenuAction("settings") }
+                SpaceMenuItem(context.getString(R.string.space_menu_user_dictionary), false) { onMenuAction("user_dictionary") },
+                SpaceMenuItem(context.getString(R.string.space_menu_all_settings), false) { onMenuAction("settings") },
+                SpaceMenuItem(context.getString(R.string.space_menu_export_import), false) { onMenuAction("export_import") }
             )
         )
         // Middle column: the system IME chooser at the top, then the other active languages.

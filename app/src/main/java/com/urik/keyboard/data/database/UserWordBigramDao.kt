@@ -65,6 +65,26 @@ interface UserWordBigramDao {
     )
     suspend fun deleteByWord(normalizedWord: String): Int
 
+    /** Every bigram row, for backup/export. */
+    @Query("SELECT * FROM user_word_bigram")
+    suspend fun getAll(): List<UserWordBigram>
+
+    /** Insert-or-replace one bigram with an exact frequency, for backup import (idempotent on re-import). */
+    @Query(
+        """
+        INSERT OR REPLACE INTO user_word_bigram
+            (language_tag, word_a_normalized, word_b_normalized, frequency, last_used)
+        VALUES (:languageTag, :wordANormalized, :wordBNormalized, :frequency, :lastUsed)
+        """
+    )
+    suspend fun importRow(
+        languageTag: String,
+        wordANormalized: String,
+        wordBNormalized: String,
+        frequency: Int,
+        lastUsed: Long
+    )
+
     @Query("DELETE FROM user_word_bigram WHERE language_tag = :languageTag")
     suspend fun clearLanguage(languageTag: String): Int
 

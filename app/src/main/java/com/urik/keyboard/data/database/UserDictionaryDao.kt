@@ -46,6 +46,23 @@ interface UserDictionaryDao {
     )
     suspend fun updateEntry(id: Long, matchKey: String, value: String, now: Long): Int
 
+    /** Insert-or-replace one entry with its exact frequency/timestamps, for backup import (idempotent). */
+    @Query(
+        """
+        INSERT OR REPLACE INTO user_dictionary (language_tag, kind, match_key, value, frequency, added_at, last_used)
+        VALUES (:languageTag, :kind, :matchKey, :value, :frequency, :addedAt, :lastUsed)
+        """
+    )
+    suspend fun importRow(
+        languageTag: String,
+        kind: String,
+        matchKey: String,
+        value: String,
+        frequency: Int,
+        addedAt: Long,
+        lastUsed: Long
+    )
+
     @Query("DELETE FROM user_dictionary WHERE id = :id")
     suspend fun deleteById(id: Long): Int
 
