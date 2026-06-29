@@ -1096,6 +1096,7 @@ constructor(
                 database.learnedWordDao().clearLanguage(languageTag)
             }
             database.userWordFrequencyDao().clearAll()
+            database.userWordBigramDao().clearAll()
             database.userKanjiFrequencyDao().clearAll()
         }
         wordFrequencyRepository.clearCache()

@@ -222,7 +222,11 @@ class SuggestionPipeline(
                     return@launch
                 }
 
-                val currentLanguage = languageManager.currentLanguage.value
+                // Read next-word predictions under the LAYOUT language (what's being typed) — the same tag
+                // recordWordUsage writes bigrams under. Using the primary language here meant typing Czech
+                // surfaced stale English bigrams and never the Czech ones just recorded. (Mirror of the
+                // learning/usage layout-language fix.)
+                val currentLanguage = languageManager.currentLayoutLanguage.value
                 val bigramCount =
                     if (state.clusterLayoutActive) SpellCheckManager.CLUSTER_BAR_POOL else host.effectiveSuggestionCount()
                 val allPredictions =
