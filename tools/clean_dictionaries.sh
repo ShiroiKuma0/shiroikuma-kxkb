@@ -15,7 +15,13 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 REF=en_US                       # reference language whose acceptance marks a word as "foreign"
-LANGS=("cs:cs_CZ")              # add more as "asset_lang:hunspell_dict", e.g. "de:de_DE" "pl:pl_PL"
+# All bundled Latin-script languages (en is the reference, so excluded; non-Latin ar/bg/el/fa/ja/ru/uk
+# can't be polluted by Latin English words via their cluster bands). hunspell accepts comma-separated dicts,
+# so es/pt use a union of their major variants to avoid removing valid regional spellings.
+LANGS=(
+  "ca:ca_ES" "cs:cs_CZ" "de:de_DE" "es:es_ES,es_MX" "fr:fr_FR" "it:it_IT"
+  "nl:nl_NL" "pl:pl_PL" "pt:pt_BR,pt_PT" "sk:sk_SK" "sv:sv_SE"
+)
 
 # 1) dump every dict's words to /tmp/urikdump/<lang>.words
 JAVA_HOME=${JAVA_HOME:-/usr/lib/jvm/java-21-openjdk-amd64} ANDROID_HOME=${ANDROID_HOME:-$HOME/android-sdk} \
@@ -26,8 +32,10 @@ for entry in "${LANGS[@]}"; do
   src="/tmp/urikdump/${lang}.words"
   [ -f "$src" ] || { echo "missing $src — did the dump run?"; exit 1; }
   cut -f1 "$src" > "/tmp/urikdump/${lang}.list"
-  hunspell -d "$dic" -l < "/tmp/urikdump/${lang}.list" > "/tmp/urikdump/${lang}.rejected"
-  hunspell -d "$REF" -l < "/tmp/urikdump/${lang}.rejected" > "/tmp/urikdump/${lang}.refrej"
+  # -i utf-8: the .urik dump is UTF-8 while some hunspell dicts are ISO-8859-*; tell hunspell the input
+  # encoding so words are decoded correctly (otherwise it guesses the dict's encoding and mis-reads them).
+  hunspell -d "$dic" -i utf-8 -l < "/tmp/urikdump/${lang}.list" > "/tmp/urikdump/${lang}.rejected"
+  hunspell -d "$REF" -i utf-8 -l < "/tmp/urikdump/${lang}.rejected" > "/tmp/urikdump/${lang}.refrej"
   # removed = rejected-by-L  AND  accepted-by-REF  (= rejected-by-L minus also-rejected-by-REF)
   comm -23 <(sort -u "/tmp/urikdump/${lang}.rejected") <(sort -u "/tmp/urikdump/${lang}.refrej") \
     | awk 'NF' | sort -u > "app/src/main/assets/dictionaries/${lang}.removed"
