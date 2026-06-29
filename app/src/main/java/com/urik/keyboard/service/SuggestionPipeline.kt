@@ -111,8 +111,10 @@ class SuggestionPipeline(
         suggestions: List<SpellingSuggestion>,
         isSentenceStart: Boolean = false
     ): List<String> {
+        // Inject English contractions only when ENGLISH is the language being typed (the layout language),
+        // not the primary language — otherwise typing Czech "id" surfaced the English contraction "I'd".
         val withContractions =
-            Contractions.injectForWord(suggestions, state.displayBuffer, host.currentLanguage())
+            Contractions.injectForWord(suggestions, state.displayBuffer, host.currentLayoutLanguage())
         state.currentRawSuggestions = withContractions
         return capitalizeSuggestions(withContractions, isSentenceStart)
     }
@@ -133,7 +135,7 @@ class SuggestionPipeline(
     }
 
     fun capitalizeSuggestions(suggestions: List<SpellingSuggestion>, isSentenceStart: Boolean = false): List<String> {
-        val lang = host.currentLanguage().split("-").first()
+        val lang = host.currentLayoutLanguage().split("-").first()
         if (lang in CASELESS_LANGUAGES) {
             return suggestions.map { it.word }
         }
@@ -176,14 +178,14 @@ class SuggestionPipeline(
      * casing the non-cluster auto-correct path already produces. (Bug D.)
      */
     private fun applyPronounCorrection(word: String): String {
-        val lang = host.currentLanguage().split("-").first()
+        val lang = host.currentLayoutLanguage().split("-").first()
         if (lang != "en") return word
         return EnglishPronounCorrection.capitalize(word.lowercase()) ?: word
     }
 
     private fun recaseForCommit(displayed: String): String {
         if (displayed.isEmpty()) return displayed
-        val lang = host.currentLanguage().split("-").first()
+        val lang = host.currentLayoutLanguage().split("-").first()
         if (lang in CASELESS_LANGUAGES) return displayed
         // Re-derive from the raw suggestion (preserving its preserveCase flag) so a learned/proper-noun
         // candidate is cased on commit exactly as it was shown in the bar.
@@ -339,7 +341,7 @@ class SuggestionPipeline(
 
             outputBridge.beginBatchEdit()
             try {
-                val lang = host.currentLanguage().split("-").first()
+                val lang = host.currentLayoutLanguage().split("-").first()
                 if (lang == "en" && state.displayBuffer.isNotEmpty()) {
                     val corrected = EnglishPronounCorrection.capitalize(state.displayBuffer.lowercase())
                     if (corrected != null && corrected != state.displayBuffer) {
@@ -557,7 +559,8 @@ class SuggestionPipeline(
                     val isAutocorrectUndo = replacementState.committedWord != replacementState.originalWord
                     if (isAutocorrectUndo) {
                         learnWordAndInvalidateCache(selectedSuggestion, InputMethod.TYPED)
-                        val currentLanguage = languageManager.currentLanguage.value
+                        // Frequency under the LAYOUT language (the one being typed), consistent with recordWordUsage.
+                        val currentLanguage = languageManager.currentLayoutLanguage.value
                         wordFrequencyRepository.incrementFrequency(selectedSuggestion, currentLanguage)
                         wordFrequencyRepository.incrementFrequency(selectedSuggestion, currentLanguage)
                     } else {
