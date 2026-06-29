@@ -4,7 +4,27 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+211 — current
+## 0.23.1+213 — current
+
+Built on Urik `0.23.1-beta`. Polish on top of `+211`: **next-word prediction** now respects the language
+you're typing, and every transient **flash** adopts the black-and-yellow house style.
+
+### Prediction
+
+- **Next-word (bigram) prediction is per-language.** It was reading suggestions under the primary language
+  while recording them under the language being typed, so typing Czech surfaced stale English next-words and
+  never the Czech word you'd just typed (after "Teď" it offered old English pairs instead of "půjdeme"). The
+  read now uses the active layout language, matching how they're recorded.
+- **"Clear learned words"** (Privacy & data) now also clears the next-word/bigram table, so it is a complete
+  reset of everything you've taught the keyboard.
+
+### Look
+
+- **House-style flashes.** Every toast in the app — confirmations, import/export results, validation and
+  error messages, the space-slide language-switch flash — is now a black pill with yellow text and a yellow
+  frame, instead of the system's default white toast.
+
+## 0.23.1+211
 
 Built on Urik `0.23.1-beta`. A modular **export / import** backup system, a **per-language**
 custom-suggestion toolbar, and a deep fix to **cluster prediction** — common words now lead the bar, and
