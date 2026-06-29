@@ -4,7 +4,21 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+214 — current
+## 0.23.1+215 — current
+
+Built on Urik `0.23.1-beta`. Extends the Czech dictionary cleanup to **every Latin-script language**.
+
+### Dictionary
+
+- **Foreign-word pollution removed from all Latin-script dictionaries** — Catalan, German, Spanish, French,
+  Italian, Dutch, Polish, Portuguese, Slovak and Swedish (Czech was already cleaned in `+211`). The bundled
+  corpus-built dictionaries had inherited foreign (mostly English) words; each language now ships a generated
+  removal list of words a real spell-checker for that language rejects while English accepts, so cluster
+  prediction leads with genuine native words. Native words and accepted loanwords are kept; the non-Latin
+  dictionaries need no list (English words can't match their cluster bands). Roughly 56,000 foreign entries
+  removed across the ten languages.
+
+## 0.23.1+214
 
 Built on Urik `0.23.1-beta`. A focused fix completing the per-language isolation work: the suggestion
 pipeline now follows the language you are **typing**, not your primary language.
