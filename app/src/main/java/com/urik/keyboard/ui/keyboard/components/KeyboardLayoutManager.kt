@@ -1946,7 +1946,7 @@ class KeyboardLayoutManager(
         onLanguageSwitch(nextLang)
         val displayName =
             com.urik.keyboard.settings.KeyboardSettings.getLanguageDisplayNames()[nextLang] ?: nextLang
-        android.widget.Toast.makeText(context, displayName, android.widget.Toast.LENGTH_SHORT).show()
+        com.urik.keyboard.utils.KxkbToast.show(context, displayName)
     }
 
     private fun getKeyLabel(key: KeyboardKey, state: KeyboardState): String = when (key) {

@@ -10,7 +10,7 @@ import android.widget.LinearLayout
 import android.widget.RadioButton
 import android.widget.Spinner
 import android.widget.TextView
-import android.widget.Toast
+import com.urik.keyboard.utils.KxkbToast
 import androidx.appcompat.app.AlertDialog
 import com.urik.keyboard.R
 import com.urik.keyboard.data.database.UserDictionaryKind
@@ -178,7 +178,7 @@ object UserDictionaryEntryDialog {
             val valid =
                 if (kind == UserDictionaryKind.WORD) matchKey.isNotEmpty() else matchKey.isNotEmpty() && value.isNotEmpty()
             if (!valid) {
-                Toast.makeText(context, R.string.user_dictionary_incomplete, Toast.LENGTH_SHORT).show()
+                KxkbToast.show(context, R.string.user_dictionary_incomplete)
                 return@setOnClickListener
             }
             val languageTag = when (kind) {

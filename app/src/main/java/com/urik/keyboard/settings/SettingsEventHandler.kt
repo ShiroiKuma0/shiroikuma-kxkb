@@ -1,7 +1,7 @@
 package com.urik.keyboard.settings
 
 import android.content.Context
-import android.widget.Toast
+import com.urik.keyboard.utils.KxkbToast
 import com.urik.keyboard.R
 
 /** Should be instantiated per-Fragment to respect lifecycle. */
@@ -200,6 +200,6 @@ class SettingsEventHandler(private val context: Context) {
                 }
             }
 
-        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        KxkbToast.show(context, message)
     }
 }

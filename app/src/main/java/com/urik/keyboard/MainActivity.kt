@@ -9,7 +9,7 @@ import android.view.View
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
+import com.urik.keyboard.utils.KxkbToast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -340,12 +340,7 @@ class MainActivity : AppCompatActivity() {
                 exception = e,
                 context = mapOf("operation" to "openKeyboardSettings")
             )
-            Toast
-                .makeText(
-                    this,
-                    R.string.error_opening_settings,
-                    Toast.LENGTH_SHORT
-                ).show()
+            KxkbToast.show(this, R.string.error_opening_settings)
         }
     }
 

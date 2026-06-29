@@ -8,7 +8,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
-import android.widget.Toast
+import com.urik.keyboard.utils.KxkbToast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -379,51 +379,27 @@ class LayoutMapperActivity : AppCompatActivity() {
                     viewModel.events.collect { event ->
                         when (event) {
                             is LayoutMapperEvent.MappingSaved -> {
-                                Toast.makeText(
-                                    this@LayoutMapperActivity,
-                                    R.string.layout_mapper_saved,
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                KxkbToast.show(this@LayoutMapperActivity, R.string.layout_mapper_saved)
                             }
 
                             is LayoutMapperEvent.MappingRemoved -> {
-                                Toast.makeText(
-                                    this@LayoutMapperActivity,
-                                    R.string.layout_mapper_removed,
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                KxkbToast.show(this@LayoutMapperActivity, R.string.layout_mapper_removed)
                             }
 
                             is LayoutMapperEvent.AllMappingsCleared -> {
-                                Toast.makeText(
-                                    this@LayoutMapperActivity,
-                                    R.string.layout_mapper_cleared,
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                KxkbToast.show(this@LayoutMapperActivity, R.string.layout_mapper_cleared)
                             }
 
                             is LayoutMapperEvent.SaveFailed -> {
-                                Toast.makeText(
-                                    this@LayoutMapperActivity,
-                                    R.string.layout_mapper_save_failed,
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                KxkbToast.show(this@LayoutMapperActivity, R.string.layout_mapper_save_failed)
                             }
 
                             is LayoutMapperEvent.RemoveFailed -> {
-                                Toast.makeText(
-                                    this@LayoutMapperActivity,
-                                    R.string.layout_mapper_remove_failed,
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                KxkbToast.show(this@LayoutMapperActivity, R.string.layout_mapper_remove_failed)
                             }
 
                             is LayoutMapperEvent.ClearFailed -> {
-                                Toast.makeText(
-                                    this@LayoutMapperActivity,
-                                    R.string.layout_mapper_clear_failed,
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                KxkbToast.show(this@LayoutMapperActivity, R.string.layout_mapper_clear_failed)
                             }
                         }
                     }

@@ -2,7 +2,7 @@ package com.urik.keyboard.settings.languages
 
 import android.os.Bundle
 import android.view.View
-import android.widget.Toast
+import com.urik.keyboard.utils.KxkbToast
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -81,12 +81,7 @@ class LanguagesFragment : PreferenceFragmentCompat() {
                         languageRadioButtons.values.count { it.isChecked }
 
                     if (currentCheckedCount >= KeyboardSettings.MAX_ACTIVE_LANGUAGES) {
-                        Toast
-                            .makeText(
-                                requireContext(),
-                                R.string.max_languages_reached,
-                                Toast.LENGTH_SHORT
-                            ).show()
+                        KxkbToast.show(requireContext(), R.string.max_languages_reached)
                         return@setOnPreferenceChangeListener false
                     }
                 }

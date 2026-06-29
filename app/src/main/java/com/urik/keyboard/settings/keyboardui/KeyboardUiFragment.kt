@@ -7,7 +7,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
-import android.widget.Toast
+import com.urik.keyboard.utils.KxkbToast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
@@ -537,13 +537,9 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         val name = KeyboardFonts.importFont(requireContext(), uri)
         if (name != null) {
             onFontImported(name)
-            Toast.makeText(
-                requireContext(),
-                getString(R.string.font_imported, name),
-                Toast.LENGTH_SHORT
-            ).show()
+            KxkbToast.show(requireContext(), getString(R.string.font_imported, name))
         } else {
-            Toast.makeText(requireContext(), R.string.font_import_failed, Toast.LENGTH_LONG).show()
+            KxkbToast.show(requireContext(), R.string.font_import_failed, android.widget.Toast.LENGTH_LONG)
         }
     }
 
@@ -579,7 +575,7 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                             .getOrNull() ?: app
                     getString(R.string.keyboard_ui_reset_layout_done, label)
                 }
-            Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show()
+            KxkbToast.show(requireContext(), msg)
             true
         }
         // App interface language — independent of the phone locale and the keyboard's layout language.

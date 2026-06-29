@@ -26,6 +26,7 @@ import com.urik.keyboard.R
 import com.urik.keyboard.service.BackupManager
 import com.urik.keyboard.service.BackupPart
 import com.urik.keyboard.settings.SettingsRepository
+import com.urik.keyboard.utils.KxkbToast
 import dagger.hilt.android.AndroidEntryPoint
 import java.io.File
 import javax.inject.Inject
@@ -194,14 +195,14 @@ class ExportImportFragment : Fragment() {
                 }
             }
             result.onSuccess {
-                Toast.makeText(requireContext(), getString(R.string.export_import_export_ok, name), Toast.LENGTH_LONG).show()
+                KxkbToast.show(requireContext(), getString(R.string.export_import_export_ok, name), Toast.LENGTH_LONG)
                 rebuild()
             }.onFailure {
-                Toast.makeText(
+                KxkbToast.show(
                     requireContext(),
                     getString(R.string.export_import_export_failed, it.message ?: ""),
                     Toast.LENGTH_LONG
-                ).show()
+                )
             }
         }
     }
@@ -234,11 +235,11 @@ class ExportImportFragment : Fragment() {
             }
             result.onSuccess { showImportResult(it) }
                 .onFailure {
-                    Toast.makeText(
+                    KxkbToast.show(
                         requireContext(),
                         getString(R.string.export_import_import_failed, it.message ?: ""),
                         Toast.LENGTH_LONG
-                    ).show()
+                    )
                 }
         }
     }
@@ -411,7 +412,7 @@ class ExportImportFragment : Fragment() {
         cornerRadius = dp(8).toFloat()
     }
 
-    private fun flash(msg: String) = Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show()
+    private fun flash(msg: String) = KxkbToast.show(requireContext(), msg)
 
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
 }

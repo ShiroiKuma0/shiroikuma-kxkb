@@ -10,7 +10,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
+import com.urik.keyboard.utils.KxkbToast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -127,7 +127,7 @@ class RegisterWordActivity : AppCompatActivity() {
         val reading = readingField.text?.toString()?.trim().orEmpty()
         val surface = surfaceField.text?.toString()?.trim().orEmpty()
         if (reading.isEmpty() || surface.isEmpty()) {
-            Toast.makeText(this, R.string.ja_register_empty, Toast.LENGTH_SHORT).show()
+            KxkbToast.show(this, R.string.ja_register_empty)
             return
         }
         // registerEntry seeds the in-memory boost map synchronously and schedules its own off-main-thread Room
@@ -145,11 +145,7 @@ class RegisterWordActivity : AppCompatActivity() {
             // the still-typed reading with the registered surface (しろいくま → 白い熊). Set ONLY on a successful
             // Save — Cancel/back returns without ever signalling, so a dismissed dialog leaves the reading as-is.
             scriptConverterRegistry.signalRegistration(reading, surface)
-            Toast.makeText(
-                this@RegisterWordActivity,
-                getString(R.string.ja_register_saved_toast, surface),
-                Toast.LENGTH_SHORT
-            ).show()
+            KxkbToast.show(this@RegisterWordActivity, getString(R.string.ja_register_saved_toast, surface))
             finish()
         }
     }

@@ -866,9 +866,9 @@ class KeyboardEditorActivity : AppCompatActivity() {
         else -> m
     }
 
-    /** A short confirmation toast (custom-view toasts are deprecated/ignored on modern Android). */
+    /** A short house-style confirmation flash (black bg, yellow text/frame). */
     private fun flash(message: String) {
-        android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_SHORT).show()
+        com.urik.keyboard.utils.KxkbToast.show(this, message)
     }
 
     private fun captionView(text: String): TextView = TextView(this).apply {
