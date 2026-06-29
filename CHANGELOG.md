@@ -4,7 +4,20 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+213 — current
+## 0.23.1+214 — current
+
+Built on Urik `0.23.1-beta`. A focused fix completing the per-language isolation work: the suggestion
+pipeline now follows the language you are **typing**, not your primary language.
+
+### Prediction
+
+- **No more English leaking into other languages.** Several parts of the suggestion pipeline keyed off the
+  primary language instead of the active layout language, so typing Czech could surface English: the
+  contraction "I'd" was offered for the cluster taps of "od", and English pronoun capitalisation ("i" → "I")
+  was applied regardless of language. Contraction injection, pronoun capitalisation, the caseless-language
+  casing rules and the autocorrect-undo frequency boost now all use the language you are actually typing.
+
+## 0.23.1+213
 
 Built on Urik `0.23.1-beta`. Polish on top of `+211`: **next-word prediction** now respects the language
 you're typing, and every transient **flash** adopts the black-and-yellow house style.
