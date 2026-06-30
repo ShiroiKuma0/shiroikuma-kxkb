@@ -60,6 +60,8 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
     private lateinit var spacingHPref: SeekBarPreference
     private lateinit var spacingVPref: SeekBarPreference
     private lateinit var fontPref: SeekBarPreference
+    private lateinit var primaryOffsetXPref: SeekBarPreference
+    private lateinit var primaryOffsetYPref: SeekBarPreference
     private lateinit var compassFontPref: SeekBarPreference
     private lateinit var stripFontPref: SeekBarPreference
     private lateinit var hintPref: SeekBarPreference
@@ -232,6 +234,11 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         fontFamilyPref = fontEntry("kb_ui_font_family", R.string.keyboard_ui_item_font, sub = true)
         weightPref = seekBar("kb_ui_weight", R.string.keyboard_ui_item_weight, min = 100, max = 900, sub = true)
         fontPref = seekBar("kb_ui_font", R.string.keyboard_ui_item_size, min = 50, max = 400, sub = true)
+        // Centred position sliders: neutral 0 in the middle, ± shifts the primary glyph (right/left, down/up).
+        primaryOffsetXPref =
+            seekBar("kb_ui_primary_off_x", R.string.keyboard_ui_item_h_pos, min = -24, max = 24, sub = true)
+        primaryOffsetYPref =
+            seekBar("kb_ui_primary_off_y", R.string.keyboard_ui_item_v_pos, min = -24, max = 24, sub = true)
         keyTextColorPref = colorPref("kb_ui_col_key_text", R.string.keyboard_ui_item_colour, sub = true)
         // Secondary character (general — the rows inherit these).
         hintFontPref = fontEntry("kb_ui_hint_font", R.string.keyboard_ui_item_font, sub = true)
@@ -311,6 +318,8 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         keysCategory.addPreference(fontFamilyPref)
         keysCategory.addPreference(weightPref)
         keysCategory.addPreference(fontPref)
+        keysCategory.addPreference(primaryOffsetXPref)
+        keysCategory.addPreference(primaryOffsetYPref)
         keysCategory.addPreference(keyTextColorPref)
         keysCategory.addPreference(subHeader(R.string.keyboard_ui_sub_secondary))
         keysCategory.addPreference(hintFontPref)
@@ -678,6 +687,14 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
             viewModel.updateFontScale(newValue as Int)
             true
         }
+        primaryOffsetXPref.setOnPreferenceChangeListener { _, newValue ->
+            viewModel.updatePrimaryOffsetX(newValue as Int)
+            true
+        }
+        primaryOffsetYPref.setOnPreferenceChangeListener { _, newValue ->
+            viewModel.updatePrimaryOffsetY(newValue as Int)
+            true
+        }
         cornerPref.setOnPreferenceChangeListener { _, newValue ->
             viewModel.updateCornerRadius(newValue as Int)
             true
@@ -824,6 +841,8 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                         spacingHPref.value = state.keySpacingHPct
                         spacingVPref.value = state.keySpacingVPct
                         fontPref.value = state.keyFontScalePct
+                        primaryOffsetXPref.value = state.primaryOffsetXDp
+                        primaryOffsetYPref.value = state.primaryOffsetYDp
                         hintPref.value = state.hintScalePct
                         hintFontPref.summary = KeyboardFonts.displayName(requireContext(), state.hintFont)
                         hintWeightPref.value = state.hintWeight

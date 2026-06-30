@@ -300,7 +300,14 @@ class KeyboardLayoutManager(
         val basePx = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_SP, primaryTextSp, context.resources.displayMetrics
         )
-        val layers = mutableListOf(keyBackground, ClusterMainsDrawable(key.clusterMains, mainsPaint, basePx))
+        val layers = mutableListOf(
+            keyBackground,
+            ClusterMainsDrawable(
+                key.clusterMains, mainsPaint, basePx,
+                (adaptiveDimensions?.primaryOffsetXPx ?: 0).toFloat(),
+                (adaptiveDimensions?.primaryOffsetYPx ?: 0).toFloat()
+            )
+        )
         val hintLabels = flickHintLabels(key).filterKeys { it != "left" && it != "right" }
         buildFlickHintsDrawable(key, hintLabels)?.let { layers.add(it) }
         return LayerDrawable(layers.toTypedArray())
@@ -323,7 +330,14 @@ class KeyboardLayoutManager(
         val basePx = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_SP, primaryTextSp, context.resources.displayMetrics
         )
-        val layers = mutableListOf(keyBackground, ColumnMainsDrawable(key.clusterMains, mainsPaint, basePx))
+        val layers = mutableListOf(
+            keyBackground,
+            ColumnMainsDrawable(
+                key.clusterMains, mainsPaint, basePx,
+                (adaptiveDimensions?.primaryOffsetXPx ?: 0).toFloat(),
+                (adaptiveDimensions?.primaryOffsetYPx ?: 0).toFloat()
+            )
+        )
         val hintLabels = flickHintLabels(key).filterKeys { it != "up" && it != "down" }
         buildFlickHintsDrawable(key, hintLabels)?.let { layers.add(it) }
         return LayerDrawable(layers.toTypedArray())
@@ -333,7 +347,9 @@ class KeyboardLayoutManager(
     private class ColumnMainsDrawable(
         private val mains: String,
         private val paint: Paint,
-        private val basePx: Float
+        private val basePx: Float,
+        private val offX: Float = 0f,
+        private val offY: Float = 0f
     ) : Drawable() {
         override fun draw(canvas: Canvas) {
             val b = bounds
@@ -343,9 +359,9 @@ class KeyboardLayoutManager(
             val fm = paint.fontMetrics
             val lineHeight = fm.descent - fm.ascent
             val total = lineHeight * mains.length
-            val cx = b.exactCenterX()
+            val cx = b.exactCenterX() + offX
             // Baseline of the first (top) glyph so the whole stack is vertically centred on the key.
-            var baseline = b.exactCenterY() - total / 2f - fm.ascent
+            var baseline = b.exactCenterY() + offY - total / 2f - fm.ascent
             for (i in mains.indices) {
                 canvas.drawText(mains[i].toString(), cx, baseline, paint)
                 baseline += lineHeight
@@ -415,7 +431,9 @@ class KeyboardLayoutManager(
     private class ClusterMainsDrawable(
         private val mains: String,
         private val paint: Paint,
-        private val basePx: Float
+        private val basePx: Float,
+        private val offX: Float = 0f,
+        private val offY: Float = 0f
     ) : Drawable() {
         override fun draw(canvas: Canvas) {
             val b = bounds
@@ -426,9 +444,9 @@ class KeyboardLayoutManager(
             paint.textAlign = Paint.Align.LEFT
             val advances = FloatArray(mains.length) { paint.measureText(mains[it].toString()) }
             val total = advances.sum()
-            var x = b.exactCenterX() - total / 2f
+            var x = b.exactCenterX() - total / 2f + offX
             val fm = paint.fontMetrics
-            val cy = b.exactCenterY() - (fm.ascent + fm.descent) / 2f
+            val cy = b.exactCenterY() - (fm.ascent + fm.descent) / 2f + offY
             for (i in mains.indices) {
                 canvas.drawText(mains[i].toString(), x, cy, paint)
                 x += advances[i]
@@ -1469,7 +1487,16 @@ class KeyboardLayoutManager(
 
             val horizontalPadding = requireDim("horizontalPadding")
             val verticalPadding = requireDim("verticalPadding")
-            setPadding(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding)
+            // Primary-glyph position offset (signed px): shift the centred label by padding the opposite
+            // edges asymmetrically (+X → right, +Y → down). null/0 = unchanged symmetric padding.
+            val primaryOffsetX = adaptiveDimensions?.primaryOffsetXPx ?: 0
+            val primaryOffsetY = adaptiveDimensions?.primaryOffsetYPx ?: 0
+            setPadding(
+                horizontalPadding + primaryOffsetX,
+                verticalPadding + primaryOffsetY,
+                horizontalPadding - primaryOffsetX,
+                verticalPadding - primaryOffsetY
+            )
 
             if (key is KeyboardKey.Action &&
                 key.action in

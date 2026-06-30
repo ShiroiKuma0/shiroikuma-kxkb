@@ -22,6 +22,13 @@ data class KeyboardLookKnobs(
     val boldKeyLabels: Boolean? = null,
     /** Multiplier on the computed key-label text size (1.0 = unchanged). */
     val keyFontScale: Float? = null,
+    /**
+     * Primary-glyph position offsets (dp, signed; null = centred, the default). +X shifts the main character
+     * right, −X left; +Y shifts it down, −Y up. Edited by the two centred "position" sliders in the Keys
+     * section; applies to standard key labels and to cluster/column main bands.
+     */
+    val primaryOffsetXDp: Float? = null,
+    val primaryOffsetYDp: Float? = null,
     /** Multiplier on the key height (1.0 = unchanged). */
     val keyHeightScale: Float? = null,
     /**
@@ -116,6 +123,8 @@ data class KeyboardLookKnobs(
         keyBorderWidthPx = keyBorderWidthDp?.let { (it * density).toInt().coerceAtLeast(0) } ?: base.keyBorderWidthPx,
         boldKeyLabels = boldKeyLabels ?: base.boldKeyLabels,
         keyFontScale = keyFontScale ?: base.keyFontScale,
+        primaryOffsetXPx = primaryOffsetXDp?.let { (it * density).toInt() } ?: base.primaryOffsetXPx,
+        primaryOffsetYPx = primaryOffsetYDp?.let { (it * density).toInt() } ?: base.primaryOffsetYPx,
         hintScale = hintScale ?: base.hintScale,
         compassFontScale = compassFontScale ?: base.compassFontScale,
         extraStripFontScale = extraStripFontScale ?: base.extraStripFontScale,
@@ -158,6 +167,8 @@ data class KeyboardLookKnobs(
         keyBorderWidthDp = o.keyBorderWidthDp ?: keyBorderWidthDp,
         boldKeyLabels = o.boldKeyLabels ?: boldKeyLabels,
         keyFontScale = o.keyFontScale ?: keyFontScale,
+        primaryOffsetXDp = o.primaryOffsetXDp ?: primaryOffsetXDp,
+        primaryOffsetYDp = o.primaryOffsetYDp ?: primaryOffsetYDp,
         compassFontScale = o.compassFontScale ?: compassFontScale,
         extraStripFontScale = o.extraStripFontScale ?: extraStripFontScale,
         keyHeightScale = o.keyHeightScale ?: keyHeightScale,
@@ -210,6 +221,8 @@ data class KeyboardLookKnobs(
         keyBorderWidthDp?.let { add("bw=$it") }
         boldKeyLabels?.let { add("bold=${if (it) 1 else 0}") }
         keyFontScale?.let { add("fs=$it") }
+        primaryOffsetXDp?.let { add("pox=$it") }
+        primaryOffsetYDp?.let { add("poy=$it") }
         compassFontScale?.let { add("cfs=$it") }
         extraStripFontScale?.let { add("xfs=$it") }
         keyHeightScale?.let { add("hs=$it") }
@@ -289,6 +302,8 @@ data class KeyboardLookKnobs(
             var bw: Float? = null
             var bold: Boolean? = null
             var fs: Float? = null
+            var pox: Float? = null
+            var poy: Float? = null
             var cfs: Float? = null
             var xfs: Float? = null
             var hs: Float? = null
@@ -342,6 +357,8 @@ data class KeyboardLookKnobs(
                     "bw" -> bw = value.toFloatOrNull()
                     "bold" -> bold = value.toIntOrNull()?.let { it != 0 }
                     "fs" -> fs = value.toFloatOrNull()
+                    "pox" -> pox = value.toFloatOrNull()
+                    "poy" -> poy = value.toFloatOrNull()
                     "cfs" -> cfs = value.toFloatOrNull()
                     "xfs" -> xfs = value.toFloatOrNull()
                     "hs" -> hs = value.toFloatOrNull()
@@ -392,6 +409,7 @@ data class KeyboardLookKnobs(
             }
             return KeyboardLookKnobs(
                 cornerRadiusDp = cr, keyBorderWidthDp = bw, boldKeyLabels = bold, keyFontScale = fs,
+                primaryOffsetXDp = pox, primaryOffsetYDp = poy,
                 compassFontScale = cfs, extraStripFontScale = xfs,
                 keyHeightScale = hs, topRowHeightScale = trh, bottomRowHeightScale = brh,
                 keySpacingHScale = ksh, keySpacingVScale = ksv, hintScale = hn,

@@ -30,6 +30,9 @@ data class AdaptiveDimensions(
     val keyBorderWidthPx: Int? = null,
     val boldKeyLabels: Boolean = false,
     val keyFontScale: Float = 1f,
+    // Primary-glyph position offsets (px, signed; null = centred). +X = right, +Y = down.
+    val primaryOffsetXPx: Int? = null,
+    val primaryOffsetYPx: Int? = null,
     val hintScale: Float = 1f,
     /** Glyph-size multiplier for the long-press COMPASS preview (FlickPopup) and extra-key STRIP. */
     val compassFontScale: Float = 2f,

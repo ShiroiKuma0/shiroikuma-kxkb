@@ -216,6 +216,10 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
 
     fun updateFontScale(pct: Int) = persist(current.copy(keyFontScale = pct / 100f))
 
+    fun updatePrimaryOffsetX(dp: Int) = persist(current.copy(primaryOffsetXDp = dp.toFloat()))
+
+    fun updatePrimaryOffsetY(dp: Int) = persist(current.copy(primaryOffsetYDp = dp.toFloat()))
+
     fun updateCompassFontScale(pct: Int) = persist(current.copy(compassFontScale = pct / 100f))
 
     fun updateExtraStripFontScale(pct: Int) = persist(current.copy(extraStripFontScale = pct / 100f))
@@ -363,6 +367,8 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
         keyBorderWidthDp = keyBorderWidthDp?.toInt() ?: 1,
         boldKeyLabels = boldKeyLabels ?: true,
         keyFontScalePct = ((keyFontScale ?: 1f) * 100).toInt(),
+        primaryOffsetXDp = (primaryOffsetXDp ?: 0f).toInt(),
+        primaryOffsetYDp = (primaryOffsetYDp ?: 0f).toInt(),
         compassFontScalePct = ((compassFontScale ?: 2f) * 100).toInt(),
         extraStripFontScalePct = ((extraStripFontScale ?: 2.5f) * 100).toInt(),
         keyHeightScalePct = ((keyHeightScale ?: 1f) * 100).toInt(),
@@ -425,6 +431,8 @@ data class KeyboardUiUiState(
     val keyBorderWidthDp: Int = 1,
     val boldKeyLabels: Boolean = true,
     val keyFontScalePct: Int = 100,
+    val primaryOffsetXDp: Int = 0,
+    val primaryOffsetYDp: Int = 0,
     val compassFontScalePct: Int = 200,
     val extraStripFontScalePct: Int = 250,
     val keyHeightScalePct: Int = 100,
