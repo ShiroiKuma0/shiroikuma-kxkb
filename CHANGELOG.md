@@ -4,7 +4,28 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+215 — current
+## 0.23.1+217 — current
+
+Built on Urik `0.23.1-beta`. Two power-user additions to the Keys layer: precise primary-glyph
+positioning, and a one-gesture way to redraw a clipped keyboard.
+
+### Look
+
+- **Primary-glyph position sliders.** Two new centred sliders under **Keys → Primary character** —
+  *Horizontal position* and *Vertical position* (−24…+24 dp, neutral 0 in the middle) — nudge the main
+  character on every key: +X right / −X left, +Y down / −Y up. Saved per geometry like the other look
+  knobs, applied live, and honoured by both the standard key labels and the cluster / column main bands.
+
+### Input
+
+- **RESHOW — swipe up to redraw the keyboard.** The topmost-rightmost key already hides the keyboard on
+  swipe-down; swipe **up** on it now hides and immediately re-shows the keyboard, forcing a fresh window
+  layout that clears the rare cold-start case where the bottom row is clipped. Bound across all thirteen
+  on-screen layouts (cs / en / ru / gnu / column / ja) with an up-triangle hint that mirrors each layout's
+  hide glyph (⌃ where hide is ⌄, ▴ where hide is ▾). On Android 11+ it is a true hide-then-reshow; older
+  versions fall back to an in-place window remeasure.
+
+## 0.23.1+215
 
 Built on Urik `0.23.1-beta`. Extends the Czech dictionary cleanup to **every Latin-script language**.
 
