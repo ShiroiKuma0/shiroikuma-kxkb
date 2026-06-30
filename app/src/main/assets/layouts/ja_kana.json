@@ -158,7 +158,10 @@
               "cluster": "ろ",
               "char": "ろ",
               "flick": {
-                "up": "〇",
+                "up": {
+                  "action": "reshow",
+                  "label": "⌃"
+                },
                 "down": {
                   "action": "hide",
                   "label": "⌄"
@@ -170,7 +173,10 @@
               "cluster": "ロ",
               "char": "ロ",
               "flick": {
-                "up": "〇",
+                "up": {
+                  "action": "reshow",
+                  "label": "⌃"
+                },
                 "down": {
                   "action": "hide",
                   "label": "⌄"

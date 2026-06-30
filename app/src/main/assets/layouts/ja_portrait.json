@@ -143,7 +143,10 @@
               "cluster": "0",
               "char": "0",
               "flick": {
-                "up": "〇",
+                "up": {
+                  "action": "reshow",
+                  "label": "⌃"
+                },
                 "down": {
                   "action": "hide",
                   "label": "⌄"
@@ -155,7 +158,10 @@
               "cluster": "^",
               "char": "^",
               "flick": {
-                "up": "〇",
+                "up": {
+                  "action": "reshow",
+                  "label": "⌃"
+                },
                 "down": {
                   "action": "hide",
                   "label": "⌄"

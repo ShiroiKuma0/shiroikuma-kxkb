@@ -433,6 +433,10 @@
             "type": "compass",
             "char": "*",
             "flick": {
+              "up": {
+                "action": "reshow",
+                "label": "⌃"
+              },
               "down": {
                 "action": "hide",
                 "label": "⌄"

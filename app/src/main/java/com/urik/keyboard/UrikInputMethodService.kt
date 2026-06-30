@@ -1317,6 +1317,17 @@ open class UrikInputMethodService :
             "paste" -> currentInputConnection?.performContextMenuAction(android.R.id.paste)
             "select_all" -> currentInputConnection?.performContextMenuAction(android.R.id.selectAll)
             "hide" -> requestHideSelf(0)
+            // "Reshow": hide the keyboard, then re-request it so the framework runs a FRESH show — which
+            // re-pins the window height from scratch and clears the rare cold-start bottom-clip that an
+            // in-place remeasure can leave behind. requestShowSelf is API 30+; on older devices we can't
+            // self-show, so we re-pin the height in place instead (no hide, no flicker — same end result).
+            "reshow" ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    requestHideSelf(0)
+                    keyboardRootContainer?.postDelayed({ requestShowSelf(0) }, RESHOW_REOPEN_DELAY_MS)
+                } else {
+                    forceInputViewRemeasure()
+                }
             "next_language" -> handleLanguageSwitch(languageManager.getNextLayoutLanguage())
         }
     }
@@ -3467,6 +3478,9 @@ open class UrikInputMethodService :
 
     private companion object {
         const val DOUBLE_SHIFT_THRESHOLD_MS = 400L
+        // Gap between the hide and the re-show of the "reshow" action — long enough for the hide to register
+        // before the show, so the framework treats it as a fresh show (and re-pins the window height).
+        const val RESHOW_REOPEN_DELAY_MS = 150L
         const val LOOK_SEED_PREFS = "kxkb_look_seed"
         const val LOOK_SEED_LAST_GEO = "last_geo"
         const val LOOK_SEED_KNOBS_PREFIX = "knobs_"
