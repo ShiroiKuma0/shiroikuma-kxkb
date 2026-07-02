@@ -159,10 +159,21 @@ horizontal/vertical offset of the main character; per-geometry, live-applied, ho
 labels and the cluster/column main bands); **RESHOW** (swipe-up on the topmost-rightmost key — paired with
 the existing swipe-down HIDE — hides then re-shows the keyboard to clear the rare cold-start bottom-clip:
 API 30+ `requestShowSelf`, else `forceInputViewRemeasure`; a new `"reshow"` flick-action bound on the
-top-right key of all 13 soft layouts with an up-triangle hint).
+top-right key of all 13 soft layouts with an up-triangle hint); **per-combo everywhere** (the kxkb UI +
+Mode picker read/write the live (app·layout·geometry) combo the keyboard was last shown in
+(`currentSizeTarget`) instead of the shared per-geometry baseline; Mode is a per-combo look knob —
+`KeyboardLookKnobs.displayMode` — with the legacy global scalar as fallback-then-retired; the in-UI
+preview borrows the last REAL app·layout so an edited copy shows its true size; per-app layout-language
+memory skips our own settings app, so the kxkb UI/editor always opens on the current layout);
+**deliberate-casing learning** (all-caps "OK" / internal-caps "iPhone" learned with their exact surface
+past the case-insensitive in-dictionary short-circuit, on both the cluster-candidate commit and the
+literal long-space path; ambiguous "Ok" stays unlearned); **cluster Enter commits the highlighted
+candidate** (no trailing space, then the field's Enter action — mirrors Space/punctuation; long-space
+stays the literal escape); **＋登録 honest save toast** (reports 登録に失敗しました when the write didn't
+persist — the registration path itself is the unified `user_dictionary`, same as User dictionary → Add).
 
-**Released `0.23.1+217`** (2026-06-30; tagged `v0.23.1+217`, APK attached, on the fork's GitHub; default
-branch `custom`; README badge + `CHANGELOG.md` track it). Recent fork releases: `+198`, `+204`, `+211`,
-`+213`, `+214`, `+215`, `+217` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`). Remaining M5 tail (low
-priority): number/arrow rows on the look page, quick-period flick. Full architecture + milestone sequence in
-`docs/PLAN.md`.
+**Released `0.23.1+222`** (2026-07-02; tagged `v0.23.1+222`, APK attached, on the fork's GitHub; default
+branch `custom`; README badge + `CHANGELOG.md` track it). Recent fork releases: `+204`, `+211`, `+213`,
+`+214`, `+215`, `+217`, `+222` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`, `+198`). Remaining M5 tail
+(low priority): number/arrow rows on the look page, quick-period flick. Full architecture + milestone
+sequence in `docs/PLAN.md`.
