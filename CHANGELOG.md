@@ -4,7 +4,45 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+217 — current
+## 0.23.1+222 — current
+
+Built on Urik `0.23.1-beta`. Every size, look and mode setting is now truly per layout — nothing
+bleeds between layouts or apps any more — plus exact-casing learning and a faster cluster Enter.
+
+### Look & sizing
+
+- **The Keyboard UI edits the layout you were just using.** The settings page (and its live
+  preview) now targets the (app · layout · geometry) combo the keyboard was last shown in, instead
+  of a shared per-geometry baseline: the preview opens at that layout's real size/split/mode, and
+  every slider change sticks to that one layout only. Previously an edited copy looked like the
+  unmodified stock inside the UI, and a height/split edit leaked into every layout of the geometry.
+- **Keyboard mode is per layout too.** Standard / Split / One-handed / Floating is stored per
+  (app · layout · geometry) exactly like the size knobs — making one layout split no longer splits
+  them all. The old global mode value is retired on the first per-layout change.
+
+### Input
+
+- **Opening the kxkb UI / Keyboard editor keeps the current layout.** Per-app layout memory no
+  longer applies to the keyboard's own settings app, so entering the UI to modify the active
+  layout doesn't swap in whatever language was last used there — and previewing a language inside
+  the UI is never recorded as that "app's" layout.
+- **Deliberate casing is learned.** A word committed as all-caps (“OK”) or with internal capitals
+  (“iPhone”) is remembered with that exact casing — even when a lowercase twin exists in the
+  dictionary — and offered verbatim from then on. Works both when committing a cluster candidate
+  and when long-space-committing a literally typed word. A plain “Ok” stays unlearned (it is
+  indistinguishable from an auto-capital).
+- **Enter commits the highlighted cluster candidate.** On cluster layouts Enter now works like
+  Space and punctuation: it commits the highlighted candidate first (with no trailing space), then
+  performs the field's Enter action — instead of committing the raw centre-letter buffer.
+  Long-press Space, then Enter, remains the literal escape.
+
+### Japanese
+
+- **＋登録 reports failure honestly.** The reading→kanji registration screen shows
+  登録に失敗しました when the entry didn't persist, instead of always claiming success — a dropped
+  registration is visible immediately, and a successful one is offered right away while typing.
+
+## 0.23.1+217
 
 Built on Urik `0.23.1-beta`. Two power-user additions to the Keys layer: precise primary-glyph
 positioning, and a one-gesture way to redraw a clipped keyboard.
