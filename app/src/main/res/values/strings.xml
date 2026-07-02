@@ -707,6 +707,7 @@
     <string name="ja_register_cancel">キャンセル</string>
     <string name="ja_register_saved_toast">「%1$s」を登録しました</string>
     <string name="ja_register_empty">よみと単語の両方を入力してください</string>
+    <string name="ja_register_failed">登録に失敗しました</string>
 
     <!-- Japanese user-dictionary editor (settings) -->
     <string name="ja_dictionary_title">Japanese user dictionary</string>

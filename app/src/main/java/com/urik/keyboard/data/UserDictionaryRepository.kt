@@ -104,15 +104,16 @@ constructor(
         matchKey: String,
         value: String,
         seedFrequency: Int = ADDED_SEED_FREQUENCY
-    ) {
+    ): Boolean {
         val key = matchKey.trim()
         val v = value.trim()
-        if (languageTag.isBlank() || key.isEmpty() || v.isEmpty()) return
-        try {
+        if (languageTag.isBlank() || key.isEmpty() || v.isEmpty()) return false
+        return try {
             withContext(ioDispatcher) {
                 dao.upsertIncrement(languageTag, kind.tag, key, v, seedFrequency, System.currentTimeMillis())
             }
             reload(languageTag)
+            true
         } catch (e: Exception) {
             ErrorLogger.logException(
                 component = "UserDictionaryRepository",
@@ -120,6 +121,7 @@ constructor(
                 exception = e,
                 context = mapOf("operation" to "add", "language" to languageTag)
             )
+            false
         }
     }
 

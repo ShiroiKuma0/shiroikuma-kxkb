@@ -22,10 +22,11 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
- * Edits the **per-geometry baseline** look knobs (the `*|*|geometry` layer of the look store). The per-
- * (language·layout) fork is done on-keyboard by the resize gesture (1C); the settings Activity can't know
- * the live combo, so it tunes the geometry baseline only. Writes live-apply via the look-store flow the
- * IME service observes.
+ * Edits the look knobs for the CURRENT (app·layout·geometry) combo — the app·layout the keyboard was last
+ * shown in (published by the IME as [SettingsRepository.currentSizeTarget]) plus the selected geometry. So a
+ * height / split / colour / mode change here sticks to that one layout, per app and per geometry, and never
+ * bleeds into others — matching the on-keyboard resize gesture. Falls back to the per-geometry baseline only
+ * when no real combo has been published yet. Writes live-apply via the look-store flow the IME observes.
  */
 @HiltViewModel
 class KeyboardUiViewModel
@@ -75,62 +76,22 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
                 initialValue = true
             )
 
-    // The keyboard display mode (a global setting, not per-geometry) — read from the SAME two settings
-    // keys the one-handed toggle and the space-slide Actions menu drive, resolved exactly as
-    // KeyboardModeManager.determineMode does: one-handed-enabled wins (left/right from keyboardDisplayMode),
-    // else an explicit SPLIT, else STANDARD.
-    val keyboardDisplayMode: StateFlow<KeyboardDisplayMode> =
-        settingsRepository.settings
-            .map { settings ->
-                when {
-                    settings.oneHandedModeEnabled ->
-                        if (settings.keyboardDisplayMode == KeyboardDisplayMode.ONE_HANDED_RIGHT) {
-                            KeyboardDisplayMode.ONE_HANDED_RIGHT
-                        } else {
-                            KeyboardDisplayMode.ONE_HANDED_LEFT
-                        }
-
-                    settings.keyboardDisplayMode == KeyboardDisplayMode.SPLIT -> KeyboardDisplayMode.SPLIT
-                    settings.keyboardDisplayMode == KeyboardDisplayMode.FLOATING -> KeyboardDisplayMode.FLOATING
-                    else -> KeyboardDisplayMode.STANDARD
-                }
-            }.stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
-                initialValue = KeyboardDisplayMode.STANDARD
-            )
+    // The keyboard display mode for the current combo (per app·layout·geometry). Backed by [current] — refreshed
+    // whenever the combo/geometry is (re)loaded or a mode is picked — so the picker reflects THIS layout's mode.
+    private val _displayMode = MutableStateFlow(KeyboardDisplayMode.STANDARD)
+    val keyboardDisplayMode: StateFlow<KeyboardDisplayMode> = _displayMode.asStateFlow()
 
     /**
-     * Persist a manual keyboard mode through the SAME two SettingsRepository keys
-     * ([SettingsRepository.updateOneHandedModeEnabled] + [SettingsRepository.updateKeyboardDisplayMode])
-     * that the one-handed toggle and `KeyboardModeManager.setManualMode` write — so the picker, the toggle
-     * and the space-slide Actions menu stay one source of truth. The running keyboard re-resolves its live
-     * mode from these via the settings flow it already observes.
+     * Pick the keyboard mode for the current (app·layout·geometry) combo: store it as a per-combo look-override
+     * knob (via [persist]) so it sticks to THIS layout only. Also retires the legacy global mode scalars, so a
+     * value left by an older build can't bleed into layouts with no mode of their own. The running keyboard
+     * re-resolves its live mode from the per-combo override the IME observes.
      */
     fun updateKeyboardDisplayMode(mode: KeyboardDisplayMode) {
+        persist(current.copy(displayMode = mode))
         viewModelScope.launch {
-            when (mode) {
-                KeyboardDisplayMode.STANDARD -> {
-                    // Clear the persisted explicit mode too, so a previously saved FLOATING / SPLIT (or a
-                    // stale one-handed L/R) isn't re-resolved by KeyboardModeManager.determineMode.
-                    settingsRepository.updateKeyboardDisplayMode(null)
-                    settingsRepository.updateOneHandedModeEnabled(false)
-                }
-
-                KeyboardDisplayMode.ONE_HANDED_LEFT,
-                KeyboardDisplayMode.ONE_HANDED_RIGHT
-                -> {
-                    settingsRepository.updateKeyboardDisplayMode(mode)
-                    settingsRepository.updateOneHandedModeEnabled(true)
-                }
-
-                KeyboardDisplayMode.SPLIT,
-                KeyboardDisplayMode.FLOATING
-                -> {
-                    settingsRepository.updateKeyboardDisplayMode(mode)
-                    settingsRepository.updateOneHandedModeEnabled(false)
-                }
-            }
+            settingsRepository.updateKeyboardDisplayMode(null)
+            settingsRepository.updateOneHandedModeEnabled(false)
         }
     }
 
@@ -147,7 +108,12 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
             }
         }
         viewModelScope.launch {
-            settingsRepository.currentSizeTarget.collect { sizeTarget = it }
+            settingsRepository.currentSizeTarget.collect {
+                sizeTarget = it
+                // The UI usually opens before the IME publishes which app·layout it was showing; re-resolve the
+                // editable knobs for the real combo once it arrives so the sliders reflect that layout.
+                selectGeometry(_uiState.value.geometry)
+            }
         }
         viewModelScope.launch {
             currentLibrary = settingsRepository.getLibraryLook()
@@ -202,10 +168,29 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
 
     fun selectGeometry(geometry: String) {
         viewModelScope.launch {
-            val knobs = settingsRepository.getGeometryBaselineLook(geometry) ?: KeyboardLookKnobs()
+            // Show the EFFECTIVE look for this combo: the frozen per-geometry baseline (the old shared defaults)
+            // overlaid by the per-combo override (the resize gesture's size + any prior per-combo edit). The UI
+            // no longer writes the baseline, so overlaying it here keeps the sliders in step with the on-screen
+            // preview and, on the first edit, folds those values into the combo so it stays self-contained.
+            val baseline = settingsRepository.getGeometryBaselineLook(geometry) ?: KeyboardLookKnobs()
+            val combo = comboFor(geometry)
+            val override = if (combo != null) {
+                settingsRepository.getSizeOverride(combo.first, combo.second, combo.third) ?: KeyboardLookKnobs()
+            } else {
+                KeyboardLookKnobs()
+            }
+            val knobs = baseline.overlay(override)
             current = knobs
+            _displayMode.value = knobs.displayMode ?: KeyboardDisplayMode.STANDARD
             _uiState.value = knobs.toUiState(geometry)
         }
+    }
+
+    /** The current real (app·layout) published by the IME + [geometry] → the per-combo look key; null pre-publish. */
+    private fun comboFor(geometry: String): Triple<String, String, String>? {
+        val parts = sizeTarget?.split("|") ?: return null
+        if (parts.size != 3) return null
+        return Triple(parts[0], parts[1], geometry)
     }
 
     fun updateCornerRadius(dp: Int) = persist(current.copy(cornerRadiusDp = dp.toFloat()))
@@ -353,11 +338,17 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
     private fun persist(updated: KeyboardLookKnobs) {
         val geometry = _uiState.value.geometry
         current = updated
+        _displayMode.value = updated.displayMode ?: KeyboardDisplayMode.STANDARD
         _uiState.value = updated.toUiState(geometry)
         viewModelScope.launch {
-            settingsRepository
-                .updateGeometryBaselineLook(geometry, updated)
-                .onFailure { _events.emit(SettingsEvent.Error.KeyboardUiUpdateFailed) }
+            val combo = comboFor(geometry)
+            val result = if (combo != null) {
+                settingsRepository.updateSizeOverride(combo.first, combo.second, combo.third, updated)
+            } else {
+                // No real app·layout has been published yet — fall back to the per-geometry baseline.
+                settingsRepository.updateGeometryBaselineLook(geometry, updated)
+            }
+            result.onFailure { _events.emit(SettingsEvent.Error.KeyboardUiUpdateFailed) }
         }
     }
 

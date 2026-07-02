@@ -135,12 +135,18 @@ class RegisterWordActivity : AppCompatActivity() {
         lifecycleScope.launch {
             // Registrations live in the unified user dictionary (kind = Japanese reading→surface), so they
             // are offered while typing and manageable in the User dictionary editor. (Unified Japanese.)
-            userDictionaryRepository.add(
+            val saved = userDictionaryRepository.add(
                 languageTag = JAPANESE_LANGUAGE,
                 kind = UserDictionaryKind.JAPANESE,
                 matchKey = reading,
                 value = surface
             )
+            if (!saved) {
+                // The write didn't persist (blank key or a DB error) — say so instead of a false "saved", so a
+                // dropped registration is visible rather than silently lost (which is what made this hard to spot).
+                KxkbToast.show(this@RegisterWordActivity, getString(R.string.ja_register_failed))
+                return@launch
+            }
             // Hand the just-registered pair back to the IME so that, on regaining the input view, it replaces
             // the still-typed reading with the registered surface (しろいくま → 白い熊). Set ONLY on a successful
             // Save — Cancel/back returns without ever signalling, so a dismissed dialog leaves the reading as-is.

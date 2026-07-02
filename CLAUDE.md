@@ -42,8 +42,9 @@ tab/editor/git → M5 refinements) is in **`docs/PLAN.md`**.
 
 ## Skills (`.claude/skills/`)
 
-- **`build-apk`** — build the signed release APK via the `buildApk` Gradle task, then always ask (via
-  `AskUserQuestion`) how to transfer it: scp to skhw (first) / adb push to `/sdcard/tmp/` / no.
+- **`build-apk`** — build the signed release APK via the `buildApk` Gradle task, then deliver it
+  automatically via the global `/after-build` skill (adb push to `/sdcard/tmp/` if a phone is connected,
+  else scp to skhw) — **no transfer prompt**; never pause to ask how to transfer.
 - **`upstream-new-version`** — check upstream Urik for a newer release tag, advance `main`, rebase
   `custom`, reset `BUILD_NUMBER`, build the new `+1`.
 - **`publish-version`** — publish the latest tested APK as a GitHub release of the fork: tag
@@ -76,8 +77,9 @@ tab/editor/git → M5 refinements) is in **`docs/PLAN.md`**.
 - **Never commit or push until the user says "Push".** Treat the working tree as scratch between "Push"
   commands; multiple uncommitted fixes can stack. "Push" = `git commit` + `git push origin custom` (and
   `main` after an upstream sync). The user tests each build on-device first.
-- **After every successful build, ask how to transfer the APK** via `AskUserQuestion` (scp to skhw first /
-  adb push / no) — never assume, never only ask in prose.
+- **After every successful build, deliver the APK automatically via `/after-build`** — never ask how to
+  transfer it, never pause. `/after-build` runs `/adb-check` (unsandboxed); if a phone is connected it
+  `/adb-push`es the newest `~/tmp/*.apk` to `/sdcard/tmp/`, otherwise `/scp`s it to `skhw:~/tmp/`.
 - **Commit subjects:** plain descriptive summary, no prefix.
 
 ## Repo layout (upstream Urik)
@@ -151,9 +153,16 @@ keyboard by position — `onKeyDown` + `gnu_nexdock_xl.json`; sticky across apps
 keyboard hidden); **before-first-unlock (Direct Boot)** — the IME is `directBootAware` and usable on the
 lock screen as **GNU 15c** (no-prediction), built **un-brickable** (every credential-protected store —
 DataStore/Room/`filesDir`/ErrorLogger — bypassed or made injection-safe; `utils/DeviceLock.kt` is the
-gate), restarting into the full keyboard on unlock with a tall/gapless/edge-to-edge BFU look.
+gate), restarting into the full keyboard on unlock with a tall/gapless/edge-to-edge BFU look;
+**primary-glyph position sliders** (two centred Keys → Primary controls — `primaryOffsetXDp`/`YDp`, ±24 dp
+horizontal/vertical offset of the main character; per-geometry, live-applied, honoured by both standard key
+labels and the cluster/column main bands); **RESHOW** (swipe-up on the topmost-rightmost key — paired with
+the existing swipe-down HIDE — hides then re-shows the keyboard to clear the rare cold-start bottom-clip:
+API 30+ `requestShowSelf`, else `forceInputViewRemeasure`; a new `"reshow"` flick-action bound on the
+top-right key of all 13 soft layouts with an up-triangle hint).
 
-**Released `0.23.1+164`** (2026-06-23; tagged `v0.23.1+164`, APK attached, on the fork's GitHub; default
-branch `custom`). Earlier fork releases: `+72`, `+147`, `+156`. Remaining M5 tail (low priority):
-number/arrow rows on the look page, quick-period flick. Full architecture + milestone sequence in
+**Released `0.23.1+217`** (2026-06-30; tagged `v0.23.1+217`, APK attached, on the fork's GitHub; default
+branch `custom`; README badge + `CHANGELOG.md` track it). Recent fork releases: `+198`, `+204`, `+211`,
+`+213`, `+214`, `+215`, `+217` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`). Remaining M5 tail (low
+priority): number/arrow rows on the look page, quick-period flick. Full architecture + milestone sequence in
 `docs/PLAN.md`.

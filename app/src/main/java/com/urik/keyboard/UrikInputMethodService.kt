@@ -802,7 +802,7 @@ open class UrikInputMethodService :
                         swipeDetector.updateLayoutTransform(scaleFactor, offsetX)
                     }
                     setOnModeToggleListener { mode ->
-                        keyboardModeManager.setManualMode(mode)
+                        applyKeyboardMode(mode)
                     }
                     setOnFloatingRectChangeListener { x, y, w, h ->
                         commitFloatingRect(x, y, w, h)
@@ -1133,9 +1133,13 @@ open class UrikInputMethodService :
                 updateScriptContext(locale)
 
                 // Remember this layout language for the current app (per-app layout memory).
+                // Skip our own settings UI / editor: previewing a language there must not be recorded, or
+                // re-entering the UI would restore it instead of the layout being edited (see isOwnSettingsApp).
                 if (switched) {
                     currentInputEditorInfo?.packageName?.let { pkg ->
-                        settingsRepository.setPerAppLayoutLanguage(pkg, languageCode)
+                        if (!isOwnSettingsApp(pkg)) {
+                            settingsRepository.setPerAppLayoutLanguage(pkg, languageCode)
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -1229,7 +1233,7 @@ open class UrikInputMethodService :
         val dialog = androidx.appcompat.app.AlertDialog.Builder(this, R.style.Theme_Urik_Dialog)
             .setTitle(R.string.space_menu_mode)
             .setSingleChoiceItems(labels, checked) { d, which ->
-                keyboardModeManager.setManualMode(modes[which])
+                applyKeyboardMode(modes[which])
                 d.dismiss()
             }
             .setNegativeButton(R.string.library_git_cancel, null)
@@ -1746,6 +1750,12 @@ open class UrikInputMethodService :
     // synchronous cold-start seed instead of resolving to DEFAULT (which would shrink-then-grow → flicker/clip).
     @Volatile private var lookMapLoaded = false
 
+    // The last REAL (non-settings) app + its layout the keyboard was shown in — so that when the keyboard is
+    // displayed INSIDE our own settings UI (the "Test changes" field), it previews and edits the layout the
+    // user was actually using (its per-app size / split / mode), instead of the settings app's own empty combo.
+    @Volatile private var lastRealApp: String? = null
+    @Volatile private var lastRealLayoutId: String = ""
+
     /**
      * Re-resolve the per-(app·layout·geometry) look from [lookMapCache] and re-apply if it changed.
      * SYNCHRONOUS and on Main (every caller — the collectors and onStartInputView — runs on Main), so
@@ -1755,24 +1765,60 @@ open class UrikInputMethodService :
     private fun refreshLookKnobs() {
         if (!lookMapLoaded) return // keep the synchronous cold-start seed until the map is read once
         val geometry = postureDetector?.postureInfo?.value?.let { geometryKey(it) } ?: GeometryBucket.FOLDED_PORT.key
-        val app = currentInputEditorInfo?.packageName
+        val focusedApp = currentInputEditorInfo?.packageName
         val layoutId = if (::viewModel.isInitialized) viewModel.layout.value?.id.orEmpty() else ""
-        val resolved = resolveLookSync(app, layoutId, geometry)
+        val ownApp = focusedApp.isNullOrEmpty() || focusedApp == packageName
+        // Track the last REAL app+layout so the settings-UI preview below can borrow it.
+        if (!ownApp) {
+            lastRealApp = focusedApp
+            lastRealLayoutId = layoutId
+        }
+        // Inside our own settings UI, resolve/preview the look for the app the user was actually typing in
+        // (lastRealApp), so the layout shows at its real per-app size / split / mode — the settings app has no
+        // combo of its own (which is why the copy previously looked like the un-customised stock). Elsewhere,
+        // resolve for the focused app.
+        val resolveApp = if (ownApp) lastRealApp else focusedApp
+        val resolved = resolveLookSync(resolveApp, layoutId, geometry)
         if (resolved != activeLookKnobs) {
             activeLookKnobs = resolved
             reapplyLookKnobs()
         }
+        // Display mode is a per-combo look knob now: push the resolved mode so the keyboard splits / floats /
+        // goes one-handed per (app·layout·geometry), and so the settings-UI preview mirrors the copy's mode.
+        if (::keyboardModeManager.isInitialized) keyboardModeManager.setComboMode(resolved.displayMode)
         serviceScope.launch {
             settingsRepository.setCurrentGeometry(geometry)
             settingsRepository.setCurrentLayoutLanguage(languageManager.currentLayoutLanguage.value)
             settingsRepository.setCurrentKeyHeightScale(resolved.keyHeightScale)
             cacheLookKnobSeed(geometry, resolved)
-            // Remember the focused REAL app's override key so the Keyboard UI "Reset layout to default" button
-            // can target the app the user was typing in. Skip our own package (the settings test field) so a
+            // Remember the focused REAL app's override key so the Keyboard UI reset button + the per-combo
+            // edits target the app the user was typing in. Skip our own package (the settings test field) so a
             // visit to the settings screen never overwrites the real target.
-            if (!app.isNullOrEmpty() && app != packageName) {
-                settingsRepository.setCurrentSizeTarget("$app|$layoutId|$geometry")
+            if (!ownApp) {
+                settingsRepository.setCurrentSizeTarget("$focusedApp|$layoutId|$geometry")
             }
+        }
+    }
+
+    /**
+     * Set the keyboard display mode for the CURRENT (app·layout·geometry) combo: apply it live AND persist it
+     * into the per-combo look override so it sticks per layout and never bleeds into others. Also retires the
+     * legacy global mode scalar so a value left by an older build can't leak into layouts with no mode of their
+     * own. Called by the space-slide Mode picker and the on-keyboard mode-toggle.
+     */
+    private fun applyKeyboardMode(mode: KeyboardDisplayMode) {
+        if (::keyboardModeManager.isInitialized) keyboardModeManager.setComboMode(mode)
+        val focusedApp = currentInputEditorInfo?.packageName
+        val ownApp = focusedApp.isNullOrEmpty() || focusedApp == packageName
+        val app = if (ownApp) lastRealApp else focusedApp
+        if (app.isNullOrEmpty()) return
+        val layoutId = if (::viewModel.isInitialized) viewModel.layout.value?.id.orEmpty() else lastRealLayoutId
+        val geometry = postureDetector?.postureInfo?.value?.let { geometryKey(it) } ?: GeometryBucket.FOLDED_PORT.key
+        serviceScope.launch {
+            val existing = settingsRepository.getSizeOverride(app, layoutId, geometry) ?: KeyboardLookKnobs()
+            settingsRepository.updateSizeOverride(app, layoutId, geometry, existing.copy(displayMode = mode))
+            settingsRepository.updateKeyboardDisplayMode(null)
+            settingsRepository.updateOneHandedModeEnabled(false)
         }
     }
 
@@ -2617,6 +2663,30 @@ open class UrikInputMethodService :
                 return
             }
 
+            // Cluster typing: the composing buffer is the tapped clusters' CENTRE letters, not the intended
+            // word — completing it literally on Enter committed garbage ("Deh⏎" instead of "Yes⏎"). Mirror the
+            // Space/punctuation cluster path: commit the highlighted candidate first — WITHOUT the trailing
+            // space ("OK⏎", not "OK ⏎") — then fall through to the field's Enter action below. Long-press
+            // Space stays the literal escape (commit the literal, then Enter). A highlighted custom-row entry
+            // commits only when Tab explicitly selected it, same as Space.
+            if (inputState.clusterLayoutActive &&
+                inputState.displayBuffer.isNotEmpty() &&
+                inputState.pendingSuggestions.isNotEmpty()
+            ) {
+                suggestionPipeline.cancelDebounceJob()
+                val idx = inputState.selectedCandidate.coerceIn(0, inputState.pendingSuggestions.size - 1)
+                val candidate = inputState.pendingSuggestions[idx]
+                if (!inputState.isCustomSuggestion(candidate)) {
+                    suggestionPipeline.coordinateSuggestionSelection(
+                        candidate,
+                        ::checkAutoCapitalization,
+                        appendSpace = false
+                    )
+                } else if (inputState.hasExplicitSelection) {
+                    suggestionPipeline.coordinateCustomSuggestionSelection(candidate, ::checkAutoCapitalization)
+                }
+            }
+
             if (!inputState.requiresDirectCommit && inputState.displayBuffer.isNotEmpty()) {
                 val actualTextBefore = outputBridge.safeGetTextBeforeCursor(1)
                 val actualTextAfter = outputBridge.safeGetTextAfterCursor(1)
@@ -2898,11 +2968,23 @@ open class UrikInputMethodService :
     }
 
     /**
+     * True when [pkg] is our own app (the 白い熊 kxkb settings UI / Keyboard editor). The IME only ever
+     * appears inside our own app to preview and edit the CURRENTLY active layout, so per-app layout memory
+     * must not apply there: entering the settings UI or the editor must preserve whatever layout is active,
+     * not swap in whichever language was last previewed inside it.
+     */
+    private fun isOwnSettingsApp(pkg: String?): Boolean =
+        pkg != null && pkg == applicationContext.packageName
+
+    /**
      * Per-app layout memory: if a layout language was previously remembered for [packageName],
      * switch to it (no-op when it already matches or is no longer active).
      */
     private fun restoreLayoutLanguageForApp(packageName: String?) {
         if (packageName.isNullOrBlank()) return
+        // Never restore inside our own settings UI / Keyboard editor — preserve the current layout so it can
+        // be modified (see isOwnSettingsApp).
+        if (isOwnSettingsApp(packageName)) return
         // A hardware-keymap layout (NexDock etc.) stays active across apps — on a physical keyboard the user
         // doesn't want it swapped out per-app, which would silently drop the remapping.
         if (::viewModel.isInitialized && viewModel.layout.value?.hardwareKeymap == true) return

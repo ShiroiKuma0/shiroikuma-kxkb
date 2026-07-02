@@ -32,6 +32,16 @@ constructor(
     private val _currentMode = MutableStateFlow(KeyboardModeConfig.standard())
     val currentMode: StateFlow<KeyboardModeConfig> = _currentMode.asStateFlow()
 
+    // The display mode resolved for the CURRENT (app·layout·geometry) combo, pushed by the IME from the per-
+    // combo look override on every show / layout change. It's the authoritative mode — determineMode prefers
+    // it over the legacy global scalar, so a mode set for one layout never bleeds into another. Null = inherit.
+    private val _comboMode = MutableStateFlow<KeyboardDisplayMode?>(null)
+
+    /** Publish the per-(app·layout·geometry) display mode for the combo the keyboard is currently showing. */
+    fun setComboMode(mode: KeyboardDisplayMode?) {
+        _comboMode.value = mode
+    }
+
     private var collectionJob: Job? = null
     private var currentPostureInfo: PostureInfo? = null
     private var latestSettings: KeyboardSettings? = null
@@ -48,17 +58,19 @@ constructor(
         // and only grows a frame later when the collector emits, by which point the IME window is already
         // sized short, clipping the keyboard to "half" on the first show after a process start / app update.
         currentPostureInfo = postureDetector.postureInfo.value
-        _currentMode.value = determineMode(latestSettings ?: KeyboardSettings(), postureDetector.postureInfo.value)
+        _currentMode.value =
+            determineMode(latestSettings ?: KeyboardSettings(), postureDetector.postureInfo.value, _comboMode.value)
 
         collectionJob =
             scope.launch {
                 combine(
                     settingsRepository.settings,
-                    postureDetector.postureInfo
-                ) { settings, postureInfo ->
+                    postureDetector.postureInfo,
+                    _comboMode
+                ) { settings, postureInfo, comboMode ->
                     latestSettings = settings
                     currentPostureInfo = postureInfo
-                    determineMode(settings, postureInfo)
+                    determineMode(settings, postureInfo, comboMode)
                 }.collect { config ->
                     _currentMode.value = config
                 }
@@ -66,27 +78,37 @@ constructor(
     }
 
     @VisibleForTesting
-    internal fun determineMode(settings: KeyboardSettings, postureInfo: PostureInfo): KeyboardModeConfig {
+    internal fun determineMode(
+        settings: KeyboardSettings,
+        postureInfo: PostureInfo,
+        comboMode: KeyboardDisplayMode? = null
+    ): KeyboardModeConfig {
         val dimensions = AdaptiveDimensions.compute(
             postureInfo = postureInfo,
             keySize = settings.keySize,
             density = density
         )
 
-        if (settings.oneHandedModeEnabled) {
-            val base = when (settings.keyboardDisplayMode) {
-                KeyboardDisplayMode.ONE_HANDED_RIGHT ->
-                    KeyboardModeConfig.oneHandedRight(postureInfo.screenWidthPx)
+        // The per-(app·layout·geometry) mode wins; the legacy global keyboard_display_mode / one-handed
+        // scalars are only a fallback (so pre-migration installs and the existing tests still resolve). The
+        // per-combo write clears the global scalar the first time any layout's mode is set, so it can't bleed.
+        val effective = comboMode ?: settings.keyboardDisplayMode
 
-                else -> KeyboardModeConfig.oneHandedLeft()
+        val oneHanded = effective == KeyboardDisplayMode.ONE_HANDED_LEFT ||
+            effective == KeyboardDisplayMode.ONE_HANDED_RIGHT ||
+            (comboMode == null && settings.oneHandedModeEnabled)
+        if (oneHanded) {
+            val base = if (effective == KeyboardDisplayMode.ONE_HANDED_RIGHT) {
+                KeyboardModeConfig.oneHandedRight(postureInfo.screenWidthPx)
+            } else {
+                KeyboardModeConfig.oneHandedLeft()
             }
             return base.copy(adaptiveDimensions = dimensions)
         }
 
-        // Floating is an explicit mode (chosen from the Mode picker, persisted via KEYBOARD_DISPLAY_MODE),
-        // resolved here like a persisted mode. It is checked BEFORE the landscape-compact override so the
-        // floating panel keeps floating in landscape too (it sizes itself from its own persisted rect).
-        if (settings.keyboardDisplayMode == KeyboardDisplayMode.FLOATING) {
+        // Floating is an explicit mode, checked BEFORE the landscape-compact override so the floating panel
+        // keeps floating in landscape too (it sizes itself from its own persisted rect).
+        if (effective == KeyboardDisplayMode.FLOATING) {
             return KeyboardModeConfig.floating().copy(adaptiveDimensions = dimensions)
         }
 
@@ -96,7 +118,9 @@ constructor(
             return KeyboardModeConfig.standard().copy(adaptiveDimensions = dimensions)
         }
 
-        if (settings.adaptiveKeyboardModesEnabled && shouldAutoSplit(postureInfo)) {
+        // Manual split (the Mode picker / space-slide), now honoured per combo. Auto-split stays disabled:
+        // the wide compass layouts (e.g. GNU) assume a single full-width keyboard.
+        if (effective == KeyboardDisplayMode.SPLIT) {
             return KeyboardModeConfig(
                 mode = KeyboardDisplayMode.SPLIT,
                 widthFactor = 1.0f,
@@ -107,11 +131,6 @@ constructor(
 
         return KeyboardModeConfig.standard().copy(adaptiveDimensions = dimensions)
     }
-
-    // Auto-split is disabled in this fork: it split the keyboard on foldables/tablets unexpectedly, and
-    // the wide compass layouts (e.g. GNU) assume a single full-width keyboard. Manual split is unaffected.
-    @Suppress("UNUSED_PARAMETER")
-    private fun shouldAutoSplit(postureInfo: PostureInfo): Boolean = false
 
     fun setManualMode(mode: KeyboardDisplayMode) {
         val postureInfo = currentPostureInfo ?: return

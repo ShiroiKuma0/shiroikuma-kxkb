@@ -1,6 +1,7 @@
 package com.urik.keyboard.service
 
 import com.urik.keyboard.data.WordFrequencyRepository
+import com.urik.keyboard.data.database.LearnedWord
 import com.urik.keyboard.utils.CaseTransformer
 import com.urik.keyboard.utils.ErrorLogger
 import com.urik.keyboard.utils.KanaTransformUtils
@@ -194,6 +195,38 @@ class SuggestionPipeline(
         return caseTransformer.applyCasing(suggestion, effectiveKeyboardState(), state.isCurrentWordAtSentenceStart)
     }
 
+    /**
+     * Learn the just-committed SURFACE casing when it is unambiguously deliberate — entirely upper-case ("OK")
+     * or internally capitalised ("iPhone"): casings that sentence-start auto-capitalisation can never produce.
+     * Runs even when a lower-case form ("ok") is a dictionary word (so [learnWordAndInvalidateCache]'s in-dict
+     * short-circuit would skip it), so the exact casing you commit — notably on the cluster — is offered next
+     * time via the preserve-case learned-heavy path. A plain first-letter "Ok" is intentionally NOT learned (it
+     * can't be told apart from an auto-capital).
+     */
+    private suspend fun learnCommittedCasing(committed: String) {
+        if (isJapaneseLayout) return
+        val lang = host.currentLayoutLanguage().split("-").first()
+        if (lang in CASELESS_LANGUAGES) return
+        // casingIntentScore: 0 = all-lower, 2 = first-letter-only (ambiguous with auto-cap) → skip both;
+        // 1/3 = all-upper, 4 = internal caps → deliberate, worth remembering.
+        val score = LearnedWord.casingIntentScore(committed)
+        if (score == 0 || score == 2) return
+        try {
+            if (!textInputProcessor.getCurrentSettings().isWordLearningEnabled) return
+            if (wordLearningEngine.learnWord(committed, InputMethod.TYPED).isSuccess) {
+                spellCheckManager.invalidateWordCache(committed)
+                textInputProcessor.invalidateWord(committed)
+            }
+        } catch (e: Exception) {
+            ErrorLogger.logException(
+                component = "SuggestionPipeline",
+                severity = ErrorLogger.Severity.LOW,
+                exception = e,
+                context = mapOf("operation" to "learnCommittedCasing")
+            )
+        }
+    }
+
     fun showBigramPredictions() {
         if (state.requiresDirectCommit ||
             state.isSuggestionsDisabled ||
@@ -282,7 +315,12 @@ class SuggestionPipeline(
 
         val isInDictionary = spellCheckManager.isWordInDictionary(word)
         if (isInDictionary) {
-            return true
+            // The dictionary hit is case-insensitive ("OK" hits "ok"), which used to drop a deliberately-cased
+            // surface right here — typing OK via shift-per-letter + long-space never learned "OK". All-caps and
+            // internally-capitalised forms (casings auto-capitalisation can never produce) now fall through and
+            // are learned, so the exact casing is offered next time; ambiguous ones ("Ok", "ok") stay skipped.
+            val score = LearnedWord.casingIntentScore(word)
+            if (score == 0 || score == 2) return true
         }
 
         val learnResult = wordLearningEngine.learnWord(word, inputMethod)
@@ -375,7 +413,11 @@ class SuggestionPipeline(
         }
     }
 
-    suspend fun coordinateSuggestionSelection(suggestion: String, checkAutoCapitalization: (String) -> Unit) {
+    suspend fun coordinateSuggestionSelection(
+        suggestion: String,
+        checkAutoCapitalization: (String) -> Unit,
+        appendSpace: Boolean = true
+    ) {
         withContext(Dispatchers.Main) {
             try {
                 val actualCursorPos = outputBridge.safeGetCursorPosition()
@@ -398,13 +440,17 @@ class SuggestionPipeline(
                 // cluster commit goes straight through here, so apply pronoun correction to the recased form
                 // (no-op for any other word / non-English layout). (Bug D.)
                 val committed = applyPronounCorrection(recaseForCommit(suggestion))
+                // Remember the exact casing committed here (e.g. all-caps "OK") so it's offered next time — even
+                // for a cased variant of a dictionary word. Fire-and-forget so it never delays the commit.
+                serviceScope.launch { learnCommittedCasing(committed) }
 
                 // Japanese text has no inter-word spaces: committing a converted/selected Japanese candidate
                 // (the first Space accepts the highlighted conversion, a tap accepts a tapped one) must insert
                 // the surface ONLY, with no trailing " ". Every other (Latin / cluster) path still appends a
-                // space so words stay separated. The trailing space is the only Japanese difference here; the
-                // cursor math below accounts for it via [trailingSpaceLen]. (Japanese FIX 1.)
-                val trailing = if (isJapaneseLayout) "" else " "
+                // space so words stay separated — except when the caller suppresses it ([appendSpace] = false,
+                // the cluster Enter path: "OK⏎", not "OK ⏎"). The cursor math below accounts for it via
+                // [trailingSpaceLen]. (Japanese FIX 1.)
+                val trailing = if (isJapaneseLayout || !appendSpace) "" else " "
                 val trailingSpaceLen = trailing.length
 
                 outputBridge.beginBatchEdit()

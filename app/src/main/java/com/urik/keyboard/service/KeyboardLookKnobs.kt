@@ -1,5 +1,7 @@
 package com.urik.keyboard.service
 
+import com.urik.keyboard.model.KeyboardDisplayMode
+
 /**
  * Per-geometry "look" overrides that ride the single [AdaptiveDimensions] delivery seam.
  *
@@ -105,7 +107,13 @@ data class KeyboardLookKnobs(
     val floatXFraction: Float? = null,
     val floatYFraction: Float? = null,
     val floatWidthFraction: Float? = null,
-    val floatHeightScale: Float? = null
+    val floatHeightScale: Float? = null,
+
+    // The keyboard display mode (Standard / Split / One-handed L·R / Floating) for THIS combo. Null = inherit.
+    // Resolved + written per (app·layout·geometry) exactly like the size/look knobs, so a mode set on one
+    // layout never bleeds into others (KeyboardModeManager consumes it via setComboMode). Not a dimension, so
+    // applyTo ignores it.
+    val displayMode: KeyboardDisplayMode? = null
 ) {
     fun applyTo(base: AdaptiveDimensions, density: Float): AdaptiveDimensions = base.copy(
         keyHeightPx = keyHeightScale?.let { (base.keyHeightPx * it).toInt().coerceAtLeast(1) } ?: base.keyHeightPx,
@@ -212,7 +220,8 @@ data class KeyboardLookKnobs(
         floatXFraction = o.floatXFraction ?: floatXFraction,
         floatYFraction = o.floatYFraction ?: floatYFraction,
         floatWidthFraction = o.floatWidthFraction ?: floatWidthFraction,
-        floatHeightScale = o.floatHeightScale ?: floatHeightScale
+        floatHeightScale = o.floatHeightScale ?: floatHeightScale,
+        displayMode = o.displayMode ?: displayMode
     )
 
     /** Compact `k=v;` encoding; null fields are omitted. Pairs with [decode] (lenient). */
@@ -267,6 +276,7 @@ data class KeyboardLookKnobs(
         floatYFraction?.let { add("fly=$it") }
         floatWidthFraction?.let { add("flw=$it") }
         floatHeightScale?.let { add("flh=$it") }
+        displayMode?.let { add("dm=${it.name}") }
     }.joinToString(";")
 
     companion object {
@@ -348,6 +358,7 @@ data class KeyboardLookKnobs(
             var fly: Float? = null
             var flw: Float? = null
             var flh: Float? = null
+            var dm: KeyboardDisplayMode? = null
             for (token in raw.split(";")) {
                 val i = token.indexOf('=')
                 if (i <= 0) continue
@@ -405,6 +416,7 @@ data class KeyboardLookKnobs(
                     "fly" -> fly = value.toFloatOrNull()
                     "flw" -> flw = value.toFloatOrNull()
                     "flh" -> flh = value.toFloatOrNull()
+                    "dm" -> dm = runCatching { KeyboardDisplayMode.valueOf(value) }.getOrNull()
                 }
             }
             return KeyboardLookKnobs(
@@ -425,7 +437,8 @@ data class KeyboardLookKnobs(
                 suggestionBarHeightScale = sbh, suggestionBgColor = sbg, suggestionFont = sbf,
                 suggestionWeight = sbw, suggestionTextScale = sbs, suggestionColor = sbc,
                 floatXFraction = flx, floatYFraction = fly,
-                floatWidthFraction = flw, floatHeightScale = flh
+                floatWidthFraction = flw, floatHeightScale = flh,
+                displayMode = dm
             )
         }
     }
