@@ -4,7 +4,46 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+222 — current
+## 0.23.1+230 — current
+
+Built on Urik `0.23.1-beta`. Repairs the settings-UI regression `+222` shipped with, quadruples the
+split-gap range, and rounds out the editor with row/column tooling and per-item resets — plus a calmer
+compass guide and a cluster punctuation fix.
+
+### Look & sizing
+
+- **Settings-UI sliders work again.** `+222`'s per-combo rework opened the Keyboard UI on a stale
+  default geometry, so every slider wrote to `folded_port` while the live keyboard read the real
+  bucket — no edit had any visible effect. The UI now always follows the IME-published live geometry
+  (and the same app·layout the keyboard resolves), so the sliders and the on-screen keyboard agree by
+  construction — including right after installing an update.
+- **Split gap up to 4×.** The see-through split gap now reaches 800 dp (was 200) — on both the Split
+  slider and the on-keyboard resize drag. Already-saved gaps keep their exact size (legacy values are
+  rescaled on read).
+
+### Keyboard editor
+
+- **Add row / Add column.** Two new buttons under the row list. Each asks WHAT — row presets
+  (Letters / Numbers / Symbols / Function / Empty) or column presets (Character / Spacer / Backspace /
+  Shift), each prefilled with real example keys, or *Clone row/column N* — and WHERE (at start / after
+  any existing one / at end). A cloned column pads shorter rows with a spacer so alignment holds.
+- **Per-colour ↺ reset.** Every colour row in the per-key editor has a visible reset that clears the
+  override back to Inherited — previously you could only pick the default-looking colour, which still
+  counted as a per-key modification. The button dims when already inherited; long-press on the swatch
+  still clears too.
+
+### Input
+
+- **The compass guide is hold-only.** A plain tap on a compass key just enters it — no more guide
+  panel flashing above the key (visible ever since the guide became the bordered black panel in
+  `+156`). The guide appears only after a ~200 ms hold, keeps tracking the flick direction once up,
+  and a flick/swipe in motion cancels it. Applies everywhere, including the BFU lock-screen keyboard.
+- **No stray “+” before punctuation.** Composing a cluster word past the point where real candidates
+  run out (the bar falls back to the custom toolbar) no longer auto-commits the toolbar's first entry
+  when punctuation is typed: a custom entry commits only when Tab explicitly selected it — the same
+  rule Space and Enter follow. The literal word is finished as-is, then the mark.
+
+## 0.23.1+222
 
 Built on Urik `0.23.1-beta`. Every size, look and mode setting is now truly per layout — nothing
 bleeds between layouts or apps any more — plus exact-casing learning and a faster cluster Enter.
