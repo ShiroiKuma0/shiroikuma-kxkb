@@ -250,8 +250,12 @@ class KeyboardEditorActivity : AppCompatActivity() {
             addView(captionView(getString(R.string.editor_tap_to_edit)))
             addView(sectionLabel(getString(R.string.editor_section_rows)))
             addView(rowsContainer)
-            addView(pill(getString(R.string.editor_add_row)) { addRow() }.apply {
-                (layoutParams as LinearLayout.LayoutParams).topMargin = dp(6)
+            addView(LinearLayout(this@KeyboardEditorActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, dp(6), 0, 0)
+                addView(pill(getString(R.string.editor_add_row)) { showAddDialog(isColumn = false) })
+                addView(pill(getString(R.string.editor_add_column)) { showAddDialog(isColumn = true) }
+                    .apply { (layoutParams as LinearLayout.LayoutParams).marginStart = dp(8) })
             })
             addView(sectionLabel(getString(R.string.editor_section_alt_pages)))
             addView(altPagesContainer)
@@ -496,9 +500,120 @@ class KeyboardEditorActivity : AppCompatActivity() {
         commit()
     }
 
-    private fun addRow() {
-        setRows(insertAt(rowsArray(), rowsArray().length(), JSONArray()))
+    // ---- Add / clone row & column ---------------------------------------------------------------
+
+    private fun charKey(ch: String, keyType: String): JSONObject =
+        JSONObject().put("type", "character").put("char", ch).put("keyType", keyType)
+
+    private fun actionKey(action: String): JSONObject =
+        JSONObject().put("type", "action").put("action", action)
+
+    private fun spacerKey(): JSONObject = JSONObject().put("type", "spacer")
+
+    private fun deepCopyKey(o: JSONObject): JSONObject = JSONObject(o.toString())
+
+    /** Row presets: a label (with a one-line explanation baked in) → the example keys it prefills. */
+    private fun rowPresets(): List<Pair<String, () -> List<JSONObject>>> = listOf(
+        getString(R.string.editor_preset_letters) to { "qwertyuiop".map { charKey(it.toString(), "letter") } },
+        getString(R.string.editor_preset_numbers) to { "1234567890".map { charKey(it.toString(), "number") } },
+        getString(R.string.editor_preset_symbols) to
+            { listOf(".", ",", "?", "!", "'", ";", ":").map { charKey(it, "symbol") } },
+        getString(R.string.editor_preset_function) to {
+            listOf(
+                actionKey("shift"), actionKey("mode_switch_symbols"), actionKey("space"),
+                actionKey("backspace"), actionKey("enter")
+            )
+        },
+        getString(R.string.editor_preset_empty) to { emptyList() }
+    )
+
+    /** Column presets: a label → the single key stamped into every row. */
+    private fun colPresets(): List<Pair<String, () -> JSONObject>> = listOf(
+        getString(R.string.editor_colpreset_char) to { charKey("x", "letter") },
+        getString(R.string.editor_colpreset_spacer) to { spacerKey() },
+        getString(R.string.editor_colpreset_backspace) to { actionKey("backspace") },
+        getString(R.string.editor_colpreset_shift) to { actionKey("shift") }
+    )
+
+    /** The widest row's key count — the number of column slots. */
+    private fun columnCount(): Int {
+        val rows = rowsArray()
+        var max = 0
+        for (r in 0 until rows.length()) max = maxOf(max, rows.getJSONArray(r).length())
+        return max
+    }
+
+    /**
+     * The unified "Add row / Add column" flow: pick WHAT (a type preset that prefills example keys, or a clone
+     * of an existing row·column), then WHERE (start / after any existing row·column / end — so both add and
+     * clone get before/after placement). [isColumn] switches the whole dialog between the row and column model.
+     */
+    private fun showAddDialog(isColumn: Boolean) {
+        val count = if (isColumn) columnCount() else rowsArray().length()
+        val presetCount = if (isColumn) colPresets().size else rowPresets().size
+        val presetLabels = if (isColumn) colPresets().map { it.first } else rowPresets().map { it.first }
+        val cloneLabels = (0 until count).map {
+            getString(if (isColumn) R.string.editor_clone_col else R.string.editor_clone_row, it + 1)
+        }
+        val whatItems = (presetLabels + cloneLabels).toTypedArray()
+
+        AlertDialog.Builder(this, R.style.Theme_Urik_Dialog)
+            .setTitle(getString(if (isColumn) R.string.editor_add_column else R.string.editor_add_row))
+            .setItems(whatItems) { _, which ->
+                showPositionDialog(isColumn, count) { pos ->
+                    if (isColumn) insertColumn(pos, which) else insertRow(pos, which)
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun showPositionDialog(isColumn: Boolean, count: Int, onPick: (Int) -> Unit) {
+        val labels = (0..count).map { i ->
+            when {
+                i == 0 -> getString(R.string.editor_pos_start)
+                i >= count -> getString(R.string.editor_pos_end)
+                else -> getString(if (isColumn) R.string.editor_pos_after_col else R.string.editor_pos_after_row, i)
+            }
+        }.toTypedArray()
+        AlertDialog.Builder(this, R.style.Theme_Urik_Dialog)
+            .setTitle(getString(R.string.editor_insert_where))
+            .setItems(labels) { _, pos -> onPick(pos) }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    /** [which] < preset count → that preset; otherwise clone the (which − presetCount)-th existing row. */
+    private fun insertRow(pos: Int, which: Int) {
+        val presets = rowPresets()
+        val keys: List<JSONObject> = if (which < presets.size) {
+            presets[which].second()
+        } else {
+            val src = rowsArray().getJSONArray(which - presets.size)
+            (0 until src.length()).map { deepCopyKey(src.getJSONObject(it)) }
+        }
+        val newRow = JSONArray().apply { keys.forEach { put(it) } }
+        setRows(insertAt(rowsArray(), pos.coerceIn(0, rowsArray().length()), newRow))
         commit()
+        flash(getString(R.string.editor_row_added))
+    }
+
+    /** [which] < preset count → stamp that preset key into every row; otherwise clone the chosen column. */
+    private fun insertColumn(pos: Int, which: Int) {
+        val presets = colPresets()
+        val cloneCol = if (which >= presets.size) which - presets.size else -1
+        val rows = rowsArray()
+        for (r in 0 until rows.length()) {
+            val row = rows.getJSONArray(r)
+            val key: JSONObject = if (cloneCol >= 0) {
+                if (cloneCol < row.length()) deepCopyKey(row.getJSONObject(cloneCol)) else spacerKey()
+            } else {
+                presets[which].second()
+            }
+            rows.put(r, insertAt(row, pos.coerceIn(0, row.length()), key))
+        }
+        commit()
+        flash(getString(R.string.editor_col_added))
     }
 
     private fun swapRows(a: Int, b: Int) {

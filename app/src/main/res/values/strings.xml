@@ -166,7 +166,26 @@
     <string name="editor_mode_symbols2">Symbols₂</string>
     <string name="editor_mode_numpad">Number pad</string>
     <string name="editor_add_row">+ Row</string>
+    <string name="editor_add_column">+ Column</string>
     <string name="editor_add_row_below">Add row below</string>
+    <string name="editor_insert_where">Insert where</string>
+    <string name="editor_pos_start">At start</string>
+    <string name="editor_pos_end">At end</string>
+    <string name="editor_pos_after_row">After row %1$d</string>
+    <string name="editor_pos_after_col">After column %1$d</string>
+    <string name="editor_clone_row">Clone row %1$d</string>
+    <string name="editor_clone_col">Clone column %1$d</string>
+    <string name="editor_row_added">Row added</string>
+    <string name="editor_col_added">Column added</string>
+    <string name="editor_preset_letters">Letters — ten a–z character keys</string>
+    <string name="editor_preset_numbers">Numbers — digits 1–0</string>
+    <string name="editor_preset_symbols">Symbols — . , ? ! \' ; :</string>
+    <string name="editor_preset_function">Function — Shift, symbols, space, backspace, Enter</string>
+    <string name="editor_preset_empty">Empty — no keys (add your own)</string>
+    <string name="editor_colpreset_char">Character key (letter “x”)</string>
+    <string name="editor_colpreset_spacer">Spacer — a blank gap column</string>
+    <string name="editor_colpreset_backspace">Backspace — a delete key column</string>
+    <string name="editor_colpreset_shift">Shift — a shift key column</string>
     <string name="editor_move_row_up">Move row up</string>
     <string name="editor_move_row_down">Move row down</string>
     <string name="editor_delete_row">Delete row</string>
@@ -708,6 +727,7 @@
     <string name="ja_register_saved_toast">「%1$s」を登録しました</string>
     <string name="ja_register_empty">よみと単語の両方を入力してください</string>
     <string name="ja_register_failed">登録に失敗しました</string>
+    <string name="keyedit_reset_inherited">Reset to inherited</string>
 
     <!-- Japanese user-dictionary editor (settings) -->
     <string name="ja_dictionary_title">Japanese user dictionary</string>

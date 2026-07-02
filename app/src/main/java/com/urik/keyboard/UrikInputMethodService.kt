@@ -1619,6 +1619,23 @@ open class UrikInputMethodService :
 
         observerJobs.add(
             serviceScope.launch {
+                // Seed the last-real (app·layout) from the persisted breadcrumb (written on every real-app
+                // show), so the settings-UI preview + edits target the right combo even when the keyboard's
+                // FIRST show after a process restart happens inside our own settings app (e.g. straight after
+                // installing an update). Without this, lastRealApp is null there and the preview resolved the
+                // baseline only — slider edits (written to the combo) had no visible effect.
+                val target = settingsRepository.currentSizeTarget.first()
+                val parts = target?.split("|")
+                if (lastRealApp == null && parts?.size == 3 && parts[0].isNotEmpty()) {
+                    lastRealApp = parts[0]
+                    lastRealLayoutId = parts[1]
+                    refreshLookKnobs()
+                }
+            }
+        )
+
+        observerJobs.add(
+            serviceScope.launch {
                 // Cache the decoded look map in memory and re-resolve + re-apply whenever it changes (the
                 // Keyboard UI sliders or the on-keyboard resize wrote a knob). The cache lets refreshLookKnobs
                 // resolve the per-(app·layout·geometry) size SYNCHRONOUSLY on the show path (serviceScope is
@@ -1773,12 +1790,15 @@ open class UrikInputMethodService :
             lastRealApp = focusedApp
             lastRealLayoutId = layoutId
         }
-        // Inside our own settings UI, resolve/preview the look for the app the user was actually typing in
-        // (lastRealApp), so the layout shows at its real per-app size / split / mode — the settings app has no
-        // combo of its own (which is why the copy previously looked like the un-customised stock). Elsewhere,
-        // resolve for the focused app.
+        // Inside our own settings UI, resolve/preview the look for the app·layout the user was actually typing
+        // in (lastRealApp + lastRealLayoutId), so the layout shows at its real per-app size / split / mode —
+        // the settings app has no combo of its own (which is why the copy previously looked like the
+        // un-customised stock). Using lastRealLayoutId (not the live id) keeps this resolve key IDENTICAL by
+        // construction to the key the Keyboard UI sliders write (both derive from currentSizeTarget), so a
+        // slider edit is always visible in the preview. Elsewhere, resolve for the focused app.
         val resolveApp = if (ownApp) lastRealApp else focusedApp
-        val resolved = resolveLookSync(resolveApp, layoutId, geometry)
+        val resolveLayout = if (ownApp && lastRealLayoutId.isNotEmpty()) lastRealLayoutId else layoutId
+        val resolved = resolveLookSync(resolveApp, resolveLayout, geometry)
         if (resolved != activeLookKnobs) {
             activeLookKnobs = resolved
             reapplyLookKnobs()
@@ -1812,7 +1832,10 @@ open class UrikInputMethodService :
         val ownApp = focusedApp.isNullOrEmpty() || focusedApp == packageName
         val app = if (ownApp) lastRealApp else focusedApp
         if (app.isNullOrEmpty()) return
-        val layoutId = if (::viewModel.isInitialized) viewModel.layout.value?.id.orEmpty() else lastRealLayoutId
+        // Same key discipline as refreshLookKnobs: inside our own app, write under the last REAL layout id so
+        // the persisted mode lands in the combo the preview resolves and the UI edits.
+        val liveLayoutId = if (::viewModel.isInitialized) viewModel.layout.value?.id.orEmpty() else ""
+        val layoutId = if (ownApp && lastRealLayoutId.isNotEmpty()) lastRealLayoutId else liveLayoutId
         val geometry = postureDetector?.postureInfo?.value?.let { geometryKey(it) } ?: GeometryBucket.FOLDED_PORT.key
         serviceScope.launch {
             val existing = settingsRepository.getSizeOverride(app, layoutId, geometry) ?: KeyboardLookKnobs()

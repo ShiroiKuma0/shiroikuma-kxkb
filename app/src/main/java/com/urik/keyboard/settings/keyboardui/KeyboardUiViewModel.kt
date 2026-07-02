@@ -10,8 +10,10 @@ import com.urik.keyboard.settings.SettingsEvent
 import com.urik.keyboard.settings.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -100,20 +102,21 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
     @Volatile private var sizeTarget: String? = null
 
     init {
-        // Follow the geometry the running keyboard is actually using (published by the IME service),
-        // so rotating/folding while the keyboard is shown moves the selector + sliders to that bucket.
+        // Follow the live geometry AND the live app·layout combo as ONE paired stream. These used to be two
+        // independent collectors, and the sizeTarget one re-selected with `_uiState.value.geometry` — which,
+        // on the racy first emission, was still the FOLDED_PORT data-class default. Its load completed last,
+        // stamped the UI onto folded_port, and every slider then wrote to `app|layout|folded_port` while the
+        // live keyboard resolved `app|layout|<real geometry>` — no slider had any visible effect. Pairing via
+        // combine means the geometry used is always the IME-published live one, never a stale UI default.
         viewModelScope.launch {
-            settingsRepository.currentGeometry.collect { live ->
-                if (live != null && live != _uiState.value.geometry) selectGeometry(live)
-            }
-        }
-        viewModelScope.launch {
-            settingsRepository.currentSizeTarget.collect {
-                sizeTarget = it
-                // The UI usually opens before the IME publishes which app·layout it was showing; re-resolve the
-                // editable knobs for the real combo once it arrives so the sliders reflect that layout.
-                selectGeometry(_uiState.value.geometry)
-            }
+            combine(
+                settingsRepository.currentGeometry,
+                settingsRepository.currentSizeTarget
+            ) { geometry, target -> geometry to target }
+                .collect { (geometry, target) ->
+                    sizeTarget = target
+                    selectGeometry(geometry ?: _uiState.value.geometry)
+                }
         }
         viewModelScope.launch {
             currentLibrary = settingsRepository.getLibraryLook()
@@ -166,8 +169,13 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
         badgeColor = badgeColor ?: LibraryLook.DEF_BADGE_COLOR
     )
 
+    // The in-flight selectGeometry load; cancelled by the next call so a slower, older read can never land
+    // after a newer one and clobber `current`/the UI with stale values.
+    private var loadJob: Job? = null
+
     fun selectGeometry(geometry: String) {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             // Show the EFFECTIVE look for this combo: the frozen per-geometry baseline (the old shared defaults)
             // overlaid by the per-combo override (the resize gesture's size + any prior per-combo edit). The UI
             // no longer writes the baseline, so overlaying it here keeps the sliders in step with the on-screen

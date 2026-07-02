@@ -244,7 +244,7 @@ data class KeyboardLookKnobs(
         hintFont?.let { add("hf=$it") }
         hintWeight?.let { add("hw=$it") }
         keyboardWidthScale?.let { add("kw=$it") }
-        splitFraction?.let { add("spf=$it") }
+        splitFraction?.let { add("spg=$it") }
         bottomLiftDp?.let { add("bl=$it") }
         fontFamily?.let { add("ff=$it") }
         keyboardBgColor?.let { add("cbg=$it") }
@@ -280,8 +280,15 @@ data class KeyboardLookKnobs(
     }.joinToString(";")
 
     companion object {
-        /** Split slider 100% → this many dp of see-through gap between the two halves. */
-        const val MAX_SPLIT_GAP_DP = 200f
+        /**
+         * Split slider 100% → this many dp of see-through gap between the two halves. Was 200 dp up to
+         * `+223`; stored values from then encode a fraction of THAT max under the legacy `spf` token, which
+         * [decode] rescales (÷4) so an existing gap keeps its exact dp size. New writes use `spg`.
+         */
+        const val MAX_SPLIT_GAP_DP = 800f
+
+        /** [MAX_SPLIT_GAP_DP] before the 4× increase — the base of legacy `spf` fractions. */
+        private const val LEGACY_MAX_SPLIT_GAP_DP = 200f
 
         /**
          * 白い熊's signature look: square keys + bold labels (yellow-on-black supplies the contrast via
@@ -380,7 +387,9 @@ data class KeyboardLookKnobs(
                     "ksv" -> ksv = value.toFloatOrNull()
                     "hn" -> hn = value.toFloatOrNull()
                     "kw" -> kw = value.toFloatOrNull()
-                    "spf" -> spf = value.toFloatOrNull()
+                    // Legacy split token: a fraction of the old 200 dp max — rescale so the gap keeps its dp size.
+                    "spf" -> spf = value.toFloatOrNull()?.times(LEGACY_MAX_SPLIT_GAP_DP / MAX_SPLIT_GAP_DP)
+                    "spg" -> spf = value.toFloatOrNull()
                     "bl" -> bl = value.toFloatOrNull()
                     "ff" -> ff = value
                     "cbg" -> cbg = value.toIntOrNull()

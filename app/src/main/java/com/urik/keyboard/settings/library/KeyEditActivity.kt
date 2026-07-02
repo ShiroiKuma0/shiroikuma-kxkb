@@ -772,8 +772,10 @@ class KeyEditActivity : AppCompatActivity() {
     }
 
     /**
-     * A colour appearance row: a label, then on the right an `Inherited` caption + a tappable colour swatch.
-     * Tapping the swatch opens [ColorPicker]; a long-press clears it back to Inherited.
+     * A colour appearance row: a label, then on the right an `Inherited` caption + a tappable colour swatch +
+     * a ↺ reset button. Tapping the swatch opens [ColorPicker]; ↺ (or a long-press on the swatch) clears the
+     * override back to Inherited — picking the default-looking colour would still be a per-key modification,
+     * so unsetting needs its own visible control.
      */
     private fun colorRow(labelText: String, jsonKey: String, app: JSONObject) {
         var current: Int? = parseHex(app.optString(jsonKey, ""))
@@ -785,22 +787,35 @@ class KeyEditActivity : AppCompatActivity() {
         val swatch = View(this).apply {
             layoutParams = LinearLayout.LayoutParams(dp(40), dp(28)).apply { marginStart = dp(10) }
         }
+        val reset = TextView(this).apply {
+            text = "↺"
+            setTextColor(YELLOW)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+            gravity = Gravity.CENTER
+            background = pillBg(false)
+            layoutParams = LinearLayout.LayoutParams(dp(34), dp(28)).apply { marginStart = dp(8) }
+            contentDescription = getString(R.string.keyedit_reset_inherited)
+        }
         fun render() {
             caption.text = if (current == null) getString(R.string.keyedit_inherited) else hexOf(current!!)
             swatch.background = swatchBg(current)
+            // Nothing to reset while inherited — dim the button so the state is readable at a glance.
+            reset.alpha = if (current == null) 0.35f else 1f
         }
         render()
         swatch.setOnClickListener {
             ColorPicker.show(this, current ?: YELLOW) { picked -> current = picked; render(); refreshPreview() }
         }
-        // Long-press clears back to Inherited (the screenshots' "clear" affordance).
+        // Long-press on the swatch still clears too (the original, hidden affordance).
         swatch.setOnLongClickListener { current = null; render(); refreshPreview(); true }
+        reset.setOnClickListener { current = null; render(); refreshPreview() }
 
         val right = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             addView(caption)
             addView(swatch)
+            addView(reset)
         }
         fieldsContainer.addView(appearanceRow(labelText, right))
         appearanceColors[jsonKey] = { current?.let { hexOf(it) } }

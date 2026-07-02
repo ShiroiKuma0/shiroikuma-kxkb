@@ -151,10 +151,19 @@ class NonLetterInputHandler(
                         suggestionPipeline.cancelDebounceJob()
                         val idx = inputState.selectedCandidate.coerceIn(0, inputState.pendingSuggestions.size - 1)
                         val candidate = inputState.pendingSuggestions[idx]
-                        // A highlighted custom-row entry commits literally; a real prediction goes through the
-                        // dictionary-selection path (spell-learn / bigram) — same split Space uses.
+                        // A custom-row entry commits only when Tab EXPLICITLY selected it — same rule as
+                        // Space/Enter. Without the gate, composing a word with zero real candidates (the bar
+                        // falls back to the custom toolbar) made every punctuation press auto-commit the
+                        // toolbar's first entry ("+" before the mark). A real prediction goes through the
+                        // dictionary-selection path (spell-learn / bigram) as before.
                         if (inputState.isCustomSuggestion(candidate)) {
-                            suggestionPipeline.coordinateCustomSuggestionSelection(candidate, onCheckAutoCapitalization)
+                            if (inputState.hasExplicitSelection) {
+                                suggestionPipeline.coordinateCustomSuggestionSelection(candidate, onCheckAutoCapitalization)
+                            } else {
+                                // Nothing selected: finish the literally-typed word as-is; then the mark below.
+                                outputBridge.finishComposingText()
+                                inputState.clearInternalStateOnly()
+                            }
                         } else {
                             suggestionPipeline.coordinateSuggestionSelection(candidate, onCheckAutoCapitalization)
                         }

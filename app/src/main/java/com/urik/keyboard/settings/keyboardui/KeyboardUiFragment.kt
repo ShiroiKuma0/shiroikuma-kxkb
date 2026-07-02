@@ -222,7 +222,7 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         topRowHeightPref = seekBar("kb_ui_top_row_height", R.string.keyboard_ui_item_top_row_height, min = 50, max = 200)
         bottomRowHeightPref = seekBar("kb_ui_bottom_row_height", R.string.keyboard_ui_item_bottom_row_height, min = 50, max = 200)
         widthPref = seekBar("kb_ui_width", R.string.keyboard_ui_item_width, min = 50, max = 100)
-        splitPref = seekBar("kb_ui_split", R.string.keyboard_ui_item_split, min = 0, max = 200)
+        splitPref = seekBar("kb_ui_split", R.string.keyboard_ui_item_split, min = 0, max = 800)
         liftPref = seekBar("kb_ui_lift", R.string.keyboard_ui_bottom_lift, min = 0, max = 200)
         keyboardBgColorPref = colorPref("kb_ui_col_keyboard_bg", R.string.keyboard_ui_item_background)
         spacingHPref = seekBar("kb_ui_spacing_h", R.string.keyboard_ui_item_h_gap, min = 0, max = 300, sub = true)

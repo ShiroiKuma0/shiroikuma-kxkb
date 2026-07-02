@@ -617,6 +617,34 @@ class KeyboardLayoutManager(
         flickStripRunnable = null
     }
 
+    // --- Compass guide (FlickPopup) deferred show --------------------------------------------------------
+    // The guide used to be raised on EVERY touch-down (harmless while it was a transparent grid, but since it
+    // became the bordered black panel every plain tap flashed it). Now it appears ONLY after a brief HOLD (the
+    // user is reading the directions): a quick tap just enters the key, and a flick/swipe in motion cancels
+    // the pending guide — the mover knows where they're going. A guide already up from a hold stays and
+    // tracks the direction highlight.
+    private var flickGuideRunnable: Runnable? = null
+    private val flickGuideDelayMs = 200L
+
+    private fun scheduleFlickGuide(key: KeyboardKey.FlickKey, view: View) {
+        cancelFlickGuideTimer()
+        val r = Runnable { showFlickGuide(key, view) }
+        flickGuideRunnable = r
+        flickStripHandler.postDelayed(r, flickGuideDelayMs)
+    }
+
+    private fun cancelFlickGuideTimer() {
+        flickGuideRunnable?.let { flickStripHandler.removeCallbacks(it) }
+        flickGuideRunnable = null
+    }
+
+    private fun showFlickGuide(key: KeyboardKey.FlickKey, view: View) {
+        if (flickPopup != null) return
+        val popup = FlickPopup(context, themeManager, 18f * (adaptiveDimensions?.compassFontScale ?: 2f))
+        flickPopup = popup
+        popup.show(key, view)
+    }
+
     /** Long-press fired: the packed strip takes over the touch; the compass preview stays put, strip above it. */
     private fun showFlickStrip(key: KeyboardKey.FlickKey, view: View) {
         flickGestureDetector.cancel() // the strip owns the gesture now — no flick commit on release
@@ -1739,10 +1767,11 @@ class KeyboardLayoutManager(
                             view.parent?.requestDisallowInterceptTouchEvent(true)
                             // The FlickPopup is this key's own (richer) preview — never stack the plain bubble on top.
                             keyPreviewPopup?.hide()
-                            val popup = FlickPopup(context, themeManager, 18f * (adaptiveDimensions?.compassFontScale ?: 2f))
                             flickPopup?.dismiss()
-                            flickPopup = popup
-                            popup.show(key, view)
+                            flickPopup = null
+                            // No guide flash on a plain tap: defer the compass panel to a brief hold or a
+                            // flick-sized move (see scheduleFlickGuide).
+                            scheduleFlickGuide(key, view)
                             flickStripActive = false
                             flickStripDownX = event.x
                             flickStripDownY = event.y
@@ -1756,14 +1785,20 @@ class KeyboardLayoutManager(
                                 onFlickStripMove(event.rawX, event.rawY) // slide picks an extra
                                 true
                             } else {
-                                // A flick-sized move means the user is flicking, not holding — drop the strip.
+                                // A flick-sized move means the user is flicking/swiping, not holding — drop
+                                // both the strip and the pending guide (the guide is hold-only; showing it
+                                // mid-swipe was noise).
                                 val dx = event.x - flickStripDownX
                                 val dy = event.y - flickStripDownY
-                                if (dx * dx + dy * dy >= flickStripSlopPx * flickStripSlopPx) cancelFlickStripTimer()
+                                if (dx * dx + dy * dy >= flickStripSlopPx * flickStripSlopPx) {
+                                    cancelFlickStripTimer()
+                                    cancelFlickGuideTimer()
+                                }
                                 flickGestureDetector.handleTouchEvent(event, keyAt)
                             }
                         MotionEvent.ACTION_UP -> {
                             cancelFlickStripTimer()
+                            cancelFlickGuideTimer()
                             if (flickStripActive) {
                                 when (extraStripPopup?.releaseAction()) {
                                     ExtraKeyStripPopup.Release.LOCK -> lockFlickStrip()
@@ -1778,6 +1813,7 @@ class KeyboardLayoutManager(
                         }
                         MotionEvent.ACTION_CANCEL -> {
                             cancelFlickStripTimer()
+                            cancelFlickGuideTimer()
                             if (flickStripActive) {
                                 dismissFlickStrip()
                                 flickGestureDetector.cancel()
