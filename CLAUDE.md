@@ -170,10 +170,23 @@ past the case-insensitive in-dictionary short-circuit, on both the cluster-candi
 literal long-space path; ambiguous "Ok" stays unlearned); **cluster Enter commits the highlighted
 candidate** (no trailing space, then the field's Enter action — mirrors Space/punctuation; long-space
 stays the literal escape); **＋登録 honest save toast** (reports 登録に失敗しました when the write didn't
-persist — the registration path itself is the unified `user_dictionary`, same as User dictionary → Add).
+persist — the registration path itself is the unified `user_dictionary`, same as User dictionary → Add);
+**dead-slider regression fixed** (`+222` opened the Keyboard UI on a stale FOLDED_PORT default so every
+slider wrote to the wrong geometry key — the UI now follows the IME-published live geometry+combo as one
+`combine` stream, loads are serialized, the IME seeds `lastRealApp`/`lastRealLayoutId` from the persisted
+`currentSizeTarget` after a process restart, and the settings-UI preview resolves the same key the sliders
+write); **4× split gap** (`MAX_SPLIT_GAP_DP` 200→800 dp, slider + resize drag; stored legacy `spf`
+fractions rescaled on decode, new writes use `spg`); **editor Add/Clone row+column** (preset dialog —
+Letters/Numbers/Symbols/Function/Empty rows, Character/Spacer/Backspace/Shift columns, or clone any —
+plus an insert-position picker; short rows padded with a spacer on column clone); **per-colour ↺ reset**
+(per-key editor colour rows clear back to Inherited visibly; long-press on the swatch still works);
+**hold-only compass guide** (a tap or swipe never flashes the FlickPopup — it appears only after a
+~200 ms hold, then tracks the flick; a flick-sized move cancels the pending guide; BFU included);
+**custom-toolbar punctuation gate** (a custom entry commits on cluster punctuation only when
+Tab-selected — no more auto-committed "+" when candidates run dry).
 
-**Released `0.23.1+222`** (2026-07-02; tagged `v0.23.1+222`, APK attached, on the fork's GitHub; default
-branch `custom`; README badge + `CHANGELOG.md` track it). Recent fork releases: `+204`, `+211`, `+213`,
-`+214`, `+215`, `+217`, `+222` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`, `+198`). Remaining M5 tail
-(low priority): number/arrow rows on the look page, quick-period flick. Full architecture + milestone
-sequence in `docs/PLAN.md`.
+**Released `0.23.1+230`** (2026-07-02; tagged `v0.23.1+230`, APK attached, on the fork's GitHub; default
+branch `custom`; README badge + `CHANGELOG.md` track it — supersedes `+222`, whose settings UI shipped
+broken). Recent fork releases: `+211`, `+213`, `+214`, `+215`, `+217`, `+222`, `+230` (earlier: `+72`,
+`+147`, `+156`, `+164`, `+172`, `+198`, `+204`). Remaining M5 tail (low priority): number/arrow rows on
+the look page, quick-period flick. Full architecture + milestone sequence in `docs/PLAN.md`.
