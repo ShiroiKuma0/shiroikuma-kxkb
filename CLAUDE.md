@@ -185,8 +185,24 @@ plus an insert-position picker; short rows padded with a spacer on column clone)
 **custom-toolbar punctuation gate** (a custom entry commits on cluster punctuation only when
 Tab-selected — no more auto-committed "+" when candidates run dry).
 
-**Released `0.23.1+230`** (2026-07-02; tagged `v0.23.1+230`, APK attached, on the fork's GitHub; default
-branch `custom`; README badge + `CHANGELOG.md` track it — supersedes `+222`, whose settings UI shipped
-broken). Recent fork releases: `+211`, `+213`, `+214`, `+215`, `+217`, `+222`, `+230` (earlier: `+72`,
-`+147`, `+156`, `+164`, `+172`, `+198`, `+204`). Remaining M5 tail (low priority): number/arrow rows on
-the look page, quick-period flick. Full architecture + milestone sequence in `docs/PLAN.md`.
+**Shipped since `+230`** (the `+250` line): **offline Whisper voice input** — the whisperIMEplus ONNX
+engine as a git submodule (`external/whisperIMEplus`, fork branch `kxkb` with catch-all + real-destroy
+hardening patches; only the UI-free engine subset compiles, Kotlin recorder/orchestrator in
+`service/voice/`); the mic key replaced the letters-layer right Shift (traced outline vector, press/flip
+haptics); dictation follows the keyboard language with a long-press en⇄cs-style flip (candidate-line
+flash); continuous dictation (parallel decode, per-sentence + session-end beeps on USAGE_MEDIA); the
+guided no-network model-import settings page; 60 s idle unload + watchdogs; R8 keep rules for the
+JNI-bound ONNX runtime (without them the IME died at first transcription). Plus: **per-language
+switcher curation** (Library ⇄ pills + the visible-layouts store) with the "…" overflow (dwell-gated
+middle-column swap); **18 new layouts** (GNU 10c + GNU QWERTY 10c/13c/15c; en/cs 10c + QWERTY + Q/QZ
+clusters; ru 12c/10c/ЯВЕРТЫ/Я cluster 4) and ru repairs (Cluster 8c deleted, backspace bottom row,
+uniform number rows); **newbie fresh-install defaults** with an upgrade migration that freezes existing
+curation first; **＋ Add language** in the Library (standard keyboards for the 15 dictionary-equipped
+languages, incl. RTL); git archive at the Library page end, folded by default; the 12 long-standing
+Mockito matcher test failures fixed — the suite (1 924 tests) is fully green.
+
+**Released `0.23.1+250`** (2026-07-19; tagged `v0.23.1+250`, APK attached, on the fork's GitHub; default
+branch `custom`; README badge + `CHANGELOG.md` track it). Recent fork releases: `+215`, `+217`, `+222`,
+`+230`, `+250` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`, `+211`, `+213`, `+214`).
+Remaining M5 tail (low priority): number/arrow rows on the look page, quick-period flick. Full
+architecture + milestone sequence in `docs/PLAN.md`.
