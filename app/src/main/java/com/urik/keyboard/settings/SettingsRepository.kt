@@ -136,6 +136,9 @@ constructor(
         val VOICE_SILENCE_MS = intPreferencesKey("voice_silence_ms")
         val VOICE_TRANSLATE = booleanPreferencesKey("voice_translate")
         val VOICE_AUTO_DETECT = booleanPreferencesKey("voice_auto_detect")
+        val VOICE_CONTINUOUS = booleanPreferencesKey("voice_continuous")
+        val VOICE_SESSION_END_SEC = intPreferencesKey("voice_session_end_sec")
+        val VOICE_BEEPS = booleanPreferencesKey("voice_beeps")
     }
 
     /** Falls back to system locale defaults on deserialization errors. */
@@ -301,7 +304,10 @@ constructor(
                     voiceAutoStop = preferences[PreferenceKeys.VOICE_AUTO_STOP] ?: true,
                     voiceSilenceMs = preferences[PreferenceKeys.VOICE_SILENCE_MS] ?: 800,
                     voiceTranslate = preferences[PreferenceKeys.VOICE_TRANSLATE] ?: false,
-                    voiceAutoDetect = preferences[PreferenceKeys.VOICE_AUTO_DETECT] ?: false
+                    voiceAutoDetect = preferences[PreferenceKeys.VOICE_AUTO_DETECT] ?: false,
+                    voiceContinuous = preferences[PreferenceKeys.VOICE_CONTINUOUS] ?: true,
+                    voiceSessionEndSec = preferences[PreferenceKeys.VOICE_SESSION_END_SEC] ?: 10,
+                    voiceBeeps = preferences[PreferenceKeys.VOICE_BEEPS] ?: true
                 ).validated()
             }.catch { e ->
                 ErrorLogger.logException(
@@ -1126,6 +1132,27 @@ constructor(
 
     suspend fun updateVoiceAutoDetect(enabled: Boolean): Result<Unit> = try {
         dataStore.edit { it[PreferenceKeys.VOICE_AUTO_DETECT] = enabled }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    suspend fun updateVoiceContinuous(enabled: Boolean): Result<Unit> = try {
+        dataStore.edit { it[PreferenceKeys.VOICE_CONTINUOUS] = enabled }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    suspend fun updateVoiceSessionEndSec(sec: Int): Result<Unit> = try {
+        dataStore.edit { it[PreferenceKeys.VOICE_SESSION_END_SEC] = sec }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    suspend fun updateVoiceBeeps(enabled: Boolean): Result<Unit> = try {
+        dataStore.edit { it[PreferenceKeys.VOICE_BEEPS] = enabled }
         Result.success(Unit)
     } catch (e: Exception) {
         Result.failure(e)

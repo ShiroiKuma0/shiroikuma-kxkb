@@ -155,6 +155,25 @@ class VoiceSettingsFragment : Fragment() {
                     getString(R.string.voice_opt_silence),
                     getString(R.string.voice_opt_silence_value, settings.voiceSilenceMs)
                 ) { pickSilenceDuration(settings.voiceSilenceMs) })
+
+                root.addView(optionCheckbox(
+                    getString(R.string.voice_opt_continuous),
+                    getString(R.string.voice_opt_continuous_desc),
+                    settings.voiceContinuous
+                ) { checked -> lifecycleScope.launch { settingsRepository.updateVoiceContinuous(checked); rebuild() } })
+
+                if (settings.voiceContinuous) {
+                    root.addView(valueRow(
+                        getString(R.string.voice_opt_session_end),
+                        getString(R.string.voice_opt_session_end_value, settings.voiceSessionEndSec)
+                    ) { pickSessionEnd(settings.voiceSessionEndSec) })
+
+                    root.addView(optionCheckbox(
+                        getString(R.string.voice_opt_beeps),
+                        getString(R.string.voice_opt_beeps_desc),
+                        settings.voiceBeeps
+                    ) { checked -> lifecycleScope.launch { settingsRepository.updateVoiceBeeps(checked); rebuild() } })
+                }
             }
 
             root.addView(optionCheckbox(
@@ -424,6 +443,22 @@ class VoiceSettingsFragment : Fragment() {
     }
 
     // ---- options ---------------------------------------------------------------------------------------
+
+    private fun pickSessionEnd(current: Int) {
+        val values = intArrayOf(5, 10, 15, 30)
+        val labels = values.map { getString(R.string.voice_opt_session_end_value, it) }.toTypedArray()
+        AlertDialog.Builder(requireContext(), R.style.Theme_Urik_Dialog)
+            .setTitle(R.string.voice_opt_session_end)
+            .setSingleChoiceItems(labels, values.indexOf(current)) { dialog, which ->
+                lifecycleScope.launch {
+                    settingsRepository.updateVoiceSessionEndSec(values[which])
+                    dialog.dismiss()
+                    rebuild()
+                }
+            }
+            .setNegativeButton(R.string.export_import_cancel, null)
+            .show()
+    }
 
     private fun pickSilenceDuration(current: Int) {
         val values = intArrayOf(500, 800, 1200, 2000)

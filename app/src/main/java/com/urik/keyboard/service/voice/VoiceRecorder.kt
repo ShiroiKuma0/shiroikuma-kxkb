@@ -16,18 +16,27 @@ import java.nio.ByteOrder
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * One-shot 16 kHz mono utterance recorder for Whisper voice input, re-derived in spirit from the
- * whisperIMEplus recorder (the compiled submodule engine subset is UI-free and has no recorder).
+ * 16 kHz mono recorder for Whisper voice input, re-derived in spirit from the whisperIMEplus
+ * recorder (the compiled submodule engine subset is UI-free and has no recorder).
  *
- * Records until [stop], until the WebRTC VAD hears end-of-speech (when [useVad]), or until the
- * 30 s Whisper window fills. Delivers peak-normalised float samples — the exact input format of
- * the ONNX recognizer — via [onFinished] on the recording thread; null means cancelled, failed,
- * or shorter than the 0.2 s minimum.
+ * Two modes:
+ * - **Single utterance** (chunkMode false): records until [stop], VAD end-of-speech (when
+ *   [useVad]) or the 30 s Whisper window; delivers the whole utterance via [onFinished].
+ * - **Continuous dictation** (chunkMode true, needs VAD): each VAD end-of-utterance emits that
+ *   chunk via [onChunk] and recording CONTINUES — transcription runs in parallel, so nothing
+ *   said during a decode is lost. The session ends on [stop], after [sessionEndMs] with no
+ *   speech, or at the 5 min hard cap; [onFinished] (always null samples) closes it.
+ *
+ * Samples are peak-normalised floats — the exact input format of the ONNX recognizer. Callbacks
+ * fire on the recording thread.
  */
 class VoiceRecorder(
     private val useVad: Boolean,
     private val silenceDurationMs: Int,
-    private val onSpeechStart: () -> Unit,
+    private val chunkMode: Boolean = false,
+    private val sessionEndMs: Int = 0,
+    private val onSpeechStart: () -> Unit = {},
+    private val onChunk: (FloatArray) -> Unit = {},
     private val onFinished: (FloatArray?) -> Unit
 ) {
     private val inProgress = AtomicBoolean(false)
@@ -37,22 +46,22 @@ class VoiceRecorder(
     @SuppressLint("MissingPermission")
     fun start() {
         if (!inProgress.compareAndSet(false, true)) return
-        Thread({ recordUtterance() }, "kxkb-voice-recorder").start()
+        Thread({ recordLoop() }, "kxkb-voice-recorder").start()
     }
 
-    /** Finish the utterance: hand what was recorded to the recognizer. */
+    /** Finish: single mode transcribes the utterance; chunk mode emits the tail chunk and ends. */
     fun stop() {
         inProgress.set(false)
     }
 
-    /** Discard the utterance (keyboard hidden, field changed). */
+    /** Discard everything (keyboard hidden, field changed). */
     fun cancel() {
         cancelled.set(true)
         inProgress.set(false)
     }
 
     @SuppressLint("MissingPermission")
-    private fun recordUtterance() {
+    private fun recordLoop() {
         var vad: VadWebRTC? = null
         var audioRecord: AudioRecord? = null
         try {
@@ -61,7 +70,6 @@ class VoiceRecorder(
                 AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT
             )
-            val bufferSize = maxOf(minBuffer, VAD_FRAME_BYTES)
             audioRecord = AudioRecord.Builder()
                 .setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION)
                 .setAudioFormat(
@@ -71,7 +79,7 @@ class VoiceRecorder(
                         .setSampleRate(SAMPLE_RATE)
                         .build()
                 )
-                .setBufferSizeInBytes(bufferSize)
+                .setBufferSizeInBytes(maxOf(minBuffer, VAD_FRAME_BYTES))
                 .build()
             if (useVad) {
                 vad = Vad.builder()
@@ -84,53 +92,86 @@ class VoiceRecorder(
             }
             audioRecord.startRecording()
 
-            val output = ByteArrayOutputStream()
+            val buffer = ByteArrayOutputStream()
             val chunk = ByteArray(VAD_FRAME_BYTES)
             val vadFrame = ByteArray(VAD_FRAME_BYTES)
-            var totalBytes = 0
-            var speechHeard = false
+            var speechInBuffer = false
             var announcedStart = false
+            var noSpeechMs = 0
+            var sessionBytes = 0
 
-            while (inProgress.get() && totalBytes < MAX_BYTES) {
+            while (inProgress.get()) {
                 val read = audioRecord.read(chunk, 0, VAD_FRAME_BYTES)
                 if (read <= 0) break
-                output.write(chunk, 0, read)
-                totalBytes += read
+                buffer.write(chunk, 0, read)
+                sessionBytes += read
 
-                if (vad != null) {
-                    val bytes = output.toByteArray()
+                val speaking = if (vad != null) {
+                    val bytes = buffer.toByteArray()
                     if (bytes.size >= VAD_FRAME_BYTES) {
                         System.arraycopy(bytes, bytes.size - VAD_FRAME_BYTES, vadFrame, 0, VAD_FRAME_BYTES)
-                        if (vad.isSpeech(vadFrame)) {
-                            if (!announcedStart) {
-                                announcedStart = true
-                                onSpeechStart()
-                            }
-                            speechHeard = true
-                        } else if (speechHeard) {
-                            // End of the utterance: the VAD's silence window elapsed after speech.
+                        vad.isSpeech(vadFrame)
+                    } else {
+                        false
+                    }
+                } else {
+                    true
+                }
+
+                if (speaking) {
+                    noSpeechMs = 0
+                    if (!announcedStart) {
+                        announcedStart = true
+                        onSpeechStart()
+                    }
+                    speechInBuffer = true
+                } else {
+                    noSpeechMs += read / BYTES_PER_MS
+                    if (speechInBuffer) {
+                        // End of an utterance: the VAD's silence window elapsed after speech.
+                        if (chunkMode) {
+                            emitChunk(buffer)
+                            speechInBuffer = false
+                        } else {
                             inProgress.set(false)
                         }
                     }
-                } else if (!announcedStart) {
-                    announcedStart = true
-                    onSpeechStart()
+                }
+
+                if (chunkMode) {
+                    // A chunk must fit Whisper's 30 s window — force-emit a run-on utterance.
+                    if (buffer.size() >= CHUNK_CAP_BYTES && speechInBuffer) {
+                        emitChunk(buffer)
+                        speechInBuffer = false
+                    }
+                    // Nobody has spoken for the session-end period, or the session hard cap hit.
+                    if (noSpeechMs >= sessionEndMs || sessionBytes >= SESSION_MAX_BYTES) {
+                        inProgress.set(false)
+                    }
+                } else if (buffer.size() >= MAX_BYTES) {
+                    inProgress.set(false)
                 }
             }
 
             audioRecord.stop()
-            val bytes = output.toByteArray()
-            if (cancelled.get() || bytes.size < MIN_BYTES) {
+            if (chunkMode) {
+                // The tail: whatever was being said when the session was stopped by hand.
+                if (!cancelled.get() && speechInBuffer) emitChunk(buffer)
                 onFinished(null)
             } else {
-                onFinished(toNormalisedSamples(bytes))
+                val bytes = buffer.toByteArray()
+                if (cancelled.get() || bytes.size < MIN_BYTES) {
+                    onFinished(null)
+                } else {
+                    onFinished(toNormalisedSamples(bytes))
+                }
             }
         } catch (e: Exception) {
             ErrorLogger.logException(
                 component = "VoiceRecorder",
                 severity = ErrorLogger.Severity.LOW,
                 exception = e,
-                context = mapOf("operation" to "recordUtterance")
+                context = mapOf("operation" to "recordLoop", "chunkMode" to chunkMode.toString())
             )
             onFinished(null)
         } finally {
@@ -140,6 +181,14 @@ class VoiceRecorder(
                 audioRecord?.release()
             } catch (_: Exception) {
             }
+        }
+    }
+
+    private fun emitChunk(buffer: ByteArrayOutputStream) {
+        val bytes = buffer.toByteArray()
+        buffer.reset()
+        if (bytes.size >= MIN_BYTES && !cancelled.get()) {
+            onChunk(toNormalisedSamples(bytes))
         }
     }
 
@@ -163,9 +212,16 @@ class VoiceRecorder(
         private const val VAD_FRAME_SAMPLES = 480
         private const val VAD_FRAME_BYTES = VAD_FRAME_SAMPLES * 2
         private const val SPEECH_MIN_MS = 200
+        private const val BYTES_PER_MS = SAMPLE_RATE * 2 / 1000
 
         /** Whisper's 30 s window: 16 kHz × 2 bytes × 30 s. */
         private const val MAX_BYTES = SAMPLE_RATE * 2 * 30
+
+        /** Chunk-mode per-utterance cap, safely inside the window. */
+        private const val CHUNK_CAP_BYTES = SAMPLE_RATE * 2 * 28
+
+        /** Continuous-session hard cap. */
+        private const val SESSION_MAX_BYTES = SAMPLE_RATE * 2 * 300
 
         /** 0.2 s minimum — anything shorter is a stray tap, not an utterance. */
         private const val MIN_BYTES = 6400

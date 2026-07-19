@@ -863,6 +863,7 @@
 
     <!-- Whisper voice input -->
     <string name="voice_listening">● Listening…</string>
+    <string name="voice_dictating">● Dictating…</string>
     <string name="voice_transcribing">◌ Transcribing…</string>
     <string name="voice_error">Voice recognition failed</string>
     <string name="voice_need_mic_permission">Voice input needs the microphone permission</string>
@@ -898,6 +899,12 @@
     <string name="voice_opt_autostop_desc">End the utterance automatically once you stop speaking (voice activity detection). Off: tap the mic key again to stop.</string>
     <string name="voice_opt_silence">Silence before stop</string>
     <string name="voice_opt_silence_value">%1$d ms</string>
+    <string name="voice_opt_continuous">Continuous dictation</string>
+    <string name="voice_opt_continuous_desc">Keep listening after each utterance: every pause commits that sentence and the mic re-arms, so whole paragraphs can be dictated hands-free (recognition runs in parallel — nothing said during it is lost). Tap the mic to stop, or it stops itself after the silence period below.</string>
+    <string name="voice_opt_session_end">End dictation after silence</string>
+    <string name="voice_opt_session_end_value">%1$d s</string>
+    <string name="voice_opt_beeps">Dictation beeps</string>
+    <string name="voice_opt_beeps_desc">One beep when a pause commits the sentence — keep talking; three beeps when the dictation session ends.</string>
     <string name="voice_opt_autodetect">Auto-detect language</string>
     <string name="voice_opt_autodetect_desc">Let Whisper identify the spoken language by itself. Off: dictation is transcribed in the keyboard\'s current language — switching the keyboard language switches dictation too.</string>
     <string name="voice_opt_translate">Translate to English</string>

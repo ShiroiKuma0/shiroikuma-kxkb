@@ -1375,7 +1375,8 @@ open class UrikInputMethodService :
                 candidateBarController.clearSuggestions()
                 voiceInputController.startListening(currentSettings, voiceListener)
             }
-            VoiceInputController.State.LISTENING -> voiceInputController.finishListening()
+            VoiceInputController.State.LISTENING,
+            VoiceInputController.State.DICTATING -> voiceInputController.finishListening()
             VoiceInputController.State.TRANSCRIBING -> Unit
         }
     }
@@ -1386,6 +1387,7 @@ open class UrikInputMethodService :
             candidateBarController.showVoiceIndicator(
                 when (state) {
                     VoiceInputController.State.LISTENING -> getString(R.string.voice_listening)
+                    VoiceInputController.State.DICTATING -> getString(R.string.voice_dictating)
                     VoiceInputController.State.TRANSCRIBING -> getString(R.string.voice_transcribing)
                     VoiceInputController.State.IDLE -> null
                 }
