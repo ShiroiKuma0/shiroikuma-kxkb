@@ -105,6 +105,41 @@ sealed class HapticSignature {
         }
     }
 
+    /** Mic-key press: a firm, clearly felt single pulse (recording is about to start/stop). */
+    data object VoicePulse : HapticSignature() {
+        override val durationMs = 60L
+
+        override fun createEffect(baseAmplitude: Int): VibrationEffect {
+            val amplitude = baseAmplitude.coerceIn(1, 255)
+            return createAmplitudeEffect(
+                longArrayOf(0, 60),
+                intArrayOf(0, amplitude),
+                durationMs,
+                baseAmplitude
+            )
+        }
+    }
+
+    /** Mic-key long-press: two short ticks — the voice language flipped. */
+    data object VoiceFlipDouble : HapticSignature() {
+        override val durationMs = 130L
+
+        override fun createEffect(baseAmplitude: Int): VibrationEffect {
+            // Always a waveform — the one-shot fallback would blur the double tick into one buzz.
+            val amplitude =
+                if (baseAmplitude == VibrationEffect.DEFAULT_AMPLITUDE) {
+                    VibrationEffect.DEFAULT_AMPLITUDE
+                } else {
+                    baseAmplitude.coerceIn(1, 255)
+                }
+            return VibrationEffect.createWaveform(
+                longArrayOf(0, 30, 70, 30),
+                intArrayOf(0, amplitude, 0, amplitude),
+                -1
+            )
+        }
+    }
+
     data object NumberClick : HapticSignature() {
         override val durationMs = 25L
 

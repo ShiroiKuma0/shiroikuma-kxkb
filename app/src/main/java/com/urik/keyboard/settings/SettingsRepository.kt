@@ -131,6 +131,11 @@ constructor(
         val KEY_PREVIEW_ENABLED = booleanPreferencesKey("key_preview_enabled")
         val CUSTOM_SUGGESTIONS = stringPreferencesKey("custom_suggestions")
         val CUSTOM_SUGGESTIONS_BY_LANG = stringPreferencesKey("custom_suggestions_by_lang")
+        val VOICE_USE_ALTERNATE = booleanPreferencesKey("voice_use_alternate")
+        val VOICE_AUTO_STOP = booleanPreferencesKey("voice_auto_stop")
+        val VOICE_SILENCE_MS = intPreferencesKey("voice_silence_ms")
+        val VOICE_TRANSLATE = booleanPreferencesKey("voice_translate")
+        val VOICE_AUTO_DETECT = booleanPreferencesKey("voice_auto_detect")
     }
 
     /** Falls back to system locale defaults on deserialization errors. */
@@ -291,7 +296,12 @@ constructor(
                         preferences[PreferenceKeys.CUSTOM_SUGGESTIONS]?.takeIf { it.isNotBlank() }
                             ?: KeyboardSettings.DEFAULT_CUSTOM_SUGGESTIONS,
                     customSuggestionsByLang =
-                        decodeCustomSuggestionsByLang(preferences[PreferenceKeys.CUSTOM_SUGGESTIONS_BY_LANG])
+                        decodeCustomSuggestionsByLang(preferences[PreferenceKeys.CUSTOM_SUGGESTIONS_BY_LANG]),
+                    voiceUseAlternate = preferences[PreferenceKeys.VOICE_USE_ALTERNATE] ?: false,
+                    voiceAutoStop = preferences[PreferenceKeys.VOICE_AUTO_STOP] ?: true,
+                    voiceSilenceMs = preferences[PreferenceKeys.VOICE_SILENCE_MS] ?: 800,
+                    voiceTranslate = preferences[PreferenceKeys.VOICE_TRANSLATE] ?: false,
+                    voiceAutoDetect = preferences[PreferenceKeys.VOICE_AUTO_DETECT] ?: false
                 ).validated()
             }.catch { e ->
                 ErrorLogger.logException(
@@ -1081,6 +1091,41 @@ constructor(
 
     suspend fun updateKeyPreviewEnabled(enabled: Boolean): Result<Unit> = try {
         dataStore.edit { it[PreferenceKeys.KEY_PREVIEW_ENABLED] = enabled }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    suspend fun updateVoiceUseAlternate(enabled: Boolean): Result<Unit> = try {
+        dataStore.edit { it[PreferenceKeys.VOICE_USE_ALTERNATE] = enabled }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    suspend fun updateVoiceAutoStop(enabled: Boolean): Result<Unit> = try {
+        dataStore.edit { it[PreferenceKeys.VOICE_AUTO_STOP] = enabled }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    suspend fun updateVoiceSilenceMs(ms: Int): Result<Unit> = try {
+        dataStore.edit { it[PreferenceKeys.VOICE_SILENCE_MS] = ms }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    suspend fun updateVoiceTranslate(enabled: Boolean): Result<Unit> = try {
+        dataStore.edit { it[PreferenceKeys.VOICE_TRANSLATE] = enabled }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    suspend fun updateVoiceAutoDetect(enabled: Boolean): Result<Unit> = try {
+        dataStore.edit { it[PreferenceKeys.VOICE_AUTO_DETECT] = enabled }
         Result.success(Unit)
     } catch (e: Exception) {
         Result.failure(e)

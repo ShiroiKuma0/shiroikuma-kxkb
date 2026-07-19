@@ -19,6 +19,12 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // Fork: JitPack only for the WebRTC VAD used by the Whisper voice engine.
+        maven("https://jitpack.io") {
+            content {
+                includeGroup("com.github.gkonovalov.android-vad")
+            }
+        }
     }
 }
 

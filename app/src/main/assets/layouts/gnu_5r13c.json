@@ -409,8 +409,29 @@
               "right": "℉"
             },
             "longPressKeys": [
+              "′",
               "℉"
-            ]
+            ],
+            "shifted": {
+              "type": "compass",
+              "char": "F",
+              "flick": {
+                "up": "F",
+                "down": {
+                  "chord": "C-f",
+                  "label": "C-f"
+                },
+                "left": {
+                  "chord": "M-f",
+                  "label": "M-f"
+                },
+                "right": "℉"
+              },
+              "longPressKeys": [
+                "℉",
+                "′"
+              ]
+            }
           },
           {
             "type": "compass",
@@ -508,10 +529,37 @@
               "í",
               "ī",
               "ï",
+              "″",
               "Í",
               "Ī",
               "Ï"
-            ]
+            ],
+            "shifted": {
+              "type": "compass",
+              "char": "I",
+              "flick": {
+                "up": "I",
+                "down": {
+                  "chord": "C-i",
+                  "label": "C-i"
+                },
+                "left": {
+                  "chord": "M-i",
+                  "label": "M-i"
+                },
+                "right": "Í",
+                "upLeft": "Ī",
+                "upRight": "Í",
+                "downLeft": "Ī",
+                "downRight": "Ï"
+              },
+              "longPressKeys": [
+                "Í",
+                "Ī",
+                "Ï",
+                "″"
+              ]
+            }
           },
           {
             "type": "compass",
@@ -1170,8 +1218,14 @@
             "width": 3.0
           },
           {
-            "type": "action",
-            "action": "shift",
+            "type": "compass",
+            "char": "🎙",
+            "flick": {
+              "center": {
+                "action": "voice",
+                "label": "🎙"
+              }
+            },
             "attributes": {
               "widthClass": "Custom2"
             },

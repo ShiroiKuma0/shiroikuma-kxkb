@@ -555,8 +555,14 @@
             "width": 1.0
           },
           {
-            "type": "action",
-            "action": "shift",
+            "type": "compass",
+            "char": "🎙",
+            "flick": {
+              "center": {
+                "action": "voice",
+                "label": "🎙"
+              }
+            },
             "attributes": {
               "widthClass": "Custom1"
             },

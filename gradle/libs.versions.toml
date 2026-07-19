@@ -25,6 +25,10 @@ sqliteKtx = "2.6.2"
 window = "1.5.1"
 jgit = "5.13.3.202401111512-r"
 slf4j = "1.7.36"
+onnxruntime = "1.19.0"
+onnxruntimeExtensions = "0.12.4"
+guava = "33.3.1-android"
+vadWebrtc = "2.0.10"
 
 [libraries]
 android-database-sqlcipher = { module = "net.zetetic:sqlcipher-android", version.ref = "androidDatabaseSqlcipher" }
@@ -56,6 +60,10 @@ material = { module = "com.google.android.material:material", version.ref = "mat
 mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockitoCore" }
 mockito-kotlin = { module = "org.mockito.kotlin:mockito-kotlin", version.ref = "mockitoKotlin" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
+onnxruntime-android = { module = "com.microsoft.onnxruntime:onnxruntime-android", version.ref = "onnxruntime" }
+onnxruntime-extensions-android = { module = "com.microsoft.onnxruntime:onnxruntime-extensions-android", version.ref = "onnxruntimeExtensions" }
+guava = { module = "com.google.guava:guava", version.ref = "guava" }
+vad-webrtc = { module = "com.github.gkonovalov.android-vad:webrtc", version.ref = "vadWebrtc" }
 
 [plugins]
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

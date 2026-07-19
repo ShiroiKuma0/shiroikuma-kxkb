@@ -82,6 +82,7 @@ import com.urik.keyboard.service.SwipeWordHandler
 import com.urik.keyboard.service.TextInputProcessor
 import com.urik.keyboard.service.ViewCallback
 import com.urik.keyboard.service.WordLearningEngine
+import com.urik.keyboard.service.voice.VoiceInputController
 import com.urik.keyboard.settings.KeyboardSettings
 import com.urik.keyboard.settings.SettingsRepository
 import com.urik.keyboard.theme.ThemeManager
@@ -97,6 +98,7 @@ import com.urik.keyboard.utils.CacheMemoryManager
 import com.urik.keyboard.utils.ErrorLogger
 import com.urik.keyboard.utils.KanaTransformUtils
 import com.urik.keyboard.utils.KeyboardModeUtils
+import com.urik.keyboard.utils.KxkbToast
 import com.urik.keyboard.utils.isUserUnlocked
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -193,6 +195,9 @@ open class UrikInputMethodService :
 
     @Inject
     lateinit var keyEventRouter: KeyEventRouter
+
+    @Inject
+    lateinit var voiceInputController: VoiceInputController
 
     private lateinit var viewModel: KeyboardViewModel
     private lateinit var layoutManager: KeyboardLayoutManager
@@ -1201,6 +1206,9 @@ open class UrikInputMethodService :
             "user_dictionary" -> com.urik.keyboard.settings.SettingsActivity.createIntent(
                 this, com.urik.keyboard.settings.SettingsActivity.PAGE_USER_DICTIONARY
             )
+            "voice" -> com.urik.keyboard.settings.SettingsActivity.createIntent(
+                this, com.urik.keyboard.settings.SettingsActivity.PAGE_VOICE
+            )
             else -> com.urik.keyboard.settings.SettingsActivity.createIntent(this)
         }
         intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -1333,6 +1341,126 @@ open class UrikInputMethodService :
                     forceInputViewRemeasure()
                 }
             "next_language" -> handleLanguageSwitch(languageManager.getNextLayoutLanguage())
+            "voice" -> handleVoiceKey()
+            // GNU layouts are language-neutral: the mic key's flick flips the voice-language
+            // fast-switch pair (en ⇄ cs) in the Whisper+ 2-language spirit.
+            "voice_lang" -> handleVoiceLangFlip()
+        }
+    }
+
+    /** Mic key: idle → record, listening → finish + transcribe, transcribing → ignore. */
+    private fun handleVoiceKey() {
+        // BFU: the model lives in credential-encrypted storage and the mic must not run on the
+        // lock screen — the key is inert until first unlock.
+        if (!isUserUnlocked) return
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO) !=
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            KxkbToast.show(this, getString(R.string.voice_need_mic_permission), android.widget.Toast.LENGTH_LONG)
+            openVoiceSettings()
+            return
+        }
+        if (!voiceInputController.isModelInstalled()) {
+            KxkbToast.show(this, getString(R.string.voice_model_missing), android.widget.Toast.LENGTH_LONG)
+            openVoiceSettings()
+            return
+        }
+        when (voiceInputController.state.value) {
+            VoiceInputController.State.IDLE -> {
+                // Flush any composing word — deliberately NOT coordinateSpecialAction: that raises
+                // isActivelyEditing, which only a later selection update clears; starting a recording
+                // commits nothing, so rapid mic presses left the flag stuck and the candidate bar
+                // suppressed until the next real keystroke.
+                outputBridge.coordinateStateClear()
+                candidateBarController.clearSuggestions()
+                voiceInputController.startListening(currentSettings, voiceListener)
+            }
+            VoiceInputController.State.LISTENING -> voiceInputController.finishListening()
+            VoiceInputController.State.TRANSCRIBING -> Unit
+        }
+    }
+
+    private val voiceListener = object : VoiceInputController.Listener {
+        override fun onStateChanged(state: VoiceInputController.State) {
+            if (!::candidateBarController.isInitialized) return
+            candidateBarController.showVoiceIndicator(
+                when (state) {
+                    VoiceInputController.State.LISTENING -> getString(R.string.voice_listening)
+                    VoiceInputController.State.TRANSCRIBING -> getString(R.string.voice_transcribing)
+                    VoiceInputController.State.IDLE -> null
+                }
+            )
+        }
+
+        override fun onResult(text: String, languageCode: String?) = commitVoiceResult(text, languageCode)
+
+        override fun onError() {
+            // A background IME's toast is suppressed on API 31+ — report in the candidate line instead.
+            showVoiceFlash(getString(R.string.voice_error))
+        }
+    }
+
+    /** Flash a message in the candidate line, then hand the strip back to the voice state. */
+    private fun showVoiceFlash(message: String) {
+        voiceFlashJob?.cancel()
+        voiceFlashJob = serviceScope.launch {
+            candidateBarController.showVoiceIndicator(message)
+            kotlinx.coroutines.delay(VOICE_FLASH_MS)
+            voiceListener.onStateChanged(voiceInputController.state.value)
+        }
+    }
+
+    /**
+     * Commit a recognized utterance with the house spacing conventions: a separating space before
+     * when the cursor follows non-whitespace, a trailing space after — except Japanese, which is
+     * committed bare (same rule as the kana-kanji candidate commit).
+     */
+    private fun commitVoiceResult(text: String, languageCode: String?) {
+        serviceScope.launch {
+            val lang = languageCode?.takeIf { it != "??" }
+                ?: voiceInputController.resolveLanguage(currentSettings)
+            val noSpaces = lang == "ja"
+            suggestionPipeline.coordinateSpecialAction {
+                val before = outputBridge.safeGetTextBeforeCursor(1)
+                val prefix = if (!noSpaces && before.isNotEmpty() && !before.last().isWhitespace()) " " else ""
+                val suffix = if (noSpaces) "" else " "
+                outputBridge.commitText(prefix + text + suffix, 1)
+            }
+        }
+    }
+
+    /**
+     * Long-press on the mic key: flip dictation to the pair's other language and FLASH the new
+     * language in the suggestion strip (an IME background toast is unreliable on API 31+; the
+     * strip is always visible right above the key).
+     */
+    private var voiceFlashJob: Job? = null
+
+    private fun handleVoiceLangFlip() {
+        serviceScope.launch {
+            val flipped = !settingsRepository.settings.first().voiceUseAlternate
+            settingsRepository.updateVoiceUseAlternate(flipped)
+            val lang = voiceInputController.resolveLanguage(currentSettings.copy(voiceUseAlternate = flipped))
+            showVoiceFlash(getString(R.string.voice_language_flipped, voiceLanguageDisplayName(lang)))
+        }
+    }
+
+    private fun voiceLanguageDisplayName(code: String): String = when (code) {
+        "en" -> "English"
+        "cs" -> "čeština"
+        "ru" -> "русский"
+        "ja" -> "日本語"
+        else -> code
+    }
+
+    /** The guided setup page: model download/import + mic permission + options. */
+    private fun openVoiceSettings() {
+        val intent = com.urik.keyboard.settings.SettingsActivity
+            .createIntent(this, com.urik.keyboard.settings.SettingsActivity.PAGE_VOICE)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        try {
+            startActivity(intent)
+        } catch (_: Exception) {
         }
     }
 
@@ -2892,6 +3020,9 @@ open class UrikInputMethodService :
     override fun onFinishInputView(finishingInput: Boolean) {
         super.onFinishInputView(finishingInput)
 
+        // Never record with the keyboard hidden; an in-flight transcription result is dropped too.
+        voiceInputController.cancel()
+
         // Don't leave the expandable candidates pane open across a field/keyboard dismissal.
         swipeKeyboardView?.hideCandidatesPane()
 
@@ -3556,6 +3687,7 @@ open class UrikInputMethodService :
         streamingScoringEngine.cancelActiveGesture()
         wordFrequencyRepository.clearCache()
         autofillCoordinator.cleanup()
+        voiceInputController.shutdown()
 
         serviceJob.cancel()
 
@@ -3586,6 +3718,9 @@ open class UrikInputMethodService :
         // Gap between the hide and the re-show of the "reshow" action — long enough for the hide to register
         // before the show, so the framework treats it as a fresh show (and re-pins the window height).
         const val RESHOW_REOPEN_DELAY_MS = 150L
+
+        /** How long the flipped voice language stays flashed in the suggestion strip. */
+        const val VOICE_FLASH_MS = 1500L
         const val LOOK_SEED_PREFS = "kxkb_look_seed"
         const val LOOK_SEED_LAST_GEO = "last_geo"
         const val LOOK_SEED_KNOBS_PREFIX = "knobs_"

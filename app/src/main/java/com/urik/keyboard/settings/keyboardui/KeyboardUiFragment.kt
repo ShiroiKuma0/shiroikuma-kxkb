@@ -149,6 +149,27 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
 
         eventHandler = SettingsEventHandler(requireContext())
 
+        // Top of the page: the Voice input window (offline Whisper model setup + dictation options).
+        val voicePref =
+            Preference(context).apply {
+                key = "kb_ui_voice_input"
+                isPersistent = false
+                layoutResource = R.layout.preference_item_kxkb
+                title = resources.getString(R.string.voice_settings_title)
+                summary = resources.getString(R.string.voice_settings_summary)
+                setOnPreferenceClickListener {
+                    parentFragmentManager
+                        .beginTransaction()
+                        .replace(
+                            R.id.settings_container,
+                            com.urik.keyboard.settings.voice.VoiceSettingsFragment()
+                        )
+                        .addToBackStack(null)
+                        .commit()
+                    true
+                }
+            }
+
         val geometryCategory =
             PreferenceCategory(context).apply {
                 key = "kb_ui_cat_geometry"
@@ -296,6 +317,7 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         clusterLeftPref = seekBar("kb_ui_cluster_left", R.string.keyboard_ui_item_left_char_pos, min = 0, max = 48)
         clusterRightPref = seekBar("kb_ui_cluster_right", R.string.keyboard_ui_item_right_char_pos, min = 0, max = 48)
 
+        screen.addPreference(voicePref)
         screen.addPreference(geometryCategory)
         geometryCategory.addPreference(geometryPref)
 

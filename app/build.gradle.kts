@@ -41,6 +41,12 @@ android {
         versionName = forkVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Fork: the Whisper voice engine (ONNX Runtime + WebRTC VAD) ships native libs for
+        // four ABIs; package arm64-v8a only (matches the APK filename convention).
+        ndk {
+            abiFilters += "arm64-v8a"
+        }
     }
 
     signingConfigs {
@@ -125,6 +131,22 @@ kotlin {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_21)
     }
+}
+
+// --- shiroikuma-kxkb fork: compile the clean engine subset of the whisperIMEplus submodule ---
+// Only com/whisperonnx/voice_translation/** (the UI-free ONNX Whisper recognizer) is compiled;
+// the submodule's app/IME/recorder layer is re-implemented in Kotlin under service/voice/.
+val whisperEngineDir = layout.buildDirectory.dir("generated/whisperEngine/java")
+val syncWhisperEngine = tasks.register<Sync>("syncWhisperEngine") {
+    description = "Copy the whisperIMEplus engine subset into generated sources."
+    from(rootProject.layout.projectDirectory.dir("external/whisperIMEplus/app/src/main/java")) {
+        include("com/whisperonnx/voice_translation/**")
+    }
+    into(whisperEngineDir)
+}
+android.sourceSets.getByName("main").java.srcDir(whisperEngineDir.get().asFile)
+tasks.named("preBuild") {
+    dependsOn(syncWhisperEngine)
 }
 
 ktlint {
@@ -254,6 +276,13 @@ dependencies {
     // In-app git for the Library archive (JGit 5.13 LTS — last Java-8 line, Android-safe at minSdk 26).
     implementation(libs.jgit)
     implementation(libs.slf4j.nop)
+
+    // Whisper voice engine (whisperIMEplus submodule subset): ONNX Runtime inference,
+    // Guava primitives used by TensorUtils, WebRTC VAD for auto-stop recording.
+    implementation(libs.onnxruntime.android)
+    implementation(libs.onnxruntime.extensions.android)
+    implementation(libs.guava)
+    implementation(libs.vad.webrtc)
 
     testImplementation(libs.junit)
     testImplementation(libs.mockito.core)

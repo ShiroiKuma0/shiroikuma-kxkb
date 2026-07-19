@@ -1,0 +1,4 @@
+[submodule "external/whisperIMEplus"]
+	path = external/whisperIMEplus
+	url = https://github.com/ShiroiKuma0/whisperIMEplus.git
+	branch = kxkb

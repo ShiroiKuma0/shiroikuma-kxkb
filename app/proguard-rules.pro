@@ -44,5 +44,14 @@
 -dontwarn com.jcraft.**
 -dontwarn java.lang.management.**
 
+# Whisper voice engine: ONNX Runtime (+extensions) and the WebRTC VAD are JNI-bound — native code
+# resolves Java classes/methods/fields by NAME, so R8 renaming or stripping breaks the binding at
+# runtime (the IME process died at the first transcription). Neither AAR ships consumer rules;
+# upstream whisperIMEplus builds with minify OFF and never hits this. Keep the engine subset too.
+-keep class ai.onnxruntime.** { *; }
+-dontwarn ai.onnxruntime.**
+-keep class com.konovalov.vad.** { *; }
+-keep class com.whisperonnx.** { *; }
+
 -repackageclasses
 -allowaccessmodification

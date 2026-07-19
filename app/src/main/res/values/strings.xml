@@ -861,4 +861,60 @@
     <!-- AlphabetSideBar accessibility -->
     <string name="alphabet_sidebar_description">Alphabet navigation sidebar</string>
 
+    <!-- Whisper voice input -->
+    <string name="voice_listening">● Listening…</string>
+    <string name="voice_transcribing">◌ Transcribing…</string>
+    <string name="voice_error">Voice recognition failed</string>
+    <string name="voice_need_mic_permission">Voice input needs the microphone permission</string>
+    <string name="voice_model_missing">Voice model not installed — opening Voice input settings</string>
+    <string name="voice_language_flipped">Voice language: %1$s</string>
+
+    <!-- Voice input settings page -->
+    <string name="voice_settings_title">Voice input</string>
+    <string name="voice_settings_summary">Offline Whisper dictation: model download &amp; import, microphone permission, options</string>
+    <string name="voice_settings_intro">Offline speech-to-text with OpenAI\'s Whisper model, running entirely on this phone. The keyboard deliberately has NO internet permission — nothing you type or say can ever leave the device — which also means it cannot download the speech model itself. The three steps below work around that: your browser fetches the model, this page imports it from disk, and Android\'s microphone permission lets the mic key record.</string>
+    <string name="voice_status_model_ok">✓ Model installed (%1$d MB)</string>
+    <string name="voice_status_model_missing">✗ Model not installed</string>
+    <string name="voice_status_mic_ok">✓ Microphone permission granted</string>
+    <string name="voice_status_mic_missing">✗ Microphone permission not granted</string>
+    <string name="voice_step1_title">1 · Download the model</string>
+    <string name="voice_step1_text">The recognizer needs the Whisper “small” model in its ONNX form — six Whisper_*.onnx files zipped as whisper_small_int8.zip (about 243 MB), published on Hugging Face. This button hands the download to your BROWSER, which saves the zip to your Downloads folder — the keyboard itself never touches the network.</string>
+    <string name="voice_step1_button">Download model in browser</string>
+    <string name="voice_step2_title">2 · Import the model</string>
+    <string name="voice_step2_text">Once the browser has finished downloading, select the zip here. It is unpacked into the keyboard\'s own app-private storage (about 250 MB) and checked for the six expected model files; a progress bar shows the extraction. After a successful import the zip in Downloads can be deleted.</string>
+    <string name="voice_step2_button">Select downloaded zip…</string>
+    <string name="voice_need_all_files">Reading the Downloads folder needs the All-Files-Access permission (the same one the layout Library and Export/import use).</string>
+    <string name="voice_grant_all_files">Grant All-Files-Access</string>
+    <string name="voice_remove_model">Remove installed model</string>
+    <string name="voice_remove_model_confirm">Delete the six model files from the keyboard\'s storage (frees about 250 MB)? Voice input stops working until a model is imported again.</string>
+    <string name="voice_remove_model_go">Delete</string>
+    <string name="voice_remove_model_done">Model removed</string>
+    <string name="voice_step3_title">3 · Microphone permission</string>
+    <string name="voice_step3_text">Recording needs Android\'s microphone permission. Everything the mic hears is transcribed on-device by the model above and never leaves the phone — the keyboard has no way to send it anywhere. If Android no longer shows the permission dialog (after repeated denials), the button opens App info, where the permission can be switched on manually.</string>
+    <string name="voice_step3_button">Grant microphone permission</string>
+    <string name="voice_mic_granted">✓ Granted — the mic key on the keyboard is ready.</string>
+    <string name="voice_options_title">Options</string>
+    <string name="voice_opt_autostop">Auto-stop after silence</string>
+    <string name="voice_opt_autostop_desc">End the utterance automatically once you stop speaking (voice activity detection). Off: tap the mic key again to stop.</string>
+    <string name="voice_opt_silence">Silence before stop</string>
+    <string name="voice_opt_silence_value">%1$d ms</string>
+    <string name="voice_opt_autodetect">Auto-detect language</string>
+    <string name="voice_opt_autodetect_desc">Let Whisper identify the spoken language by itself. Off: dictation is transcribed in the keyboard\'s current language — switching the keyboard language switches dictation too.</string>
+    <string name="voice_opt_translate">Translate to English</string>
+    <string name="voice_opt_translate_desc">Use Whisper\'s built-in translation: speak any language, English text is committed.</string>
+    <string name="voice_opt_alternate">Dictate in the pair\'s other language</string>
+    <string name="voice_opt_alternate_desc">Dictation normally follows the keyboard\'s layout language (GNU counts as English). This flips to the pair\'s OTHER language — English, or Czech when the layout already is English/GNU. On the keyboard itself: LONG-PRESS the mic key (🎙) to flip; a toast shows the new dictation language.</string>
+    <string name="voice_import_confirm_title">Import model</string>
+    <string name="voice_import_confirm_text">Unpack “%1$s” into the keyboard\'s storage?</string>
+    <string name="voice_import_go">Import</string>
+    <string name="voice_import_progress_title">Importing model…</string>
+    <string name="voice_import_starting">Reading zip…</string>
+    <string name="voice_import_progress">%1$s — %2$d / %3$d MB</string>
+    <string name="voice_import_ok">✓ Model installed — the mic key is ready</string>
+    <string name="voice_import_cancelled">Import cancelled</string>
+    <string name="voice_import_failed">Import failed: %1$s</string>
+    <string name="voice_import_wrong_zip">Not the expected model zip (missing %1$s)</string>
+    <string name="voice_no_browser">No browser available</string>
+    <string name="space_menu_voice">Voice input</string>
+
 </resources>

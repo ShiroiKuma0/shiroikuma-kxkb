@@ -78,6 +78,71 @@ class LayoutResyncTest {
     }
 
     @Test
+    fun `inserts new long-press candidates at their stock positions`() {
+        // The +231 i-key case: stock gained ″ between the lowercase and uppercase glyph groups.
+        val shadow = JSONObject(
+            """{"modes":{"letters":{"rows":[[
+                {"type":"compass","char":"i","longPressKeys":["í","ī","ï","Í","Ī","Ï"]}
+            ]]}}}"""
+        )
+        val stock = JSONObject(
+            """{"modes":{"letters":{"rows":[[
+                {"type":"compass","char":"i","longPressKeys":["í","ī","ï","″","Í","Ī","Ï"]}
+            ]]}}}"""
+        )
+        val merged = LayoutResync.mergeFromStock(shadow, stock)
+        val row = ctrlOf(merged, 0, 0).getJSONArray("longPressKeys")
+        assertEquals(listOf("í", "ī", "ï", "″", "Í", "Ī", "Ï"), (0 until row.length()).map { row.getString(it) })
+    }
+
+    @Test
+    fun `creates the long-press row when the shadow has none and keeps user reordering`() {
+        val shadow = JSONObject(
+            """{"modes":{"letters":{"rows":[[
+                {"type":"compass","char":"f"},
+                {"type":"compass","char":"r","longPressKeys":["Ř","ř"]}
+            ]]}}}"""
+        )
+        val stock = JSONObject(
+            """{"modes":{"letters":{"rows":[[
+                {"type":"compass","char":"f","longPressKeys":["′","℉"]},
+                {"type":"compass","char":"r","longPressKeys":["ř","√","Ř"]}
+            ]]}}}"""
+        )
+        val merged = LayoutResync.mergeFromStock(shadow, stock)
+        val fRow = ctrlOf(merged, 0, 0).getJSONArray("longPressKeys")
+        assertEquals(listOf("′", "℉"), (0 until fRow.length()).map { fRow.getString(it) })
+        // The user's own order (Ř before ř) survives; the new √ lands after its stock predecessor ř.
+        val rRow = ctrlOf(merged, 0, 1).getJSONArray("longPressKeys")
+        assertEquals(listOf("Ř", "ř", "√"), (0 until rRow.length()).map { rRow.getString(it) })
+    }
+
+    @Test
+    fun `copies in a shifted face the shadow lacks and merges one it has`() {
+        val shadow = JSONObject(
+            """{"modes":{"letters":{"rows":[[
+                {"type":"compass","char":"i","longPressKeys":["í"]},
+                {"type":"compass","char":"f","shifted":{"type":"compass","char":"F","flick":{"up":"F"}}}
+            ]]}}}"""
+        )
+        val stock = JSONObject(
+            """{"modes":{"letters":{"rows":[[
+                {"type":"compass","char":"i","shifted":{"type":"compass","char":"I","longPressKeys":["Í","″"]}},
+                {"type":"compass","char":"f","shifted":{"type":"compass","char":"F","flick":{"up":"F"},"longPressKeys":["℉","′"]}}
+            ]]}}}"""
+        )
+        val merged = LayoutResync.mergeFromStock(shadow, stock)
+        // i: the whole new face arrives verbatim.
+        val iShifted = ctrlOf(merged, 0, 0).getJSONObject("shifted")
+        assertEquals("I", iShifted.getString("char"))
+        assertEquals("″", iShifted.getJSONArray("longPressKeys").getString(1))
+        // f: the existing face is merged in place, gaining the stock long-press row.
+        val fShifted = ctrlOf(merged, 0, 1).getJSONObject("shifted")
+        assertEquals("F", fShifted.getString("char"))
+        assertEquals(listOf("℉", "′"), fShifted.getJSONArray("longPressKeys").let { a -> (0 until a.length()).map { a.getString(it) } })
+    }
+
+    @Test
     fun `does not mutate the input shadow`() {
         val shadow = JSONObject(
             """{"modes":{"letters":{"rows":[[{"type":"compass","char":"Ctrl","flick":{}}]]}}}"""

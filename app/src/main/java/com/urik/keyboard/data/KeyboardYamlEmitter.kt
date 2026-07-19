@@ -349,6 +349,7 @@ object KeyboardYamlEmitter {
         "escape" to "key_escape", "tab" to "key_tab", "enter" to "key_enter", "space" to "key_space",
         "ctrl" to "key_ctrl", "undo" to "action_undo", "redo" to "action_redo",
         "hide" to "action_hide_keyboard", "voice" to "action_voice_input",
+        "voice_lang" to "action_voice_language",
         "arrow_up" to "action_up", "arrow_down" to "action_down",
         "arrow_left" to "action_left", "arrow_right" to "action_right",
         "next_language" to "action_next_language_layout",

@@ -57,6 +57,7 @@ class SettingsActivity : AppCompatActivity() {
                     PAGE_LIBRARY -> LibraryFragment()
                     PAGE_EXPORT_IMPORT -> ExportImportFragment()
                     PAGE_USER_DICTIONARY -> UserDictionaryFragment()
+                    PAGE_VOICE -> com.urik.keyboard.settings.voice.VoiceSettingsFragment()
                     else -> null
                 }
             if (page != null) {
@@ -98,6 +99,7 @@ class SettingsActivity : AppCompatActivity() {
                 is PrivacyDataFragment -> getString(R.string.privacy_settings_title)
                 is LearnedWordsFragment -> getString(R.string.learned_words_title)
                 is ExportImportFragment -> getString(R.string.export_import_title)
+                is com.urik.keyboard.settings.voice.VoiceSettingsFragment -> getString(R.string.voice_settings_title)
                 else -> getString(R.string.settings_title)
             }
         supportActionBar?.title = title
@@ -136,6 +138,7 @@ class SettingsActivity : AppCompatActivity() {
         const val PAGE_LIBRARY = "library"
         const val PAGE_EXPORT_IMPORT = "export_import"
         const val PAGE_USER_DICTIONARY = "user_dictionary"
+        const val PAGE_VOICE = "voice"
 
         fun createIntent(context: Context): Intent = Intent(context, SettingsActivity::class.java)
 
@@ -184,6 +187,18 @@ class MainSettingsFragment : PreferenceFragmentCompat() {
                 summary = resources.getString(R.string.language_settings_description)
                 setOnPreferenceClickListener {
                     navigateToFragment(LanguagesFragment())
+                    true
+                }
+            }
+        )
+
+        screen.addPreference(
+            Preference(context).apply {
+                key = "voice_input_category"
+                title = resources.getString(R.string.voice_settings_title)
+                summary = resources.getString(R.string.voice_settings_summary)
+                setOnPreferenceClickListener {
+                    navigateToFragment(com.urik.keyboard.settings.voice.VoiceSettingsFragment())
                     true
                 }
             }

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Traced-outline microphone for the voice key: stroke-only paths so the icon reads as the same
+     thin yellow line work as the rest of the keyboard (the 🎙 emoji glyph is a colour bitmap and
+     clashes). Tinted at runtime with the key's label colour. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:pathData="M8.5,5.5 A3.5,3.5 0 0 1 15.5,5.5 L15.5,11 A3.5,3.5 0 0 1 8.5,11 Z"
+        android:strokeColor="#FFFFFF00"
+        android:strokeWidth="1.6"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M5.5,10.5 A6.5,6.5 0 0 0 18.5,10.5"
+        android:strokeColor="#FFFFFF00"
+        android:strokeWidth="1.6"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M12,17 L12,20.5"
+        android:strokeColor="#FFFFFF00"
+        android:strokeWidth="1.6"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M8.5,20.5 L15.5,20.5"
+        android:strokeColor="#FFFFFF00"
+        android:strokeWidth="1.6"
+        android:strokeLineCap="round" />
+</vector>

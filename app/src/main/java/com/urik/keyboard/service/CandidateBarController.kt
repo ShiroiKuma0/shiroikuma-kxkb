@@ -30,6 +30,11 @@ class CandidateBarController(private val viewProvider: () -> SwipeKeyboardView?)
         viewProvider()?.showDegradedIndicator(degraded)
     }
 
+    /** Voice-input state in the suggestion strip; null hides it. */
+    fun showVoiceIndicator(text: String?) {
+        viewProvider()?.showVoiceIndicator(text)
+    }
+
     fun forceClearAllSuggestions() {
         viewProvider()?.forceClearAllSuggestions()
     }

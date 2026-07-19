@@ -605,7 +605,7 @@ class KeyboardLayoutManager(
 
     /** Arm the long-press strip for a held compass key that defines extra keys (cancelled by a flick-sized move). */
     private fun scheduleFlickStrip(key: KeyboardKey.FlickKey, view: View) {
-        if (key.longPressExtraKeys.isEmpty()) return
+        if (flickFace(key, lastKeyboardState).longPressExtraKeys.isEmpty()) return
         cancelFlickStripTimer()
         val r = Runnable { showFlickStrip(key, view) }
         flickStripRunnable = r
@@ -645,12 +645,81 @@ class KeyboardLayoutManager(
         popup.show(key, view)
     }
 
+    // --- Arrow-key hold repeat ---------------------------------------------------------------------------
+    // A held arrow key keeps the cursor MOVING (like a hardware key's typematic repeat) instead of raising
+    // the compass guide — the key's whole point is its centre action, so the guide told you nothing and the
+    // hold was wasted. Flicks still work: a flick-sized move before the timer fires cancels the repeat.
+    private var arrowRepeatRunnable: Runnable? = null
+    private var arrowRepeatActive = false
+
+    /** The centre editor-action binding IF this key is a repeatable cursor arrow, else null. */
+    private fun arrowRepeatBinding(key: KeyboardKey.FlickKey): KeyboardKey.FlickBinding.Action? =
+        (key.bindings["center"] as? KeyboardKey.FlickBinding.Action)
+            ?.takeIf { it.name in ARROW_ACTION_NAMES }
+
+    private fun scheduleArrowRepeat(binding: KeyboardKey.FlickBinding.Action) {
+        cancelArrowRepeat()
+        val r = object : Runnable {
+            override fun run() {
+                if (arrowRepeatRunnable !== this) return
+                if (!arrowRepeatActive) {
+                    arrowRepeatActive = true
+                    // The hold owns the key now — the release must not ALSO commit a tap.
+                    flickGestureDetector.cancel()
+                    performContextualHaptic(null)
+                }
+                handleFlickBinding(binding)
+                flickStripHandler.postDelayed(this, ARROW_REPEAT_INTERVAL_MS)
+            }
+        }
+        arrowRepeatRunnable = r
+        flickStripHandler.postDelayed(r, currentLongPressDuration.durationMs)
+    }
+
+    private fun cancelArrowRepeat() {
+        arrowRepeatRunnable?.let { flickStripHandler.removeCallbacks(it) }
+        arrowRepeatRunnable = null
+        arrowRepeatActive = false
+    }
+
+    // --- Mic-key hold: voice-language quick flip ---------------------------------------------------------
+    // Holding the mic key (the compass key whose centre is the "voice" action) fires the voice-language
+    // flip ONCE (layout language ⇄ English; English/GNU layouts ⇄ Czech) instead of raising the compass
+    // guide — the same touch-ownership model as the arrow keys' hold repeat.
+    private var voiceHoldRunnable: Runnable? = null
+    private var voiceHoldFired = false
+
+    private fun isVoiceKey(key: KeyboardKey.FlickKey): Boolean =
+        (key.bindings["center"] as? KeyboardKey.FlickBinding.Action)?.name == "voice"
+
+    private fun scheduleVoiceHold() {
+        cancelVoiceHold()
+        val r = Runnable {
+            voiceHoldFired = true
+            // The hold owns the key now — the release must not ALSO fire the centre tap.
+            flickGestureDetector.cancel()
+            performVoiceFlipHaptic()
+            handleFlickBinding(KeyboardKey.FlickBinding.Action("voice_lang"))
+        }
+        voiceHoldRunnable = r
+        flickStripHandler.postDelayed(r, currentLongPressDuration.durationMs)
+    }
+
+    private fun cancelVoiceHold() {
+        voiceHoldRunnable?.let { flickStripHandler.removeCallbacks(it) }
+        voiceHoldRunnable = null
+        voiceHoldFired = false
+    }
+
     /** Long-press fired: the packed strip takes over the touch; the compass preview stays put, strip above it. */
     private fun showFlickStrip(key: KeyboardKey.FlickKey, view: View) {
         flickGestureDetector.cancel() // the strip owns the gesture now — no flick commit on release
         currentVariationKeyType = key.type
         val density = context.resources.displayMetrics.density
-        val chars = listOf(key.center) + key.longPressExtraKeys // centre first = the highlighted base char
+        // The strip is case-aware: under shift the key's shifted face supplies its own row (and centre),
+        // so "i" and "I" can order their candidates differently.
+        val face = flickFace(key, lastKeyboardState)
+        val chars = listOf(face.center) + face.longPressExtraKeys // centre first = the highlighted base char
         val popup = ExtraKeyStripPopup(context, themeManager)
         extraStripPopup?.dismiss()
         extraStripPopup = popup
@@ -664,7 +733,7 @@ class KeyboardLayoutManager(
             onSelected = characterVariationCallback
         )
         popup.showAboveCompass(view, flickPopup?.height ?: 0)
-        flickStripLastChar = key.center
+        flickStripLastChar = face.center
         flickStripActive = true
         popupSelectionMode = true
         swipeKeyboardView?.setPopupActive(true)
@@ -870,6 +939,26 @@ class KeyboardLayoutManager(
         }
     }
 
+    /** The double tick confirming the long-press voice-language flip. Same gating as every haptic. */
+    private fun performVoiceFlipHaptic() {
+        if (!hapticEnabled || hapticAmplitude == 0) return
+        try {
+            val amplitude = if (supportsAmplitudeControl) {
+                hapticAmplitude
+            } else {
+                android.os.VibrationEffect.DEFAULT_AMPLITUDE
+            }
+            vibrateEffect(HapticSignature.VoiceFlipDouble.createEffect(amplitude))
+        } catch (e: Exception) {
+            ErrorLogger.logException(
+                component = "KeyboardLayoutManager",
+                severity = ErrorLogger.Severity.LOW,
+                exception = e,
+                context = mapOf("operation" to "performVoiceFlipHaptic")
+            )
+        }
+    }
+
     private fun performContextualHaptic(key: KeyboardKey?) {
         onHapticFired?.invoke(key)
         if (!hapticEnabled || hapticAmplitude == 0) return
@@ -896,7 +985,9 @@ class KeyboardLayoutManager(
                         }
                     }
 
-                    is KeyboardKey.FlickKey -> HapticSignature.LetterClick
+                    is KeyboardKey.FlickKey ->
+                        // The mic key gets a firm, unmistakable pulse — recording starts/stops on it.
+                        if (isVoiceKey(key)) HapticSignature.VoicePulse else HapticSignature.LetterClick
 
                     KeyboardKey.Spacer -> {
                         return
@@ -1472,7 +1563,8 @@ class KeyboardLayoutManager(
                         setMargins(horizontalMargin, verticalMargin, horizontalMargin, verticalMargin)
                     }
 
-            text = getKeyLabel(key, state)
+            // The voice key renders the traced mic icon (see the background chain below) — no emoji glyph.
+            text = if (key is KeyboardKey.FlickKey && isVoiceKey(key)) "" else getKeyLabel(key, state)
 
             // Per-key font-scale override (futokxkb appearance) multiplies the resolved size; applied to the
             // button text AND the cluster/column band (both derive from finalTextSize).
@@ -1574,6 +1666,18 @@ class KeyboardLayoutManager(
                         keyBackground,
                         ((keyIndex + 1) % 10).toString(),
                         themeManager.currentTheme.value.colors
+                    )
+                } else if (key is KeyboardKey.FlickKey && isVoiceKey(key)) {
+                    // Traced-outline mic in the label colour instead of the colour-emoji 🎙 glyph.
+                    centeredIconOverlay(
+                        keyBackground,
+                        R.drawable.ic_mic_outline,
+                        getKeyTextColor(key),
+                        TypedValue.applyDimension(
+                            TypedValue.COMPLEX_UNIT_SP,
+                            finalTextSize * 0.93f,
+                            context.resources.displayMetrics
+                        ).toInt()
                     )
                 } else if (key is KeyboardKey.FlickKey && key.clusterMains.isNotEmpty() &&
                     effectiveLayout?.showFlickHints == true
@@ -1769,36 +1873,58 @@ class KeyboardLayoutManager(
                             keyPreviewPopup?.hide()
                             flickPopup?.dismiss()
                             flickPopup = null
-                            // No guide flash on a plain tap: defer the compass panel to a brief hold or a
-                            // flick-sized move (see scheduleFlickGuide).
-                            scheduleFlickGuide(key, view)
                             flickStripActive = false
                             flickStripDownX = event.x
                             flickStripDownY = event.y
                             flickStripDownRawX = event.rawX
                             flickStripDownRawY = event.rawY
-                            scheduleFlickStrip(key, view) // arm the long-press extra-key strip
+                            val arrowBinding = arrowRepeatBinding(key)
+                            if (arrowBinding != null) {
+                                // A held arrow key auto-repeats its motion — no compass guide, no strip.
+                                scheduleArrowRepeat(arrowBinding)
+                            } else if (isVoiceKey(key)) {
+                                // A held mic key flips the voice language — no compass guide either.
+                                // Flick keys have no touch-down haptic; the mic key needs one (the firm
+                                // VoicePulse) so starting/stopping a recording is felt immediately.
+                                performContextualHaptic(key)
+                                scheduleVoiceHold()
+                            } else {
+                                // No guide flash on a plain tap: defer the compass panel to a brief hold or
+                                // a flick-sized move (see scheduleFlickGuide).
+                                scheduleFlickGuide(key, view)
+                                scheduleFlickStrip(key, view) // arm the long-press extra-key strip
+                            }
                             flickGestureDetector.handleTouchEvent(event, keyAt)
                         }
                         MotionEvent.ACTION_MOVE ->
                             if (flickStripActive) {
                                 onFlickStripMove(event.rawX, event.rawY) // slide picks an extra
                                 true
+                            } else if (arrowRepeatActive) {
+                                true // the repeat owns the touch; wandering neither cancels nor flicks
+                            } else if (voiceHoldFired) {
+                                true // the flip already happened; the release commits nothing more
                             } else {
                                 // A flick-sized move means the user is flicking/swiping, not holding — drop
-                                // both the strip and the pending guide (the guide is hold-only; showing it
-                                // mid-swipe was noise).
+                                // the strip, the pending guide (the guide is hold-only; showing it mid-swipe
+                                // was noise) and a pending arrow repeat or voice hold.
                                 val dx = event.x - flickStripDownX
                                 val dy = event.y - flickStripDownY
                                 if (dx * dx + dy * dy >= flickStripSlopPx * flickStripSlopPx) {
                                     cancelFlickStripTimer()
                                     cancelFlickGuideTimer()
+                                    cancelArrowRepeat()
+                                    cancelVoiceHold()
                                 }
                                 flickGestureDetector.handleTouchEvent(event, keyAt)
                             }
                         MotionEvent.ACTION_UP -> {
                             cancelFlickStripTimer()
                             cancelFlickGuideTimer()
+                            val wasRepeating = arrowRepeatActive
+                            cancelArrowRepeat()
+                            val holdFlipped = voiceHoldFired
+                            cancelVoiceHold()
                             if (flickStripActive) {
                                 when (extraStripPopup?.releaseAction()) {
                                     ExtraKeyStripPopup.Release.LOCK -> lockFlickStrip()
@@ -1807,6 +1933,8 @@ class KeyboardLayoutManager(
                                 }
                                 flickGestureDetector.cancel()
                                 true
+                            } else if (wasRepeating || holdFlipped) {
+                                true // the hold was the input; the gesture was already cancelled
                             } else {
                                 flickGestureDetector.handleTouchEvent(event, keyAt)
                             }
@@ -1814,9 +1942,14 @@ class KeyboardLayoutManager(
                         MotionEvent.ACTION_CANCEL -> {
                             cancelFlickStripTimer()
                             cancelFlickGuideTimer()
+                            val wasRepeating = arrowRepeatActive
+                            cancelArrowRepeat()
+                            cancelVoiceHold()
                             if (flickStripActive) {
                                 dismissFlickStrip()
                                 flickGestureDetector.cancel()
+                                true
+                            } else if (wasRepeating) {
                                 true
                             } else {
                                 flickGestureDetector.handleTouchEvent(event, keyAt)
@@ -1855,6 +1988,8 @@ class KeyboardLayoutManager(
         variationPopup?.dismiss()
         languagePickerPopup?.dismiss()
         keyPreviewPopup?.hide()
+        cancelArrowRepeat() // the held key is going away with its buttons — don't keep firing its action
+        cancelVoiceHold()
 
         activeButtons.forEach { button ->
             cleanupButton(button)
@@ -1936,6 +2071,7 @@ class KeyboardLayoutManager(
                 SpaceMenuItem(context.getString(R.string.space_menu_editor), false) { onMenuAction("editor") },
                 SpaceMenuItem(context.getString(R.string.space_menu_mode), false) { onMenuAction("mode") },
                 SpaceMenuItem(context.getString(R.string.space_menu_user_dictionary), false) { onMenuAction("user_dictionary") },
+                SpaceMenuItem(context.getString(R.string.space_menu_voice), false) { onMenuAction("voice") },
                 SpaceMenuItem(context.getString(R.string.space_menu_all_settings), false) { onMenuAction("settings") },
                 SpaceMenuItem(context.getString(R.string.space_menu_export_import), false) { onMenuAction("export_import") }
             )
@@ -2655,6 +2791,16 @@ class KeyboardLayoutManager(
         }
     }
 
+    /** An icon drawn centred on the key face, tinted like a label (the voice key's traced mic). */
+    private fun centeredIconOverlay(base: Drawable, iconRes: Int, tint: Int, sizePx: Int): Drawable {
+        val icon = ContextCompat.getDrawable(context, iconRes)?.mutate() ?: return base
+        icon.setTint(tint)
+        return LayerDrawable(arrayOf(base, icon)).apply {
+            setLayerSize(1, sizePx, sizePx)
+            setLayerGravity(1, Gravity.CENTER)
+        }
+    }
+
     private fun addBadgeOverlay(base: Drawable, badge: Drawable?): Drawable {
         val density = context.resources.displayMetrics.density
         val iconSize = (10 * density).toInt()
@@ -2711,5 +2857,7 @@ class KeyboardLayoutManager(
         private const val SHIFT_KEY_WEIGHT = 1.5f
         private const val BACKSPACE_KEY_WEIGHT = 1.5f
         private const val MAX_BUTTON_POOL_SIZE = 40
+        private val ARROW_ACTION_NAMES = setOf("arrow_up", "arrow_down", "arrow_left", "arrow_right")
+        private const val ARROW_REPEAT_INTERVAL_MS = 50L
     }
 }

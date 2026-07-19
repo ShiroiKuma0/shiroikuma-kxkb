@@ -119,7 +119,20 @@ data class KeyboardSettings(
      * here uses its built-in default ([com.urik.keyboard.service.CustomSuggestionDefaults]); an explicit
      * empty string means the user cleared that language's row.
      */
-    val customSuggestionsByLang: Map<String, String> = emptyMap()
+    val customSuggestionsByLang: Map<String, String> = emptyMap(),
+    /**
+     * Whisper voice input. Dictation follows the keyboard's layout language (GNU counts as
+     * English); a long-press on the mic key quick-flips to the pair's OTHER language — English,
+     * or Czech when the primary already is English. This is that flip's persisted state.
+     */
+    val voiceUseAlternate: Boolean = false,
+    /** End the utterance automatically after [voiceSilenceMs] of post-speech silence (WebRTC VAD). */
+    val voiceAutoStop: Boolean = true,
+    val voiceSilenceMs: Int = 800,
+    /** Whisper's built-in translate-to-English action instead of same-language transcription. */
+    val voiceTranslate: Boolean = false,
+    /** Let Whisper auto-detect the spoken language instead of following the keyboard. */
+    val voiceAutoDetect: Boolean = false
 ) {
     /**
      * Whether word learning is enabled via [learnNewWords] flag.

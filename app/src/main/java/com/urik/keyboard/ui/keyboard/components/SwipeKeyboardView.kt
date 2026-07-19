@@ -171,6 +171,7 @@ constructor(
 
     private var autofillIndicatorIcon: TextView? = null
     private var degradedIndicatorView: TextView? = null
+    private var voiceIndicatorView: TextView? = null
     private var isShowingAutofillSuggestions = false
     private var autofillScrollContainer: android.widget.HorizontalScrollView? = null
     private var autofillScrollContent: LinearLayout? = null
@@ -1180,6 +1181,21 @@ constructor(
         }
     }
 
+    /** Voice-input state in the suggestion strip ("Listening…", "Transcribing…"); null hides it. */
+    fun showVoiceIndicator(text: String?) {
+        if (!isInitialized || isDestroyed) return
+        val indicator = getOrCreateVoiceIndicator()
+        if (text != null) {
+            indicator.text = text
+            if (indicator.parent == null) {
+                suggestionBar?.addView(indicator, 0)
+            }
+            indicator.visibility = VISIBLE
+        } else {
+            indicator.visibility = GONE
+        }
+    }
+
     private fun updateSuggestionBarContent(suggestions: List<String> = emptyList()) {
         if (isDestroyed) return
 
@@ -1193,6 +1209,12 @@ constructor(
             bar.removeAllViews()
 
             degradedIndicatorView?.let { indicator ->
+                if (indicator.visibility == VISIBLE) {
+                    bar.addView(indicator, 0)
+                }
+            }
+
+            voiceIndicatorView?.let { indicator ->
                 if (indicator.visibility == VISIBLE) {
                     bar.addView(indicator, 0)
                 }
@@ -1698,6 +1720,31 @@ constructor(
                     }
 
             autofillIndicatorIcon = this
+        }
+    }
+
+    private fun getOrCreateVoiceIndicator(): TextView {
+        voiceIndicatorView?.let { return it }
+
+        return TextView(context).apply {
+            val suggestionTextSize = calculateResponsiveSuggestionTextSize()
+            setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, suggestionTextSize)
+            setTextColor(themeManager?.currentTheme?.value?.colors?.suggestionText ?: 0xFFFFFF00.toInt())
+            val padding = (suggestionTextSize * context.resources.displayMetrics.density * 0.6f).toInt()
+            setPadding(padding, padding, padding, padding)
+
+            layoutParams =
+                LinearLayout
+                    .LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        0f
+                    ).apply {
+                        gravity = Gravity.CENTER_VERTICAL
+                        marginEnd = (4 * context.resources.displayMetrics.density).toInt()
+                    }
+
+            voiceIndicatorView = this
         }
     }
 
@@ -2384,6 +2431,7 @@ constructor(
         emojiSearchInput = null
         cachedCursorDrawable = null
         degradedIndicatorView = null
+        voiceIndicatorView = null
         autofillIndicatorIcon = null
         autofillScrollContainer = null
         autofillScrollContent = null
