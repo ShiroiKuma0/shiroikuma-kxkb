@@ -1,0 +1,1787 @@
+{
+  "locale": "cs",
+  "script": "Latn",
+  "isRTL": false,
+  "showFlickHints": true,
+  "modes": {
+    "letters": {
+      "rows": [
+        [
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "1",
+              "flick": {
+                "up": "⓪",
+                "down": "@",
+                "left": "1ˢᵗ",
+                "right": "①"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "@",
+              "flick": {
+                "up": "⓪",
+                "down": "1",
+                "left": "1ˢᵗ",
+                "right": "①"
+              }
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "2",
+              "flick": {
+                "up": "&",
+                "down": "₂",
+                "left": "2ⁿᵈ",
+                "right": "②"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "&",
+              "flick": {
+                "up": "2",
+                "down": "₂",
+                "left": "2ⁿᵈ",
+                "right": "②"
+              }
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "3",
+              "flick": {
+                "up": "(",
+                "down": "[",
+                "left": "3ʳᵈ",
+                "right": "③"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "(",
+              "flick": {
+                "up": "3",
+                "down": "[",
+                "left": "3ʳᵈ",
+                "right": "③"
+              }
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "4",
+              "flick": {
+                "up": "^",
+                "down": "⇨",
+                "left": "4ᵗʰ",
+                "right": "④"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "^",
+              "flick": {
+                "up": "4",
+                "down": "⇨",
+                "left": "4ᵗʰ",
+                "right": "④"
+              }
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "5",
+              "flick": {
+                "up": "[",
+                "down": "{",
+                "left": "5ᵗʰ",
+                "right": "⑤"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "[",
+              "flick": {
+                "up": "5",
+                "down": "{",
+                "left": "5ᵗʰ",
+                "right": "⑤"
+              }
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "6",
+              "flick": {
+                "up": "]",
+                "down": "}",
+                "left": "6ᵗʰ",
+                "right": "⑥"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "]",
+              "flick": {
+                "up": "6",
+                "down": "}",
+                "left": "6ᵗʰ",
+                "right": "⑥"
+              }
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "7",
+              "flick": {
+                "up": "*",
+                "down": "^",
+                "left": "7ᵗʰ",
+                "right": "⑦"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "*",
+              "flick": {
+                "up": "7",
+                "down": "^",
+                "left": "7ᵗʰ",
+                "right": "⑦"
+              }
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "8",
+              "flick": {
+                "up": ")",
+                "down": "]",
+                "left": "8ᵗʰ",
+                "right": "⑧"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": ")",
+              "flick": {
+                "up": "8",
+                "down": "]",
+                "left": "8ᵗʰ",
+                "right": "⑧"
+              }
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "9",
+              "flick": {
+                "up": "$",
+                "down": {
+                  "action": "undo",
+                  "label": "↶"
+                },
+                "left": "9ᵗʰ",
+                "right": "⑨"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "$",
+              "flick": {
+                "up": "9",
+                "down": {
+                  "action": "undo",
+                  "label": "↶"
+                },
+                "left": "9ᵗʰ",
+                "right": "⑨"
+              }
+            }
+          },
+          {
+            "type": "compass",
+            "char": "0",
+            "flick": {
+              "up": {
+                "action": "reshow",
+                "label": "▴"
+              },
+              "down": {
+                "action": "hide",
+                "label": "▾"
+              },
+              "left": "^"
+            }
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "-",
+            "flick": {
+              "down": "_",
+              "left": "<",
+              "right": ">",
+              "upLeft": "–",
+              "upRight": "—"
+            }
+          },
+          {
+            "type": "compass",
+            "char": "c",
+            "flick": {
+              "up": "C",
+              "right": "č",
+              "upLeft": "ç",
+              "upRight": "Č",
+              "downLeft": "©",
+              "downRight": "℃"
+            },
+            "longPressKeys": [
+              "č",
+              "ç",
+              "ć",
+              "℃",
+              "©",
+              "°",
+              "¢",
+              "Č",
+              "Ç",
+              "Ć"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "m",
+            "flick": {
+              "up": "M",
+              "right": "¯",
+              "upRight": "ʻ"
+            },
+            "longPressKeys": [
+              "µ"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "w",
+            "flick": {
+              "up": "W"
+            },
+            "longPressKeys": [
+              "₩"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "k",
+            "flick": {
+              "up": "K"
+            },
+            "longPressKeys": [
+              "¯"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "q",
+            "flick": {
+              "up": "Q"
+            }
+          },
+          {
+            "type": "compass",
+            "char": "f",
+            "flick": {
+              "up": "F",
+              "right": "℉"
+            },
+            "longPressKeys": [
+              "′",
+              "℉"
+            ],
+            "shifted": {
+              "type": "compass",
+              "char": "F",
+              "flick": {
+                "up": "F",
+                "right": "℉"
+              },
+              "longPressKeys": [
+                "℉",
+                "′"
+              ]
+            }
+          },
+          {
+            "type": "compass",
+            "char": "r",
+            "flick": {
+              "up": "R",
+              "right": "ř",
+              "upLeft": "₽",
+              "upRight": "Ř",
+              "downLeft": "®",
+              "downRight": "ŕ"
+            },
+            "longPressKeys": [
+              "ř",
+              "₽",
+              "®",
+              "√",
+              "Ř"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "l",
+            "flick": {
+              "up": "L",
+              "right": "ľ",
+              "upLeft": "ł",
+              "upRight": "Ľ",
+              "downLeft": "£",
+              "downRight": "ĺ"
+            },
+            "longPressKeys": [
+              "ľ",
+              "ĺ",
+              "ł",
+              "λ",
+              "£",
+              "Ľ",
+              "Ĺ",
+              "Ł"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "'",
+            "flick": {
+              "up": "\"",
+              "down": "%",
+              "left": "+",
+              "right": "=",
+              "upLeft": "´",
+              "upRight": "ˇ",
+              "downLeft": "¯",
+              "downRight": "¨"
+            }
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "i",
+            "flick": {
+              "up": "I",
+              "right": "í",
+              "upLeft": "Ī",
+              "upRight": "Í",
+              "downLeft": "ī",
+              "downRight": "ï"
+            },
+            "longPressKeys": [
+              "í",
+              "ī",
+              "ï",
+              "″",
+              "Í",
+              "Ī",
+              "Ï"
+            ],
+            "shifted": {
+              "type": "compass",
+              "char": "I",
+              "flick": {
+                "up": "I",
+                "right": "Í",
+                "upLeft": "Ī",
+                "upRight": "Í",
+                "downLeft": "Ī",
+                "downRight": "Ï"
+              },
+              "longPressKeys": [
+                "Í",
+                "Ī",
+                "Ï",
+                "″"
+              ]
+            }
+          },
+          {
+            "type": "compass",
+            "char": "o",
+            "flick": {
+              "up": "O",
+              "right": "ó",
+              "upLeft": "Ō",
+              "upRight": "Ó",
+              "downLeft": "ō",
+              "downRight": "ö"
+            },
+            "longPressKeys": [
+              "ó",
+              "ö",
+              "ō",
+              "ő",
+              "ø",
+              "ǿ",
+              "Ó",
+              "Ö",
+              "Ō",
+              "Ő",
+              "Ø",
+              "Ǿ"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "a",
+            "flick": {
+              "up": "A",
+              "right": "á",
+              "upLeft": "Ā",
+              "upRight": "Á",
+              "downLeft": "ā",
+              "downRight": "ä"
+            },
+            "longPressKeys": [
+              "á",
+              "ä",
+              "ā",
+              "æ",
+              "α",
+              "ą",
+              "å",
+              "&",
+              "@",
+              "Á",
+              "Ä",
+              "Ā",
+              "Æ",
+              "Ą",
+              "Å"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "e",
+            "flick": {
+              "up": "E",
+              "right": "é",
+              "upLeft": "Ě",
+              "upRight": "É",
+              "downLeft": "ē",
+              "downRight": "ě"
+            },
+            "longPressKeys": [
+              "é",
+              "ě",
+              "ē",
+              "ę",
+              "€",
+              "É",
+              "Ě",
+              "Ē",
+              "Ę"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "v",
+            "flick": {
+              "up": "V"
+            }
+          },
+          {
+            "type": "compass",
+            "char": "b",
+            "flick": {
+              "up": "B",
+              "right": "β",
+              "upLeft": "α"
+            },
+            "longPressKeys": [
+              "β"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "t",
+            "flick": {
+              "up": "T",
+              "right": "ť",
+              "upRight": "Ť"
+            },
+            "longPressKeys": [
+              "ť",
+              "þ",
+              "Ť",
+              "Þ"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "n",
+            "flick": {
+              "up": "N",
+              "right": "ň",
+              "upRight": "Ň"
+            },
+            "longPressKeys": [
+              "ň",
+              "ń",
+              "ñ",
+              "Ň",
+              "Ń",
+              "Ñ"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "s",
+            "flick": {
+              "up": "S",
+              "right": "š",
+              "upRight": "Š"
+            },
+            "longPressKeys": [
+              "š",
+              "ß",
+              "ś",
+              "σ",
+              "/",
+              "∑",
+              "∫",
+              "~",
+              "Š",
+              "Ś"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "h",
+            "flick": {
+              "up": "H"
+            }
+          }
+        ],
+        [
+          {
+            "type": "cluster",
+            "cluster": ";.:",
+            "char": ".",
+            "flick": {
+              "left": ";",
+              "right": ":",
+              "up": "…"
+            }
+          },
+          {
+            "type": "compass",
+            "char": "x",
+            "flick": {
+              "up": "X"
+            },
+            "longPressKeys": [
+              "×"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "p",
+            "flick": {
+              "up": "P"
+            },
+            "longPressKeys": [
+              "π",
+              "%",
+              "#",
+              "§",
+              "$"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "u",
+            "flick": {
+              "up": "U",
+              "right": "ú",
+              "upLeft": "ü",
+              "upRight": "Ú",
+              "downLeft": "ū",
+              "downRight": "ů"
+            },
+            "longPressKeys": [
+              "ú",
+              "ů",
+              "ü",
+              "ū",
+              "ű",
+              "Ú",
+              "Ů",
+              "Ü",
+              "Ū",
+              "Ű"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "z",
+            "flick": {
+              "up": "Z",
+              "right": "ž",
+              "upRight": "Ž"
+            },
+            "longPressKeys": [
+              "ž",
+              "ź",
+              "ż",
+              "〇",
+              "Ž",
+              "Ź",
+              "Ż"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "g",
+            "flick": {
+              "up": "G"
+            },
+            "longPressKeys": [
+              "ğ",
+              "γ",
+              "Ğ"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "d",
+            "flick": {
+              "up": "D",
+              "right": "ď",
+              "upLeft": "$",
+              "upRight": "Ď",
+              "downLeft": "Đ",
+              "downRight": "đ"
+            },
+            "longPressKeys": [
+              "ď",
+              "δ",
+              "đ",
+              "ð",
+              "$",
+              "°",
+              "Ď",
+              "Đ",
+              "Ð"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "y",
+            "flick": {
+              "up": "Y",
+              "right": "ý",
+              "upRight": "Ý"
+            },
+            "longPressKeys": [
+              "ý",
+              "¥",
+              "Ý"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "j",
+            "flick": {
+              "up": "J",
+              "downLeft": "„",
+              "downRight": "“"
+            }
+          },
+          {
+            "type": "compass",
+            "char": "/",
+            "flick": {
+              "up": "|",
+              "right": "\\"
+            }
+          }
+        ],
+        [
+          {
+            "type": "action",
+            "action": "shift",
+            "attributes": {
+              "style": "Functional",
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "space",
+            "attributes": {
+              "style": "Spacebar",
+              "widthClass": "Custom1"
+            },
+            "width": 2.0
+          },
+          {
+            "type": "cluster",
+            "cluster": ";.:",
+            "char": ".",
+            "flick": {
+              "left": ";",
+              "right": ":",
+              "up": "…"
+            },
+            "width": 2.0,
+            "attributes": {
+              "style": "Functional"
+            }
+          },
+          {
+            "type": "cluster",
+            "cluster": "?,!",
+            "char": ",",
+            "flick": {
+              "left": "?",
+              "right": "!",
+              "up": "…"
+            },
+            "width": 2.0,
+            "attributes": {
+              "style": "Functional"
+            }
+          },
+          {
+            "type": "compass",
+            "char": "⇥",
+            "flick": {
+              "center": {
+                "action": "tab",
+                "label": "⇥"
+              },
+              "up": {
+                "layer": "alt1",
+                "label": "altGr"
+              },
+              "down": {
+                "layer": "alt0",
+                "label": "sym"
+              },
+              "right": {
+                "layer": "alt3",
+                "label": "Num"
+              }
+            },
+            "attributes": {
+              "style": "Functional"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "backspace",
+            "attributes": {
+              "style": "Functional",
+              "widthClass": "Custom3",
+              "repeatableEnabled": true
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "enter",
+            "attributes": {
+              "style": "Action",
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "space",
+            "attributes": {
+              "style": "Spacebar",
+              "widthClass": "Custom1"
+            },
+            "width": 2.0
+          },
+          {
+            "type": "compass",
+            "char": "🎙",
+            "flick": {
+              "center": {
+                "action": "voice",
+                "label": "🎙"
+              }
+            },
+            "attributes": {
+              "style": "Functional",
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          }
+        ]
+      ]
+    },
+    "numbers": {
+      "rows": [
+        [
+          {
+            "type": "compass",
+            "char": "@"
+          },
+          {
+            "type": "compass",
+            "char": "_"
+          },
+          {
+            "type": "compass",
+            "char": "-"
+          },
+          {
+            "type": "compass",
+            "char": "<"
+          },
+          {
+            "type": "compass",
+            "char": ">"
+          },
+          {
+            "type": "compass",
+            "char": "&"
+          },
+          {
+            "type": "compass",
+            "char": "$"
+          },
+          {
+            "type": "compass",
+            "char": "€"
+          },
+          {
+            "type": "compass",
+            "char": "%"
+          },
+          {
+            "type": "compass",
+            "char": "‰"
+          },
+          {
+            "type": "compass",
+            "char": "‱"
+          }
+        ],
+        [
+          {
+            "type": "macro",
+            "text": "–"
+          },
+          {
+            "type": "macro",
+            "text": "—"
+          },
+          {
+            "type": "macro",
+            "text": "-"
+          },
+          {
+            "type": "macro",
+            "text": "‐"
+          },
+          {
+            "type": "macro",
+            "text": "‒"
+          },
+          {
+            "type": "macro",
+            "text": "−"
+          },
+          {
+            "type": "macro",
+            "text": "―"
+          },
+          {
+            "type": "macro",
+            "text": "⁓"
+          },
+          {
+            "type": "macro",
+            "text": "⸺"
+          },
+          {
+            "type": "macro",
+            "text": "⸻"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "⒈"
+          },
+          {
+            "type": "compass",
+            "char": "⒉"
+          },
+          {
+            "type": "compass",
+            "char": "⒊"
+          },
+          {
+            "type": "compass",
+            "char": "⒋"
+          },
+          {
+            "type": "compass",
+            "char": "⒌"
+          },
+          {
+            "type": "compass",
+            "char": "⒍"
+          },
+          {
+            "type": "compass",
+            "char": "⒎"
+          },
+          {
+            "type": "compass",
+            "char": "⒏"
+          },
+          {
+            "type": "compass",
+            "char": "⒐"
+          },
+          {
+            "type": "compass",
+            "char": "⒑"
+          },
+          {
+            "type": "macro",
+            "text": "🄀"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "⒒"
+          },
+          {
+            "type": "compass",
+            "char": "⒓"
+          },
+          {
+            "type": "compass",
+            "char": "⒔"
+          },
+          {
+            "type": "compass",
+            "char": "⒕"
+          },
+          {
+            "type": "compass",
+            "char": "⒖"
+          },
+          {
+            "type": "compass",
+            "char": "⒗"
+          },
+          {
+            "type": "compass",
+            "char": "⒘"
+          },
+          {
+            "type": "compass",
+            "char": "⒙"
+          },
+          {
+            "type": "compass",
+            "char": "⒚"
+          },
+          {
+            "type": "compass",
+            "char": "⒛"
+          },
+          {
+            "type": "compass",
+            "char": "〇"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "„"
+          },
+          {
+            "type": "compass",
+            "char": "“"
+          },
+          {
+            "type": "macro",
+            "text": "′"
+          },
+          {
+            "type": "compass",
+            "char": "‚"
+          },
+          {
+            "type": "compass",
+            "char": "‘"
+          },
+          {
+            "type": "compass",
+            "char": "»"
+          },
+          {
+            "type": "compass",
+            "char": "«"
+          },
+          {
+            "type": "macro",
+            "text": "″"
+          },
+          {
+            "type": "compass",
+            "char": "‘"
+          },
+          {
+            "type": "compass",
+            "char": "’"
+          },
+          {
+            "type": "macro",
+            "text": "〃"
+          },
+          {
+            "type": "macro",
+            "text": "’"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "≅"
+          },
+          {
+            "type": "compass",
+            "char": "≈"
+          },
+          {
+            "type": "compass",
+            "char": "→"
+          },
+          {
+            "type": "compass",
+            "char": "⇒"
+          },
+          {
+            "type": "compass",
+            "char": "⇨"
+          },
+          {
+            "type": "compass",
+            "char": "="
+          },
+          {
+            "type": "compass",
+            "char": "+"
+          },
+          {
+            "type": "compass",
+            "char": "*"
+          },
+          {
+            "type": "compass",
+            "char": "'"
+          },
+          {
+            "type": "compass",
+            "char": "\""
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "|"
+          },
+          {
+            "type": "compass",
+            "char": "\\"
+          },
+          {
+            "type": "compass",
+            "char": "&"
+          },
+          {
+            "type": "compass",
+            "char": ":"
+          },
+          {
+            "type": "compass",
+            "char": ";"
+          },
+          {
+            "type": "compass",
+            "char": "?"
+          },
+          {
+            "type": "compass",
+            "char": "⅔"
+          },
+          {
+            "type": "compass",
+            "char": "🎙",
+            "flick": {
+              "center": {
+                "action": "voice",
+                "label": "🎙"
+              }
+            }
+          },
+          {
+            "type": "compass",
+            "char": "#"
+          },
+          {
+            "type": "compass",
+            "char": "/"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "← ABC",
+            "flick": {
+              "center": {
+                "layer": "alpha0",
+                "label": "← ABC"
+              }
+            },
+            "attributes": {
+              "style": "Functional",
+              "widthClass": "Custom3",
+              "showPopup": false
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "space",
+            "attributes": {
+              "style": "Spacebar",
+              "widthClass": "Custom1"
+            },
+            "width": 2.0
+          },
+          {
+            "type": "cluster",
+            "cluster": ";.:",
+            "char": ".",
+            "flick": {
+              "left": ";",
+              "right": ":",
+              "up": "…"
+            },
+            "width": 2.0,
+            "attributes": {
+              "style": "Functional"
+            }
+          },
+          {
+            "type": "cluster",
+            "cluster": "?,!",
+            "char": ",",
+            "flick": {
+              "left": "?",
+              "right": "!",
+              "up": "…"
+            },
+            "width": 2.0,
+            "attributes": {
+              "style": "Functional"
+            }
+          },
+          {
+            "type": "compass",
+            "char": "⇥",
+            "flick": {
+              "center": {
+                "action": "tab",
+                "label": "⇥"
+              },
+              "up": {
+                "layer": "alt1",
+                "label": "altGr"
+              },
+              "down": {
+                "layer": "alt0",
+                "label": "sym"
+              }
+            },
+            "attributes": {
+              "style": "Functional"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "backspace",
+            "attributes": {
+              "style": "Functional",
+              "widthClass": "Custom3",
+              "repeatableEnabled": true
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "enter",
+            "attributes": {
+              "style": "Action",
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "space",
+            "attributes": {
+              "style": "Spacebar",
+              "widthClass": "Custom1"
+            },
+            "width": 2.0
+          },
+          {
+            "type": "action",
+            "action": "shift",
+            "attributes": {
+              "style": "Functional",
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          }
+        ]
+      ]
+    },
+    "symbols": {
+      "rows": [
+        [
+          {
+            "type": "compass",
+            "char": "①"
+          },
+          {
+            "type": "compass",
+            "char": "②"
+          },
+          {
+            "type": "compass",
+            "char": "③"
+          },
+          {
+            "type": "compass",
+            "char": "④"
+          },
+          {
+            "type": "compass",
+            "char": "⑤"
+          },
+          {
+            "type": "compass",
+            "char": "⑥"
+          },
+          {
+            "type": "compass",
+            "char": "⑦"
+          },
+          {
+            "type": "compass",
+            "char": "⑧"
+          },
+          {
+            "type": "compass",
+            "char": "⑨"
+          },
+          {
+            "type": "compass",
+            "char": "⑩"
+          },
+          {
+            "type": "compass",
+            "char": "⓪"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "¹"
+          },
+          {
+            "type": "compass",
+            "char": "²"
+          },
+          {
+            "type": "compass",
+            "char": "³"
+          },
+          {
+            "type": "compass",
+            "char": "⁴"
+          },
+          {
+            "type": "compass",
+            "char": "⁵"
+          },
+          {
+            "type": "compass",
+            "char": "⁶"
+          },
+          {
+            "type": "compass",
+            "char": "⁷"
+          },
+          {
+            "type": "compass",
+            "char": "⁸"
+          },
+          {
+            "type": "compass",
+            "char": "⁹"
+          },
+          {
+            "type": "compass",
+            "char": "⁰"
+          },
+          {
+            "type": "compass",
+            "char": "⁻"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "₁"
+          },
+          {
+            "type": "compass",
+            "char": "₂"
+          },
+          {
+            "type": "compass",
+            "char": "₃"
+          },
+          {
+            "type": "compass",
+            "char": "₄"
+          },
+          {
+            "type": "compass",
+            "char": "₅"
+          },
+          {
+            "type": "compass",
+            "char": "₆"
+          },
+          {
+            "type": "compass",
+            "char": "₇"
+          },
+          {
+            "type": "compass",
+            "char": "₈"
+          },
+          {
+            "type": "compass",
+            "char": "₉"
+          },
+          {
+            "type": "compass",
+            "char": "₀"
+          },
+          {
+            "type": "compass",
+            "char": "₋"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "⁄"
+          },
+          {
+            "type": "compass",
+            "char": "⅟"
+          },
+          {
+            "type": "compass",
+            "char": "½"
+          },
+          {
+            "type": "compass",
+            "char": "⅓"
+          },
+          {
+            "type": "compass",
+            "char": "⅔"
+          },
+          {
+            "type": "compass",
+            "char": "¼"
+          },
+          {
+            "type": "compass",
+            "char": "¾"
+          },
+          {
+            "type": "compass",
+            "char": "⅕"
+          },
+          {
+            "type": "compass",
+            "char": "⅖"
+          },
+          {
+            "type": "compass",
+            "char": "⅗"
+          },
+          {
+            "type": "compass",
+            "char": "⅘"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "⅙"
+          },
+          {
+            "type": "compass",
+            "char": "⅚"
+          },
+          {
+            "type": "compass",
+            "char": "⅐"
+          },
+          {
+            "type": "compass",
+            "char": "⅛"
+          },
+          {
+            "type": "compass",
+            "char": "⅜"
+          },
+          {
+            "type": "compass",
+            "char": "⅝"
+          },
+          {
+            "type": "compass",
+            "char": "⅞"
+          },
+          {
+            "type": "compass",
+            "char": "⅑"
+          },
+          {
+            "type": "compass",
+            "char": "⅒"
+          },
+          {
+            "type": "compass",
+            "char": "↉"
+          },
+          {
+            "type": "compass",
+            "char": "〇"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "⑪"
+          },
+          {
+            "type": "compass",
+            "char": "⑫"
+          },
+          {
+            "type": "compass",
+            "char": "⑬"
+          },
+          {
+            "type": "compass",
+            "char": "⑭"
+          },
+          {
+            "type": "compass",
+            "char": "⑮"
+          },
+          {
+            "type": "compass",
+            "char": "⑯"
+          },
+          {
+            "type": "compass",
+            "char": "⑰"
+          },
+          {
+            "type": "compass",
+            "char": "⑱"
+          },
+          {
+            "type": "compass",
+            "char": "⑲"
+          },
+          {
+            "type": "compass",
+            "char": "⑳"
+          },
+          {
+            "type": "compass",
+            "char": "€"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "㉑"
+          },
+          {
+            "type": "compass",
+            "char": "㉒"
+          },
+          {
+            "type": "compass",
+            "char": "㉓"
+          },
+          {
+            "type": "compass",
+            "char": "㉔"
+          },
+          {
+            "type": "compass",
+            "char": "㉕"
+          },
+          {
+            "type": "compass",
+            "char": "㉖"
+          },
+          {
+            "type": "compass",
+            "char": "㉗"
+          },
+          {
+            "type": "compass",
+            "char": "㉘"
+          },
+          {
+            "type": "compass",
+            "char": "㉙"
+          },
+          {
+            "type": "compass",
+            "char": "㉚"
+          },
+          {
+            "type": "compass",
+            "char": "¥"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "㉛"
+          },
+          {
+            "type": "compass",
+            "char": "㉜"
+          },
+          {
+            "type": "compass",
+            "char": "㉝"
+          },
+          {
+            "type": "compass",
+            "char": "㉞"
+          },
+          {
+            "type": "compass",
+            "char": "㉟"
+          },
+          {
+            "type": "compass",
+            "char": "㊱"
+          },
+          {
+            "type": "compass",
+            "char": "㊲"
+          },
+          {
+            "type": "compass",
+            "char": "㊳"
+          },
+          {
+            "type": "compass",
+            "char": "㊴"
+          },
+          {
+            "type": "compass",
+            "char": "㊵"
+          },
+          {
+            "type": "compass",
+            "char": "$"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "← ABC",
+            "flick": {
+              "center": {
+                "layer": "alpha0",
+                "label": "← ABC"
+              }
+            },
+            "attributes": {
+              "style": "Functional",
+              "widthClass": "Custom3",
+              "showPopup": false
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "space",
+            "attributes": {
+              "style": "Spacebar",
+              "widthClass": "Custom1"
+            },
+            "width": 2.0
+          },
+          {
+            "type": "cluster",
+            "cluster": ";.:",
+            "char": ".",
+            "flick": {
+              "left": ";",
+              "right": ":",
+              "up": "…"
+            },
+            "width": 2.0,
+            "attributes": {
+              "style": "Functional"
+            }
+          },
+          {
+            "type": "cluster",
+            "cluster": "?,!",
+            "char": ",",
+            "flick": {
+              "left": "?",
+              "right": "!",
+              "up": "…"
+            },
+            "width": 2.0,
+            "attributes": {
+              "style": "Functional"
+            }
+          },
+          {
+            "type": "compass",
+            "char": "⇥",
+            "flick": {
+              "center": {
+                "action": "tab",
+                "label": "⇥"
+              },
+              "up": {
+                "layer": "alt1",
+                "label": "altGr"
+              },
+              "down": {
+                "layer": "alt0",
+                "label": "sym"
+              }
+            },
+            "attributes": {
+              "style": "Functional"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "backspace",
+            "attributes": {
+              "style": "Functional",
+              "widthClass": "Custom3",
+              "repeatableEnabled": true
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "enter",
+            "attributes": {
+              "style": "Action",
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "space",
+            "attributes": {
+              "style": "Spacebar",
+              "widthClass": "Custom1"
+            },
+            "width": 2.0
+          },
+          {
+            "type": "action",
+            "action": "shift",
+            "attributes": {
+              "style": "Functional",
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          }
+        ]
+      ]
+    }
+  },
+  "numberRowMode": "AlwaysDisabled",
+  "overrideWidths": {
+    "Custom1": 0.2,
+    "Custom2": 0.25,
+    "Custom3": 0.0857143
+  },
+  "name": "kxkb cs 5r10c"
+}

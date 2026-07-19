@@ -1,0 +1,1860 @@
+{
+  "locale": "cs",
+  "script": "Latn",
+  "isRTL": false,
+  "showFlickHints": true,
+  "modes": {
+    "letters": {
+      "rows": [
+        [
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "1",
+              "flick": {
+                "up": "@"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "@",
+              "flick": {
+                "up": "1"
+              }
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "2",
+              "flick": {
+                "up": "ů"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "ů",
+              "flick": {
+                "up": "2"
+              }
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "3",
+              "flick": {
+                "up": "(",
+                "down": "["
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "(",
+              "flick": {
+                "up": "3",
+                "down": "["
+              }
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "4",
+              "flick": {
+                "up": "\""
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "\"",
+              "flick": {
+                "up": "4"
+              }
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "5",
+              "flick": {
+                "up": "*"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "*",
+              "flick": {
+                "up": "5"
+              }
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "6",
+              "flick": {
+                "up": "0"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "0",
+              "flick": {
+                "up": "6"
+              }
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "7",
+              "flick": {
+                "up": ")",
+                "down": "]"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": ")",
+              "flick": {
+                "up": "7",
+                "down": "]"
+              }
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "8",
+              "flick": {
+                "up": "´",
+                "down": "ˇ"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "´"
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "9",
+              "flick": {
+                "up": {
+                  "action": "undo",
+                  "label": "↶"
+                },
+                "down": {
+                  "action": "redo",
+                  "label": "↷"
+                }
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "ˇ",
+              "flick": {
+                "up": {
+                  "action": "undo",
+                  "label": "↶"
+                },
+                "down": {
+                  "action": "redo",
+                  "label": "↷"
+                }
+              }
+            }
+          },
+          {
+            "type": "compass",
+            "char": "’",
+            "flick": {
+              "up": "\"",
+              "down": "'",
+              "left": "´",
+              "right": "ˇ",
+              "upLeft": "¯",
+              "upRight": "¨",
+              "downLeft": "˚",
+              "downRight": "+"
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "0",
+              "flick": {
+                "up": {
+                  "action": "reshow",
+                  "label": "▴"
+                },
+                "down": {
+                  "action": "hide",
+                  "label": "▾"
+                }
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "'",
+              "flick": {
+                "up": {
+                  "action": "reshow",
+                  "label": "▴"
+                },
+                "down": {
+                  "action": "hide",
+                  "label": "▾"
+                }
+              }
+            }
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "Esc",
+            "flick": {
+              "center": {
+                "action": "escape",
+                "label": "Esc"
+              },
+              "up": {
+                "layer": "alt1",
+                "label": "altGr"
+              }
+            },
+            "width": 1.0
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "cluster",
+              "cluster": "-qw",
+              "char": "q",
+              "flick": {
+                "left": "-",
+                "right": "w",
+                "up": "'",
+                "down": "…"
+              },
+              "attributes": {
+                "widthClass": "Custom3"
+              },
+              "width": 2.0
+            },
+            "shifted": {
+              "type": "cluster",
+              "cluster": "-QW",
+              "char": "Q",
+              "flick": {
+                "left": "-",
+                "right": "W",
+                "up": "'",
+                "down": "…"
+              },
+              "attributes": {
+                "widthClass": "Custom3"
+              },
+              "width": 2.0
+            },
+            "width": 1.0
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "cluster",
+              "cluster": "ert",
+              "char": "r",
+              "flick": {
+                "left": "e",
+                "right": "t",
+                "up": "8"
+              },
+              "attributes": {
+                "widthClass": "Custom3"
+              },
+              "width": 2.0
+            },
+            "shifted": {
+              "type": "cluster",
+              "cluster": "ERT",
+              "char": "R",
+              "flick": {
+                "left": "E",
+                "right": "T",
+                "up": "8"
+              },
+              "attributes": {
+                "widthClass": "Custom3"
+              },
+              "width": 2.0
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "(",
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "↑",
+            "flick": {
+              "center": {
+                "action": "arrow_up",
+                "label": "↑"
+              }
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": ")",
+            "width": 1.0
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "cluster",
+              "cluster": "zui",
+              "char": "u",
+              "flick": {
+                "left": "z",
+                "right": "i",
+                "up": {
+                  "action": "undo",
+                  "label": "↶"
+                },
+                "down": {
+                  "action": "redo",
+                  "label": "↷"
+                }
+              },
+              "attributes": {
+                "widthClass": "Custom3"
+              },
+              "width": 2.0
+            },
+            "shifted": {
+              "type": "cluster",
+              "cluster": "ZUI",
+              "char": "U",
+              "flick": {
+                "left": "Z",
+                "right": "I",
+                "up": {
+                  "action": "undo",
+                  "label": "↶"
+                },
+                "down": {
+                  "action": "redo",
+                  "label": "↷"
+                }
+              },
+              "attributes": {
+                "widthClass": "Custom3"
+              },
+              "width": 2.0
+            },
+            "width": 1.0
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "cluster",
+              "cluster": "op_",
+              "char": "p",
+              "flick": {
+                "left": "o",
+                "right": "_",
+                "up": "〇",
+                "down": {
+                  "action": "hide",
+                  "label": "▾"
+                },
+                "upLeft": "¯",
+                "upRight": "¨",
+                "downLeft": "˚"
+              },
+              "attributes": {
+                "widthClass": "Custom3"
+              },
+              "width": 2.0
+            },
+            "shifted": {
+              "type": "cluster",
+              "cluster": "OP_",
+              "char": "P",
+              "flick": {
+                "left": "O",
+                "right": "_",
+                "up": "〇",
+                "down": {
+                  "action": "hide",
+                  "label": "▾"
+                },
+                "upLeft": "¯",
+                "upRight": "¨",
+                "downLeft": "˚"
+              },
+              "attributes": {
+                "widthClass": "Custom3"
+              },
+              "width": 2.0
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "!",
+            "width": 1.0
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "Ctrl",
+            "flick": {
+              "center": {
+                "action": "ctrl",
+                "label": "Ctrl"
+              },
+              "up": {
+                "layer": "alt0",
+                "label": "sym"
+              },
+              "down": {
+                "layer": "alt3",
+                "label": "Num"
+              }
+            },
+            "width": 1.0
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "cluster",
+              "cluster": ";as",
+              "char": "a",
+              "flick": {
+                "left": ";",
+                "right": "s",
+                "up": "3",
+                "down": {
+                  "action": "cut",
+                  "label": "✂"
+                }
+              },
+              "attributes": {
+                "widthClass": "Custom3"
+              },
+              "width": 2.0
+            },
+            "shifted": {
+              "type": "cluster",
+              "cluster": ";AS",
+              "char": "A",
+              "flick": {
+                "left": ";",
+                "right": "S",
+                "up": "3",
+                "down": {
+                  "action": "cut",
+                  "label": "✂"
+                }
+              },
+              "attributes": {
+                "widthClass": "Custom3"
+              },
+              "width": 2.0
+            },
+            "width": 1.0
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "cluster",
+              "cluster": "dfg",
+              "char": "f",
+              "flick": {
+                "left": "d",
+                "right": "g",
+                "up": "4",
+                "down": {
+                  "action": "paste",
+                  "label": "⎘"
+                }
+              },
+              "attributes": {
+                "widthClass": "Custom3"
+              },
+              "width": 2.0
+            },
+            "shifted": {
+              "type": "cluster",
+              "cluster": "DFG",
+              "char": "F",
+              "flick": {
+                "left": "D",
+                "right": "G",
+                "up": "4",
+                "down": {
+                  "action": "paste",
+                  "label": "⎘"
+                }
+              },
+              "attributes": {
+                "widthClass": "Custom3"
+              },
+              "width": 2.0
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "←",
+            "flick": {
+              "center": {
+                "action": "arrow_left",
+                "label": "←"
+              }
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": ":",
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "→",
+            "flick": {
+              "center": {
+                "action": "arrow_right",
+                "label": "→"
+              }
+            },
+            "width": 1.0
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "cluster",
+              "cluster": "hjk",
+              "char": "j",
+              "flick": {
+                "left": "h",
+                "right": "k",
+                "up": "5",
+                "down": {
+                  "action": "copy",
+                  "label": "⧉"
+                }
+              },
+              "attributes": {
+                "widthClass": "Custom3"
+              },
+              "width": 2.0
+            },
+            "shifted": {
+              "type": "cluster",
+              "cluster": "HJK",
+              "char": "J",
+              "flick": {
+                "left": "H",
+                "right": "K",
+                "up": "5",
+                "down": {
+                  "action": "copy",
+                  "label": "⧉"
+                }
+              },
+              "attributes": {
+                "widthClass": "Custom3"
+              },
+              "width": 2.0
+            },
+            "width": 1.0
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "cluster",
+              "cluster": "?l!",
+              "char": "l",
+              "flick": {
+                "left": "?",
+                "right": "!",
+                "up": "6",
+                "down": {
+                  "action": "tab",
+                  "label": "⇥"
+                }
+              },
+              "attributes": {
+                "widthClass": "Custom3"
+              },
+              "width": 2.0
+            },
+            "shifted": {
+              "type": "cluster",
+              "cluster": "?L!",
+              "char": "L",
+              "flick": {
+                "left": "?",
+                "right": "!",
+                "up": "6",
+                "down": {
+                  "action": "tab",
+                  "label": "⇥"
+                }
+              },
+              "attributes": {
+                "widthClass": "Custom3"
+              },
+              "width": 2.0
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "?",
+            "width": 1.0
+          }
+        ],
+        [
+          {
+            "type": "action",
+            "action": "settings",
+            "width": 1.0
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "cluster",
+              "cluster": "yx:",
+              "char": "x",
+              "flick": {
+                "left": "y",
+                "right": ":",
+                "up": "…"
+              },
+              "attributes": {
+                "widthClass": "Custom3"
+              },
+              "width": 2.0
+            },
+            "shifted": {
+              "type": "cluster",
+              "cluster": "YX:",
+              "char": "X",
+              "flick": {
+                "left": "Y",
+                "right": ":",
+                "up": "…"
+              },
+              "attributes": {
+                "widthClass": "Custom3"
+              },
+              "width": 2.0
+            },
+            "width": 1.0
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "cluster",
+              "cluster": "cvb",
+              "char": "v",
+              "flick": {
+                "left": "c",
+                "right": "b",
+                "up": "ů",
+                "down": ";"
+              },
+              "attributes": {
+                "widthClass": "Custom3"
+              },
+              "width": 2.0
+            },
+            "shifted": {
+              "type": "cluster",
+              "cluster": "CVB",
+              "char": "V",
+              "flick": {
+                "left": "C",
+                "right": "B",
+                "up": "Ů",
+                "down": ";"
+              },
+              "attributes": {
+                "widthClass": "Custom3"
+              },
+              "width": 2.0
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "„",
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "↓",
+            "flick": {
+              "center": {
+                "action": "arrow_down",
+                "label": "↓"
+              }
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "“",
+            "width": 1.0
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "cluster",
+              "cluster": "nm,",
+              "char": "m",
+              "flick": {
+                "left": "n",
+                "right": ",",
+                "up": "2",
+                "down": ":"
+              },
+              "attributes": {
+                "widthClass": "Custom3"
+              },
+              "width": 2.0
+            },
+            "shifted": {
+              "type": "cluster",
+              "cluster": "NM,",
+              "char": "M",
+              "flick": {
+                "left": "N",
+                "right": ",",
+                "up": "2",
+                "down": ":"
+              },
+              "attributes": {
+                "widthClass": "Custom3"
+              },
+              "width": 2.0
+            },
+            "width": 1.0
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "cluster",
+              "cluster": "„.“",
+              "char": ".",
+              "flick": {
+                "left": "„",
+                "right": "“",
+                "up": "-",
+                "down": "—"
+              },
+              "attributes": {
+                "widthClass": "Custom3"
+              },
+              "width": 2.0
+            },
+            "shifted": {
+              "type": "cluster",
+              "cluster": "„.“",
+              "char": ".",
+              "flick": {
+                "left": "„",
+                "right": "“",
+                "up": "-",
+                "down": "—"
+              },
+              "attributes": {
+                "widthClass": "Custom3"
+              },
+              "width": 2.0
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "backspace",
+            "width": 1.0
+          }
+        ],
+        [
+          {
+            "type": "action",
+            "action": "shift",
+            "attributes": {
+              "style": "Functional",
+              "widthClass": "Custom2"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "space",
+            "attributes": {
+              "style": "Spacebar",
+              "widthClass": "Custom1"
+            },
+            "width": 2.0
+          },
+          {
+            "type": "cluster",
+            "cluster": ";.:",
+            "char": ".",
+            "flick": {
+              "left": ";",
+              "right": ":",
+              "up": "…"
+            },
+            "width": 2.0,
+            "attributes": {
+              "style": "Functional"
+            }
+          },
+          {
+            "type": "cluster",
+            "cluster": "?,!",
+            "char": ",",
+            "flick": {
+              "left": "?",
+              "right": "!",
+              "up": "…"
+            },
+            "width": 2.0,
+            "attributes": {
+              "style": "Functional"
+            }
+          },
+          {
+            "type": "compass",
+            "char": "⇥",
+            "flick": {
+              "center": {
+                "action": "tab",
+                "label": "⇥"
+              },
+              "up": {
+                "layer": "alt1",
+                "label": "altGr"
+              }
+            },
+            "attributes": {
+              "style": "Functional"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "backspace",
+            "attributes": {
+              "style": "Functional",
+              "widthClass": "Custom2",
+              "repeatableEnabled": true
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "enter",
+            "attributes": {
+              "style": "Action",
+              "widthClass": "Custom2"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "space",
+            "attributes": {
+              "style": "Spacebar",
+              "widthClass": "Custom1"
+            },
+            "width": 2.0
+          },
+          {
+            "type": "compass",
+            "char": "🎙",
+            "flick": {
+              "center": {
+                "action": "voice",
+                "label": "🎙"
+              }
+            },
+            "attributes": {
+              "style": "Functional",
+              "widthClass": "Custom2"
+            },
+            "width": 1.0
+          }
+        ]
+      ]
+    },
+    "numbers": {
+      "rows": [
+        [
+          {
+            "type": "compass",
+            "char": "@"
+          },
+          {
+            "type": "compass",
+            "char": "_"
+          },
+          {
+            "type": "compass",
+            "char": "-"
+          },
+          {
+            "type": "compass",
+            "char": "<"
+          },
+          {
+            "type": "compass",
+            "char": ">"
+          },
+          {
+            "type": "compass",
+            "char": "&"
+          },
+          {
+            "type": "compass",
+            "char": "$"
+          },
+          {
+            "type": "compass",
+            "char": "€"
+          },
+          {
+            "type": "compass",
+            "char": "%"
+          },
+          {
+            "type": "compass",
+            "char": "‰"
+          },
+          {
+            "type": "compass",
+            "char": "‱"
+          }
+        ],
+        [
+          {
+            "type": "macro",
+            "text": "–"
+          },
+          {
+            "type": "macro",
+            "text": "—"
+          },
+          {
+            "type": "macro",
+            "text": "-"
+          },
+          {
+            "type": "macro",
+            "text": "‐"
+          },
+          {
+            "type": "macro",
+            "text": "‒"
+          },
+          {
+            "type": "macro",
+            "text": "−"
+          },
+          {
+            "type": "macro",
+            "text": "―"
+          },
+          {
+            "type": "macro",
+            "text": "⁓"
+          },
+          {
+            "type": "macro",
+            "text": "⸺"
+          },
+          {
+            "type": "macro",
+            "text": "⸻"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "⒈"
+          },
+          {
+            "type": "compass",
+            "char": "⒉"
+          },
+          {
+            "type": "compass",
+            "char": "⒊"
+          },
+          {
+            "type": "compass",
+            "char": "⒋"
+          },
+          {
+            "type": "compass",
+            "char": "⒌"
+          },
+          {
+            "type": "compass",
+            "char": "⒍"
+          },
+          {
+            "type": "compass",
+            "char": "⒎"
+          },
+          {
+            "type": "compass",
+            "char": "⒏"
+          },
+          {
+            "type": "compass",
+            "char": "⒐"
+          },
+          {
+            "type": "compass",
+            "char": "⒑"
+          },
+          {
+            "type": "macro",
+            "text": "🄀"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "⒒"
+          },
+          {
+            "type": "compass",
+            "char": "⒓"
+          },
+          {
+            "type": "compass",
+            "char": "⒔"
+          },
+          {
+            "type": "compass",
+            "char": "⒕"
+          },
+          {
+            "type": "compass",
+            "char": "⒖"
+          },
+          {
+            "type": "compass",
+            "char": "⒗"
+          },
+          {
+            "type": "compass",
+            "char": "⒘"
+          },
+          {
+            "type": "compass",
+            "char": "⒙"
+          },
+          {
+            "type": "compass",
+            "char": "⒚"
+          },
+          {
+            "type": "compass",
+            "char": "⒛"
+          },
+          {
+            "type": "compass",
+            "char": "〇"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "„"
+          },
+          {
+            "type": "compass",
+            "char": "“"
+          },
+          {
+            "type": "macro",
+            "text": "′"
+          },
+          {
+            "type": "compass",
+            "char": "‚"
+          },
+          {
+            "type": "compass",
+            "char": "‘"
+          },
+          {
+            "type": "compass",
+            "char": "»"
+          },
+          {
+            "type": "compass",
+            "char": "«"
+          },
+          {
+            "type": "macro",
+            "text": "″"
+          },
+          {
+            "type": "compass",
+            "char": "‘"
+          },
+          {
+            "type": "compass",
+            "char": "’"
+          },
+          {
+            "type": "macro",
+            "text": "〃"
+          },
+          {
+            "type": "macro",
+            "text": "’"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "≅"
+          },
+          {
+            "type": "compass",
+            "char": "≈"
+          },
+          {
+            "type": "compass",
+            "char": "→"
+          },
+          {
+            "type": "compass",
+            "char": "⇒"
+          },
+          {
+            "type": "compass",
+            "char": "⇨"
+          },
+          {
+            "type": "compass",
+            "char": "="
+          },
+          {
+            "type": "compass",
+            "char": "+"
+          },
+          {
+            "type": "compass",
+            "char": "*"
+          },
+          {
+            "type": "compass",
+            "char": "'"
+          },
+          {
+            "type": "compass",
+            "char": "\""
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "|"
+          },
+          {
+            "type": "compass",
+            "char": "\\"
+          },
+          {
+            "type": "compass",
+            "char": "&"
+          },
+          {
+            "type": "compass",
+            "char": ":"
+          },
+          {
+            "type": "compass",
+            "char": ";"
+          },
+          {
+            "type": "compass",
+            "char": "?"
+          },
+          {
+            "type": "compass",
+            "char": "⅔"
+          },
+          {
+            "type": "compass",
+            "char": "🎙",
+            "flick": {
+              "center": {
+                "action": "voice",
+                "label": "🎙"
+              }
+            }
+          },
+          {
+            "type": "compass",
+            "char": "#"
+          },
+          {
+            "type": "compass",
+            "char": "/"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "← ABC",
+            "flick": {
+              "center": {
+                "layer": "alpha0",
+                "label": "← ABC"
+              }
+            },
+            "attributes": {
+              "style": "Functional",
+              "widthClass": "Custom2",
+              "showPopup": false
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "space",
+            "attributes": {
+              "style": "Spacebar",
+              "widthClass": "Custom1"
+            },
+            "width": 2.0
+          },
+          {
+            "type": "cluster",
+            "cluster": ";.:",
+            "char": ".",
+            "flick": {
+              "left": ";",
+              "right": ":",
+              "up": "…"
+            },
+            "width": 2.0,
+            "attributes": {
+              "style": "Functional"
+            }
+          },
+          {
+            "type": "cluster",
+            "cluster": "?,!",
+            "char": ",",
+            "flick": {
+              "left": "?",
+              "right": "!",
+              "up": "…"
+            },
+            "width": 2.0,
+            "attributes": {
+              "style": "Functional"
+            }
+          },
+          {
+            "type": "compass",
+            "char": "⇥",
+            "flick": {
+              "center": {
+                "action": "tab",
+                "label": "⇥"
+              },
+              "up": {
+                "layer": "alt1",
+                "label": "altGr"
+              }
+            },
+            "attributes": {
+              "style": "Functional"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "backspace",
+            "attributes": {
+              "style": "Functional",
+              "widthClass": "Custom2",
+              "repeatableEnabled": true
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "enter",
+            "attributes": {
+              "style": "Action",
+              "widthClass": "Custom2"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "space",
+            "attributes": {
+              "style": "Spacebar",
+              "widthClass": "Custom1"
+            },
+            "width": 2.0
+          },
+          {
+            "type": "action",
+            "action": "shift",
+            "attributes": {
+              "style": "Functional",
+              "widthClass": "Custom2"
+            },
+            "width": 1.0
+          }
+        ]
+      ]
+    },
+    "symbols": {
+      "rows": [
+        [
+          {
+            "type": "compass",
+            "char": "①"
+          },
+          {
+            "type": "compass",
+            "char": "②"
+          },
+          {
+            "type": "compass",
+            "char": "③"
+          },
+          {
+            "type": "compass",
+            "char": "④"
+          },
+          {
+            "type": "compass",
+            "char": "⑤"
+          },
+          {
+            "type": "compass",
+            "char": "⑥"
+          },
+          {
+            "type": "compass",
+            "char": "⑦"
+          },
+          {
+            "type": "compass",
+            "char": "⑧"
+          },
+          {
+            "type": "compass",
+            "char": "⑨"
+          },
+          {
+            "type": "compass",
+            "char": "⑩"
+          },
+          {
+            "type": "compass",
+            "char": "⓪"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "¹"
+          },
+          {
+            "type": "compass",
+            "char": "²"
+          },
+          {
+            "type": "compass",
+            "char": "³"
+          },
+          {
+            "type": "compass",
+            "char": "⁴"
+          },
+          {
+            "type": "compass",
+            "char": "⁵"
+          },
+          {
+            "type": "compass",
+            "char": "⁶"
+          },
+          {
+            "type": "compass",
+            "char": "⁷"
+          },
+          {
+            "type": "compass",
+            "char": "⁸"
+          },
+          {
+            "type": "compass",
+            "char": "⁹"
+          },
+          {
+            "type": "compass",
+            "char": "⁰"
+          },
+          {
+            "type": "compass",
+            "char": "⁻"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "₁"
+          },
+          {
+            "type": "compass",
+            "char": "₂"
+          },
+          {
+            "type": "compass",
+            "char": "₃"
+          },
+          {
+            "type": "compass",
+            "char": "₄"
+          },
+          {
+            "type": "compass",
+            "char": "₅"
+          },
+          {
+            "type": "compass",
+            "char": "₆"
+          },
+          {
+            "type": "compass",
+            "char": "₇"
+          },
+          {
+            "type": "compass",
+            "char": "₈"
+          },
+          {
+            "type": "compass",
+            "char": "₉"
+          },
+          {
+            "type": "compass",
+            "char": "₀"
+          },
+          {
+            "type": "compass",
+            "char": "₋"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "⁄"
+          },
+          {
+            "type": "compass",
+            "char": "⅟"
+          },
+          {
+            "type": "compass",
+            "char": "½"
+          },
+          {
+            "type": "compass",
+            "char": "⅓"
+          },
+          {
+            "type": "compass",
+            "char": "⅔"
+          },
+          {
+            "type": "compass",
+            "char": "¼"
+          },
+          {
+            "type": "compass",
+            "char": "¾"
+          },
+          {
+            "type": "compass",
+            "char": "⅕"
+          },
+          {
+            "type": "compass",
+            "char": "⅖"
+          },
+          {
+            "type": "compass",
+            "char": "⅗"
+          },
+          {
+            "type": "compass",
+            "char": "⅘"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "⅙"
+          },
+          {
+            "type": "compass",
+            "char": "⅚"
+          },
+          {
+            "type": "compass",
+            "char": "⅐"
+          },
+          {
+            "type": "compass",
+            "char": "⅛"
+          },
+          {
+            "type": "compass",
+            "char": "⅜"
+          },
+          {
+            "type": "compass",
+            "char": "⅝"
+          },
+          {
+            "type": "compass",
+            "char": "⅞"
+          },
+          {
+            "type": "compass",
+            "char": "⅑"
+          },
+          {
+            "type": "compass",
+            "char": "⅒"
+          },
+          {
+            "type": "compass",
+            "char": "↉"
+          },
+          {
+            "type": "compass",
+            "char": "〇"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "⑪"
+          },
+          {
+            "type": "compass",
+            "char": "⑫"
+          },
+          {
+            "type": "compass",
+            "char": "⑬"
+          },
+          {
+            "type": "compass",
+            "char": "⑭"
+          },
+          {
+            "type": "compass",
+            "char": "⑮"
+          },
+          {
+            "type": "compass",
+            "char": "⑯"
+          },
+          {
+            "type": "compass",
+            "char": "⑰"
+          },
+          {
+            "type": "compass",
+            "char": "⑱"
+          },
+          {
+            "type": "compass",
+            "char": "⑲"
+          },
+          {
+            "type": "compass",
+            "char": "⑳"
+          },
+          {
+            "type": "compass",
+            "char": "€"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "㉑"
+          },
+          {
+            "type": "compass",
+            "char": "㉒"
+          },
+          {
+            "type": "compass",
+            "char": "㉓"
+          },
+          {
+            "type": "compass",
+            "char": "㉔"
+          },
+          {
+            "type": "compass",
+            "char": "㉕"
+          },
+          {
+            "type": "compass",
+            "char": "㉖"
+          },
+          {
+            "type": "compass",
+            "char": "㉗"
+          },
+          {
+            "type": "compass",
+            "char": "㉘"
+          },
+          {
+            "type": "compass",
+            "char": "㉙"
+          },
+          {
+            "type": "compass",
+            "char": "㉚"
+          },
+          {
+            "type": "compass",
+            "char": "¥"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "㉛"
+          },
+          {
+            "type": "compass",
+            "char": "㉜"
+          },
+          {
+            "type": "compass",
+            "char": "㉝"
+          },
+          {
+            "type": "compass",
+            "char": "㉞"
+          },
+          {
+            "type": "compass",
+            "char": "㉟"
+          },
+          {
+            "type": "compass",
+            "char": "㊱"
+          },
+          {
+            "type": "compass",
+            "char": "㊲"
+          },
+          {
+            "type": "compass",
+            "char": "㊳"
+          },
+          {
+            "type": "compass",
+            "char": "㊴"
+          },
+          {
+            "type": "compass",
+            "char": "㊵"
+          },
+          {
+            "type": "compass",
+            "char": "$"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "← ABC",
+            "flick": {
+              "center": {
+                "layer": "alpha0",
+                "label": "← ABC"
+              }
+            },
+            "attributes": {
+              "style": "Functional",
+              "widthClass": "Custom2",
+              "showPopup": false
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "space",
+            "attributes": {
+              "style": "Spacebar",
+              "widthClass": "Custom1"
+            },
+            "width": 2.0
+          },
+          {
+            "type": "cluster",
+            "cluster": ";.:",
+            "char": ".",
+            "flick": {
+              "left": ";",
+              "right": ":",
+              "up": "…"
+            },
+            "width": 2.0,
+            "attributes": {
+              "style": "Functional"
+            }
+          },
+          {
+            "type": "cluster",
+            "cluster": "?,!",
+            "char": ",",
+            "flick": {
+              "left": "?",
+              "right": "!",
+              "up": "…"
+            },
+            "width": 2.0,
+            "attributes": {
+              "style": "Functional"
+            }
+          },
+          {
+            "type": "compass",
+            "char": "⇥",
+            "flick": {
+              "center": {
+                "action": "tab",
+                "label": "⇥"
+              },
+              "up": {
+                "layer": "alt1",
+                "label": "altGr"
+              }
+            },
+            "attributes": {
+              "style": "Functional"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "backspace",
+            "attributes": {
+              "style": "Functional",
+              "widthClass": "Custom2",
+              "repeatableEnabled": true
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "enter",
+            "attributes": {
+              "style": "Action",
+              "widthClass": "Custom2"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "space",
+            "attributes": {
+              "style": "Spacebar",
+              "widthClass": "Custom1"
+            },
+            "width": 2.0
+          },
+          {
+            "type": "action",
+            "action": "shift",
+            "attributes": {
+              "style": "Functional",
+              "widthClass": "Custom2"
+            },
+            "width": 1.0
+          }
+        ]
+      ]
+    }
+  },
+  "numberRowMode": "AlwaysDisabled",
+  "overrideWidths": {
+    "Custom1": 0.2,
+    "Custom2": 0.0857143,
+    "Custom3": 0.1363636
+  },
+  "topBar": [
+    "+",
+    "-",
+    "*",
+    "#",
+    "/",
+    "„…“",
+    "\"…\"",
+    "(…)",
+    "[Paste]",
+    ":@)",
+    "[…]",
+    "{{yyyy-MM-dd ",
+    "♡",
+    "❤",
+    "☺ ",
+    "{…}",
+    "{{yyyy-MM-dd_HH-mm-ss"
+  ],
+  "name": "cs qzcluster 5r9c"
+}

@@ -79,416 +79,152 @@
         ],
         [
           {
-            "type": "case",
-            "normal": {
-              "type": "cluster",
-              "cluster": "чц»",
-              "char": "ц",
-              "flick": {
-                "left": "ч",
-                "right": "»",
-                "up": "«",
-                "down": {
-                  "action": "redo",
-                  "label": "↷"
-                }
-              },
-              "width": 2.0
-            },
-            "shifted": {
-              "type": "cluster",
-              "cluster": "ЧЦ»",
-              "char": "Ц",
-              "flick": {
-                "left": "Ч",
-                "right": "»",
-                "up": "«",
-                "down": {
-                  "action": "redo",
-                  "label": "↷"
-                }
-              },
-              "width": 2.0
-            },
-            "attributes": {
-              "widthClass": "Custom2"
-            },
-            "width": 1.0
+            "type": "compass",
+            "char": "ч"
           },
           {
-            "type": "case",
-            "normal": {
-              "type": "cluster",
-              "cluster": "жмк",
-              "char": "м",
-              "flick": {
-                "left": "ж",
-                "right": "к",
-                "up": "8"
-              },
-              "width": 2.0
-            },
-            "shifted": {
-              "type": "cluster",
-              "cluster": "ЖМК",
-              "char": "М",
-              "flick": {
-                "left": "Ж",
-                "right": "К",
-                "up": "8"
-              },
-              "width": 2.0
-            },
-            "attributes": {
-              "widthClass": "Custom2"
-            },
-            "width": 1.0
+            "type": "compass",
+            "char": "ц"
           },
           {
-            "type": "case",
-            "normal": {
-              "type": "cluster",
-              "cluster": "фяр",
-              "char": "я",
-              "flick": {
-                "left": "ф",
-                "right": "р",
-                "up": "9",
-                "down": {
-                  "action": "select_all",
-                  "label": "全"
-                }
-              },
-              "width": 2.0
-            },
-            "shifted": {
-              "type": "cluster",
-              "cluster": "ФЯР",
-              "char": "Я",
-              "flick": {
-                "left": "Ф",
-                "right": "Р",
-                "up": "9",
-                "down": {
-                  "action": "select_all",
-                  "label": "全"
-                }
-              },
-              "width": 2.0
-            },
-            "attributes": {
-              "widthClass": "Custom2"
-            },
-            "width": 1.0
+            "type": "compass",
+            "char": "»"
           },
           {
-            "type": "case",
-            "normal": {
-              "type": "cluster",
-              "cluster": "элё",
-              "char": "л",
-              "flick": {
-                "left": "э",
-                "right": "ё",
-                "up": "0",
-                "down": {
-                  "action": "undo",
-                  "label": "↶"
-                }
-              },
-              "width": 2.0
-            },
-            "shifted": {
-              "type": "cluster",
-              "cluster": "ЭЛЁ",
-              "char": "Л",
-              "flick": {
-                "left": "Э",
-                "right": "Ё",
-                "up": "0",
-                "down": {
-                  "action": "undo",
-                  "label": "↶"
-                }
-              },
-              "width": 2.0
-            },
-            "attributes": {
-              "widthClass": "Custom2"
-            },
-            "width": 1.0
+            "type": "compass",
+            "char": "ж"
+          },
+          {
+            "type": "compass",
+            "char": "м"
+          },
+          {
+            "type": "compass",
+            "char": "к"
+          },
+          {
+            "type": "compass",
+            "char": "ф"
+          },
+          {
+            "type": "compass",
+            "char": "я"
+          },
+          {
+            "type": "compass",
+            "char": "р"
+          },
+          {
+            "type": "compass",
+            "char": "э"
+          },
+          {
+            "type": "compass",
+            "char": "л"
+          },
+          {
+            "type": "compass",
+            "char": "ё"
           }
         ],
         [
           {
-            "type": "case",
-            "normal": {
-              "type": "cluster",
-              "cluster": "юио",
-              "char": "и",
-              "flick": {
-                "left": "ю",
-                "right": "о",
-                "down": {
-                  "action": "cut",
-                  "label": "✂"
-                }
-              },
-              "width": 2.0
-            },
-            "shifted": {
-              "type": "cluster",
-              "cluster": "ЮИО",
-              "char": "И",
-              "flick": {
-                "left": "Ю",
-                "right": "О",
-                "down": {
-                  "action": "cut",
-                  "label": "✂"
-                }
-              },
-              "width": 2.0
-            },
-            "attributes": {
-              "widthClass": "Custom2"
-            },
-            "width": 1.0
+            "type": "compass",
+            "char": "ю"
           },
           {
-            "type": "case",
-            "normal": {
-              "type": "cluster",
-              "cluster": "аев",
-              "char": "е",
-              "flick": {
-                "left": "а",
-                "right": "в",
-                "up": "ё",
-                "down": {
-                  "action": "paste",
-                  "label": "⎘"
-                }
-              },
-              "width": 2.0
-            },
-            "shifted": {
-              "type": "cluster",
-              "cluster": "АЕВ",
-              "char": "Е",
-              "flick": {
-                "left": "А",
-                "right": "В",
-                "up": "Ё",
-                "down": {
-                  "action": "paste",
-                  "label": "⎘"
-                }
-              },
-              "width": 2.0
-            },
-            "attributes": {
-              "widthClass": "Custom2"
-            },
-            "width": 1.0
+            "type": "compass",
+            "char": "и"
           },
           {
-            "type": "case",
-            "normal": {
-              "type": "cluster",
-              "cluster": "бтн",
-              "char": "т",
-              "flick": {
-                "left": "б",
-                "right": "н",
-                "up": "5",
-                "down": {
-                  "action": "copy",
-                  "label": "⧉"
-                }
-              },
-              "width": 2.0
-            },
-            "shifted": {
-              "type": "cluster",
-              "cluster": "БТН",
-              "char": "Т",
-              "flick": {
-                "left": "Б",
-                "right": "Н",
-                "up": "5",
-                "down": {
-                  "action": "copy",
-                  "label": "⧉"
-                }
-              },
-              "width": 2.0
-            },
-            "attributes": {
-              "widthClass": "Custom2"
-            },
-            "width": 1.0
+            "type": "compass",
+            "char": "о"
           },
           {
-            "type": "case",
-            "normal": {
-              "type": "cluster",
-              "cluster": "схш",
-              "char": "х",
-              "flick": {
-                "left": "с",
-                "right": "ш",
-                "up": "щ",
-                "down": {
-                  "action": "tab",
-                  "label": "⇥"
-                }
-              },
-              "width": 2.0
-            },
-            "shifted": {
-              "type": "cluster",
-              "cluster": "СХШ",
-              "char": "Х",
-              "flick": {
-                "left": "С",
-                "right": "Ш",
-                "up": "Щ",
-                "down": {
-                  "action": "tab",
-                  "label": "⇥"
-                }
-              },
-              "width": 2.0
-            },
-            "attributes": {
-              "widthClass": "Custom2"
-            },
-            "width": 1.0
+            "type": "compass",
+            "char": "а"
+          },
+          {
+            "type": "compass",
+            "char": "е"
+          },
+          {
+            "type": "compass",
+            "char": "в"
+          },
+          {
+            "type": "compass",
+            "char": "б"
+          },
+          {
+            "type": "compass",
+            "char": "т"
+          },
+          {
+            "type": "compass",
+            "char": "н"
+          },
+          {
+            "type": "compass",
+            "char": "с"
+          },
+          {
+            "type": "compass",
+            "char": "х"
+          },
+          {
+            "type": "compass",
+            "char": "ш"
           }
         ],
         [
           {
-            "type": "case",
-            "normal": {
-              "type": "cluster",
-              "cluster": "«ь»",
-              "char": "ь",
-              "flick": {
-                "left": "«",
-                "right": "»",
-                "down": "ъ"
-              },
-              "width": 2.0
-            },
-            "shifted": {
-              "type": "cluster",
-              "cluster": "«Ь»",
-              "char": "Ь",
-              "flick": {
-                "left": "«",
-                "right": "»",
-                "down": "Ъ"
-              },
-              "width": 2.0
-            },
-            "attributes": {
-              "widthClass": "Custom2"
-            },
-            "width": 1.0
+            "type": "compass",
+            "char": "«"
           },
           {
-            "type": "case",
-            "normal": {
-              "type": "cluster",
-              "cluster": "пуз",
-              "char": "у",
-              "flick": {
-                "left": "п",
-                "right": "з",
-                "up": "1",
-                "down": ";"
-              },
-              "width": 2.0
-            },
-            "shifted": {
-              "type": "cluster",
-              "cluster": "ПУЗ",
-              "char": "У",
-              "flick": {
-                "left": "П",
-                "right": "З",
-                "up": "1",
-                "down": ";"
-              },
-              "width": 2.0
-            },
-            "attributes": {
-              "widthClass": "Custom2"
-            },
-            "width": 1.0
+            "type": "compass",
+            "char": "ь"
           },
           {
-            "type": "case",
-            "normal": {
-              "type": "cluster",
-              "cluster": "гды",
-              "char": "д",
-              "flick": {
-                "left": "г",
-                "right": "ы",
-                "up": "2",
-                "down": ":"
-              },
-              "width": 2.0
-            },
-            "shifted": {
-              "type": "cluster",
-              "cluster": "ГДЫ",
-              "char": "Д",
-              "flick": {
-                "left": "Г",
-                "right": "Ы",
-                "up": "2",
-                "down": ":"
-              },
-              "width": 2.0
-            },
-            "attributes": {
-              "widthClass": "Custom2"
-            },
-            "width": 1.0
+            "type": "compass",
+            "char": "»"
           },
           {
-            "type": "case",
-            "normal": {
-              "type": "cluster",
-              "cluster": "—й_",
-              "char": "й",
-              "flick": {
-                "left": "—",
-                "right": "_",
-                "up": "-",
-                "down": "—"
-              },
-              "width": 2.0
-            },
-            "shifted": {
-              "type": "cluster",
-              "cluster": "—Й_",
-              "char": "Й",
-              "flick": {
-                "left": "—",
-                "right": "_",
-                "up": "-",
-                "down": "—"
-              },
-              "width": 2.0
-            },
-            "attributes": {
-              "widthClass": "Custom2"
-            },
-            "width": 1.0
+            "type": "compass",
+            "char": "п"
+          },
+          {
+            "type": "compass",
+            "char": "у"
+          },
+          {
+            "type": "compass",
+            "char": "з"
+          },
+          {
+            "type": "compass",
+            "char": "г"
+          },
+          {
+            "type": "compass",
+            "char": "д"
+          },
+          {
+            "type": "compass",
+            "char": "ы"
+          },
+          {
+            "type": "compass",
+            "char": "—"
+          },
+          {
+            "type": "compass",
+            "char": "й"
+          },
+          {
+            "type": "compass",
+            "char": "_"
           }
         ],
         [
@@ -1300,5 +1036,5 @@
     "Custom1": 0.0909091,
     "Custom2": 0.25
   },
-  "name": "kxkb ru 3+2 5r4c 1.1.7"
+  "name": "kxkb ru 5r12c"
 }

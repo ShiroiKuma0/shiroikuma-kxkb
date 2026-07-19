@@ -82,11 +82,11 @@
             "type": "case",
             "normal": {
               "type": "cluster",
-              "cluster": "чц»",
-              "char": "ц",
+              "cluster": "яв?",
+              "char": "в",
               "flick": {
-                "left": "ч",
-                "right": "»",
+                "left": "я",
+                "right": "?",
                 "up": "«",
                 "down": {
                   "action": "redo",
@@ -97,11 +97,11 @@
             },
             "shifted": {
               "type": "cluster",
-              "cluster": "ЧЦ»",
-              "char": "Ц",
+              "cluster": "ЯВ?",
+              "char": "В",
               "flick": {
-                "left": "Ч",
-                "right": "»",
+                "left": "Я",
+                "right": "?",
                 "up": "«",
                 "down": {
                   "action": "redo",
@@ -119,22 +119,22 @@
             "type": "case",
             "normal": {
               "type": "cluster",
-              "cluster": "жмк",
-              "char": "м",
+              "cluster": "ерт",
+              "char": "р",
               "flick": {
-                "left": "ж",
-                "right": "к",
+                "left": "е",
+                "right": "т",
                 "up": "8"
               },
               "width": 2.0
             },
             "shifted": {
               "type": "cluster",
-              "cluster": "ЖМК",
-              "char": "М",
+              "cluster": "ЕРТ",
+              "char": "Р",
               "flick": {
-                "left": "Ж",
-                "right": "К",
+                "left": "Е",
+                "right": "Т",
                 "up": "8"
               },
               "width": 2.0
@@ -148,11 +148,11 @@
             "type": "case",
             "normal": {
               "type": "cluster",
-              "cluster": "фяр",
-              "char": "я",
+              "cluster": "ыуи",
+              "char": "у",
               "flick": {
-                "left": "ф",
-                "right": "р",
+                "left": "ы",
+                "right": "и",
                 "up": "9",
                 "down": {
                   "action": "select_all",
@@ -163,11 +163,11 @@
             },
             "shifted": {
               "type": "cluster",
-              "cluster": "ФЯР",
-              "char": "Я",
+              "cluster": "ЫУИ",
+              "char": "У",
               "flick": {
-                "left": "Ф",
-                "right": "Р",
+                "left": "Ы",
+                "right": "И",
                 "up": "9",
                 "down": {
                   "action": "select_all",
@@ -185,10 +185,10 @@
             "type": "case",
             "normal": {
               "type": "cluster",
-              "cluster": "элё",
-              "char": "л",
+              "cluster": "опё",
+              "char": "п",
               "flick": {
-                "left": "э",
+                "left": "о",
                 "right": "ё",
                 "up": "0",
                 "down": {
@@ -200,10 +200,10 @@
             },
             "shifted": {
               "type": "cluster",
-              "cluster": "ЭЛЁ",
-              "char": "Л",
+              "cluster": "ОПЁ",
+              "char": "П",
               "flick": {
-                "left": "Э",
+                "left": "О",
                 "right": "Ё",
                 "up": "0",
                 "down": {
@@ -224,11 +224,11 @@
             "type": "case",
             "normal": {
               "type": "cluster",
-              "cluster": "юио",
-              "char": "и",
+              "cluster": "юас",
+              "char": "а",
               "flick": {
                 "left": "ю",
-                "right": "о",
+                "right": "с",
                 "down": {
                   "action": "cut",
                   "label": "✂"
@@ -238,11 +238,11 @@
             },
             "shifted": {
               "type": "cluster",
-              "cluster": "ЮИО",
-              "char": "И",
+              "cluster": "ЮАС",
+              "char": "А",
               "flick": {
                 "left": "Ю",
-                "right": "О",
+                "right": "С",
                 "down": {
                   "action": "cut",
                   "label": "✂"
@@ -259,11 +259,11 @@
             "type": "case",
             "normal": {
               "type": "cluster",
-              "cluster": "аев",
-              "char": "е",
+              "cluster": "дфг",
+              "char": "ф",
               "flick": {
-                "left": "а",
-                "right": "в",
+                "left": "д",
+                "right": "г",
                 "up": "ё",
                 "down": {
                   "action": "paste",
@@ -274,11 +274,11 @@
             },
             "shifted": {
               "type": "cluster",
-              "cluster": "АЕВ",
-              "char": "Е",
+              "cluster": "ДФГ",
+              "char": "Ф",
               "flick": {
-                "left": "А",
-                "right": "В",
+                "left": "Д",
+                "right": "Г",
                 "up": "Ё",
                 "down": {
                   "action": "paste",
@@ -296,11 +296,11 @@
             "type": "case",
             "normal": {
               "type": "cluster",
-              "cluster": "бтн",
-              "char": "т",
+              "cluster": "хйк",
+              "char": "й",
               "flick": {
-                "left": "б",
-                "right": "н",
+                "left": "х",
+                "right": "к",
                 "up": "5",
                 "down": {
                   "action": "copy",
@@ -311,11 +311,11 @@
             },
             "shifted": {
               "type": "cluster",
-              "cluster": "БТН",
-              "char": "Т",
+              "cluster": "ХЙК",
+              "char": "Й",
               "flick": {
-                "left": "Б",
-                "right": "Н",
+                "left": "Х",
+                "right": "К",
                 "up": "5",
                 "down": {
                   "action": "copy",
@@ -333,10 +333,10 @@
             "type": "case",
             "normal": {
               "type": "cluster",
-              "cluster": "схш",
-              "char": "х",
+              "cluster": "элш",
+              "char": "л",
               "flick": {
-                "left": "с",
+                "left": "э",
                 "right": "ш",
                 "up": "щ",
                 "down": {
@@ -348,10 +348,10 @@
             },
             "shifted": {
               "type": "cluster",
-              "cluster": "СХШ",
-              "char": "Х",
+              "cluster": "ЭЛШ",
+              "char": "Л",
               "flick": {
-                "left": "С",
+                "left": "Э",
                 "right": "Ш",
                 "up": "Щ",
                 "down": {
@@ -401,11 +401,11 @@
             "type": "case",
             "normal": {
               "type": "cluster",
-              "cluster": "пуз",
-              "char": "у",
+              "cluster": "зцж",
+              "char": "ц",
               "flick": {
-                "left": "п",
-                "right": "з",
+                "left": "з",
+                "right": "ж",
                 "up": "1",
                 "down": ";"
               },
@@ -413,11 +413,11 @@
             },
             "shifted": {
               "type": "cluster",
-              "cluster": "ПУЗ",
-              "char": "У",
+              "cluster": "ЗЦЖ",
+              "char": "Ц",
               "flick": {
-                "left": "П",
-                "right": "З",
+                "left": "З",
+                "right": "Ж",
                 "up": "1",
                 "down": ";"
               },
@@ -432,11 +432,11 @@
             "type": "case",
             "normal": {
               "type": "cluster",
-              "cluster": "гды",
-              "char": "д",
+              "cluster": "бнм",
+              "char": "н",
               "flick": {
-                "left": "г",
-                "right": "ы",
+                "left": "б",
+                "right": "м",
                 "up": "2",
                 "down": ":"
               },
@@ -444,11 +444,11 @@
             },
             "shifted": {
               "type": "cluster",
-              "cluster": "ГДЫ",
-              "char": "Д",
+              "cluster": "БНМ",
+              "char": "Н",
               "flick": {
-                "left": "Г",
-                "right": "Ы",
+                "left": "Б",
+                "right": "М",
                 "up": "2",
                 "down": ":"
               },
@@ -463,8 +463,8 @@
             "type": "case",
             "normal": {
               "type": "cluster",
-              "cluster": "—й_",
-              "char": "й",
+              "cluster": "—ч_",
+              "char": "ч",
               "flick": {
                 "left": "—",
                 "right": "_",
@@ -475,8 +475,8 @@
             },
             "shifted": {
               "type": "cluster",
-              "cluster": "—Й_",
-              "char": "Й",
+              "cluster": "—Ч_",
+              "char": "Ч",
               "flick": {
                 "left": "—",
                 "right": "_",
@@ -1300,5 +1300,5 @@
     "Custom1": 0.0909091,
     "Custom2": 0.25
   },
-  "name": "kxkb ru 3+2 5r4c 1.1.7"
+  "name": "kxkb ru ycluster 5r4c"
 }

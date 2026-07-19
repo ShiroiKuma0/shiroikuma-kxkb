@@ -40,18 +40,6 @@
             "cluster": "8",
             "char": "8",
             "flick": {
-              "down": {
-                "chord": "C-s",
-                "label": "C-s"
-              }
-            },
-            "width": 2.0
-          },
-          {
-            "type": "cluster",
-            "cluster": "9",
-            "char": "9",
-            "flick": {
               "up": {
                 "action": "undo",
                 "label": "↶"
@@ -60,8 +48,18 @@
                 "action": "redo",
                 "label": "↷"
               }
-            },
-            "width": 2.0
+            }
+          },
+          {
+            "type": "cluster",
+            "cluster": "9",
+            "char": "9",
+            "flick": {
+              "down": {
+                "chord": "C-s",
+                "label": "C-s"
+              }
+            }
           },
           {
             "type": "cluster",
@@ -76,328 +74,164 @@
                 "action": "hide",
                 "label": "⌄"
               }
-            },
-            "width": 2.0
-          }
-        ],
-        [
-          {
-            "type": "cluster",
-            "cluster": "ч",
-            "char": "ч",
-            "flick": {
-              "up": "—",
-              "down": "-"
-            },
-            "width": 2.0,
-            "attributes": {
-              "widthClass": "Custom3"
-            }
-          },
-          {
-            "type": "cluster",
-            "cluster": "ь",
-            "char": "ь",
-            "flick": {
-              "up": "ъ",
-              "down": "№"
-            },
-            "width": 2.0,
-            "attributes": {
-              "widthClass": "Custom3"
-            }
-          },
-          {
-            "type": "cluster",
-            "cluster": "к",
-            "char": "к",
-            "flick": {
-              "up": {
-                "action": "paste",
-                "label": "⎘"
-              },
-              "down": {
-                "action": "select_all",
-                "label": "全"
-              }
-            },
-            "width": 2.0,
-            "attributes": {
-              "widthClass": "Custom3"
-            }
-          },
-          {
-            "type": "compass",
-            "char": "ж",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
-          },
-          {
-            "type": "compass",
-            "char": "ф",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
-          },
-          {
-            "type": "compass",
-            "char": "я",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
-          },
-          {
-            "type": "compass",
-            "char": "ш",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
-          },
-          {
-            "type": "cluster",
-            "cluster": "щ",
-            "char": "щ",
-            "flick": {
-              "down": {
-                "action": "hide",
-                "label": "⌄"
-              }
-            },
-            "width": 2.0,
-            "attributes": {
-              "widthClass": "Custom3"
             }
           }
         ],
         [
           {
             "type": "compass",
-            "char": "ю",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
+            "char": "я"
           },
           {
             "type": "compass",
-            "char": "ц",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
+            "char": "в"
           },
           {
             "type": "compass",
-            "char": "м",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
+            "char": "е"
           },
           {
             "type": "compass",
-            "char": "в",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
+            "char": "р"
           },
           {
             "type": "compass",
-            "char": "б",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
+            "char": "т"
           },
           {
             "type": "compass",
-            "char": "р",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
+            "char": "ы"
           },
           {
             "type": "compass",
-            "char": "л",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
+            "char": "у"
           },
           {
             "type": "compass",
-            "char": "э",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
+            "char": "и"
+          },
+          {
+            "type": "compass",
+            "char": "о"
+          },
+          {
+            "type": "compass",
+            "char": "п"
           }
         ],
         [
           {
             "type": "compass",
-            "char": "и",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
+            "char": "а"
           },
           {
             "type": "compass",
-            "char": "о",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
+            "char": "с"
           },
           {
             "type": "compass",
-            "char": "а",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
-          },
-          {
-            "type": "cluster",
-            "cluster": "е",
-            "char": "е",
-            "flick": {
-              "down": "ё"
-            },
-            "width": 2.0,
-            "attributes": {
-              "widthClass": "Custom3"
-            }
+            "char": "д"
           },
           {
             "type": "compass",
-            "char": "т",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
+            "char": "ф"
           },
           {
             "type": "compass",
-            "char": "н",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
+            "char": "г"
           },
           {
             "type": "compass",
-            "char": "с",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
+            "char": "х"
           },
           {
             "type": "compass",
-            "char": "х",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
+            "char": "й"
+          },
+          {
+            "type": "compass",
+            "char": "к"
+          },
+          {
+            "type": "compass",
+            "char": "л"
+          },
+          {
+            "type": "compass",
+            "char": "э"
           }
         ],
         [
           {
-            "type": "cluster",
-            "cluster": "«»",
-            "char": "»",
-            "flick": {
-              "left": "«",
-              "down": "\""
-            },
-            "width": 2.0,
-            "attributes": {
-              "widthClass": "Custom3"
-            }
-          },
-          {
-            "type": "cluster",
-            "cluster": "з",
-            "char": "з",
-            "flick": {
-              "down": "…"
-            },
-            "width": 2.0,
-            "attributes": {
-              "widthClass": "Custom3"
-            }
+            "type": "compass",
+            "char": "з"
           },
           {
             "type": "compass",
-            "char": "п",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
+            "char": "ь"
           },
           {
             "type": "compass",
-            "char": "у",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
+            "char": "ц"
           },
           {
             "type": "compass",
-            "char": "г",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
+            "char": "ж"
           },
           {
             "type": "compass",
-            "char": "д",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
+            "char": "б"
           },
           {
             "type": "compass",
-            "char": "ы",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
+            "char": "н"
           },
           {
             "type": "compass",
-            "char": "й",
-            "attributes": {
-              "widthClass": "Custom3"
-            },
-            "width": 1.0
+            "char": "м"
+          },
+          {
+            "type": "compass",
+            "char": "ч"
+          },
+          {
+            "type": "compass",
+            "char": "ю"
+          },
+          {
+            "type": "compass",
+            "char": "ш"
           }
         ],
         [
-          {
-            "type": "action",
-            "action": "settings",
-            "width": 1.0
-          },
           {
             "type": "action",
             "action": "shift",
             "attributes": {
-              "widthClass": "Custom2"
+              "widthClass": "Custom1"
             },
             "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "space",
+            "attributes": {
+              "style": "Spacebar"
+            },
+            "width": 2.0
+          },
+          {
+            "type": "cluster",
+            "cluster": "?!@%",
+            "char": "@",
+            "flick": {
+              "left": "!",
+              "right": "%"
+            },
+            "attributes": {
+              "widthClass": "Custom1"
+            },
+            "width": 2.0
           },
           {
             "type": "cluster",
@@ -409,21 +243,27 @@
               "up": ":",
               "down": "…"
             },
+            "attributes": {
+              "widthClass": "Custom1"
+            },
             "width": 2.0
           },
           {
             "type": "action",
             "action": "tab",
+            "attributes": {
+              "widthClass": "Custom1"
+            },
             "width": 1.0
           },
           {
             "type": "action",
-            "action": "space",
+            "action": "backspace",
             "attributes": {
               "widthClass": "Custom1",
-              "style": "Spacebar"
+              "repeatableEnabled": true
             },
-            "width": 2.0
+            "width": 1.0
           },
           {
             "type": "compass",
@@ -438,36 +278,16 @@
                 "label": "altGr"
               }
             },
-            "width": 1.0
-          },
-          {
-            "type": "compass",
-            "char": "Ctrl",
-            "flick": {
-              "center": {
-                "action": "ctrl",
-                "label": "Ctrl"
-              },
-              "up": {
-                "layer": "alt0",
-                "label": "sym"
-              },
-              "down": {
-                "layer": "alt3",
-                "label": "Num"
-              }
+            "attributes": {
+              "widthClass": "Custom1"
             },
             "width": 1.0
           },
           {
-            "type": "cluster",
-            "cluster": "«\"»",
-            "char": "\"",
-            "flick": {
-              "left": "«",
-              "right": "»",
-              "up": "№",
-              "down": "'"
+            "type": "action",
+            "action": "space",
+            "attributes": {
+              "style": "Spacebar"
             },
             "width": 2.0
           },
@@ -481,16 +301,7 @@
               }
             },
             "attributes": {
-              "widthClass": "Custom2"
-            },
-            "width": 1.0
-          },
-          {
-            "type": "action",
-            "action": "backspace",
-            "attributes": {
-              "widthClass": "Custom2",
-              "repeatableEnabled": true
+              "widthClass": "Custom1"
             },
             "width": 1.0
           }
@@ -759,28 +570,19 @@
         ],
         [
           {
-            "type": "compass",
-            "char": "← ABC",
-            "flick": {
-              "center": {
-                "layer": "alpha0",
-                "label": "← ABC"
-              }
-            },
-            "attributes": {
-              "widthClass": "Custom2",
-              "style": "Functional",
-              "showPopup": false
-            },
+            "type": "action",
+            "action": "settings",
             "width": 1.0
           },
           {
-            "type": "action",
-            "action": "shift",
-            "attributes": {
-              "widthClass": "Custom2"
+            "type": "cluster",
+            "cluster": "?!@%",
+            "char": "@",
+            "flick": {
+              "left": "!",
+              "right": "%"
             },
-            "width": 1.0
+            "width": 2.0
           },
           {
             "type": "cluster",
@@ -803,7 +605,6 @@
             "type": "action",
             "action": "space",
             "attributes": {
-              "widthClass": "Custom1",
               "style": "Spacebar"
             },
             "width": 2.0
@@ -833,29 +634,17 @@
               }
             },
             "attributes": {
-              "widthClass": "Custom2",
+              "widthClass": "Regular",
               "style": "Functional",
               "showPopup": false
             },
             "width": 1.0
           },
           {
-            "type": "cluster",
-            "cluster": "«\"»",
-            "char": "\"",
-            "flick": {
-              "left": "«",
-              "right": "»",
-              "up": "№",
-              "down": "!"
-            },
-            "width": 2.0
-          },
-          {
             "type": "action",
             "action": "shift",
             "attributes": {
-              "widthClass": "Custom2"
+              "widthClass": "Regular"
             },
             "width": 1.0
           },
@@ -863,7 +652,7 @@
             "type": "action",
             "action": "backspace",
             "attributes": {
-              "widthClass": "Custom2",
+              "widthClass": "Regular",
               "repeatableEnabled": true
             },
             "width": 1.0
@@ -1127,28 +916,19 @@
         ],
         [
           {
-            "type": "compass",
-            "char": "← ABC",
-            "flick": {
-              "center": {
-                "layer": "alpha0",
-                "label": "← ABC"
-              }
-            },
-            "attributes": {
-              "widthClass": "Custom2",
-              "style": "Functional",
-              "showPopup": false
-            },
+            "type": "action",
+            "action": "settings",
             "width": 1.0
           },
           {
-            "type": "action",
-            "action": "shift",
-            "attributes": {
-              "widthClass": "Custom2"
+            "type": "cluster",
+            "cluster": "?!@%",
+            "char": "@",
+            "flick": {
+              "left": "!",
+              "right": "%"
             },
-            "width": 1.0
+            "width": 2.0
           },
           {
             "type": "cluster",
@@ -1171,7 +951,6 @@
             "type": "action",
             "action": "space",
             "attributes": {
-              "widthClass": "Custom1",
               "style": "Spacebar"
             },
             "width": 2.0
@@ -1201,29 +980,17 @@
               }
             },
             "attributes": {
-              "widthClass": "Custom2",
+              "widthClass": "Regular",
               "style": "Functional",
               "showPopup": false
             },
             "width": 1.0
           },
           {
-            "type": "cluster",
-            "cluster": "«\"»",
-            "char": "\"",
-            "flick": {
-              "left": "«",
-              "right": "»",
-              "up": "№",
-              "down": "!"
-            },
-            "width": 2.0
-          },
-          {
             "type": "action",
             "action": "shift",
             "attributes": {
-              "widthClass": "Custom2"
+              "widthClass": "Regular"
             },
             "width": 1.0
           },
@@ -1231,7 +998,7 @@
             "type": "action",
             "action": "backspace",
             "attributes": {
-              "widthClass": "Custom2",
+              "widthClass": "Regular",
               "repeatableEnabled": true
             },
             "width": 1.0
@@ -1242,9 +1009,8 @@
   },
   "numberRowMode": "AlwaysDisabled",
   "overrideWidths": {
-    "Custom1": 0.25,
-    "Custom2": 0.0833333,
-    "Custom3": 0.125
+    "Custom1": 0.0909091,
+    "Custom2": 0.25
   },
-  "name": "kxkb ru 6r8c 1.1.9"
+  "name": "kxkb ru yaverty 5r10c"
 }

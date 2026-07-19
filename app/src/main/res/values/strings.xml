@@ -924,4 +924,14 @@
     <string name="voice_no_browser">No browser available</string>
     <string name="space_menu_voice">Voice input</string>
 
+    <!-- Library: add language -->
+    <string name="library_add_language">＋ Add language…</string>
+    <string name="library_add_language_title">Add a language</string>
+    <string name="library_language_added">%1$s added — the standard layout is active and in the switcher</string>
+
+    <!-- Library: per-layout switcher visibility -->
+    <string name="library_pill_switcher">⇄</string>
+    <string name="library_switcher_shown">“%1$s” shown in the layout switcher</string>
+    <string name="library_switcher_hidden">“%1$s” hidden from the layout switcher</string>
+
 </resources>

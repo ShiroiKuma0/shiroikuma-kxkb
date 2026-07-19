@@ -1,0 +1,1909 @@
+{
+  "locale": "gnu",
+  "script": "Latn",
+  "isRTL": false,
+  "showFlickHints": true,
+  "modes": {
+    "letters": {
+      "rows": [
+        [
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "1",
+              "flick": {
+                "up": "⓪",
+                "down": "@",
+                "left": "1ˢᵗ",
+                "right": "①"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "@",
+              "flick": {
+                "up": "⓪",
+                "down": "1",
+                "left": "1ˢᵗ",
+                "right": "①"
+              }
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "2",
+              "flick": {
+                "up": "&",
+                "down": "₂",
+                "left": "2ⁿᵈ",
+                "right": "②"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "&",
+              "flick": {
+                "up": "2",
+                "down": "₂",
+                "left": "2ⁿᵈ",
+                "right": "②"
+              }
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "3",
+              "flick": {
+                "up": "(",
+                "down": "[",
+                "left": "3ʳᵈ",
+                "right": "③"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "(",
+              "flick": {
+                "up": "3",
+                "down": "[",
+                "left": "3ʳᵈ",
+                "right": "③"
+              }
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "4",
+              "flick": {
+                "up": "^",
+                "down": "⇨",
+                "left": "4ᵗʰ",
+                "right": "④"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "^",
+              "flick": {
+                "up": "4",
+                "down": "⇨",
+                "left": "4ᵗʰ",
+                "right": "④"
+              }
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "5",
+              "flick": {
+                "up": "[",
+                "down": "{",
+                "left": "5ᵗʰ",
+                "right": "⑤"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "[",
+              "flick": {
+                "up": "5",
+                "down": "{",
+                "left": "5ᵗʰ",
+                "right": "⑤"
+              }
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "6",
+              "flick": {
+                "up": "]",
+                "down": "}",
+                "left": "6ᵗʰ",
+                "right": "⑥"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "]",
+              "flick": {
+                "up": "6",
+                "down": "}",
+                "left": "6ᵗʰ",
+                "right": "⑥"
+              }
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "7",
+              "flick": {
+                "up": "*",
+                "down": "^",
+                "left": "7ᵗʰ",
+                "right": "⑦"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "*",
+              "flick": {
+                "up": "7",
+                "down": "^",
+                "left": "7ᵗʰ",
+                "right": "⑦"
+              }
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "8",
+              "flick": {
+                "up": ")",
+                "down": "]",
+                "left": "8ᵗʰ",
+                "right": "⑧"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": ")",
+              "flick": {
+                "up": "8",
+                "down": "]",
+                "left": "8ᵗʰ",
+                "right": "⑧"
+              }
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "9",
+              "flick": {
+                "up": "$",
+                "down": {
+                  "action": "undo",
+                  "label": "↶"
+                },
+                "left": "9ᵗʰ",
+                "right": "⑨"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "$",
+              "flick": {
+                "up": "9",
+                "down": {
+                  "action": "undo",
+                  "label": "↶"
+                },
+                "left": "9ᵗʰ",
+                "right": "⑨"
+              }
+            }
+          },
+          {
+            "type": "compass",
+            "char": "0",
+            "flick": {
+              "up": {
+                "action": "reshow",
+                "label": "▴"
+              },
+              "down": {
+                "action": "hide",
+                "label": "▾"
+              },
+              "left": "^"
+            }
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "-",
+            "flick": {
+              "up": {
+                "chord": "C--",
+                "label": "C--"
+              },
+              "down": "_",
+              "left": "<",
+              "right": ">",
+              "upLeft": "–",
+              "upRight": "—",
+              "downLeft": {
+                "chord": "C-<",
+                "label": "C-<"
+              },
+              "downRight": {
+                "chord": "C->",
+                "label": "C->"
+              }
+            }
+          },
+          {
+            "type": "compass",
+            "char": "c",
+            "flick": {
+              "up": "C",
+              "down": {
+                "chord": "C-c",
+                "label": "C-c"
+              },
+              "left": {
+                "chord": "M-c",
+                "label": "M-c"
+              },
+              "right": "č",
+              "upLeft": "ç",
+              "upRight": "Č",
+              "downLeft": "©",
+              "downRight": "℃"
+            },
+            "longPressKeys": [
+              "č",
+              "ç",
+              "ć",
+              "℃",
+              "©",
+              "°",
+              "¢",
+              "Č",
+              "Ç",
+              "Ć"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "m",
+            "flick": {
+              "up": "M",
+              "down": {
+                "chord": "C-m",
+                "label": "C-m"
+              },
+              "left": {
+                "chord": "M-m",
+                "label": "M-m"
+              },
+              "right": "¯",
+              "upRight": "ʻ"
+            },
+            "longPressKeys": [
+              "µ"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "w",
+            "flick": {
+              "up": "W",
+              "down": {
+                "chord": "C-w",
+                "label": "C-w"
+              },
+              "left": {
+                "chord": "M-w",
+                "label": "M-w"
+              }
+            },
+            "longPressKeys": [
+              "₩"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "k",
+            "flick": {
+              "up": "K",
+              "down": {
+                "chord": "C-k",
+                "label": "C-k"
+              },
+              "left": {
+                "chord": "M-k",
+                "label": "M-k"
+              }
+            },
+            "longPressKeys": [
+              "¯"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "q",
+            "flick": {
+              "up": "Q",
+              "down": {
+                "chord": "C-q",
+                "label": "C-q"
+              },
+              "left": {
+                "chord": "M-q",
+                "label": "M-q"
+              }
+            }
+          },
+          {
+            "type": "compass",
+            "char": "f",
+            "flick": {
+              "up": "F",
+              "down": {
+                "chord": "C-f",
+                "label": "C-f"
+              },
+              "left": {
+                "chord": "M-f",
+                "label": "M-f"
+              },
+              "right": "℉"
+            },
+            "longPressKeys": [
+              "′",
+              "℉"
+            ],
+            "shifted": {
+              "type": "compass",
+              "char": "F",
+              "flick": {
+                "up": "F",
+                "down": {
+                  "chord": "C-f",
+                  "label": "C-f"
+                },
+                "left": {
+                  "chord": "M-f",
+                  "label": "M-f"
+                },
+                "right": "℉"
+              },
+              "longPressKeys": [
+                "℉",
+                "′"
+              ]
+            }
+          },
+          {
+            "type": "compass",
+            "char": "r",
+            "flick": {
+              "up": "R",
+              "down": {
+                "chord": "C-r",
+                "label": "C-r"
+              },
+              "left": {
+                "chord": "M-r",
+                "label": "M-r"
+              },
+              "right": "ř",
+              "upLeft": "₽",
+              "upRight": "Ř",
+              "downLeft": "®",
+              "downRight": "ŕ"
+            },
+            "longPressKeys": [
+              "ř",
+              "₽",
+              "®",
+              "√",
+              "Ř"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "l",
+            "flick": {
+              "up": "L",
+              "down": {
+                "chord": "C-l",
+                "label": "C-l"
+              },
+              "left": {
+                "chord": "M-l",
+                "label": "M-l"
+              },
+              "right": "ľ",
+              "upLeft": "ł",
+              "upRight": "Ľ",
+              "downLeft": "£",
+              "downRight": "ĺ"
+            },
+            "longPressKeys": [
+              "ľ",
+              "ĺ",
+              "ł",
+              "λ",
+              "£",
+              "Ľ",
+              "Ĺ",
+              "Ł"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "'",
+            "flick": {
+              "up": "\"",
+              "down": "%",
+              "left": "+",
+              "right": "=",
+              "upLeft": "´",
+              "upRight": "ˇ",
+              "downLeft": "¯",
+              "downRight": "¨"
+            }
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "i",
+            "flick": {
+              "up": "I",
+              "down": {
+                "chord": "C-i",
+                "label": "C-i"
+              },
+              "left": {
+                "chord": "M-i",
+                "label": "M-i"
+              },
+              "right": "í",
+              "upLeft": "Ī",
+              "upRight": "Í",
+              "downLeft": "ī",
+              "downRight": "ï"
+            },
+            "longPressKeys": [
+              "í",
+              "ī",
+              "ï",
+              "″",
+              "Í",
+              "Ī",
+              "Ï"
+            ],
+            "shifted": {
+              "type": "compass",
+              "char": "I",
+              "flick": {
+                "up": "I",
+                "down": {
+                  "chord": "C-i",
+                  "label": "C-i"
+                },
+                "left": {
+                  "chord": "M-i",
+                  "label": "M-i"
+                },
+                "right": "Í",
+                "upLeft": "Ī",
+                "upRight": "Í",
+                "downLeft": "Ī",
+                "downRight": "Ï"
+              },
+              "longPressKeys": [
+                "Í",
+                "Ī",
+                "Ï",
+                "″"
+              ]
+            }
+          },
+          {
+            "type": "compass",
+            "char": "o",
+            "flick": {
+              "up": "O",
+              "down": {
+                "chord": "C-o",
+                "label": "C-o"
+              },
+              "left": {
+                "chord": "M-o",
+                "label": "M-o"
+              },
+              "right": "ó",
+              "upLeft": "Ō",
+              "upRight": "Ó",
+              "downLeft": "ō",
+              "downRight": "ö"
+            },
+            "longPressKeys": [
+              "ó",
+              "ö",
+              "ō",
+              "ő",
+              "ø",
+              "ǿ",
+              "Ó",
+              "Ö",
+              "Ō",
+              "Ő",
+              "Ø",
+              "Ǿ"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "a",
+            "flick": {
+              "up": "A",
+              "down": {
+                "chord": "C-a",
+                "label": "C-a"
+              },
+              "left": {
+                "chord": "M-a",
+                "label": "M-a"
+              },
+              "right": "á",
+              "upLeft": "Ā",
+              "upRight": "Á",
+              "downLeft": "ā",
+              "downRight": "ä"
+            },
+            "longPressKeys": [
+              "á",
+              "ä",
+              "ā",
+              "æ",
+              "α",
+              "ą",
+              "å",
+              "&",
+              "@",
+              "Á",
+              "Ä",
+              "Ā",
+              "Æ",
+              "Ą",
+              "Å"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "e",
+            "flick": {
+              "up": "E",
+              "down": {
+                "chord": "C-e",
+                "label": "C-e"
+              },
+              "left": {
+                "chord": "M-e",
+                "label": "M-e"
+              },
+              "right": "é",
+              "upLeft": "Ě",
+              "upRight": "É",
+              "downLeft": "ē",
+              "downRight": "ě"
+            },
+            "longPressKeys": [
+              "é",
+              "ě",
+              "ē",
+              "ę",
+              "€",
+              "É",
+              "Ě",
+              "Ē",
+              "Ę"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "v",
+            "flick": {
+              "up": "V",
+              "down": {
+                "chord": "C-v",
+                "label": "C-v"
+              },
+              "left": {
+                "chord": "M-v",
+                "label": "M-v"
+              }
+            }
+          },
+          {
+            "type": "compass",
+            "char": "b",
+            "flick": {
+              "up": "B",
+              "down": {
+                "chord": "C-b",
+                "label": "C-b"
+              },
+              "left": {
+                "chord": "M-b",
+                "label": "M-b"
+              },
+              "right": "β",
+              "upLeft": "α"
+            },
+            "longPressKeys": [
+              "β"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "t",
+            "flick": {
+              "up": "T",
+              "down": {
+                "chord": "C-t",
+                "label": "C-t"
+              },
+              "left": {
+                "chord": "M-t",
+                "label": "M-t"
+              },
+              "right": "ť",
+              "upRight": "Ť"
+            },
+            "longPressKeys": [
+              "ť",
+              "þ",
+              "Ť",
+              "Þ"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "n",
+            "flick": {
+              "up": "N",
+              "down": {
+                "chord": "C-n",
+                "label": "C-n"
+              },
+              "left": {
+                "chord": "M-n",
+                "label": "M-n"
+              },
+              "right": "ň",
+              "upRight": "Ň"
+            },
+            "longPressKeys": [
+              "ň",
+              "ń",
+              "ñ",
+              "Ň",
+              "Ń",
+              "Ñ"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "s",
+            "flick": {
+              "up": "S",
+              "down": {
+                "chord": "C-s",
+                "label": "C-s"
+              },
+              "left": {
+                "chord": "M-s",
+                "label": "M-s"
+              },
+              "right": "š",
+              "upRight": "Š"
+            },
+            "longPressKeys": [
+              "š",
+              "ß",
+              "ś",
+              "σ",
+              "/",
+              "∑",
+              "∫",
+              "~",
+              "Š",
+              "Ś"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "h",
+            "flick": {
+              "up": "H",
+              "down": {
+                "chord": "C-h",
+                "label": "C-h"
+              },
+              "left": {
+                "chord": "M-h",
+                "label": "M-h"
+              }
+            }
+          }
+        ],
+        [
+          {
+            "type": "cluster",
+            "cluster": ";.:",
+            "char": ".",
+            "flick": {
+              "left": ";",
+              "right": ":",
+              "up": "…"
+            }
+          },
+          {
+            "type": "compass",
+            "char": "x",
+            "flick": {
+              "up": "X",
+              "down": {
+                "chord": "C-x",
+                "label": "C-x"
+              },
+              "left": {
+                "chord": "M-x",
+                "label": "M-x"
+              },
+              "right": {
+                "chord": "C-S-x",
+                "label": "C-X"
+              }
+            },
+            "longPressKeys": [
+              "×"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "p",
+            "flick": {
+              "up": "P",
+              "down": {
+                "chord": "C-p",
+                "label": "C-p"
+              },
+              "left": {
+                "chord": "M-p",
+                "label": "M-p"
+              }
+            },
+            "longPressKeys": [
+              "π",
+              "%",
+              "#",
+              "§",
+              "$"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "u",
+            "flick": {
+              "up": "U",
+              "down": {
+                "chord": "C-u",
+                "label": "C-u"
+              },
+              "left": {
+                "chord": "M-u",
+                "label": "M-u"
+              },
+              "right": "ú",
+              "upLeft": "ü",
+              "upRight": "Ú",
+              "downLeft": "ū",
+              "downRight": "ů"
+            },
+            "longPressKeys": [
+              "ú",
+              "ů",
+              "ü",
+              "ū",
+              "ű",
+              "Ú",
+              "Ů",
+              "Ü",
+              "Ū",
+              "Ű"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "z",
+            "flick": {
+              "up": "Z",
+              "down": {
+                "chord": "C-z",
+                "label": "C-z"
+              },
+              "left": {
+                "chord": "M-z",
+                "label": "M-z"
+              },
+              "right": "ž",
+              "upRight": "Ž"
+            },
+            "longPressKeys": [
+              "ž",
+              "ź",
+              "ż",
+              "〇",
+              "Ž",
+              "Ź",
+              "Ż"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "g",
+            "flick": {
+              "up": "G",
+              "down": {
+                "chord": "C-g",
+                "label": "C-g"
+              },
+              "left": {
+                "chord": "M-g",
+                "label": "M-g"
+              }
+            },
+            "longPressKeys": [
+              "ğ",
+              "γ",
+              "Ğ"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "d",
+            "flick": {
+              "up": "D",
+              "down": {
+                "chord": "C-d",
+                "label": "C-d"
+              },
+              "left": {
+                "chord": "M-d",
+                "label": "M-d"
+              },
+              "right": "ď",
+              "upLeft": "$",
+              "upRight": "Ď",
+              "downLeft": "Đ",
+              "downRight": "đ"
+            },
+            "longPressKeys": [
+              "ď",
+              "δ",
+              "đ",
+              "ð",
+              "$",
+              "°",
+              "Ď",
+              "Đ",
+              "Ð"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "y",
+            "flick": {
+              "up": "Y",
+              "down": {
+                "chord": "C-y",
+                "label": "C-y"
+              },
+              "left": {
+                "chord": "M-y",
+                "label": "M-y"
+              },
+              "right": "ý",
+              "upRight": "Ý"
+            },
+            "longPressKeys": [
+              "ý",
+              "¥",
+              "Ý"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "j",
+            "flick": {
+              "up": "J",
+              "down": {
+                "chord": "C-j",
+                "label": "C-j"
+              },
+              "left": {
+                "chord": "M-j",
+                "label": "M-j"
+              },
+              "downLeft": "„",
+              "downRight": "“"
+            }
+          },
+          {
+            "type": "compass",
+            "char": "/",
+            "flick": {
+              "up": "|",
+              "down": {
+                "chord": "C-/",
+                "label": "C-/"
+              },
+              "left": {
+                "chord": "C-\\",
+                "label": "C-\\"
+              },
+              "right": "\\"
+            }
+          }
+        ],
+        [
+          {
+            "type": "action",
+            "action": "shift",
+            "attributes": {
+              "widthClass": "Custom2"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "⇥",
+            "flick": {
+              "center": {
+                "action": "tab",
+                "label": "⇥"
+              },
+              "up": {
+                "chord": "S-TAB",
+                "label": "S-TAB"
+              },
+              "down": {
+                "chord": "C-TAB",
+                "label": "C-TAB"
+              },
+              "left": {
+                "chord": "M-TAB",
+                "label": "M-TAB"
+              }
+            },
+            "width": 1.0
+          },
+          {
+            "type": "cluster",
+            "cluster": "?,!",
+            "char": ",",
+            "flick": {
+              "left": "?",
+              "right": "!",
+              "up": "…"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "Esc",
+            "flick": {
+              "center": {
+                "action": "escape",
+                "label": "Esc"
+              },
+              "up": {
+                "layer": "alt1",
+                "label": "altGr"
+              }
+            },
+            "attributes": {
+              "moreKeyMode": "OnlyExplicit"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": ":",
+            "flick": {
+              "up": "!",
+              "down": {
+                "chord": "C-:",
+                "label": "C-:"
+              },
+              "left": {
+                "chord": "M-:",
+                "label": "M-:"
+              },
+              "right": "?"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "Ctrl",
+            "flick": {
+              "center": {
+                "action": "ctrl",
+                "label": "Ctrl"
+              },
+              "up": {
+                "layer": "alt0",
+                "label": "sym"
+              },
+              "right": {
+                "layer": "alt3",
+                "label": "Num"
+              },
+              "down": {
+                "chord": "C-SPC",
+                "label": "C-SPC"
+              }
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "space",
+            "attributes": {
+              "widthClass": "Custom1",
+              "style": "Spacebar"
+            },
+            "width": 3.0
+          },
+          {
+            "type": "action",
+            "action": "backspace",
+            "attributes": {
+              "widthClass": "Custom2",
+              "repeatableEnabled": true
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "⏎",
+            "flick": {
+              "center": {
+                "action": "enter",
+                "label": "⏎"
+              },
+              "down": {
+                "chord": "C-RET",
+                "label": "C-RET"
+              },
+              "left": {
+                "chord": "M-RET",
+                "label": "M-RET"
+              }
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "🎙",
+            "flick": {
+              "center": {
+                "action": "voice",
+                "label": "🎙"
+              }
+            },
+            "attributes": {
+              "widthClass": "Custom2"
+            },
+            "width": 1.0
+          }
+        ]
+      ]
+    },
+    "numbers": {
+      "rows": [
+        [
+          {
+            "type": "compass",
+            "char": "1"
+          },
+          {
+            "type": "compass",
+            "char": "2"
+          },
+          {
+            "type": "compass",
+            "char": "3"
+          },
+          {
+            "type": "compass",
+            "char": "4"
+          },
+          {
+            "type": "compass",
+            "char": "5"
+          },
+          {
+            "type": "compass",
+            "char": "6"
+          },
+          {
+            "type": "compass",
+            "char": "7"
+          },
+          {
+            "type": "compass",
+            "char": "8"
+          },
+          {
+            "type": "compass",
+            "char": "9"
+          },
+          {
+            "type": "compass",
+            "char": "0"
+          }
+        ],
+        [
+          {
+            "type": "macro",
+            "text": "ˢᵗ"
+          },
+          {
+            "type": "macro",
+            "text": "ⁿᵈ"
+          },
+          {
+            "type": "macro",
+            "text": "ʳᵈ"
+          },
+          {
+            "type": "macro",
+            "text": "ᵗʰ"
+          },
+          {
+            "type": "compass",
+            "char": "_"
+          },
+          {
+            "type": "compass",
+            "char": "&"
+          },
+          {
+            "type": "compass",
+            "char": "%"
+          },
+          {
+            "type": "compass",
+            "char": "@"
+          },
+          {
+            "type": "macro",
+            "text": "10"
+          },
+          {
+            "type": "compass",
+            "char": "〇"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "<"
+          },
+          {
+            "type": "compass",
+            "char": ">"
+          },
+          {
+            "type": "compass",
+            "char": "≅"
+          },
+          {
+            "type": "compass",
+            "char": "≈"
+          },
+          {
+            "type": "compass",
+            "char": "="
+          },
+          {
+            "type": "compass",
+            "char": "-"
+          },
+          {
+            "type": "compass",
+            "char": "+"
+          },
+          {
+            "type": "compass",
+            "char": "*"
+          },
+          {
+            "type": "compass",
+            "char": "'"
+          },
+          {
+            "type": "compass",
+            "char": "\""
+          }
+        ],
+        [
+          {
+            "type": "macro",
+            "text": "1ˢᵗ"
+          },
+          {
+            "type": "macro",
+            "text": "2ⁿᵈ"
+          },
+          {
+            "type": "macro",
+            "text": "3ʳᵈ"
+          },
+          {
+            "type": "macro",
+            "text": "4ᵗʰ"
+          },
+          {
+            "type": "macro",
+            "text": "5ᵗʰ"
+          },
+          {
+            "type": "macro",
+            "text": "6ᵗʰ"
+          },
+          {
+            "type": "macro",
+            "text": "7ᵗʰ"
+          },
+          {
+            "type": "macro",
+            "text": "8ᵗʰ"
+          },
+          {
+            "type": "macro",
+            "text": "9ᵗʰ"
+          },
+          {
+            "type": "macro",
+            "text": "10ᵗʰ"
+          }
+        ],
+        [
+          {
+            "type": "macro",
+            "text": "11ᵗʰ"
+          },
+          {
+            "type": "macro",
+            "text": "12ᵗʰ"
+          },
+          {
+            "type": "macro",
+            "text": "13ᵗʰ"
+          },
+          {
+            "type": "macro",
+            "text": "14ᵗʰ"
+          },
+          {
+            "type": "macro",
+            "text": "15ᵗʰ"
+          },
+          {
+            "type": "macro",
+            "text": "16ᵗʰ"
+          },
+          {
+            "type": "macro",
+            "text": "17ᵗʰ"
+          },
+          {
+            "type": "macro",
+            "text": "18ᵗʰ"
+          },
+          {
+            "type": "macro",
+            "text": "19ᵗʰ"
+          },
+          {
+            "type": "macro",
+            "text": "20ᵗʰ"
+          }
+        ],
+        [
+          {
+            "type": "macro",
+            "text": "21ˢᵗ"
+          },
+          {
+            "type": "macro",
+            "text": "22ⁿᵈ"
+          },
+          {
+            "type": "macro",
+            "text": "23ʳᵈ"
+          },
+          {
+            "type": "macro",
+            "text": "24ᵗʰ"
+          },
+          {
+            "type": "macro",
+            "text": "25ᵗʰ"
+          },
+          {
+            "type": "macro",
+            "text": "26ᵗʰ"
+          },
+          {
+            "type": "macro",
+            "text": "27ᵗʰ"
+          },
+          {
+            "type": "macro",
+            "text": "28ᵗʰ"
+          },
+          {
+            "type": "macro",
+            "text": "29ᵗʰ"
+          },
+          {
+            "type": "macro",
+            "text": "30ᵗʰ"
+          }
+        ],
+        [
+          {
+            "type": "macro",
+            "text": "31ˢᵗ"
+          },
+          {
+            "type": "compass",
+            "char": "\\"
+          },
+          {
+            "type": "compass",
+            "char": ":"
+          },
+          {
+            "type": "compass",
+            "char": ";"
+          },
+          {
+            "type": "compass",
+            "char": "→"
+          },
+          {
+            "type": "compass",
+            "char": "⇒"
+          },
+          {
+            "type": "compass",
+            "char": "⇨"
+          },
+          {
+            "type": "compass",
+            "char": "🎙",
+            "flick": {
+              "center": {
+                "action": "voice",
+                "label": "🎙"
+              }
+            }
+          },
+          {
+            "type": "compass",
+            "char": "#"
+          },
+          {
+            "type": "compass",
+            "char": "/"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "← ABC",
+            "flick": {
+              "center": {
+                "layer": "alpha0",
+                "label": "← ABC"
+              }
+            },
+            "attributes": {
+              "widthClass": "Custom3",
+              "style": "Functional",
+              "showPopup": false
+            },
+            "width": 1.5
+          },
+          {
+            "type": "action",
+            "action": "space",
+            "attributes": {
+              "widthClass": "Custom1",
+              "style": "Spacebar"
+            },
+            "width": 3.0
+          },
+          {
+            "type": "cluster",
+            "cluster": ";.:",
+            "char": ".",
+            "flick": {
+              "left": ";",
+              "right": ":",
+              "up": "…"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "cluster",
+            "cluster": "?,!",
+            "char": ",",
+            "flick": {
+              "left": "?",
+              "right": "!",
+              "up": "…"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "⇥",
+            "flick": {
+              "center": {
+                "action": "tab",
+                "label": "⇥"
+              },
+              "up": {
+                "layer": "alt1",
+                "label": "altGr"
+              }
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "⌫",
+            "flick": {
+              "center": {
+                "action": "backspace",
+                "label": "⌫"
+              },
+              "up": {
+                "layer": "alt0",
+                "label": "sym"
+              }
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "enter",
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "space",
+            "attributes": {
+              "widthClass": "Custom1",
+              "style": "Spacebar"
+            },
+            "width": 3.0
+          },
+          {
+            "type": "action",
+            "action": "shift",
+            "attributes": {
+              "widthClass": "Custom2"
+            },
+            "width": 1.0
+          }
+        ]
+      ]
+    },
+    "symbols": {
+      "rows": [
+        [
+          {
+            "type": "compass",
+            "char": "①"
+          },
+          {
+            "type": "compass",
+            "char": "②"
+          },
+          {
+            "type": "compass",
+            "char": "③"
+          },
+          {
+            "type": "compass",
+            "char": "④"
+          },
+          {
+            "type": "compass",
+            "char": "⑤"
+          },
+          {
+            "type": "compass",
+            "char": "⑥"
+          },
+          {
+            "type": "compass",
+            "char": "⑦"
+          },
+          {
+            "type": "compass",
+            "char": "⑧"
+          },
+          {
+            "type": "compass",
+            "char": "⑨"
+          },
+          {
+            "type": "compass",
+            "char": "⑩"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "¹"
+          },
+          {
+            "type": "compass",
+            "char": "²"
+          },
+          {
+            "type": "compass",
+            "char": "³"
+          },
+          {
+            "type": "compass",
+            "char": "⁴"
+          },
+          {
+            "type": "compass",
+            "char": "⁵"
+          },
+          {
+            "type": "compass",
+            "char": "⁶"
+          },
+          {
+            "type": "compass",
+            "char": "⁷"
+          },
+          {
+            "type": "compass",
+            "char": "⁸"
+          },
+          {
+            "type": "compass",
+            "char": "⁹"
+          },
+          {
+            "type": "compass",
+            "char": "⁰"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "₀"
+          },
+          {
+            "type": "compass",
+            "char": "₂"
+          },
+          {
+            "type": "compass",
+            "char": "₃"
+          },
+          {
+            "type": "compass",
+            "char": "₄"
+          },
+          {
+            "type": "compass",
+            "char": "½"
+          },
+          {
+            "type": "compass",
+            "char": "⅓"
+          },
+          {
+            "type": "compass",
+            "char": "⅔"
+          },
+          {
+            "type": "compass",
+            "char": "¼"
+          },
+          {
+            "type": "compass",
+            "char": "¾"
+          },
+          {
+            "type": "compass",
+            "char": "⓪"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "⑪"
+          },
+          {
+            "type": "compass",
+            "char": "⑫"
+          },
+          {
+            "type": "compass",
+            "char": "⑬"
+          },
+          {
+            "type": "compass",
+            "char": "⑭"
+          },
+          {
+            "type": "compass",
+            "char": "⑮"
+          },
+          {
+            "type": "compass",
+            "char": "⑯"
+          },
+          {
+            "type": "compass",
+            "char": "⑰"
+          },
+          {
+            "type": "compass",
+            "char": "⑱"
+          },
+          {
+            "type": "compass",
+            "char": "⑲"
+          },
+          {
+            "type": "compass",
+            "char": "⑳"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "㉑"
+          },
+          {
+            "type": "compass",
+            "char": "㉒"
+          },
+          {
+            "type": "compass",
+            "char": "㉓"
+          },
+          {
+            "type": "compass",
+            "char": "㉔"
+          },
+          {
+            "type": "compass",
+            "char": "㉕"
+          },
+          {
+            "type": "compass",
+            "char": "㉖"
+          },
+          {
+            "type": "compass",
+            "char": "㉗"
+          },
+          {
+            "type": "compass",
+            "char": "㉘"
+          },
+          {
+            "type": "compass",
+            "char": "㉙"
+          },
+          {
+            "type": "compass",
+            "char": "㉚"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "㉛"
+          },
+          {
+            "type": "compass",
+            "char": "㉜"
+          },
+          {
+            "type": "compass",
+            "char": "㉝"
+          },
+          {
+            "type": "compass",
+            "char": "㉞"
+          },
+          {
+            "type": "compass",
+            "char": "㉟"
+          },
+          {
+            "type": "compass",
+            "char": "㊱"
+          },
+          {
+            "type": "compass",
+            "char": "㊲"
+          },
+          {
+            "type": "compass",
+            "char": "㊳"
+          },
+          {
+            "type": "compass",
+            "char": "㊴"
+          },
+          {
+            "type": "compass",
+            "char": "㊵"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "← ABC",
+            "flick": {
+              "center": {
+                "layer": "alpha0",
+                "label": "← ABC"
+              }
+            },
+            "attributes": {
+              "widthClass": "Custom3",
+              "style": "Functional",
+              "showPopup": false
+            },
+            "width": 1.5
+          },
+          {
+            "type": "action",
+            "action": "space",
+            "attributes": {
+              "widthClass": "Custom1",
+              "style": "Spacebar"
+            },
+            "width": 3.0
+          },
+          {
+            "type": "cluster",
+            "cluster": ";.:",
+            "char": ".",
+            "flick": {
+              "left": ";",
+              "right": ":",
+              "up": "…"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "cluster",
+            "cluster": "?,!",
+            "char": ",",
+            "flick": {
+              "left": "?",
+              "right": "!",
+              "up": "…"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "⇥",
+            "flick": {
+              "center": {
+                "action": "tab",
+                "label": "⇥"
+              },
+              "up": {
+                "layer": "alt1",
+                "label": "altGr"
+              }
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "⌫",
+            "flick": {
+              "center": {
+                "action": "backspace",
+                "label": "⌫"
+              },
+              "up": {
+                "layer": "alt0",
+                "label": "sym"
+              }
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "enter",
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "space",
+            "attributes": {
+              "widthClass": "Custom1",
+              "style": "Spacebar"
+            },
+            "width": 3.0
+          },
+          {
+            "type": "action",
+            "action": "shift",
+            "attributes": {
+              "widthClass": "Custom2"
+            },
+            "width": 1.0
+          }
+        ]
+      ]
+    }
+  },
+  "numberRowMode": "AlwaysDisabled",
+  "overrideWidths": {
+    "Custom1": 0.2,
+    "Custom2": 0.0666667,
+    "Custom3": 0.1
+  },
+  "name": "kxkb gnu 5r10c"
+}

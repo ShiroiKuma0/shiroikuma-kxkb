@@ -80,6 +80,7 @@ class KeyboardLayoutManager(
 ) {
     private var clipboardEnabled = false
     private var activeLanguages: List<String> = emptyList()
+    private var visibleLayoutsByLanguage: Map<String, Set<String>> = emptyMap()
     private var showLanguageSwitchKey = false
     private var showNumberHints = false
     private var hasMultipleImes = false
@@ -896,6 +897,11 @@ class KeyboardLayoutManager(
 
     fun updateActiveLanguages(languages: List<String>) {
         activeLanguages = languages
+    }
+
+    /** Per-language switcher-visible layout ids; a language absent from the map shows all. */
+    fun updateVisibleLayouts(map: Map<String, Set<String>>) {
+        visibleLayoutsByLanguage = map
     }
 
     fun updateShowLanguageSwitchKey(enabled: Boolean) {
@@ -2086,15 +2092,28 @@ class KeyboardLayoutManager(
             }
         )
         val registry = com.urik.keyboard.data.LayoutRegistry.load(context)
+        // Only the switcher-ACTIVE layouts (Library toggle) appear; a language with no stored set
+        // shows all of them. Overlong lists spill into a "…" item — highlighting it swaps the middle
+        // column for the extras, so every active layout stays reachable in one slide.
+        val visibleSet = visibleLayoutsByLanguage[currentLang]
+        val visibleEntries = registry.forLanguage(currentLang)
+            .let { all -> visibleSet?.let { ids -> all.filter { it.id in ids } } ?: all }
+        val layoutItems = visibleEntries.map { entry ->
+            SpaceMenuItem(entry.name, current = false) { onSwitchToLayout(currentLang, entry.id) }
+        }
+        val shownLayoutItems = if (layoutItems.size > MAX_LAYOUT_MENU_ITEMS) {
+            layoutItems.take(MAX_LAYOUT_MENU_ITEMS - 1) +
+                SpaceMenuItem("…", current = false, overflow = layoutItems.drop(MAX_LAYOUT_MENU_ITEMS - 1)) {}
+        } else {
+            layoutItems
+        }
         val layouts = SpaceMenuColumn(
             header = context.getString(R.string.space_menu_layouts),
             // The Layout library sits on top of the layouts column (it's about layouts), then the current
             // language's switchable variants.
             items = listOf(
                 SpaceMenuItem(context.getString(R.string.space_menu_library), current = false) { onMenuAction("library") }
-            ) + registry.forLanguage(currentLang).map { entry ->
-                SpaceMenuItem(entry.name, current = false) { onSwitchToLayout(currentLang, entry.id) }
-            }
+            ) + shownLayoutItems
         )
         return listOf(actions, languages, layouts).filter { it.items.isNotEmpty() }
     }
@@ -2858,6 +2877,9 @@ class KeyboardLayoutManager(
         private const val BACKSPACE_KEY_WEIGHT = 1.5f
         private const val MAX_BUTTON_POOL_SIZE = 40
         private val ARROW_ACTION_NAMES = setOf("arrow_up", "arrow_down", "arrow_left", "arrow_right")
+
+        /** Layouts shown directly in the space-menu column (the rest spill behind "…"). */
+        private const val MAX_LAYOUT_MENU_ITEMS = 6
         private const val ARROW_REPEAT_INTERVAL_MS = 50L
     }
 }

@@ -325,7 +325,7 @@ class SpaceInputHandlerTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         org.mockito.kotlin.verifyBlocking(mockSuggestionPipeline) {
-            coordinateSuggestionSelection(eq("Yes"), any())
+            coordinateSuggestionSelection(eq("Yes"), any(), any())
         }
     }
 

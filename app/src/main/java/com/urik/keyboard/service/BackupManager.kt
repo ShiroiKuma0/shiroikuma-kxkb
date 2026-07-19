@@ -193,7 +193,10 @@ constructor(
                 )
             }
             val raw = settingsRepository.exportRawBackupValues(
-                setOf(SettingsRepository.RAW_KEY_ACTIVE_LAYOUT_BY_LANGUAGE)
+                setOf(
+                    SettingsRepository.RAW_KEY_ACTIVE_LAYOUT_BY_LANGUAGE,
+                    SettingsRepository.RAW_KEY_VISIBLE_LAYOUTS_BY_LANGUAGE
+                )
             )
             JSONObject()
                 .put("customLayouts", arr)

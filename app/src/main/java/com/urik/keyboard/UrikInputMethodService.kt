@@ -671,6 +671,10 @@ open class UrikInputMethodService :
         try {
             customKeyMappingService.initialize()
 
+            // Fresh installs get the newbie switcher/layout defaults; upgrades freeze their
+            // current curation first. Idempotent, one-time.
+            settingsRepository.ensureLayoutDefaultsMigration()
+
             val result = languageManager.initialize()
             if (result.isFailure) {
                 ErrorLogger.logException(
@@ -1730,6 +1734,14 @@ open class UrikInputMethodService :
             serviceScope.launch {
                 languageManager.effectiveDictionaryLanguages.collect { languages ->
                     swipeDetector.updateActiveLanguages(languages)
+                }
+            }
+        )
+
+        observerJobs.add(
+            serviceScope.launch {
+                settingsRepository.visibleLayoutsByLanguage.collect { map ->
+                    layoutManager.updateVisibleLayouts(map)
                 }
             }
         )

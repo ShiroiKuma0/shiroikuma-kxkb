@@ -125,7 +125,7 @@ class NonLetterInputHandlerTest {
 
         // The top candidate ("Yes") is committed through the same selection path Space uses — NOT the
         // literal centre-letter buffer ("Deh"), and NOT a spell-based auto-correct of it.
-        verifyBlocking(mockSuggestionPipeline) { coordinateSuggestionSelection(eq("Yes"), any()) }
+        verifyBlocking(mockSuggestionPipeline) { coordinateSuggestionSelection(eq("Yes"), any(), any()) }
         verifyBlocking(mockAutoCorrectionEngine, never()) {
             decide(any(), any(), any(), any(), anyOrNull(), any(), any())
         }
@@ -143,7 +143,7 @@ class NonLetterInputHandlerTest {
         handler.handle("!")
         testDispatcher.scheduler.advanceUntilIdle()
 
-        verifyBlocking(mockSuggestionPipeline) { coordinateSuggestionSelection(eq("Yeh"), any()) }
+        verifyBlocking(mockSuggestionPipeline) { coordinateSuggestionSelection(eq("Yeh"), any(), any()) }
     }
 
     @Test
@@ -236,7 +236,7 @@ class NonLetterInputHandlerTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         // The top candidate is committed through the dictionary-selection path, then "-" with no space.
-        verifyBlocking(mockSuggestionPipeline) { coordinateSuggestionSelection(eq("co-op"), any()) }
+        verifyBlocking(mockSuggestionPipeline) { coordinateSuggestionSelection(eq("co-op"), any(), any()) }
         verify(mockOutputBridge).deleteSurroundingText(1, 0)
         verify(mockOutputBridge).commitText("-", 1)
     }
@@ -268,7 +268,7 @@ class NonLetterInputHandlerTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         // No candidate to commit: the dedicated hyphen path is skipped (it requires pending suggestions).
-        verifyBlocking(mockSuggestionPipeline, never()) { coordinateSuggestionSelection(any(), any()) }
+        verifyBlocking(mockSuggestionPipeline, never()) { coordinateSuggestionSelection(any(), any(), any()) }
     }
 
     @Test
@@ -284,7 +284,7 @@ class NonLetterInputHandlerTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         verifyBlocking(mockSuggestionPipeline) { coordinateCustomSuggestionSelection(eq("brb"), any()) }
-        verifyBlocking(mockSuggestionPipeline, never()) { coordinateSuggestionSelection(any(), any()) }
+        verifyBlocking(mockSuggestionPipeline, never()) { coordinateSuggestionSelection(any(), any(), any()) }
     }
 
     // ---- Bug C: a CHARACTER bracket/quote/dash on a cluster word terminates it (no buffer-append). ----
@@ -302,7 +302,7 @@ class NonLetterInputHandlerTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         // The predicted word is committed (NOT the literal "litd"), then "-" with NO trailing space.
-        verifyBlocking(mockSuggestionPipeline) { coordinateSuggestionSelection(eq("long"), any()) }
+        verifyBlocking(mockSuggestionPipeline) { coordinateSuggestionSelection(eq("long"), any(), any()) }
         verify(mockOutputBridge).deleteSurroundingText(1, 0)
         verify(mockOutputBridge).commitText("-", 1)
     }
@@ -319,7 +319,7 @@ class NonLetterInputHandlerTest {
         handler.handle("(")
         testDispatcher.scheduler.advanceUntilIdle()
 
-        verifyBlocking(mockSuggestionPipeline) { coordinateSuggestionSelection(eq("Yes"), any()) }
+        verifyBlocking(mockSuggestionPipeline) { coordinateSuggestionSelection(eq("Yes"), any(), any()) }
         // Opener KEEPS the preceding space ("word (") and adds no trailing space.
         verify(mockOutputBridge, never()).deleteSurroundingText(1, 0)
         verify(mockOutputBridge).commitText("(", 1)
@@ -337,7 +337,7 @@ class NonLetterInputHandlerTest {
         handler.handle(")")
         testDispatcher.scheduler.advanceUntilIdle()
 
-        verifyBlocking(mockSuggestionPipeline) { coordinateSuggestionSelection(eq("Yes"), any()) }
+        verifyBlocking(mockSuggestionPipeline) { coordinateSuggestionSelection(eq("Yes"), any(), any()) }
         // Closer ends the group -> trailing space.
         verify(mockOutputBridge).commitText(") ", 1)
     }
@@ -354,7 +354,7 @@ class NonLetterInputHandlerTest {
         handler.handle("—") // U+2014 em dash, typed as a character on a cluster key
         testDispatcher.scheduler.advanceUntilIdle()
 
-        verifyBlocking(mockSuggestionPipeline) { coordinateSuggestionSelection(eq("Yes"), any()) }
+        verifyBlocking(mockSuggestionPipeline) { coordinateSuggestionSelection(eq("Yes"), any(), any()) }
         verify(mockOutputBridge).commitText("— ", 1)
     }
 
@@ -370,7 +370,7 @@ class NonLetterInputHandlerTest {
         handler.handle("“") // “ opening curly double quote
         testDispatcher.scheduler.advanceUntilIdle()
 
-        verifyBlocking(mockSuggestionPipeline) { coordinateSuggestionSelection(eq("Yes"), any()) }
+        verifyBlocking(mockSuggestionPipeline) { coordinateSuggestionSelection(eq("Yes"), any(), any()) }
         verify(mockOutputBridge).commitText("“", 1)
     }
 
@@ -386,7 +386,7 @@ class NonLetterInputHandlerTest {
         handler.handle("”") // ” closing curly double quote
         testDispatcher.scheduler.advanceUntilIdle()
 
-        verifyBlocking(mockSuggestionPipeline) { coordinateSuggestionSelection(eq("Yes"), any()) }
+        verifyBlocking(mockSuggestionPipeline) { coordinateSuggestionSelection(eq("Yes"), any(), any()) }
         verify(mockOutputBridge).commitText("” ", 1)
     }
 

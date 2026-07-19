@@ -43,6 +43,7 @@ import com.urik.keyboard.service.PostureDetector
 import com.urik.keyboard.settings.SettingsRepository
 import com.urik.keyboard.theme.ThemeManager
 import com.urik.keyboard.utils.CacheMemoryManager
+import com.urik.keyboard.utils.KxkbToast
 import com.urik.keyboard.ui.keyboard.components.KeyboardLayoutManager
 import dagger.hilt.android.AndroidEntryPoint
 import java.io.File
@@ -167,6 +168,7 @@ class LibraryFragment : Fragment() {
 
     private fun rebuild() {
         lifecycleScope.launch {
+            settingsRepository.ensureLayoutDefaultsMigration()
             registry = LayoutRegistry.load(requireContext())
             look = settingsRepository.getLibraryLook()
             val langs = registry.entries.map { it.lang }.distinct()
@@ -174,19 +176,29 @@ class LibraryFragment : Fragment() {
                 settingsRepository.getActiveLayoutForLanguage(lang) ?: registry.defaultFor(lang)
             }
             listContainer.removeAllViews()
-            // The git archive section is additive at the TOP — all its (blocking) git work runs lazily
-            // off the main thread, only when this section builds, never on the keyboard hot path or boot.
-            val gitSection = LinearLayout(requireContext()).apply { orientation = LinearLayout.VERTICAL }
-            listContainer.addView(gitSection)
             val customIds = CustomLayoutStore.customEntries(requireContext()).map { it.id }.toSet()
+            val visibleByLang = settingsRepository.getVisibleLayoutsByLanguage()
             for (lang in langs) {
                 listContainer.addView(heading(langDisplay(lang)))
                 val entries = registry.forLanguage(lang)
                 entries.forEachIndexed { i, entry ->
-                    listContainer.addView(layoutRow(entry, entry.id == active[lang], entry.id in customIds))
+                    // Absent set = all layouts visible in the switcher (the out-of-the-box default).
+                    val inSwitcher = visibleByLang[lang]?.contains(entry.id) ?: true
+                    listContainer.addView(
+                        layoutRow(entry, entry.id == active[lang], entry.id in customIds, inSwitcher)
+                    )
                     if (i < entries.lastIndex) listContainer.addView(separator())
                 }
             }
+            // A new language with its standard keyboard (built as a custom layout, fully editable).
+            if (addableLanguages().isNotEmpty()) {
+                listContainer.addView(pillButton(getString(R.string.library_add_language)) { showAddLanguageDialog() })
+            }
+            // The git archive section sits at the END of the page (folded by default) — all its
+            // (blocking) git work runs lazily off the main thread, only when this section builds,
+            // never on the keyboard hot path or boot.
+            val gitSection = LinearLayout(requireContext()).apply { orientation = LinearLayout.VERTICAL }
+            listContainer.addView(gitSection)
             buildGitSection(gitSection)
         }
     }
@@ -817,7 +829,96 @@ class LibraryFragment : Fragment() {
         setPadding(0, dp(16), 0, dp(6))
     }
 
-    private fun layoutRow(entry: LayoutEntry, isActive: Boolean, isCustom: Boolean): View {
+    // ---- Add language ----------------------------------------------------------------------------------
+
+    /** Languages that ship a dictionary + a standard-layout spec but have no layout yet. */
+    private fun addableLanguages(): List<String> {
+        val withLayouts = registry.entries.map { it.lang }.toSet()
+        return com.urik.keyboard.data.StandardLayouts.SPECS.keys.filter { it !in withLayouts }
+    }
+
+    private fun showAddLanguageDialog() {
+        val candidates = addableLanguages()
+        val labels = candidates.map { lang ->
+            val spec = com.urik.keyboard.data.StandardLayouts.SPECS[lang]!!
+            "${spec.nativeName} — ${spec.layoutName}"
+        }.toTypedArray()
+        AlertDialog.Builder(requireContext(), R.style.Theme_Urik_Dialog)
+            .setTitle(R.string.library_add_language_title)
+            .setItems(labels) { _, which -> addLanguage(candidates[which]) }
+            .setNegativeButton(R.string.export_import_cancel, null)
+            .show()
+    }
+
+    /**
+     * Create the language's standard keyboard as a CUSTOM layout, make it the language's default
+     * and its only switcher entry, and activate the language — ready to type immediately.
+     */
+    private fun addLanguage(lang: String) {
+        val spec = com.urik.keyboard.data.StandardLayouts.SPECS[lang] ?: return
+        lifecycleScope.launch {
+            val id = "${lang}_std_5r10c"
+            val json = com.urik.keyboard.data.StandardLayouts.buildLayoutJson(requireContext(), lang, spec)
+            CustomLayoutStore.saveLayout(
+                requireContext(),
+                LayoutEntry(id, lang, spec.layoutName, "compass", "10c"),
+                json
+            )
+            settingsRepository.setVisibleLayoutsForLanguage(lang, setOf(id))
+            settingsRepository.setActiveLayoutForLanguage(lang, id)
+            val s = settingsRepository.settings.first()
+            if (lang !in s.activeLanguages) {
+                settingsRepository.updateActiveLanguages(s.activeLanguages + lang, s.primaryLayoutLanguage)
+            }
+            KxkbToast.show(requireContext(), getString(R.string.library_language_added, spec.nativeName))
+            rebuild()
+        }
+    }
+
+    /**
+     * Toggle whether [entry] appears in the space-slide switcher. The stored set materialises from
+     * "all visible" on the first toggle; the active layout can be hidden too (it stays active, the
+     * switcher just stops listing it).
+     */
+    private fun toggleSwitcherVisibility(entry: LayoutEntry, currentlyVisible: Boolean) {
+        lifecycleScope.launch {
+            val all = registry.forLanguage(entry.lang).map { it.id }
+            val stored = settingsRepository.getVisibleLayoutsByLanguage()[entry.lang]
+            val visibleNow = stored ?: all.toSet()
+            val next = if (currentlyVisible) visibleNow - entry.id else visibleNow + entry.id
+            settingsRepository.setVisibleLayoutsForLanguage(entry.lang, next)
+            KxkbToast.show(
+                requireContext(),
+                getString(
+                    if (currentlyVisible) R.string.library_switcher_hidden else R.string.library_switcher_shown,
+                    entry.name
+                )
+            )
+            rebuild()
+        }
+    }
+
+    /** The switcher-visibility pill: ⇄ filled = listed in the space-slide switcher, hollow = hidden. */
+    private fun switcherPill(entry: LayoutEntry, inSwitcher: Boolean): View = TextView(requireContext()).apply {
+        text = getString(R.string.library_pill_switcher)
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+        val px = dp(7)
+        setPadding(px, dp(1), px, dp(1))
+        background = android.graphics.drawable.GradientDrawable().apply {
+            cornerRadius = dp(4).toFloat()
+            if (inSwitcher) setColor(0xFFFFFF00.toInt())
+            else { setColor(0xFF000000.toInt()); setStroke(dp(1), 0xFF8A8A00.toInt()) }
+        }
+        setTextColor(if (inSwitcher) 0xFF000000.toInt() else 0xFFB4B400.toInt())
+        layoutParams = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply { marginEnd = dp(10) }
+        isClickable = true
+        isFocusable = true
+        setOnClickListener { toggleSwitcherVisibility(entry, inSwitcher) }
+    }
+
+    private fun layoutRow(entry: LayoutEntry, isActive: Boolean, isCustom: Boolean, inSwitcher: Boolean): View {
         val spacing = look.rowSpacingDp ?: LibraryLook.DEF_ROW_SPACING
         val row = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -846,6 +947,7 @@ class LibraryFragment : Fragment() {
             )
         }
         row.addView(name)
+        row.addView(switcherPill(entry, inSwitcher))
         row.addView(statusPill(isCustom))
         row.addView(badge)
         return row

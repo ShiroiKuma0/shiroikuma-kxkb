@@ -1,28 +1,250 @@
 {
   "_comment": "Layout registry: per-language available layouts (kxkb). `defaults` is the active layout used for a language until the user picks another (1D switcher). Designed to scale to many layouts per language. Roster re-imported at full fidelity from the futokxkb v2 YAML design data.",
   "defaults": {
-    "en": "en_column_5r13c",
-    "cs": "cs_3p2_5r9c",
-    "ru": "ru_6r8c",
+    "en": "en_qwerty_5r10c",
+    "cs": "cs_qwertz_5r10c",
+    "ru": "ru_yaverty_5r10c",
     "ja": "ja_gojuon",
     "gnu": "gnu_5r13c"
   },
   "layouts": [
-    { "id": "en_column_5r13c", "lang": "en", "name": "Column 13c", "kind": "column", "width": "13c" },
-    { "id": "en_column_3r10c", "lang": "en", "name": "Column 10c", "kind": "column", "width": "10c" },
-    { "id": "en_3p2_5r9c", "lang": "en", "name": "Cluster 9c", "kind": "cluster", "width": "9c" },
-    { "id": "en_3p2_5r4c", "lang": "en", "name": "Cluster 4c", "kind": "cluster", "width": "4c" },
-    { "id": "cs_3p2_5r9c", "lang": "cs", "name": "Cluster 9c", "kind": "cluster", "width": "9c" },
-    { "id": "cs_3p2_5r4c", "lang": "cs", "name": "Cluster 4c", "kind": "cluster", "width": "4c" },
-    { "id": "ru_6r8c", "lang": "ru", "name": "Cluster 8c", "kind": "cluster", "width": "8c" },
-    { "id": "ru_3p2_5r4c", "lang": "ru", "name": "Cluster 4c", "kind": "cluster", "width": "4c" },
-    { "id": "gnu_5r13c", "lang": "gnu", "name": "GNU 13c", "kind": "compass", "width": "13c" },
-    { "id": "gnu_5r15c", "lang": "gnu", "name": "GNU 15c", "kind": "compass", "width": "15c" },
-    { "id": "gnu_nexdock_xl", "lang": "gnu", "name": "NexDock XL", "kind": "hwkeymap", "width": "hw" },
-    { "id": "gnu_nexdock_xl_cz", "lang": "gnu", "name": "NexDock XL CZ", "kind": "hwkeymap", "width": "hw" },
-    { "id": "ja_gojuon", "lang": "ja", "name": "五十音", "kind": "grid", "width": "10c" },
-    { "id": "ja_kana", "lang": "ja", "name": "かな", "kind": "grid", "width": "10c" },
-    { "id": "ja_ketai", "lang": "ja", "name": "携帯", "kind": "flick", "width": "5c" },
-    { "id": "ja_portrait", "lang": "ja", "name": "5×10", "kind": "grid", "width": "10c" }
+    {
+      "id": "en_column_5r13c",
+      "lang": "en",
+      "name": "Column 13c",
+      "kind": "column",
+      "width": "13c"
+    },
+    {
+      "id": "en_column_3r10c",
+      "lang": "en",
+      "name": "Column 10c",
+      "kind": "column",
+      "width": "10c"
+    },
+    {
+      "id": "en_3p2_5r9c",
+      "lang": "en",
+      "name": "Cluster 9c",
+      "kind": "cluster",
+      "width": "9c"
+    },
+    {
+      "id": "en_3p2_5r4c",
+      "lang": "en",
+      "name": "Cluster 4c",
+      "kind": "cluster",
+      "width": "4c"
+    },
+    {
+      "id": "cs_3p2_5r9c",
+      "lang": "cs",
+      "name": "Cluster 9c",
+      "kind": "cluster",
+      "width": "9c"
+    },
+    {
+      "id": "cs_3p2_5r4c",
+      "lang": "cs",
+      "name": "Cluster 4c",
+      "kind": "cluster",
+      "width": "4c"
+    },
+    {
+      "id": "ru_3p2_5r4c",
+      "lang": "ru",
+      "name": "Cluster 4c",
+      "kind": "cluster",
+      "width": "4c"
+    },
+    {
+      "id": "gnu_5r13c",
+      "lang": "gnu",
+      "name": "GNU 13c",
+      "kind": "compass",
+      "width": "13c"
+    },
+    {
+      "id": "gnu_5r15c",
+      "lang": "gnu",
+      "name": "GNU 15c",
+      "kind": "compass",
+      "width": "15c"
+    },
+    {
+      "id": "gnu_nexdock_xl",
+      "lang": "gnu",
+      "name": "NexDock XL",
+      "kind": "hwkeymap",
+      "width": "hw"
+    },
+    {
+      "id": "gnu_nexdock_xl_cz",
+      "lang": "gnu",
+      "name": "NexDock XL CZ",
+      "kind": "hwkeymap",
+      "width": "hw"
+    },
+    {
+      "id": "ja_gojuon",
+      "lang": "ja",
+      "name": "五十音",
+      "kind": "grid",
+      "width": "10c"
+    },
+    {
+      "id": "ja_kana",
+      "lang": "ja",
+      "name": "かな",
+      "kind": "grid",
+      "width": "10c"
+    },
+    {
+      "id": "ja_ketai",
+      "lang": "ja",
+      "name": "携帯",
+      "kind": "flick",
+      "width": "5c"
+    },
+    {
+      "id": "ja_portrait",
+      "lang": "ja",
+      "name": "5×10",
+      "kind": "grid",
+      "width": "10c"
+    },
+    {
+      "id": "en_5r10c",
+      "lang": "en",
+      "name": "10c",
+      "kind": "compass",
+      "width": "10c"
+    },
+    {
+      "id": "en_qwerty_5r10c",
+      "lang": "en",
+      "name": "QWERTY",
+      "kind": "compass",
+      "width": "10c"
+    },
+    {
+      "id": "en_qcluster_5r4c",
+      "lang": "en",
+      "name": "Q cluster 4",
+      "kind": "cluster",
+      "width": "4c"
+    },
+    {
+      "id": "en_qcluster_5r9c",
+      "lang": "en",
+      "name": "Q cluster 9",
+      "kind": "cluster",
+      "width": "9c"
+    },
+    {
+      "id": "cs_5r10c",
+      "lang": "cs",
+      "name": "10c",
+      "kind": "compass",
+      "width": "10c"
+    },
+    {
+      "id": "cs_qwerty_5r10c",
+      "lang": "cs",
+      "name": "QWERTY",
+      "kind": "compass",
+      "width": "10c"
+    },
+    {
+      "id": "cs_qcluster_5r4c",
+      "lang": "cs",
+      "name": "Q cluster 4",
+      "kind": "cluster",
+      "width": "4c"
+    },
+    {
+      "id": "cs_qcluster_5r9c",
+      "lang": "cs",
+      "name": "Q cluster 9",
+      "kind": "cluster",
+      "width": "9c"
+    },
+    {
+      "id": "ru_5r12c",
+      "lang": "ru",
+      "name": "12c",
+      "kind": "compass",
+      "width": "12c"
+    },
+    {
+      "id": "ru_5r10c",
+      "lang": "ru",
+      "name": "10c",
+      "kind": "compass",
+      "width": "10c"
+    },
+    {
+      "id": "ru_yaverty_5r10c",
+      "lang": "ru",
+      "name": "ЯВЕРТЫ",
+      "kind": "compass",
+      "width": "10c"
+    },
+    {
+      "id": "ru_ycluster_5r4c",
+      "lang": "ru",
+      "name": "Я cluster 4",
+      "kind": "cluster",
+      "width": "4c"
+    },
+    {
+      "id": "gnu_5r10c",
+      "lang": "gnu",
+      "name": "GNU 10c",
+      "kind": "compass",
+      "width": "10c"
+    },
+    {
+      "id": "cs_qwertz_5r10c",
+      "lang": "cs",
+      "name": "QWERTZ",
+      "kind": "compass",
+      "width": "10c"
+    },
+    {
+      "id": "cs_qzcluster_5r4c",
+      "lang": "cs",
+      "name": "QZ cluster 4",
+      "kind": "cluster",
+      "width": "4c"
+    },
+    {
+      "id": "cs_qzcluster_5r9c",
+      "lang": "cs",
+      "name": "QZ cluster 9",
+      "kind": "cluster",
+      "width": "9c"
+    },
+    {
+      "id": "gnu_qwerty_5r10c",
+      "lang": "gnu",
+      "name": "GNU QWERTY 10c",
+      "kind": "compass",
+      "width": "10c"
+    },
+    {
+      "id": "gnu_qwerty_5r13c",
+      "lang": "gnu",
+      "name": "GNU QWERTY 13c",
+      "kind": "compass",
+      "width": "13c"
+    },
+    {
+      "id": "gnu_qwerty_5r15c",
+      "lang": "gnu",
+      "name": "GNU QWERTY 15c",
+      "kind": "compass",
+      "width": "15c"
+    }
   ]
 }

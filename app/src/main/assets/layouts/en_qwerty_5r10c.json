@@ -1,0 +1,1935 @@
+{
+  "locale": "en",
+  "script": "Latn",
+  "isRTL": false,
+  "showFlickHints": true,
+  "modes": {
+    "letters": {
+      "rows": [
+        [
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "1",
+              "flick": {
+                "up": "⓪",
+                "down": "@",
+                "left": "1ˢᵗ",
+                "right": "①"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "@",
+              "flick": {
+                "up": "⓪",
+                "down": "1",
+                "left": "1ˢᵗ",
+                "right": "①"
+              }
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "2",
+              "flick": {
+                "up": "&",
+                "down": "₂",
+                "left": "2ⁿᵈ",
+                "right": "②"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "&",
+              "flick": {
+                "up": "2",
+                "down": "₂",
+                "left": "2ⁿᵈ",
+                "right": "②"
+              }
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "3",
+              "flick": {
+                "up": "(",
+                "down": "[",
+                "left": "3ʳᵈ",
+                "right": "③"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "(",
+              "flick": {
+                "up": "3",
+                "down": "[",
+                "left": "3ʳᵈ",
+                "right": "③"
+              }
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "4",
+              "flick": {
+                "up": "^",
+                "down": "⇨",
+                "left": "4ᵗʰ",
+                "right": "④"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "^",
+              "flick": {
+                "up": "4",
+                "down": "⇨",
+                "left": "4ᵗʰ",
+                "right": "④"
+              }
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "5",
+              "flick": {
+                "up": "[",
+                "down": "{",
+                "left": "5ᵗʰ",
+                "right": "⑤"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "[",
+              "flick": {
+                "up": "5",
+                "down": "{",
+                "left": "5ᵗʰ",
+                "right": "⑤"
+              }
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "6",
+              "flick": {
+                "up": "]",
+                "down": "}",
+                "left": "6ᵗʰ",
+                "right": "⑥"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "]",
+              "flick": {
+                "up": "6",
+                "down": "}",
+                "left": "6ᵗʰ",
+                "right": "⑥"
+              }
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "7",
+              "flick": {
+                "up": "*",
+                "down": "^",
+                "left": "7ᵗʰ",
+                "right": "⑦"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "*",
+              "flick": {
+                "up": "7",
+                "down": "^",
+                "left": "7ᵗʰ",
+                "right": "⑦"
+              }
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "8",
+              "flick": {
+                "up": ")",
+                "down": "]",
+                "left": "8ᵗʰ",
+                "right": "⑧"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": ")",
+              "flick": {
+                "up": "8",
+                "down": "]",
+                "left": "8ᵗʰ",
+                "right": "⑧"
+              }
+            }
+          },
+          {
+            "type": "case",
+            "normal": {
+              "type": "compass",
+              "char": "9",
+              "flick": {
+                "up": "$",
+                "down": {
+                  "action": "undo",
+                  "label": "↶"
+                },
+                "left": "9ᵗʰ",
+                "right": "⑨"
+              }
+            },
+            "shiftedManually": {
+              "type": "compass",
+              "char": "$",
+              "flick": {
+                "up": "9",
+                "down": {
+                  "action": "undo",
+                  "label": "↶"
+                },
+                "left": "9ᵗʰ",
+                "right": "⑨"
+              }
+            }
+          },
+          {
+            "type": "compass",
+            "char": "0",
+            "flick": {
+              "up": {
+                "action": "reshow",
+                "label": "▴"
+              },
+              "down": {
+                "action": "hide",
+                "label": "▾"
+              },
+              "left": "^"
+            }
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "q",
+            "flick": {
+              "up": "Q"
+            }
+          },
+          {
+            "type": "compass",
+            "char": "w",
+            "flick": {
+              "up": "W"
+            },
+            "longPressKeys": [
+              "₩"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "e",
+            "flick": {
+              "up": "E",
+              "right": "é",
+              "upLeft": "Ě",
+              "upRight": "É",
+              "downLeft": "ē",
+              "downRight": "ě"
+            },
+            "longPressKeys": [
+              "é",
+              "ě",
+              "ē",
+              "ę",
+              "€",
+              "É",
+              "Ě",
+              "Ē",
+              "Ę"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "r",
+            "flick": {
+              "up": "R",
+              "right": "ř",
+              "upLeft": "₽",
+              "upRight": "Ř",
+              "downLeft": "®",
+              "downRight": "ŕ"
+            },
+            "longPressKeys": [
+              "ř",
+              "₽",
+              "®",
+              "√",
+              "Ř"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "t",
+            "flick": {
+              "up": "T",
+              "right": "ť",
+              "upRight": "Ť"
+            },
+            "longPressKeys": [
+              "ť",
+              "þ",
+              "Ť",
+              "Þ"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "y",
+            "flick": {
+              "up": "Y",
+              "right": "ý",
+              "upRight": "Ý"
+            },
+            "longPressKeys": [
+              "ý",
+              "¥",
+              "Ý"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "u",
+            "flick": {
+              "up": "U",
+              "right": "ú",
+              "upLeft": "ü",
+              "upRight": "Ú",
+              "downLeft": "ū",
+              "downRight": "ů"
+            },
+            "longPressKeys": [
+              "ú",
+              "ů",
+              "ü",
+              "ū",
+              "ű",
+              "Ú",
+              "Ů",
+              "Ü",
+              "Ū",
+              "Ű"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "i",
+            "flick": {
+              "up": "I",
+              "right": "í",
+              "upLeft": "Ī",
+              "upRight": "Í",
+              "downLeft": "ī",
+              "downRight": "ï"
+            },
+            "longPressKeys": [
+              "í",
+              "ī",
+              "ï",
+              "″",
+              "Í",
+              "Ī",
+              "Ï"
+            ],
+            "shifted": {
+              "type": "compass",
+              "char": "I",
+              "flick": {
+                "up": "I",
+                "right": "Í",
+                "upLeft": "Ī",
+                "upRight": "Í",
+                "downLeft": "Ī",
+                "downRight": "Ï"
+              },
+              "longPressKeys": [
+                "Í",
+                "Ī",
+                "Ï",
+                "″"
+              ]
+            }
+          },
+          {
+            "type": "compass",
+            "char": "o",
+            "flick": {
+              "up": "O",
+              "right": "ó",
+              "upLeft": "Ō",
+              "upRight": "Ó",
+              "downLeft": "ō",
+              "downRight": "ö"
+            },
+            "longPressKeys": [
+              "ó",
+              "ö",
+              "ō",
+              "ő",
+              "ø",
+              "ǿ",
+              "Ó",
+              "Ö",
+              "Ō",
+              "Ő",
+              "Ø",
+              "Ǿ"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "p",
+            "flick": {
+              "up": "P"
+            },
+            "longPressKeys": [
+              "π",
+              "%",
+              "#",
+              "§",
+              "$"
+            ]
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "a",
+            "flick": {
+              "up": "A",
+              "right": "á",
+              "upLeft": "Ā",
+              "upRight": "Á",
+              "downLeft": "ā",
+              "downRight": "ä"
+            },
+            "longPressKeys": [
+              "á",
+              "ä",
+              "ā",
+              "æ",
+              "α",
+              "ą",
+              "å",
+              "&",
+              "@",
+              "Á",
+              "Ä",
+              "Ā",
+              "Æ",
+              "Ą",
+              "Å"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "s",
+            "flick": {
+              "up": "S",
+              "right": "š",
+              "upRight": "Š"
+            },
+            "longPressKeys": [
+              "š",
+              "ß",
+              "ś",
+              "σ",
+              "/",
+              "∑",
+              "∫",
+              "~",
+              "Š",
+              "Ś"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "d",
+            "flick": {
+              "up": "D",
+              "right": "ď",
+              "upLeft": "$",
+              "upRight": "Ď",
+              "downLeft": "Đ",
+              "downRight": "đ"
+            },
+            "longPressKeys": [
+              "ď",
+              "δ",
+              "đ",
+              "ð",
+              "$",
+              "°",
+              "Ď",
+              "Đ",
+              "Ð"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "f",
+            "flick": {
+              "up": "F",
+              "right": "℉"
+            },
+            "longPressKeys": [
+              "′",
+              "℉"
+            ],
+            "shifted": {
+              "type": "compass",
+              "char": "F",
+              "flick": {
+                "up": "F",
+                "right": "℉"
+              },
+              "longPressKeys": [
+                "℉",
+                "′"
+              ]
+            }
+          },
+          {
+            "type": "compass",
+            "char": "g",
+            "flick": {
+              "up": "G"
+            },
+            "longPressKeys": [
+              "ğ",
+              "γ",
+              "Ğ"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "h",
+            "flick": {
+              "up": "H"
+            }
+          },
+          {
+            "type": "compass",
+            "char": "j",
+            "flick": {
+              "up": "J",
+              "downLeft": "„",
+              "downRight": "“"
+            }
+          },
+          {
+            "type": "compass",
+            "char": "k",
+            "flick": {
+              "up": "K"
+            },
+            "longPressKeys": [
+              "¯"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "l",
+            "flick": {
+              "up": "L",
+              "right": "ľ",
+              "upLeft": "ł",
+              "upRight": "Ľ",
+              "downLeft": "£",
+              "downRight": "ĺ"
+            },
+            "longPressKeys": [
+              "ľ",
+              "ĺ",
+              "ł",
+              "λ",
+              "£",
+              "Ľ",
+              "Ĺ",
+              "Ł"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "'",
+            "flick": {
+              "up": "\"",
+              "down": "%",
+              "left": "+",
+              "right": "=",
+              "upLeft": "´",
+              "upRight": "ˇ",
+              "downLeft": "¯",
+              "downRight": "¨"
+            }
+          }
+        ],
+        [
+          {
+            "type": "cluster",
+            "cluster": ";.:",
+            "char": ".",
+            "flick": {
+              "left": ";",
+              "right": ":",
+              "up": "…"
+            }
+          },
+          {
+            "type": "compass",
+            "char": "z",
+            "flick": {
+              "up": "Z",
+              "right": "ž",
+              "upRight": "Ž"
+            },
+            "longPressKeys": [
+              "ž",
+              "ź",
+              "ż",
+              "〇",
+              "Ž",
+              "Ź",
+              "Ż"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "x",
+            "flick": {
+              "up": "X"
+            },
+            "longPressKeys": [
+              "×"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "c",
+            "flick": {
+              "up": "C",
+              "right": "č",
+              "upLeft": "ç",
+              "upRight": "Č",
+              "downLeft": "©",
+              "downRight": "℃"
+            },
+            "longPressKeys": [
+              "č",
+              "ç",
+              "ć",
+              "℃",
+              "©",
+              "°",
+              "¢",
+              "Č",
+              "Ç",
+              "Ć"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "v",
+            "flick": {
+              "up": "V"
+            }
+          },
+          {
+            "type": "compass",
+            "char": "b",
+            "flick": {
+              "up": "B",
+              "right": "β",
+              "upLeft": "α"
+            },
+            "longPressKeys": [
+              "β"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "n",
+            "flick": {
+              "up": "N",
+              "right": "ň",
+              "upRight": "Ň"
+            },
+            "longPressKeys": [
+              "ň",
+              "ń",
+              "ñ",
+              "Ň",
+              "Ń",
+              "Ñ"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "m",
+            "flick": {
+              "up": "M",
+              "right": "¯",
+              "upRight": "ʻ"
+            },
+            "longPressKeys": [
+              "µ"
+            ]
+          },
+          {
+            "type": "compass",
+            "char": "-",
+            "flick": {
+              "down": "_",
+              "left": "<",
+              "right": ">",
+              "upLeft": "–",
+              "upRight": "—"
+            }
+          },
+          {
+            "type": "compass",
+            "char": "/",
+            "flick": {
+              "up": "|",
+              "right": "\\"
+            }
+          }
+        ],
+        [
+          {
+            "type": "action",
+            "action": "shift",
+            "attributes": {
+              "widthClass": "Custom1"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "space",
+            "attributes": {
+              "style": "Spacebar"
+            },
+            "width": 2.0
+          },
+          {
+            "type": "cluster",
+            "cluster": ";.:",
+            "char": ".",
+            "flick": {
+              "left": ";",
+              "right": ":",
+              "up": "…"
+            },
+            "attributes": {
+              "widthClass": "Custom1"
+            },
+            "width": 2.0
+          },
+          {
+            "type": "cluster",
+            "cluster": "?,!",
+            "char": ",",
+            "flick": {
+              "left": "?",
+              "right": "!",
+              "up": "…"
+            },
+            "attributes": {
+              "widthClass": "Custom1"
+            },
+            "width": 2.0
+          },
+          {
+            "type": "compass",
+            "char": "⇥",
+            "flick": {
+              "center": {
+                "action": "tab",
+                "label": "⇥"
+              },
+              "up": {
+                "layer": "alt1",
+                "label": "altGr"
+              },
+              "down": {
+                "layer": "alt3",
+                "label": "Num"
+              }
+            },
+            "attributes": {
+              "widthClass": "Custom1"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "backspace",
+            "attributes": {
+              "widthClass": "Custom1",
+              "repeatableEnabled": true
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "enter",
+            "attributes": {
+              "widthClass": "Custom1",
+              "style": "Action"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "space",
+            "attributes": {
+              "style": "Spacebar"
+            },
+            "width": 2.0
+          },
+          {
+            "type": "compass",
+            "char": "🎙",
+            "flick": {
+              "center": {
+                "action": "voice",
+                "label": "🎙"
+              }
+            },
+            "attributes": {
+              "widthClass": "Custom1"
+            },
+            "width": 1.0
+          }
+        ]
+      ]
+    },
+    "numbers": {
+      "rows": [
+        [
+          {
+            "type": "compass",
+            "char": "@"
+          },
+          {
+            "type": "compass",
+            "char": "&"
+          },
+          {
+            "type": "compass",
+            "char": "("
+          },
+          {
+            "type": "compass",
+            "char": "<"
+          },
+          {
+            "type": "compass",
+            "char": "#"
+          },
+          {
+            "type": "compass",
+            "char": "*"
+          },
+          {
+            "type": "compass",
+            "char": ">"
+          },
+          {
+            "type": "compass",
+            "char": ")"
+          },
+          {
+            "type": "compass",
+            "char": "$"
+          },
+          {
+            "type": "compass",
+            "char": "^"
+          },
+          {
+            "type": "compass",
+            "char": "←",
+            "flick": {
+              "center": {
+                "action": "arrow_left",
+                "label": "←"
+              },
+              "up": {
+                "action": "undo",
+                "label": "↶"
+              },
+              "down": {
+                "action": "redo",
+                "label": "↷"
+              }
+            }
+          },
+          {
+            "type": "compass",
+            "char": "↑",
+            "flick": {
+              "center": {
+                "action": "arrow_up",
+                "label": "↑"
+              },
+              "up": {
+                "chord": "PGUP",
+                "label": "PgUp"
+              },
+              "down": {
+                "chord": "HOME",
+                "label": "Home"
+              }
+            }
+          },
+          {
+            "type": "compass",
+            "char": "↓",
+            "flick": {
+              "center": {
+                "action": "arrow_down",
+                "label": "↓"
+              },
+              "up": {
+                "chord": "PGDN",
+                "label": "PgDn"
+              },
+              "down": {
+                "chord": "C-s",
+                "label": "C-s"
+              }
+            }
+          },
+          {
+            "type": "compass",
+            "char": "→",
+            "flick": {
+              "center": {
+                "action": "arrow_right",
+                "label": "→"
+              },
+              "up": "〇",
+              "down": {
+                "action": "hide",
+                "label": "⌄"
+              }
+            }
+          }
+        ],
+        [
+          {
+            "type": "macro",
+            "text": "ˢᵗ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "macro",
+            "text": "ⁿᵈ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "macro",
+            "text": "ʳᵈ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "macro",
+            "text": "ᵗʰ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "_",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "&",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "%",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "@",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "macro",
+            "text": "10",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "〇",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "<",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": ">",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "≅",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "≈",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "=",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "-",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "+",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "*",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "'",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "\"",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          }
+        ],
+        [
+          {
+            "type": "macro",
+            "text": "1ˢᵗ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "macro",
+            "text": "2ⁿᵈ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "macro",
+            "text": "3ʳᵈ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "macro",
+            "text": "4ᵗʰ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "macro",
+            "text": "5ᵗʰ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "macro",
+            "text": "6ᵗʰ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "macro",
+            "text": "7ᵗʰ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "macro",
+            "text": "8ᵗʰ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "macro",
+            "text": "9ᵗʰ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "macro",
+            "text": "10ᵗʰ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          }
+        ],
+        [
+          {
+            "type": "macro",
+            "text": "11ᵗʰ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "macro",
+            "text": "12ᵗʰ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "macro",
+            "text": "13ᵗʰ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "macro",
+            "text": "14ᵗʰ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "macro",
+            "text": "15ᵗʰ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "macro",
+            "text": "16ᵗʰ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "macro",
+            "text": "17ᵗʰ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "macro",
+            "text": "18ᵗʰ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "macro",
+            "text": "19ᵗʰ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "macro",
+            "text": "20ᵗʰ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          }
+        ],
+        [
+          {
+            "type": "macro",
+            "text": "21ˢᵗ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "macro",
+            "text": "22ⁿᵈ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "macro",
+            "text": "23ʳᵈ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "macro",
+            "text": "24ᵗʰ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "macro",
+            "text": "25ᵗʰ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "macro",
+            "text": "26ᵗʰ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "macro",
+            "text": "27ᵗʰ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "macro",
+            "text": "28ᵗʰ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "macro",
+            "text": "29ᵗʰ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "macro",
+            "text": "30ᵗʰ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          }
+        ],
+        [
+          {
+            "type": "macro",
+            "text": "31ˢᵗ",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "\\",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": ":",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": ";",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "→",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "⇒",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "⇨",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "🎙",
+            "flick": {
+              "center": {
+                "action": "voice",
+                "label": "🎙"
+              }
+            },
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "#",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "/",
+            "attributes": {
+              "widthClass": "Custom3"
+            },
+            "width": 1.0
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "← ABC",
+            "flick": {
+              "center": {
+                "layer": "alpha0",
+                "label": "← ABC"
+              }
+            },
+            "attributes": {
+              "widthClass": "Custom1",
+              "style": "Functional",
+              "showPopup": false
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "space",
+            "attributes": {
+              "style": "Spacebar"
+            },
+            "width": 2.0
+          },
+          {
+            "type": "cluster",
+            "cluster": ";.:",
+            "char": ".",
+            "flick": {
+              "left": ";",
+              "right": ":",
+              "up": "…"
+            },
+            "attributes": {
+              "widthClass": "Custom1"
+            },
+            "width": 2.0
+          },
+          {
+            "type": "cluster",
+            "cluster": "?,!",
+            "char": ",",
+            "flick": {
+              "left": "?",
+              "right": "!",
+              "up": "…"
+            },
+            "attributes": {
+              "widthClass": "Custom1"
+            },
+            "width": 2.0
+          },
+          {
+            "type": "compass",
+            "char": "⇥",
+            "flick": {
+              "center": {
+                "action": "tab",
+                "label": "⇥"
+              },
+              "up": {
+                "layer": "alt1",
+                "label": "altGr"
+              }
+            },
+            "attributes": {
+              "widthClass": "Custom1"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "backspace",
+            "attributes": {
+              "widthClass": "Custom1",
+              "repeatableEnabled": true
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "enter",
+            "attributes": {
+              "widthClass": "Custom1",
+              "style": "Action"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "space",
+            "attributes": {
+              "style": "Spacebar"
+            },
+            "width": 2.0
+          },
+          {
+            "type": "action",
+            "action": "shift",
+            "attributes": {
+              "widthClass": "Custom1"
+            },
+            "width": 1.0
+          }
+        ]
+      ]
+    },
+    "symbols": {
+      "rows": [
+        [
+          {
+            "type": "compass",
+            "char": "①"
+          },
+          {
+            "type": "compass",
+            "char": "②"
+          },
+          {
+            "type": "compass",
+            "char": "③"
+          },
+          {
+            "type": "compass",
+            "char": "④"
+          },
+          {
+            "type": "compass",
+            "char": "⑤"
+          },
+          {
+            "type": "compass",
+            "char": "⑥"
+          },
+          {
+            "type": "compass",
+            "char": "⑦"
+          },
+          {
+            "type": "compass",
+            "char": "⑧"
+          },
+          {
+            "type": "compass",
+            "char": "⑨"
+          },
+          {
+            "type": "compass",
+            "char": "⑩"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "¹"
+          },
+          {
+            "type": "compass",
+            "char": "²"
+          },
+          {
+            "type": "compass",
+            "char": "³"
+          },
+          {
+            "type": "compass",
+            "char": "₂"
+          },
+          {
+            "type": "compass",
+            "char": "½"
+          },
+          {
+            "type": "compass",
+            "char": "⅓"
+          },
+          {
+            "type": "compass",
+            "char": "⅔"
+          },
+          {
+            "type": "compass",
+            "char": "¼"
+          },
+          {
+            "type": "compass",
+            "char": "¾"
+          },
+          {
+            "type": "compass",
+            "char": "⓪"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "⑪"
+          },
+          {
+            "type": "compass",
+            "char": "⑫"
+          },
+          {
+            "type": "compass",
+            "char": "⑬"
+          },
+          {
+            "type": "compass",
+            "char": "⑭"
+          },
+          {
+            "type": "compass",
+            "char": "⑮"
+          },
+          {
+            "type": "compass",
+            "char": "⑯"
+          },
+          {
+            "type": "compass",
+            "char": "⑰"
+          },
+          {
+            "type": "compass",
+            "char": "⑱"
+          },
+          {
+            "type": "compass",
+            "char": "⑲"
+          },
+          {
+            "type": "compass",
+            "char": "⑳"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "㉑"
+          },
+          {
+            "type": "compass",
+            "char": "㉒"
+          },
+          {
+            "type": "compass",
+            "char": "㉓"
+          },
+          {
+            "type": "compass",
+            "char": "㉔"
+          },
+          {
+            "type": "compass",
+            "char": "㉕"
+          },
+          {
+            "type": "compass",
+            "char": "㉖"
+          },
+          {
+            "type": "compass",
+            "char": "㉗"
+          },
+          {
+            "type": "compass",
+            "char": "㉘"
+          },
+          {
+            "type": "compass",
+            "char": "㉙"
+          },
+          {
+            "type": "compass",
+            "char": "㉚"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "㉛"
+          },
+          {
+            "type": "compass",
+            "char": "㉜"
+          },
+          {
+            "type": "compass",
+            "char": "㉝"
+          },
+          {
+            "type": "compass",
+            "char": "㉞"
+          },
+          {
+            "type": "compass",
+            "char": "㉟"
+          },
+          {
+            "type": "compass",
+            "char": "㊱"
+          },
+          {
+            "type": "compass",
+            "char": "㊲"
+          },
+          {
+            "type": "compass",
+            "char": "㊳"
+          },
+          {
+            "type": "compass",
+            "char": "㊴"
+          },
+          {
+            "type": "compass",
+            "char": "㊵"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "㊶"
+          },
+          {
+            "type": "compass",
+            "char": "㊷"
+          },
+          {
+            "type": "compass",
+            "char": "㊸"
+          },
+          {
+            "type": "compass",
+            "char": "㊹"
+          },
+          {
+            "type": "compass",
+            "char": "㊺"
+          },
+          {
+            "type": "compass",
+            "char": "㊻"
+          },
+          {
+            "type": "compass",
+            "char": "㊼"
+          },
+          {
+            "type": "compass",
+            "char": "㊽"
+          },
+          {
+            "type": "compass",
+            "char": "㊾"
+          },
+          {
+            "type": "compass",
+            "char": "㊿"
+          }
+        ],
+        [
+          {
+            "type": "compass",
+            "char": "← ABC",
+            "flick": {
+              "center": {
+                "layer": "alpha0",
+                "label": "← ABC"
+              }
+            },
+            "attributes": {
+              "widthClass": "Custom1",
+              "style": "Functional",
+              "showPopup": false
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "space",
+            "attributes": {
+              "style": "Spacebar"
+            },
+            "width": 2.0
+          },
+          {
+            "type": "cluster",
+            "cluster": ";.:",
+            "char": ".",
+            "flick": {
+              "left": ";",
+              "right": ":",
+              "up": "…"
+            },
+            "attributes": {
+              "widthClass": "Custom1"
+            },
+            "width": 2.0
+          },
+          {
+            "type": "cluster",
+            "cluster": "?,!",
+            "char": ",",
+            "flick": {
+              "left": "?",
+              "right": "!",
+              "up": "…"
+            },
+            "attributes": {
+              "widthClass": "Custom1"
+            },
+            "width": 2.0
+          },
+          {
+            "type": "compass",
+            "char": "⇥",
+            "flick": {
+              "center": {
+                "action": "tab",
+                "label": "⇥"
+              },
+              "up": {
+                "layer": "alt1",
+                "label": "altGr"
+              }
+            },
+            "attributes": {
+              "widthClass": "Custom1"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "backspace",
+            "attributes": {
+              "widthClass": "Custom1",
+              "repeatableEnabled": true
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "enter",
+            "attributes": {
+              "widthClass": "Custom1",
+              "style": "Action"
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
+            "action": "space",
+            "attributes": {
+              "style": "Spacebar"
+            },
+            "width": 2.0
+          },
+          {
+            "type": "action",
+            "action": "shift",
+            "attributes": {
+              "widthClass": "Custom1"
+            },
+            "width": 1.0
+          }
+        ]
+      ]
+    }
+  },
+  "numberRowMode": "AlwaysDisabled",
+  "overrideWidths": {
+    "Custom1": 0.0909091,
+    "Custom2": 0.25,
+    "Custom3": 0.1
+  },
+  "name": "kxkb en qwerty 5r10c"
+}

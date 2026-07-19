@@ -83,6 +83,8 @@ constructor(
         val PRIMARY_LAYOUT_LANGUAGE = stringPreferencesKey("primary_layout_language")
         val PER_APP_LAYOUT_LANGUAGES = stringPreferencesKey("per_app_layout_languages")
         val ACTIVE_LAYOUT_BY_LANGUAGE = stringPreferencesKey("active_layout_by_language")
+        val VISIBLE_LAYOUTS_BY_LANGUAGE = stringPreferencesKey("visible_layouts_by_language")
+        val LAYOUT_DEFAULTS_MIGRATED = booleanPreferencesKey("layout_defaults_migrated")
         val PER_GEOMETRY_LOOK = stringPreferencesKey("per_geometry_look")
         val LIBRARY_LOOK = stringPreferencesKey("library_look")
         val CURRENT_GEOMETRY = stringPreferencesKey("current_geometry")
@@ -514,6 +516,108 @@ constructor(
         Result.failure(e)
     }
 
+    // --- Per-language switcher-visible layouts -----------------------------------------------------------
+    // Which layouts appear in the space-slide Layouts column, per language. A language ABSENT from the
+    // map means "all layouts visible" (the out-of-the-box default); an explicit empty set hides all.
+    // Encoding: one line per language, `lang \t id1,id2,…` (comma-joined ids, empty value = none).
+
+    /**
+     * One-time layout-defaults migration (runs on IME init and settings-app open, idempotent):
+     *
+     * - FRESH INSTALL (no prior settings at all): seed the newbie-friendly switcher sets and
+     *   per-language default layouts (QWERTY-family visible; en→QWERTY, cs→QWERTZ, ru→ЯВЕРТЫ;
+     *   gnu/ja with nothing in the switcher).
+     * - UPGRADE: freeze the user's CURRENT behaviour explicitly — every language without a stored
+     *   visible set gets "all layouts" written out, and every language without a stored active
+     *   layout gets the pre-migration registry default — so the new fresh-install defaults can
+     *   never touch an existing installation's curated state.
+     */
+    suspend fun ensureLayoutDefaultsMigration() {
+        try {
+            if (!context.isUserUnlocked) return // BFU reads empty prefs — never migrate against them.
+            val allByLang = com.urik.keyboard.data.LayoutRegistry.load(context).entries
+                .groupBy({ it.lang }, { it.id })
+                .mapValues { it.value.toSet() }
+            dataStore.edit { preferences ->
+                if (preferences[PreferenceKeys.LAYOUT_DEFAULTS_MIGRATED] == true) return@edit
+                val fresh = preferences[PreferenceKeys.PRIMARY_LANGUAGE] == null &&
+                    preferences[PreferenceKeys.ACTIVE_LANGUAGES_LIST] == null &&
+                    preferences[PreferenceKeys.CURRENT_SIZE_TARGET] == null
+                val visible = preferences[PreferenceKeys.VISIBLE_LAYOUTS_BY_LANGUAGE]
+                    ?.let { decodeVisibleLayouts(it) } ?: emptyMap()
+                val active = preferences[PreferenceKeys.ACTIVE_LAYOUT_BY_LANGUAGE]
+                    ?.let { decodePerAppLayouts(it) } ?: emptyMap()
+                if (fresh) {
+                    preferences[PreferenceKeys.VISIBLE_LAYOUTS_BY_LANGUAGE] =
+                        encodeVisibleLayouts(FRESH_VISIBLE_LAYOUTS)
+                    preferences[PreferenceKeys.ACTIVE_LAYOUT_BY_LANGUAGE] =
+                        encodePerAppLayouts(FRESH_ACTIVE_LAYOUTS)
+                } else {
+                    val newVisible = visible.toMutableMap()
+                    for ((lang, ids) in allByLang) if (lang !in newVisible) newVisible[lang] = ids
+                    val newActive = active.toMutableMap()
+                    for ((lang, oldDefault) in PRE_MIGRATION_DEFAULT_LAYOUTS) {
+                        if (lang !in newActive) newActive[lang] = oldDefault
+                    }
+                    preferences[PreferenceKeys.VISIBLE_LAYOUTS_BY_LANGUAGE] = encodeVisibleLayouts(newVisible)
+                    preferences[PreferenceKeys.ACTIVE_LAYOUT_BY_LANGUAGE] = encodePerAppLayouts(newActive)
+                }
+                preferences[PreferenceKeys.LAYOUT_DEFAULTS_MIGRATED] = true
+            }
+        } catch (e: Exception) {
+            ErrorLogger.logException(
+                component = "SettingsRepository",
+                severity = ErrorLogger.Severity.HIGH,
+                exception = e,
+                context = mapOf("operation" to "ensureLayoutDefaultsMigration")
+            )
+        }
+    }
+
+    /** Emits the full map on every change — the IME pushes it into the layout manager for the menu. */
+    val visibleLayoutsByLanguage: Flow<Map<String, Set<String>>> =
+        dataStore.data
+            .map { preferences ->
+                preferences[PreferenceKeys.VISIBLE_LAYOUTS_BY_LANGUAGE]
+                    ?.let { decodeVisibleLayouts(it) } ?: emptyMap()
+            }.distinctUntilChanged()
+
+    suspend fun getVisibleLayoutsByLanguage(): Map<String, Set<String>> = try {
+        dataStore.data.first()[PreferenceKeys.VISIBLE_LAYOUTS_BY_LANGUAGE]
+            ?.let { decodeVisibleLayouts(it) } ?: emptyMap()
+    } catch (e: Exception) {
+        emptyMap()
+    }
+
+    suspend fun setVisibleLayoutsForLanguage(language: String, layoutIds: Set<String>): Result<Unit> = try {
+        if (language.isNotBlank()) {
+            dataStore.edit { preferences ->
+                val current = preferences[PreferenceKeys.VISIBLE_LAYOUTS_BY_LANGUAGE]
+                    ?.let { decodeVisibleLayouts(it) } ?: emptyMap()
+                preferences[PreferenceKeys.VISIBLE_LAYOUTS_BY_LANGUAGE] =
+                    encodeVisibleLayouts(current.toMutableMap().apply { this[language] = layoutIds })
+            }
+        }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    private fun encodeVisibleLayouts(map: Map<String, Set<String>>): String =
+        map.entries.joinToString("\n") { "${it.key}\t${it.value.joinToString(",")}" }
+
+    private fun decodeVisibleLayouts(raw: String): Map<String, Set<String>> =
+        raw
+            .lineSequence()
+            .mapNotNull { line ->
+                val parts = line.split("\t")
+                if (parts.size == 2 && parts[0].isNotEmpty()) {
+                    parts[0] to parts[1].split(",").filter { it.isNotEmpty() }.toSet()
+                } else {
+                    null
+                }
+            }.toMap()
+
     private fun encodePerAppLayouts(map: Map<String, String>): String =
         map.entries.joinToString("\n") { "${it.key}\t${it.value}" }
 
@@ -620,7 +724,8 @@ constructor(
      */
     /** Whether the Library's Git-archive section is collapsed (persisted across sessions). */
     suspend fun getLibraryGitFolded(): Boolean = try {
-        dataStore.data.first()[PreferenceKeys.LIBRARY_GIT_FOLDED] ?: false
+        // Folded by default — the archive is a curation tool, not the browse list's headline.
+        dataStore.data.first()[PreferenceKeys.LIBRARY_GIT_FOLDED] ?: true
     } catch (_: Exception) {
         false
     }
@@ -672,6 +777,7 @@ constructor(
         RAW_KEY_PER_GEOMETRY_LOOK to PreferenceKeys.PER_GEOMETRY_LOOK,
         RAW_KEY_LIBRARY_LOOK to PreferenceKeys.LIBRARY_LOOK,
         RAW_KEY_ACTIVE_LAYOUT_BY_LANGUAGE to PreferenceKeys.ACTIVE_LAYOUT_BY_LANGUAGE,
+        RAW_KEY_VISIBLE_LAYOUTS_BY_LANGUAGE to PreferenceKeys.VISIBLE_LAYOUTS_BY_LANGUAGE,
         RAW_KEY_PER_APP_LAYOUT_LANGUAGES to PreferenceKeys.PER_APP_LAYOUT_LANGUAGES,
         RAW_KEY_CUSTOM_SUGGESTIONS to PreferenceKeys.CUSTOM_SUGGESTIONS,
         RAW_KEY_CUSTOM_SUGGESTIONS_BY_LANG to PreferenceKeys.CUSTOM_SUGGESTIONS_BY_LANG
@@ -1278,9 +1384,39 @@ constructor(
 
         // Public names for the raw backup-state DataStore values (see exportRawBackupValues). Stable strings —
         // they appear verbatim in exported backups, so do not rename.
+        /** Fresh-install switcher sets: the standard-arrangement layouts newcomers expect. */
+        private val FRESH_VISIBLE_LAYOUTS = mapOf(
+            "en" to setOf("en_qwerty_5r10c", "en_qcluster_5r4c", "en_qcluster_5r9c"),
+            "cs" to setOf(
+                "cs_qwertz_5r10c", "cs_qwerty_5r10c",
+                "cs_qzcluster_5r4c", "cs_qzcluster_5r9c",
+                "cs_qcluster_5r4c", "cs_qcluster_5r9c"
+            ),
+            "ru" to setOf("ru_yaverty_5r10c", "ru_ycluster_5r4c"),
+            "gnu" to emptySet(),
+            "ja" to emptySet()
+        )
+
+        /** Fresh-install per-language default layouts. */
+        private val FRESH_ACTIVE_LAYOUTS = mapOf(
+            "en" to "en_qwerty_5r10c",
+            "cs" to "cs_qwertz_5r10c",
+            "ru" to "ru_yaverty_5r10c"
+        )
+
+        /** The registry defaults as they stood before the newbie defaults landed (upgrade freeze). */
+        private val PRE_MIGRATION_DEFAULT_LAYOUTS = mapOf(
+            "en" to "en_column_5r13c",
+            "cs" to "cs_3p2_5r9c",
+            "ru" to "ru_3p2_5r4c",
+            "ja" to "ja_gojuon",
+            "gnu" to "gnu_5r13c"
+        )
+
         const val RAW_KEY_PER_GEOMETRY_LOOK = "per_geometry_look"
         const val RAW_KEY_LIBRARY_LOOK = "library_look"
         const val RAW_KEY_ACTIVE_LAYOUT_BY_LANGUAGE = "active_layout_by_language"
+        const val RAW_KEY_VISIBLE_LAYOUTS_BY_LANGUAGE = "visible_layouts_by_language"
         const val RAW_KEY_PER_APP_LAYOUT_LANGUAGES = "per_app_layout_languages"
         const val RAW_KEY_CUSTOM_SUGGESTIONS = "custom_suggestions"
         const val RAW_KEY_CUSTOM_SUGGESTIONS_BY_LANG = "custom_suggestions_by_lang"

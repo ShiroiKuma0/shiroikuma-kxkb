@@ -79,6 +79,8 @@ constructor(
     // Space-slide menu (1D): an up-slide on the space bar opens a Languages | Layouts grid; the cell under
     // the finger highlights; release switches. Drawn as an overlay in dispatchDraw.
     private var spaceMenuColumns: List<SpaceMenuColumn>? = null
+    private var spaceMenuOverflow: SpaceMenuColumn? = null
+    private var spaceMenuOverflowTrigger: Runnable? = null
     private var spaceMenuHighlight: Pair<Int, Int>? = null
     private var touchDownKey: KeyboardKey? = null
     private val spaceMenuTextPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
@@ -2085,10 +2087,22 @@ constructor(
     private fun openSpaceMenu(x: Float, y: Float): Boolean {
         val cols = keyboardLayoutManager?.buildSpaceMenu()?.takeIf { it.isNotEmpty() } ?: return false
         spaceMenuColumns = cols
+        spaceMenuOverflow = null
         spaceMenuHighlight = null
         updateSpaceMenuHighlight(x, y)
         invalidate()
         return true
+    }
+
+    /**
+     * The columns as currently shown: sliding onto a "…" spill item swaps the middle column for the
+     * overflow layouts (they stay until the menu closes, so the finger can travel there and release).
+     */
+    private fun effectiveSpaceMenuColumns(): List<SpaceMenuColumn>? {
+        val base = spaceMenuColumns ?: return null
+        val overflow = spaceMenuOverflow ?: return base
+        if (base.size < 2) return base + overflow
+        return base.toMutableList().also { it[base.size - 2] = overflow }
     }
 
     private fun spaceMenuRowHeight(cols: List<SpaceMenuColumn>): Float {
@@ -2097,7 +2111,7 @@ constructor(
     }
 
     private fun updateSpaceMenuHighlight(x: Float, y: Float) {
-        val cols = spaceMenuColumns ?: return
+        val cols = effectiveSpaceMenuColumns() ?: return
         val colW = width.toFloat() / cols.size
         val c = (x / colW).toInt().coerceIn(0, cols.size - 1)
         val r = (y / spaceMenuRowHeight(cols)).toInt()
@@ -2105,25 +2119,51 @@ constructor(
         if (next != spaceMenuHighlight) {
             spaceMenuHighlight = next
             if (next != null) keyboardLayoutManager?.triggerHapticFeedback()
+            // A "…" spill item reveals the extra layouts only after the finger DWELLS on it — the
+            // menu often OPENS with the touch already in the bottom-right cell (a rightward space
+            // slide), and a drive-by pass must not hijack the middle column.
+            spaceMenuOverflowTrigger?.let { removeCallbacks(it) }
+            spaceMenuOverflowTrigger = null
+            if (next != null && spaceMenuOverflow == null &&
+                cols[next.first].items[next.second].overflow != null
+            ) {
+                val trigger = Runnable {
+                    if (spaceMenuHighlight == next && spaceMenuColumns != null && spaceMenuOverflow == null) {
+                        val item = effectiveSpaceMenuColumns()
+                            ?.getOrNull(next.first)?.items?.getOrNull(next.second)
+                        item?.overflow?.let { extra ->
+                            spaceMenuOverflow = SpaceMenuColumn(cols[next.first].header, extra)
+                            keyboardLayoutManager?.triggerHapticFeedback()
+                            invalidate()
+                        }
+                    }
+                    spaceMenuOverflowTrigger = null
+                }
+                spaceMenuOverflowTrigger = trigger
+                postDelayed(trigger, SPACE_MENU_OVERFLOW_DWELL_MS)
+            }
             invalidate()
         }
     }
 
     private fun commitSpaceMenu() {
-        val cols = spaceMenuColumns ?: return
+        val cols = effectiveSpaceMenuColumns() ?: return
         val (c, r) = spaceMenuHighlight ?: return
         cols.getOrNull(c)?.items?.getOrNull(r)?.onSelect?.invoke()
     }
 
     private fun closeSpaceMenu() {
         spaceMenuColumns = null
+        spaceMenuOverflow = null
+        spaceMenuOverflowTrigger?.let { removeCallbacks(it) }
+        spaceMenuOverflowTrigger = null
         spaceMenuHighlight = null
         invalidate()
     }
 
     override fun dispatchDraw(canvas: android.graphics.Canvas) {
         super.dispatchDraw(canvas)
-        spaceMenuColumns?.let { drawSpaceMenu(canvas, it) }
+        if (spaceMenuColumns != null) effectiveSpaceMenuColumns()?.let { drawSpaceMenu(canvas, it) }
     }
 
     private fun drawSpaceMenu(canvas: android.graphics.Canvas, cols: List<SpaceMenuColumn>) {
@@ -2522,6 +2562,7 @@ constructor(
 
     companion object {
         private const val SEARCH_DEBOUNCE_MS = 300L
+        private const val SPACE_MENU_OVERFLOW_DWELL_MS = 180L
         private const val MIN_LETTER_SPACING_CENTER = -0.02f
         private const val MIN_LETTER_SPACING_PERIPHERAL = -0.03f
     }
