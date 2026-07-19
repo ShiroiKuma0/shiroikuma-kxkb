@@ -7,14 +7,15 @@
 **An offline, privacy-respecting keyboard — supercharged for power users.**
 
 A true-**FLOSS** fork of [Urik](https://github.com/urikdev/Urik) (GPL-3.0) with **major additions**:
-cluster-word prediction in any language, a per-geometry look-and-theme system, live on-keyboard
-resizing, an instant spacebar switcher, imported multi-letter / compass layouts, and a FUTO-style
+fully offline Whisper voice input, cluster-word prediction in any language, a per-geometry
+look-and-theme system, live on-keyboard resizing, an instant spacebar switcher, a curated
+multi-layout roster (QWERTY/QWERTZ/ЯВЕРТЫ + cluster and compass layouts), and a FUTO-style
 candidate line.
 
 Installs **side-by-side** with the official Urik and with any other keyboard (package
 `shiroikuma.kxkb`).
 
-**📥 Latest release: [`0.23.1+230`](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases)
+**📥 Latest release: [`0.23.1+250`](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases)
 
 </div>
 
@@ -33,6 +34,22 @@ word consistent with what you tapped and ranks them by frequency.
 - **Tab cycles** the highlight across the candidates the bar is showing; **long-press Space**
   inserts a literal space when you don’t want the prediction.
 - A **▾ expandable pane** opens a scrollable grid of the full long tail (tens of candidates).
+
+---
+
+## 🎙 Offline voice input — Whisper on the mic key
+
+Dictate in any keyboard language with **OpenAI's Whisper running entirely on the phone** (the
+[whisperIMEplus](https://github.com/woheller69/whisperIMEplus) ONNX engine). The keyboard has **no
+internet permission** — nothing you type or say can leave the device — so a guided settings page
+walks the one-time setup: your browser downloads the model, the page imports it, done.
+
+- **Tap the mic** (it replaced the right Shift) to dictate; **continuous mode** commits sentence by
+  sentence at your natural pauses while the mic keeps listening — recognition runs in parallel, so
+  nothing said during a decode is lost. Beeps confirm each committed sentence and the session end.
+- **Dictation follows the keyboard language**; **long-press the mic** to quick-flip to the pair's
+  other language (Czech ⇄ English and friends), announced right in the candidate line.
+- The model loads on first press (overlapping your speaking) and unloads after a minute idle.
 
 ---
 

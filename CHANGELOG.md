@@ -4,7 +4,80 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+230 — current
+## 0.23.1+250 — current
+
+Built on Urik `0.23.1-beta`. The voice-input release: fully offline Whisper dictation on a new mic
+key, plus a curated multi-layout roster (18 new layouts), per-language switcher curation with
+overflow, newcomer-friendly defaults, and an add-language generator — and the test suite is fully
+green for the first time.
+
+### 🎙 Offline Whisper voice input
+
+- **The engine**: [whisperIMEplus](https://github.com/woheller69/whisperIMEplus)'s ONNX Whisper
+  recognizer (GPL-3), vendored as a git submodule (`external/whisperIMEplus`, fork branch `kxkb`
+  with two hardening patches: catch-all exception handling on the engine threads — an engine error
+  can never kill the keyboard — and a real `destroy()` that releases the six ONNX sessions). Only
+  the UI-free engine subset is compiled; the recorder/orchestrator layer is new Kotlin
+  (`service/voice/`). ONNX Runtime + WebRTC VAD, arm64 only, R8 keep rules for the JNI runtime.
+- **The mic key** replaced the letters-layer right Shift on 11 layouts, drawn as a traced
+  yellow-outline vector tinted like a label (no colour-emoji glyph). Firm haptic pulse on press,
+  double tick on the long-press language flip.
+- **Dictation follows the keyboard language** (GNU counts as English); **long-press flips** to the
+  pair's other language (non-en ⇄ en, en/GNU ⇄ cs), flashed in the candidate line. Commits respect
+  the house spacing rules; Japanese commits bare.
+- **Continuous dictation** (default on): each pause commits that sentence and the mic keeps
+  listening while the engine decodes in parallel — commits stay in speaking order and nothing said
+  during a decode is lost. Ends on a mic tap, after a configurable silence (5/10/15/30 s), or a
+  5-minute cap; a transcribing tail drains in-flight sentences. Settable beeps: one per committed
+  sentence, three at session end (played with USAGE_MEDIA attributes — proper media routing).
+- **Zero network permission, by design**: the Voice input settings page (top of the kxkb UI page,
+  space-slide menu, and the mic key itself when setup is missing) walks the model setup — the
+  browser downloads the ~243 MB Whisper small int8 zip from Hugging Face, the page imports it from
+  disk with progress + validation (All-Files-Access, no SAF), and a button grants the mic
+  permission. Model status, remove-model, VAD auto-stop + silence, auto-detect language, and
+  translate-to-English options included.
+- **Lifecycle**: the model loads lazily on the first mic press (overlapping your speaking), stays
+  resident while used, and unloads its ~500 MB of native memory after a minute idle and on IME
+  teardown. Watchdogs force-reset any wedged state; errors flash in the candidate line (background
+  IME toasts are suppressed by Android). Voice is inert before first unlock (Direct Boot).
+
+### ⌨️ Eighteen new layouts + Russian repairs
+
+- **GNU**: 10c (13c minus the middle nav columns; Esc/Ctrl on the bottom row, single space) and
+  QWERTY versions of all three widths (10c/13c/15c — chords and flicks travel with their keys).
+- **English**: 10c (the GNU arrangement as predictive keys with the Cluster-4c bottom bar), QWERTY
+  10c, Q cluster 4, Q cluster 9 (the cluster grids regrouped in QWERTY order).
+- **Czech**: the same four, plus QWERTZ 10c and QZ cluster 4/9 (y ⇄ z), with „.“ quotes in the
+  cluster frames.
+- **Russian**: the garbled Cluster 8c deleted; Cluster 4c's bottom-row Ctrl replaced by a
+  repeatable backspace; uniform number-row widths everywhere; new 12c (individual keys), compact
+  10c (ю/ш in the bottom corners), phonetic ЯВЕРТЫ 10c, and Я cluster 4.
+
+### 🔀 Layout curation & switcher overflow
+
+- **Choose which layouts the switcher offers**: every Library row has a ⇄ pill — filled means
+  listed in the space-slide Layouts column. Per language, backed up by Export/import, live-updating.
+- **Overflow "…"**: the Layouts column caps at six + Library; the rest spill behind a "…" item
+  that swaps the middle column for the extras after a deliberate dwell — slide on and release.
+- **Newcomer defaults on fresh installs**: en QWERTY (+ Q clusters), cs QWERTZ/QWERTY (+ four
+  cluster variants), ru ЯВЕРТЫ (+ Я cluster 4); GNU and Japanese start hidden. **Existing
+  installations are untouched** — a one-time migration freezes the current curation and active
+  layouts explicitly before the new defaults can apply.
+- **＋ Add language**: the Library can generate a sensible standard keyboard (QWERTZ, AZERTY,
+  ЙЦУКЕН, Greek, Bulgarian phonetic, RTL Arabic/Farsi, …) for any of the 15 dictionary-equipped
+  languages that lack layouts — created as an editable custom layout, with the language activated
+  and ready to type.
+- The Library's git archive moved to the end of the page and folds by default (state persists).
+
+### 🔧 Fixes & internals
+
+- Layout re-sync now inserts new stock long-press candidates at their stock positions and copies
+  in whole shifted faces the shadow lacks (the `+231` i-key case), with tests.
+- The 12 long-standing test failures (a Kotlin default-argument/Mockito matcher trap) fixed — the
+  full suite (1 924 tests) is green.
+- New Robolectric coverage for the voice language-resolution matrix.
+
+## 0.23.1+230
 
 Built on Urik `0.23.1-beta`. Repairs the settings-UI regression `+222` shipped with, quadruples the
 split-gap range, and rounds out the editor with row/column tooling and per-item resets — plus a calmer
