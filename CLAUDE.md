@@ -220,8 +220,23 @@ all-caps (the learned "A" shadowed 4.5M-freq Czech "a"), stored single-letter su
 `cs.removed` by `clean_dictionaries.sh` (the hunspell heuristic can't catch them — cs accepts "Danny",
 and rejected-by-both includes valid colloquial Czech).
 
-**Released `0.23.1+287`** (2026-07-20; tagged `v0.23.1+287`, APK attached, on the fork's GitHub; default
-branch `custom`; README badge + `CHANGELOG.md` track it). Recent fork releases: `+222`, `+230`, `+250`,
-`+287` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`, `+211`, `+213`, `+214`, `+215`,
-`+217`). Remaining M5 tail (low priority): number/arrow rows on the look page, quick-period flick. Full
-architecture + milestone sequence in `docs/PLAN.md`.
+**Shipped since `+287`** (the `+292` line): **spacing around paired punctuation** — a commit that
+suppresses its trailing space (cursor at „word“| before a closing mark) sets
+`InputStateManager.pendingWordSeparator`, consumed when the next word starts (typed or swiped) so words
+inside „quotes“/() stay separated with no space before the closer; the mirror geometry (new word right
+AFTER "(test)|" via arrow-out) via `CursorEditingUtils.needsSpaceAfterClosingPair` (")]}»" always,
+quote glyphs only letter-preceded — U+201C closes cs „…“ but opens en "…"); the auto-separator is
+PRE-ANNOUNCED via `ExpectedTypingOus(-1,-1,pos)` — committed bare, its selection update hit
+`reassertComposingRegion` which pulled the cursor back mid-word and REVERSED the next word's letters
+(every IC text op must be pre-announced!); arrow flicks clear bigram predictions (Space after arrow =
+literal, not a stale candidate commit); **typed word leads the flat-board bar** (flat boards run in
+cluster mode so Space commits from the BAR, but spell-check excludes distance-0 — `requestSuggestions`
+prepends the buffer when `!hasClusterAmbiguity`); **cluster centre-word rescue** (valid centre words —
+hit/fit/lit, dít via folding, rare luft — were pool-truncated; a singleton re-query merges them past
+the CLUSTER_BAR_POOL cut).
+
+**Released `0.23.1+292`** (2026-07-20; tagged `v0.23.1+292`, APK attached, on the fork's GitHub; default
+branch `custom`; README badge + `CHANGELOG.md` track it). Recent fork releases: `+230`, `+250`, `+287`,
+`+292` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`, `+211`, `+213`, `+214`, `+215`,
+`+217`, `+222`). Remaining M5 tail (low priority): number/arrow rows on the look page, quick-period
+flick. Full architecture + milestone sequence in `docs/PLAN.md`.
