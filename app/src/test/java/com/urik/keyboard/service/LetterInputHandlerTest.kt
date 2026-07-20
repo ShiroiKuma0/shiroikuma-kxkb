@@ -71,4 +71,37 @@ class LetterInputHandlerTest {
         verify(mockOutputBridge).sendCharacter("a")
         assertEquals("", realInputState.displayBuffer)
     }
+
+    @Test
+    fun `pending word separator inserts a space before a new word and is consumed`() {
+        // A previous commit suppressed its trailing space (cursor at „word“| before the closing
+        // quote): the next word must get the separator, exactly once.
+        realInputState.pendingWordSeparator = true
+        handler.handle("a")
+        verify(mockOutputBridge).commitText(" ", 1)
+        assertEquals("a", realInputState.displayBuffer)
+        assertEquals(false, realInputState.pendingWordSeparator)
+    }
+
+    @Test
+    fun `no pending word separator means no injected space`() {
+        handler.handle("a")
+        verify(mockOutputBridge, org.mockito.Mockito.never()).commitText(" ", 1)
+        assertEquals("a", realInputState.displayBuffer)
+    }
+
+    @Test
+    fun `new word right after a closing bracket gets a separator space`() {
+        org.mockito.Mockito.`when`(mockOutputBridge.safeGetTextBeforeCursor(2)).thenReturn("t)")
+        handler.handle("s")
+        verify(mockOutputBridge).commitText(" ", 1)
+        assertEquals("s", realInputState.displayBuffer)
+    }
+
+    @Test
+    fun `new word after an opening quote gets no separator space`() {
+        org.mockito.Mockito.`when`(mockOutputBridge.safeGetTextBeforeCursor(2)).thenReturn(" „")
+        handler.handle("s")
+        verify(mockOutputBridge, org.mockito.Mockito.never()).commitText(" ", 1)
+    }
 }

@@ -104,6 +104,33 @@ class LetterInputHandler(
 
             val isStartingNewWord = inputState.displayBuffer.isEmpty()
 
+            // Two geometries need an auto-inserted separator before this new word: the previous
+            // commit suppressed its trailing space (cursor at „word“| BEFORE the closing mark), or
+            // the cursor sits right AFTER a closing bracket/quote ("(test)|" via arrow-out).
+            if (isStartingNewWord) {
+                val needsSeparator = inputState.consumePendingWordSeparator() ||
+                    CursorEditingUtils.needsSpaceAfterClosingPair(outputBridge.safeGetTextBeforeCursor(2))
+                if (needsSeparator) {
+                    // The space MUST be pre-announced: its unannounced selection update hit the
+                    // composing-reassert branch, which SET THE CURSOR BACK one position mid-word —
+                    // the next letter then inserted at index 0 and words came out reversed.
+                    val posAfterSpace = if (inputState.isKnownCursorTrustworthy()) {
+                        inputState.lastKnownCursorPosition + 1
+                    } else {
+                        outputBridge.safeGetCursorPosition() + 1
+                    }
+                    outputBridge.commitText(" ", 1)
+                    inputState.lastKnownCursorPosition = posAfterSpace
+                    inputState.enqueueTypingOus(
+                        InputStateManager.ExpectedTypingOus(
+                            composingStart = -1,
+                            composingEnd = -1,
+                            cursorPosition = posAfterSpace
+                        )
+                    )
+                }
+            }
+
             inputState.displayBuffer =
                 if (isStartingNewWord) {
                     char

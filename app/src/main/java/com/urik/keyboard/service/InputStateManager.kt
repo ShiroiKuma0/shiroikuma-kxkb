@@ -47,6 +47,21 @@ class InputStateManager(
     var isActivelyEditing = false
         internal set
 
+    /**
+     * Set when a word commit SUPPRESSED its trailing space because the text already continues with
+     * whitespace/punctuation — the cursor then sits at „word“| inside quotes/brackets. That
+     * suppressed space was also the SEPARATOR for a following word, so the next word start consumes
+     * this flag and inserts the separator first; any other input or a cursor jump drops it.
+     */
+    @Volatile
+    var pendingWordSeparator = false
+
+    fun consumePendingWordSeparator(): Boolean {
+        val pending = pendingWordSeparator
+        pendingWordSeparator = false
+        return pending
+    }
+
     @Volatile
     var isCurrentWordAtSentenceStart = false
         internal set

@@ -9,6 +9,26 @@ object CursorEditingUtils {
 
     private val nonPunctuationChars = setOf('#', '$', '%', '&', '*')
 
+    private const val UNAMBIGUOUS_CLOSERS = ")]}»"
+    private const val QUOTE_GLYPHS = "“”\"«"
+
+    /**
+     * True when the character immediately before the cursor closes a bracket/quote pair — a NEW word
+     * started there needs a separator space ("(test)|so" → "(test) so"). Unambiguous closers always
+     * count; quote glyphs are openers in one language and closers in another (U+201C closes Czech
+     * „…“ but opens English “…”), so they count only when preceded by a letter/digit — i.e. they
+     * just closed a word. Apostrophes are excluded (elisions/contractions glue legitimately).
+     */
+    fun needsSpaceAfterClosingPair(textBeforeCursor: String?): Boolean {
+        if (textBeforeCursor.isNullOrEmpty()) return false
+        val last = textBeforeCursor.last()
+        if (last in UNAMBIGUOUS_CLOSERS) return true
+        if (last in QUOTE_GLYPHS) {
+            return textBeforeCursor.length >= 2 && textBeforeCursor[textBeforeCursor.length - 2].isLetterOrDigit()
+        }
+        return false
+    }
+
     fun isPunctuation(char: Char): Boolean {
         if (char == '\'' || char == '\u2019' || char == '-') return false
 

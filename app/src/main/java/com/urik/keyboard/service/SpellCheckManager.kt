@@ -773,6 +773,14 @@ constructor(
         wordNormalizer.stripDiacritics(c.toString()).lowercase().firstOrNull()
 
     /**
+     * True when [word] contains at least one letter with an ambiguous cluster band — i.e. it was
+     * typed on multi-letter cluster keys, so the raw buffer is centre-letter garbage rather than
+     * the word itself. A word typed on FLAT keys (even on a layout in cluster mode) returns false.
+     */
+    fun hasClusterAmbiguity(word: String): Boolean =
+        clusterBands.isNotEmpty() && word.any { ch -> foldToBase(ch)?.let { clusterBands[it] } != null }
+
+    /**
      * Cluster prediction: reconstruct the per-tap allowed-sets from the typed centres (each char → its
      * cluster band, accent-folded) and enumerate dictionary words consistent with all positions, ranked by
      * frequency. The literal (the centres themselves) is just one such candidate, so the top by frequency
@@ -1021,7 +1029,15 @@ constructor(
                 emptyList()
             }
 
-        val rawDict = dict.clusterCandidates(allowedSets, CLUSTER_BAR_POOL)
+        val pooled = dict.clusterCandidates(allowedSets, CLUSTER_BAR_POOL)
+        // The centre-letter word itself must never be pool-truncated: the letters actually TAPPED
+        // form a real word more often than its corpus rank suggests ("hit" on en, Czech "dít" via
+        // the folded centres d-i-t, rare "luft") — yet the frequency-capped pool fills with
+        // higher-ranked band combinations and completions. A singleton re-query (no bands) pulls
+        // the exact centre word and its immediate completions past the cut; ranking stays natural.
+        val centerMatches = dict.clusterCandidates(folded.map { setOf(it) }, CENTER_WORD_POOL)
+            .filterNot { c -> pooled.any { it.first == c.first } }
+        val rawDict = pooled + centerMatches
         // Your own usage dominates dictionary frequency on a cluster layout: a word you have committed climbs
         // (used once → near the top, twice or more → the #1 candidate band), so a phrase you type constantly
         // like Czech "Teď" leads the row. Without this the cluster bar ranked purely by bundled-dictionary
@@ -1693,6 +1709,9 @@ constructor(
 
         /** Candidate pool size for cluster layouts — the bar shows as many of these as fit; Tab cycles them. */
         const val CLUSTER_BAR_POOL = 16
+
+        /** The singleton (no-bands) re-query cap that rescues the centre-letter word from pool truncation. */
+        const val CENTER_WORD_POOL = 4
         const val MIN_COMPLETION_LENGTH = 4
         const val FAT_FINGER_MIN_WORD_LENGTH = 4
         const val APOSTROPHE_BOOST = 0.30

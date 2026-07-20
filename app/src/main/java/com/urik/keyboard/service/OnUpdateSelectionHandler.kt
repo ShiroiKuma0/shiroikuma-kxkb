@@ -132,6 +132,8 @@ class OnUpdateSelectionHandler(
         newSelEnd: Int
     ): Boolean {
         if (selectionResult !is SelectionChangeResult.NonSequentialJump) return false
+        // The cursor moved elsewhere — a pending word separator no longer applies at the new spot.
+        inputState.pendingWordSeparator = false
         if (inputState.displayBuffer.isNotEmpty() || inputState.wordState.hasContent) {
             invalidateComposingStateOnCursorJump()
         }

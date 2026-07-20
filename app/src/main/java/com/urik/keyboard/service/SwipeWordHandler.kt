@@ -143,6 +143,32 @@ class SwipeWordHandler(
 
             if (validatedWord.isEmpty()) return
 
+            // Separator geometries (see LetterInputHandler): a previous commit suppressed its
+            // trailing space (cursor at „word“|), or the cursor sits right after a closing
+            // bracket/quote ("(test)|") — the swiped word needs its separator inserted first.
+            // Pre-announced like every other text operation, else the space's selection update
+            // desyncs the composing bookkeeping (the typed-path bug reversed letters).
+            if (inputState.consumePendingWordSeparator() ||
+                com.urik.keyboard.utils.CursorEditingUtils.needsSpaceAfterClosingPair(
+                    outputBridge.safeGetTextBeforeCursor(2)
+                )
+            ) {
+                val posAfterSpace = if (inputState.isKnownCursorTrustworthy()) {
+                    inputState.lastKnownCursorPosition + 1
+                } else {
+                    outputBridge.safeGetCursorPosition() + 1
+                }
+                outputBridge.commitText(" ", 1)
+                inputState.lastKnownCursorPosition = posAfterSpace
+                inputState.enqueueTypingOus(
+                    InputStateManager.ExpectedTypingOus(
+                        composingStart = -1,
+                        composingEnd = -1,
+                        cursorPosition = posAfterSpace
+                    )
+                )
+            }
+
             val keyboardState = onGetKeyboardState()
             val isSentenceStart = keyboardState.isAutoShift
             val isManualShifted =

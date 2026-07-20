@@ -1341,12 +1341,33 @@ open class UrikInputMethodService :
             // editor action. Routing it through onEnterAction (not outputBridge.sendEnter(), which commits a
             // "\n" that single-line fields normalise to a SPACE) fixes the "ac " trailing-space bug. (Bug E.)
             "enter" -> onEnterAction(EditorInfo.IME_ACTION_NONE)
-            "space" -> if (editWordOverlayActive()) swipeKeyboardView?.editWordInsert(" ") else outputBridge.sendSpace()
+            "space" -> if (editWordOverlayActive()) {
+                swipeKeyboardView?.editWordInsert(" ")
+            } else {
+                inputState.pendingWordSeparator = false
+                outputBridge.sendSpace()
+            }
             "backspace" -> handleBackspace()
-            "arrow_up" -> sendKeyEventWithMeta(KeyEvent.KEYCODE_DPAD_UP, 0)
-            "arrow_down" -> sendKeyEventWithMeta(KeyEvent.KEYCODE_DPAD_DOWN, 0)
-            "arrow_left" -> sendKeyEventWithMeta(KeyEvent.KEYCODE_DPAD_LEFT, 0)
-            "arrow_right" -> sendKeyEventWithMeta(KeyEvent.KEYCODE_DPAD_RIGHT, 0)
+            // Moving the caret invalidates the pending next-word (bigram) candidates — Space right
+            // after an arrow must insert a literal space, not commit a stale prediction (typed inside
+            // „…“/(), arrow-right out, Space → the candidate used to land instead of the space). Key
+            // TAPS already clear via setOnKeyClickListener; these flick actions bypass it.
+            "arrow_up" -> {
+                inputState.clearBigramPredictions()
+                sendKeyEventWithMeta(KeyEvent.KEYCODE_DPAD_UP, 0)
+            }
+            "arrow_down" -> {
+                inputState.clearBigramPredictions()
+                sendKeyEventWithMeta(KeyEvent.KEYCODE_DPAD_DOWN, 0)
+            }
+            "arrow_left" -> {
+                inputState.clearBigramPredictions()
+                sendKeyEventWithMeta(KeyEvent.KEYCODE_DPAD_LEFT, 0)
+            }
+            "arrow_right" -> {
+                inputState.clearBigramPredictions()
+                sendKeyEventWithMeta(KeyEvent.KEYCODE_DPAD_RIGHT, 0)
+            }
             "undo" -> currentInputConnection?.performContextMenuAction(android.R.id.undo)
             "redo" -> currentInputConnection?.performContextMenuAction(android.R.id.redo)
             "cut" -> currentInputConnection?.performContextMenuAction(android.R.id.cut)
@@ -2326,6 +2347,7 @@ open class UrikInputMethodService :
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         // A field change invalidates whatever word the edit overlay was correcting.
         if (!restarting) swipeKeyboardView?.hideEditWordOverlay()
+        inputState.pendingWordSeparator = false
         layoutManager.updateLongPressDuration(currentSettings.longPressDuration)
         layoutManager.updateLongPressPunctuationMode(currentSettings.longPressPunctuationMode)
         layoutManager.updateKeySize(currentSettings.keySize)
@@ -2525,6 +2547,7 @@ open class UrikInputMethodService :
             swipeKeyboardView?.editWordCommit()
             return
         }
+        inputState.pendingWordSeparator = false
         serviceScope.launch { performInputAction(imeAction) }
     }
 
@@ -2751,6 +2774,8 @@ open class UrikInputMethodService :
             swipeKeyboardView?.editWordInsert(char)
             return
         }
+        // Punctuation has its own spacing rules — a pending word separator no longer applies.
+        inputState.pendingWordSeparator = false
         nonLetterInputHandler.handle(char)
     }
 
@@ -2956,6 +2981,7 @@ open class UrikInputMethodService :
             swipeKeyboardView?.editWordBackspace()
             return
         }
+        inputState.pendingWordSeparator = false
         backspaceHandler.handle()
     }
 
@@ -2974,6 +3000,7 @@ open class UrikInputMethodService :
             swipeKeyboardView?.editWordInsert(" ")
             return
         }
+        inputState.pendingWordSeparator = false
         spaceInputHandler.handle()
     }
 

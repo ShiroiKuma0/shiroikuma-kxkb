@@ -57,10 +57,26 @@ class SuggestionPipeline(
                             when (result) {
                                 is ProcessingResult.Success -> {
                                     state.wordState = result.wordState
-                                    if (result.wordState.suggestions.isNotEmpty() && host.showSuggestions()) {
+                                    // On a FLAT board in cluster mode Space commits from the BAR, so
+                                    // the typed buffer — which IS the intended word — must lead it
+                                    // (the spell checker excludes exact matches by design). On true
+                                    // cluster keys the buffer is centre-letter garbage and stays out.
+                                    val typedLeads = state.clusterLayoutActive &&
+                                        bufferSnapshot.isNotEmpty() &&
+                                        !spellCheckManager.hasClusterAmbiguity(bufferSnapshot)
+                                    val rawSuggestions =
+                                        if (typedLeads) {
+                                            listOf(SpellingSuggestion(bufferSnapshot, 1.0, 0, "typed")) +
+                                                result.wordState.suggestions.filterNot {
+                                                    it.word.equals(bufferSnapshot, ignoreCase = true)
+                                                }
+                                        } else {
+                                            result.wordState.suggestions
+                                        }
+                                    if (rawSuggestions.isNotEmpty() && host.showSuggestions()) {
                                         val displaySuggestions =
                                             storeAndCapitalizeSuggestions(
-                                                result.wordState.suggestions,
+                                                rawSuggestions,
                                                 state.isCurrentWordAtSentenceStart
                                             )
                                         state.pendingSuggestions = displaySuggestions
@@ -457,17 +473,17 @@ class SuggestionPipeline(
                 // whitespace/punctuation right after the composing region (a tap-recompose correction mid-
                 // sentence, or typing a word in front of existing text) — appending there would double the
                 // space. The cursor math below accounts for it via [trailingSpaceLen]. (Japanese FIX 1.)
-                val trailing =
-                    if (isJapaneseLayout || !appendSpace || trailingSpaceSuppressedByNextChar(actualCursorPos)) {
-                        ""
-                    } else {
-                        " "
-                    }
+                val suppressedTrailing =
+                    !isJapaneseLayout && appendSpace && trailingSpaceSuppressedByNextChar(actualCursorPos)
+                val trailing = if (isJapaneseLayout || !appendSpace || suppressedTrailing) "" else " "
                 val trailingSpaceLen = trailing.length
 
                 outputBridge.beginBatchEdit()
                 try {
                     outputBridge.commitText("$committed$trailing")
+                    // The suppressed space was also the next word's separator — remember to insert
+                    // it when (and only when) another word actually starts here.
+                    state.pendingWordSeparator = suppressedTrailing
 
                     val expectedNewPosition =
                         if (state.composingRegionStart != -1) {
@@ -545,12 +561,14 @@ class SuggestionPipeline(
 
                 state.isActivelyEditing = true
 
-                val trailing =
-                    if (isJapaneseLayout || trailingSpaceSuppressedByNextChar(actualCursorPos)) "" else " "
+                val suppressedTrailing =
+                    !isJapaneseLayout && trailingSpaceSuppressedByNextChar(actualCursorPos)
+                val trailing = if (isJapaneseLayout || suppressedTrailing) "" else " "
 
                 outputBridge.beginBatchEdit()
                 try {
                     outputBridge.commitText("$edited$trailing")
+                    state.pendingWordSeparator = suppressedTrailing
 
                     val base =
                         if (state.composingRegionStart != -1) state.composingRegionStart else actualCursorPos
