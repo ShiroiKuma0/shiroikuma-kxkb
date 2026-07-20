@@ -4,7 +4,44 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+287 — current
+## 0.23.1+292 — current
+
+Built on Urik `0.23.1-beta`. The spacing-and-pairs release: correct word separation around
+„quotes“, brackets and parentheses on every input path, a literal Space after cursor movement, the
+typed word restored to its own candidate bar on the flat boards, and valid centre-letter words
+rescued on the cluster boards.
+
+### ⌨️ Spacing around paired punctuation
+
+- **Inside „quotes“/() words stay separated**: a commit that suppresses its trailing space (the
+  cursor sits at „word“| before the closing mark) now remembers that the separator is still owed —
+  the next word started there, typed or swiped, gets its space inserted automatically; any other
+  input (space, punctuation, backspace, Enter, a cursor jump, a field change) cancels it. No space
+  ever precedes the closing mark, and words never glue.
+- **Typing right after a closing pair**: a new word begun at "(test)|" (arrow-out of the pair, the
+  composition finished by the arrow) auto-inserts the separator — ")]}»" always; quote glyphs only
+  when preceded by a letter, which correctly distinguishes the just-closed Czech „…“ from a
+  just-opened English "…" (the same U+201C glyph); apostrophes excluded so elisions and
+  contractions still glue.
+- **The auto-inserted separator is pre-announced** through the expected-selection queue like every
+  other text operation — committed bare it desynced the composing bookkeeping (the cursor was
+  pulled back one position mid-word and the following word's letters came out REVERSED on the
+  cluster boards).
+- **Space after an arrow is literal**: the arrow flicks now clear the pending next-word (bigram)
+  candidates, so arrowing out of a pair and pressing Space inserts a space instead of committing a
+  stale prediction (tapped keys already cleared them; the flick path bypassed it).
+
+### 🔤 The typed word in its own bar
+
+- The flat 10/12-column boards run in cluster mode — Space commits from the bar — yet the spell
+  checker excludes exact matches, so the word you actually typed ("test") was missing from its own
+  candidate row. The typed buffer now leads the bar whenever it was typed on flat keys (no cluster
+  ambiguity); true cluster centre-letter garbage stays excluded.
+- **Cluster centre-word rescue**: the frequency-capped candidate pool truncated valid centre-letter
+  words — "hit"/"fit"/"lit" on English, Czech "dít" via the folded centres, rare words like "luft".
+  A singleton re-query of the exact centres merges them past the cut, ranked naturally.
+
+## 0.23.1+287
 
 Built on Urik `0.23.1-beta`. The swipe-and-correct release: glide typing on all the flat 10/12-column
 boards with native-language ranking, one-tap correction of already-committed words with an
