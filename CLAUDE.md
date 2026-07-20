@@ -201,8 +201,27 @@ curation first; **＋ Add language** in the Library (standard keyboards for the 
 languages, incl. RTL); git archive at the Library page end, folded by default; the 12 long-standing
 Mockito matcher test failures fixed — the suite (1 924 tests) is fully green.
 
-**Released `0.23.1+250`** (2026-07-19; tagged `v0.23.1+250`, APK attached, on the fork's GitHub; default
-branch `custom`; README badge + `CHANGELOG.md` track it). Recent fork releases: `+215`, `+217`, `+222`,
-`+230`, `+250` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`, `+211`, `+213`, `+214`).
-Remaining M5 tail (low priority): number/arrow rows on the look page, quick-period flick. Full
+**Shipped since `+250`** (the `+287` line): **swipe typing on the flat boards** — the seven 10c boards
+(en/cs kxkb/QWERTY/QWERTZ, ru kxkb/ЯВЕРТЫ) + ru 12c converted to flat tap keys with XK accents; eleven
+root causes fixed (detector gating, ranked-candidate bar, 500/512 ring overflow, single-language dict +
+prewarm keying, **accent folding** — geometry on folded letters, real word displayed/committed —, the
+**partial-path live-prune corruption** — finalize re-selects from the full index against the complete
+path —, after-Enter bar wipe, length-penalty floors; see `memory/swipe-typing-10c.md`); **tap-to-correct**
+(tapping a committed word feeds recompose through the pipeline → candidates in the bar; smart trailing-
+space suppression) + the **✎ edit-word overlay** (in-keyboard strip, drawn caret, keys type into the
+buffer prediction-free, ✓/✕/🗑; candidate long-press opens it; the resize grip forwards quick taps to the
+chip, long-press still resizes — the grip is the topmost child and eats corner DOWNs, see
+`memory/word-correction-edit-overlay.md`); the **Learned words page** (space-slide Actions, replacing the
+Voice-input entry — per-language tabs with native names + current-language preselect + swipe-to-switch;
+merged learned + user-dictionary entries, ＋ pill marker, tight rows, per-row no-confirm delete routed to
+the right store; GNU excluded); **prediction hygiene** — single letters never learned as deliberate
+all-caps (the learned "A" shadowed 4.5M-freq Czech "a"), stored single-letter surfaces fold at query,
+`tools/removed_manual/` hand-curated dictionary removals (danny/donno/… + non-word "e") merged into
+`cs.removed` by `clean_dictionaries.sh` (the hunspell heuristic can't catch them — cs accepts "Danny",
+and rejected-by-both includes valid colloquial Czech).
+
+**Released `0.23.1+287`** (2026-07-20; tagged `v0.23.1+287`, APK attached, on the fork's GitHub; default
+branch `custom`; README badge + `CHANGELOG.md` track it). Recent fork releases: `+222`, `+230`, `+250`,
+`+287` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`, `+211`, `+213`, `+214`, `+215`,
+`+217`). Remaining M5 tail (low priority): number/arrow rows on the look page, quick-period flick. Full
 architecture + milestone sequence in `docs/PLAN.md`.
