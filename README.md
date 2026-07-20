@@ -15,7 +15,7 @@ candidate line.
 Installs **side-by-side** with the official Urik and with any other keyboard (package
 `shiroikuma.kxkb`).
 
-**📥 Latest release: [`0.23.1+250`](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases)
+**📥 Latest release: [`0.23.1+287`](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases)
 
 </div>
 
@@ -65,6 +65,17 @@ Far more than one letter per button, and far more than two layouts per language:
   **width variants** grouped by family and per-language active-layout memory.
 - **Secondary characters** ride on the keys (top row, bottom row, the flick sides), each with its
   own font, weight, size, colour and spacing.
+
+---
+
+## 👆 Glide typing on the flat boards — and tap-to-fix
+
+The 10/12-column boards type by **swiping** — accent-aware (swipe `dobry`, get **dobrý**), scoped
+to the current language, tuned for the compact kxkb arrangements. And fixing what's already written
+is one tap: **tap any word** for correction candidates in the bar, or hit the **✎ chip** to edit it
+letter-by-letter in an in-keyboard editor with a real caret — no prediction interference — then
+commit it back over the word. Long-press any candidate to edit or ban it, and browse everything the
+keyboard has learned in the per-language **Learned words** page (registered words wear a ＋ pill).
 
 ---
 

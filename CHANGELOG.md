@@ -4,7 +4,83 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+250 — current
+## 0.23.1+287 — current
+
+Built on Urik `0.23.1-beta`. The swipe-and-correct release: glide typing on all the flat 10/12-column
+boards with native-language ranking, one-tap correction of already-committed words with an
+in-keyboard word editor, a per-language Learned words maintenance page, and a second round of
+Czech dictionary cleanup.
+
+### 👆 Swipe typing on the flat boards
+
+- The seven 10-column boards (en/cs kxkb + QWERTY + QWERTZ, ru kxkb + ЯВЕРТЫ) and the ru 12c
+  converted from compass keys to **flat tap keys with long-press (XK) accents** — swipe-capable;
+  bottom-row punctuation keys at standard width, only Space stays wide.
+- Eleven root causes fixed to make swiping work and rank natively, among them:
+  - the detector was disabled on any layout containing a flick key — now a two-gate design
+    (user setting + per-layout flat-letters capability);
+  - swipe results now travel as the **ranked list** and the bar leads with the composed word
+    (it used to show spell-checker neighbours and even filter the swiped word out);
+  - a ring-buffer overflow silently crashed every longer swipe (“interesting”, „привет” — the
+    500-point cap vs the 512-slot buffer);
+  - the swipe dictionary is the **current layout language only** — English no longer shadows
+    Czech/Russian — with the prewarm cache keyed to match;
+  - **accent folding**: path geometry runs on accent-folded letters while the bar and the commit
+    carry the real word — so swiping `dobry` finally offers **dobrý** (199k frequency) instead of
+    subtitle-corpus junk, and ё-words work in Russian;
+  - **the live-prune corruption**: the 50 ms ticker pruned candidates against the PARTIAL path, so
+    words whose letters come later in the gesture were destroyed mid-swipe, timing-dependently —
+    finalize now re-selects from the full index against the COMPLETE path;
+  - the after-Enter candidate-bar wipe (the swipe's own composing hop was classified as a cursor
+    jump on a fresh line) — defused via the tracker's expected-position announcement;
+  - length-penalty floor and point-budget scaling so short words (“is”) and long words
+    (“interesting”) both survive on the packed kxkb arrangements.
+
+### ✎ Correct what's already written
+
+- **Tap into any committed word**: it underlines and the bar offers correction candidates; picking
+  one replaces the word in place — and commits no longer inject a double space when the text
+  already continues with whitespace or punctuation.
+- The **✎ chip** (leftmost in the bar whenever a word is composing — even with zero candidates,
+  exactly when manual editing is the only fix) opens the **edit-word overlay**: a strip over the
+  suggestion bar with the word and a drawn caret; the keyboard's own keys type into it with
+  prediction inherently off; tap the text to move the caret; **✓** commits the edited text verbatim
+  over the underlined word (multi-word “Jak se” and punctuation “kina?” included), **✕** cancels,
+  **🗑** (a line-traced bin) removes the word from prediction — unlearn + blacklist.
+- **Long-press any candidate** opens the same overlay prefilled with it (replacing the old
+  full-screen removal confirmation).
+- The **resize grip coexists**: long-press in the corner still activates resize; a quick tap there
+  is forwarded to the ✎ chip; the grip yields while the overlay is open.
+
+### 📚 Learned words page
+
+- In the space-slide **Actions** column (in place of “Voice input” — the mic key covers voice):
+  everything the keyboard has learned, in **per-language tabs** (native names, the current keyboard
+  language preselected, **left/right swipe changes tabs**).
+- The list merges implicitly **learned words** with explicit **user-dictionary entries**
+  (registered words like 白い熊 included) — the explicit ones marked with a **＋ pill** in an
+  aligned gutter so every word lines up; tight rows; **per-row delete without confirmation**,
+  routed to the right store. A learned-word delete only forgets (typing it again relearns —
+  unlike the candidate 🗑, it does not blacklist); “Delete all” clears the learned store but
+  never touches your registrations.
+- **GNU is excluded** — a no-prediction keyboard learns nothing.
+
+### 🧹 Prediction hygiene
+
+- **Single letters are never learned as “deliberate all-caps”**: a sentence-start “A” commit used
+  to be stored as a preserve-case word that ranked first mid-sentence and — via the
+  case-insensitive dedupe — shadowed the 4.5-million-frequency Czech “a” entirely. New single
+  letters aren't learned; already-stored ones display recased to context.
+- **Czech dictionary cleanup, round 2**: hand-curated removals the hunspell heuristic can't catch —
+  proper-noun and slang residue the Czech speller itself accepts or both spellers reject (danny,
+  donny, davey, darby, debra, deane, denver, donno, dovey, dong, gonna, wanna, dunno, gotta) plus
+  the non-word “e” (14k corpus frequency) — while protecting real Czech lookalikes (davy, dogy,
+  doby, dobrej). Kept in `tools/removed_manual/` and merged into `cs.removed` on every
+  regeneration by `clean_dictionaries.sh`.
+- The autofill coordinator no longer force-clears the whole suggestion bar on an empty inline
+  response.
+
+## 0.23.1+250
 
 Built on Urik `0.23.1-beta`. The voice-input release: fully offline Whisper dictation on a new mic
 key, plus a curated multi-layout roster (18 new layouts), per-language switcher curation with
