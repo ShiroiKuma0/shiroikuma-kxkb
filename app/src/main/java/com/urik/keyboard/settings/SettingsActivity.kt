@@ -58,6 +58,7 @@ class SettingsActivity : AppCompatActivity() {
                     PAGE_EXPORT_IMPORT -> ExportImportFragment()
                     PAGE_USER_DICTIONARY -> UserDictionaryFragment()
                     PAGE_VOICE -> com.urik.keyboard.settings.voice.VoiceSettingsFragment()
+                    PAGE_LEARNED_WORDS -> LearnedWordsFragment()
                     else -> null
                 }
             if (page != null) {
@@ -139,6 +140,7 @@ class SettingsActivity : AppCompatActivity() {
         const val PAGE_EXPORT_IMPORT = "export_import"
         const val PAGE_USER_DICTIONARY = "user_dictionary"
         const val PAGE_VOICE = "voice"
+        const val PAGE_LEARNED_WORDS = "learned_words"
 
         fun createIntent(context: Context): Intent = Intent(context, SettingsActivity::class.java)
 

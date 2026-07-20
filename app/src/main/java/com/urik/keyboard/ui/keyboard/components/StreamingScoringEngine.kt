@@ -225,9 +225,18 @@ constructor(
             val currentKeyPositions = keyPositions
             if (currentKeyPositions.isEmpty()) return@withContext emptyList()
 
-            val maxLength = (rawPointCount / 5).coerceIn(5, 20)
-            val candidates = liveCandidates.ifEmpty { fullDictionary }
-                .filter { it.word.length <= maxLength }
+            // A fast long swipe thins to few raw points — the old /5 cap could exclude the very
+            // word being swiped (an ~50-point "interesting" capped candidates at 10 letters).
+            val maxLength = (rawPointCount / 3).coerceIn(10, 20)
+
+            // NEVER finalize from the live-pruned list: the ticker prunes against PARTIAL paths,
+            // and an early bounding box excludes words whose keys come later in the gesture (it
+            // destroyed "dobrý" mid-swipe, timing-dependently). Re-select from the full index
+            // against the COMPLETE path — same three prunes, correct data.
+            var candidates = fullDictionary.filter { it.word.length <= maxLength }
+            candidates = pruneByStartAnchor(candidates, computeStartAnchorKeysInternal(swipePath, currentKeyPositions))
+            candidates = pruneByBounds(candidates, computeCharsInBoundsInternal(swipePath, currentKeyPositions))
+            candidates = pruneByTraversal(candidates, computeTraversedKeys(swipePath, currentKeyPositions))
 
             if (candidates.isEmpty()) return@withContext emptyList()
 
@@ -464,18 +473,18 @@ constructor(
                 .sortedByDescending { it.value }
 
         return sorted.mapIndexed { rank, (word, frequency) ->
-            val lowercaseWord = word.lowercase()
-            val uniqueChars = lowercaseWord.toSet()
+            // ALL geometry runs on the accent-folded form: the boards carry base letters only, so
+            // an unfolded "dobrý" had no 'ý' key position and scored ZERO — every diacritic word
+            // (most of Czech) was unscorable and ASCII corpus junk won instead. The real word
+            // travels in displayWord for the bar and the commit.
+            val foldedWord = wordNormalizer.stripDiacritics(word.lowercase())
+            val uniqueChars = foldedWord.toSet()
             SwipeDetector.DictionaryEntry(
-                word = word,
+                word = foldedWord,
+                displayWord = word,
                 frequencyScore = ln(frequency.toFloat() + 1f) / 20f,
                 rawFrequency = frequency,
-                firstChar =
-                wordNormalizer
-                    .stripDiacritics(
-                        word.first().toString()
-                    ).first()
-                    .lowercaseChar(),
+                firstChar = foldedWord.first(),
                 uniqueLetterCount = uniqueChars.size,
                 uniqueLowercaseChars = uniqueChars,
                 frequencyTier = SwipeDetector.FrequencyTier.fromRank(rank)

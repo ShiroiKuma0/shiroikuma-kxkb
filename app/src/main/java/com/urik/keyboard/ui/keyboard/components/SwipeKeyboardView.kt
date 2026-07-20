@@ -93,7 +93,7 @@ constructor(
     private var recentEmojiProvider: com.urik.keyboard.service.RecentEmojiProvider? = null
 
     private var onKeyClickListener: ((KeyboardKey) -> Unit)? = null
-    private var onSwipeWordListener: ((String) -> Unit)? = null
+    private var onSwipeWordListener: ((List<String>) -> Unit)? = null
     private var onSuggestionClickListener: ((String) -> Unit)? = null
     private var onSuggestionLongPressListener: ((String) -> Unit)? = null
     private var onEmojiSelected: ((String) -> Unit)? = null
@@ -144,8 +144,19 @@ constructor(
         getCurrentCursorSpeed = { currentCursorSpeed }
     )
 
-    private var confirmationOverlay: FrameLayout? = null
-    private var pendingRemovalSuggestion: String? = null
+    // The edit-word overlay: a strip over the suggestion bar holding an editable buffer the KEYS type
+    // into (an EditText can't work here — the IME window never takes input focus from itself), plus
+    // cancel / remove-from-prediction / commit buttons. Opened from the bar's ✎ chip or a candidate
+    // long-press; keys stay live below it and are routed into the buffer by the service.
+    private var editWordOverlay: LinearLayout? = null
+    private var editWordTextView: TextView? = null
+    private val editWordBuffer = StringBuilder()
+    private var editWordCursor = 0
+    private var editWordOriginal: String? = null
+    private var editChipView: TextView? = null
+    private var editChipWord: String? = null
+    private var editChipWordProvider: (() -> String?)? = null
+    private var onEditWordCommitListener: ((String) -> Unit)? = null
 
     private var emojiPickerContainer: LinearLayout? = null
     private var isShowingEmojiPicker = false
@@ -206,7 +217,7 @@ constructor(
         OnLongClickListener { view ->
             if (isDestroyed) return@OnLongClickListener false
             val suggestion = view.getTag(R.id.suggestion_text) as? String ?: return@OnLongClickListener false
-            showRemovalConfirmation(suggestion)
+            showEditWordOverlay(suggestion)
             true
         }
 
@@ -323,6 +334,26 @@ constructor(
                 LayoutParams.MATCH_PARENT
             )
         )
+        // The grip keeps owning the corner (long-press there = resize, ✎ chip or not), but a quick TAP
+        // is forwarded to the edit chip beneath it; while the edit overlay is open the grip yields
+        // entirely — the overlay's ✕/🗑 buttons live exactly under it.
+        resizeOverlay.gripExclusion = { _, _ -> isEditWordOverlayVisible }
+        resizeOverlay.onGripTap = { x, y ->
+            if (!isDestroyed && isTouchOnEditChip(x, y)) {
+                keyboardLayoutManager?.triggerHapticFeedback()
+                editChipWord?.let { showEditWordOverlay(it) }
+            }
+        }
+    }
+
+    private fun isTouchOnEditChip(x: Float, y: Float): Boolean {
+        val chip = editChipView ?: return false
+        if (!chip.isShown || chip.parent == null) return false
+        chip.getLocationInWindow(cachedLocationArray)
+        getLocationInWindow(cachedParentLocationArray)
+        val left = cachedLocationArray[0] - cachedParentLocationArray[0]
+        val top = cachedLocationArray[1] - cachedParentLocationArray[1]
+        return x >= left && x < left + chip.width && y >= top && y < top + chip.height
     }
 
     override fun onAttachedToWindow() {
@@ -858,7 +889,7 @@ constructor(
         }
     }
 
-    fun setOnSwipeWordListener(listener: (String) -> Unit) {
+    fun setOnSwipeWordListener(listener: (List<String>) -> Unit) {
         if (!isDestroyed) {
             this.onSwipeWordListener = listener
         }
@@ -1076,6 +1107,33 @@ constructor(
         return btn
     }
 
+    /** The bar's leftmost ✎ chip: opens the edit-word overlay for the composing word. */
+    private fun getOrCreateEditChip(): TextView {
+        val chip = editChipView ?: TextView(context).apply {
+            text = "✎"
+            gravity = Gravity.CENTER
+            contentDescription = context.getString(R.string.edit_word_chip_description)
+            setOnClickListener {
+                if (isDestroyed) return@setOnClickListener
+                keyboardLayoutManager?.triggerHapticFeedback()
+                editChipWord?.let { word -> showEditWordOverlay(word) }
+            }
+        }
+        (chip.parent as? ViewGroup)?.removeView(chip)
+        val density = context.resources.displayMetrics.density
+        chip.setTextColor(suggestionAccentColor())
+        chip.setTextSize(TypedValue.COMPLEX_UNIT_SP, (suggestionTextSizeSp.takeIf { it > 0 } ?: 18f) * 1.05f)
+        val pad = (8 * density).toInt()
+        chip.setPadding(pad, 0, pad, 0)
+        chip.layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            0f
+        )
+        editChipView = chip
+        return chip
+    }
+
     /** Overlay the keyboard with a scrollable flow of every candidate; tap commits, ▴ collapses. */
     fun showCandidatesPane(candidates: List<String>) {
         if (isDestroyed || candidates.isEmpty()) return
@@ -1222,6 +1280,17 @@ constructor(
                 }
             }
 
+            // The ✎ chip opens the edit-word overlay for the composing (underlined) word. It shows whenever
+            // a word is composing — even with zero candidates, which is exactly when manual editing is the
+            // only correction path. The word is CAPTURED AT RENDER TIME and carried by the chip: resolving
+            // it at tap time from the live composing state raced with state invalidation and made the tap
+            // a silent no-op.
+            val chipWord = editChipWordProvider?.invoke()?.takeIf { it.isNotEmpty() }
+            editChipWord = chipWord
+            if (chipWord != null) {
+                bar.addView(getOrCreateEditChip())
+            }
+
             if (suggestions.isNotEmpty()) {
                 populateSuggestions(bar, suggestions)
             } else {
@@ -1268,8 +1337,9 @@ constructor(
         val density = context.resources.displayMetrics.density
         val emojiWidth = emojiButton?.let { it.measuredWidth.takeIf { w -> w > 0 } } ?: (44 * density).toInt()
         val expandWidth = if (suggestionSelectionEnabled) (40 * density).toInt() else 0
+        val editChipWidth = if (editChipView?.parent != null) (40 * density).toInt() else 0
         val barWidth = bar.width.takeIf { it > 0 } ?: context.resources.displayMetrics.widthPixels
-        val available = (barWidth - emojiWidth - expandWidth - (16 * density).toInt())
+        val available = (barWidth - emojiWidth - expandWidth - editChipWidth - (16 * density).toInt())
             .coerceAtLeast((100 * density).toInt())
 
         val suggestionTextColor =
@@ -1429,124 +1499,229 @@ constructor(
         }
     }
 
-    private fun showRemovalConfirmation(suggestion: String) {
-        if (isDestroyed || confirmationOverlay != null) return
-
+    /**
+     * The unified edit-word overlay: ✕ cancel | 🗑 remove-from-prediction | the editable word with a
+     * drawn caret | ✓ commit. It replaces both the old full-screen removal confirmation and the missing
+     * word-edit affordance. The buffer is rendered manually (no EditText — the IME window can't take
+     * input focus from itself); the service routes key presses into it via [editWordInsert] /
+     * [editWordBackspace], and a tap on the text moves the caret.
+     */
+    fun showEditWordOverlay(word: String) {
+        if (isDestroyed || word.isEmpty()) return
+        hideEditWordOverlay()
         flushInFlightGestureState()
 
-        pendingRemovalSuggestion = suggestion
+        editWordOriginal = word
+        editWordBuffer.setLength(0)
+        editWordBuffer.append(word)
+        editWordCursor = word.length
 
-        confirmationOverlay =
-            FrameLayout(context).apply {
-                setBackgroundColor(ContextCompat.getColor(context, android.R.color.black))
-                alpha = 0.8f
-                importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+        val density = context.resources.displayMetrics.density
+        val accent = suggestionAccentColor()
+        val textColor = adaptiveDimensions?.suggestionColor
+            ?: themeManager?.currentTheme?.value?.colors?.suggestionText
+            ?: android.graphics.Color.WHITE
+        val bg = adaptiveDimensions?.suggestionBgColor
+            ?: themeManager?.currentTheme?.value?.colors?.suggestionBarBackground
+            ?: android.graphics.Color.BLACK
+        val textSize = suggestionTextSizeSp.takeIf { it > 0 } ?: 18f
+        val minTouchTarget = context.resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
+        val overlayHeight = (suggestionBar?.height?.takeIf { it > 0 } ?: minTouchTarget)
+            .coerceAtLeast(minTouchTarget)
+        val pad = (10 * density).toInt()
 
-                val container =
-                    LinearLayout(context).apply {
-                        orientation = LinearLayout.VERTICAL
-                        gravity = Gravity.CENTER
-                        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
-                        setBackgroundColor(
-                            themeManager!!
-                                .currentTheme.value.colors.keyboardBackground
-                        )
-
-                        val padding = context.resources.getDimensionPixelSize(R.dimen.key_margin_horizontal) * 2
-                        setPadding(padding, padding, padding, padding)
-
-                        val message =
-                            TextView(context).apply {
-                                text = context.getString(R.string.remove_suggestion, suggestion)
-                                setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
-                                setTextColor(
-                                    themeManager!!
-                                        .currentTheme.value.colors.suggestionText
-                                )
-                                gravity = Gravity.CENTER
-                                setPadding(0, 0, 0, padding)
-                            }
-                        addView(message)
-
-                        val buttonsContainer =
-                            LinearLayout(context).apply {
-                                orientation = LinearLayout.HORIZONTAL
-                                gravity = Gravity.CENTER
-
-                                val cancelBtn =
-                                    Button(context).apply {
-                                        text = context.getString(R.string.remove_cancel)
-                                        setTextColor(
-                                            themeManager!!
-                                                .currentTheme.value.colors.keyTextAction
-                                        )
-                                        setBackgroundColor(
-                                            themeManager!!
-                                                .currentTheme.value.colors.keyBackgroundAction
-                                        )
-                                        setOnClickListener { hideRemovalConfirmation() }
-                                    }
-
-                                val removeBtn =
-                                    Button(context).apply {
-                                        text = context.getString(R.string.remove_confirm)
-                                        setTextColor(ContextCompat.getColor(context, android.R.color.white))
-                                        setBackgroundColor(
-                                            ContextCompat.getColor(context, android.R.color.holo_red_dark)
-                                        )
-                                        setOnClickListener { confirmRemoval() }
-                                    }
-
-                                addView(
-                                    cancelBtn,
-                                    LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-                                        marginEnd = padding / 2
-                                    }
-                                )
-                                addView(
-                                    removeBtn,
-                                    LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-                                        marginStart = padding / 2
-                                    }
-                                )
-                            }
-                        addView(buttonsContainer)
-                    }
-
-                addView(
-                    container,
-                    LayoutParams(
-                        LayoutParams.WRAP_CONTENT,
-                        LayoutParams.WRAP_CONTENT,
-                        Gravity.CENTER
-                    )
-                )
+        fun overlayButton(glyph: String, descRes: Int, color: Int, onTap: () -> Unit) =
+            TextView(context).apply {
+                text = glyph
+                gravity = Gravity.CENTER
+                contentDescription = context.getString(descRes)
+                setTextColor(color)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, textSize * 1.05f)
+                setPadding(pad, 0, pad, 0)
+                setOnClickListener {
+                    if (isDestroyed) return@setOnClickListener
+                    keyboardLayoutManager?.triggerHapticFeedback()
+                    onTap()
+                }
             }
 
-        addView(
-            confirmationOverlay,
-            LayoutParams(
-                LayoutParams.MATCH_PARENT,
-                LayoutParams.MATCH_PARENT
+        val overlay = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setBackgroundColor(bg)
+            elevation = 8f * density
+            isClickable = true
+
+            addView(
+                overlayButton("✕", R.string.edit_word_cancel_description, textColor) { hideEditWordOverlay() },
+                LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT)
             )
+            addView(
+                overlayButton("", R.string.edit_word_remove_description, textColor) {
+                    val target = editWordOriginal
+                    hideEditWordOverlay()
+                    if (target != null && !isDestroyed) onSuggestionLongPressListener?.invoke(target)
+                }.apply {
+                    val trash = ContextCompat.getDrawable(context, R.drawable.ic_trash_outline)
+                    trash?.setTint(accent)
+                    setCompoundDrawablesRelativeWithIntrinsicBounds(trash, null, null, null)
+                },
+                LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT)
+            )
+
+            val textView = TextView(context).apply {
+                gravity = Gravity.CENTER_VERTICAL
+                setTextColor(textColor)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, textSize)
+                typeface = suggestionTypeface()
+                maxLines = 1
+                setPadding(pad, 0, pad, 0)
+                setOnTouchListener { v, ev ->
+                    if (ev.actionMasked == MotionEvent.ACTION_UP) {
+                        moveEditWordCursorTo(ev.x)
+                        v.performClick()
+                    }
+                    true
+                }
+            }
+            editWordTextView = textView
+            addView(
+                textView,
+                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
+            )
+
+            addView(
+                overlayButton("✓", R.string.edit_word_commit_description, accent) { editWordCommit() },
+                LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT)
+            )
+        }
+
+        editWordOverlay = overlay
+        addView(
+            overlay,
+            LayoutParams(LayoutParams.MATCH_PARENT, overlayHeight, Gravity.TOP)
         )
+        renderEditWordText()
     }
 
-    private fun hideRemovalConfirmation() {
-        confirmationOverlay?.let { overlay ->
-            removeView(overlay)
-        }
-        confirmationOverlay = null
-        pendingRemovalSuggestion = null
+    fun hideEditWordOverlay() {
+        editWordOverlay?.let { removeView(it) }
+        editWordOverlay = null
+        editWordTextView = null
+        editWordOriginal = null
+        editWordBuffer.setLength(0)
+        editWordCursor = 0
     }
 
-    private fun confirmRemoval() {
-        val suggestion = pendingRemovalSuggestion
-        hideRemovalConfirmation()
+    val isEditWordOverlayVisible: Boolean get() = editWordOverlay != null
 
-        if (suggestion != null && !isDestroyed) {
-            onSuggestionLongPressListener?.invoke(suggestion)
+    /** Insert key input at the caret (the service routes letters/space here while the overlay is open). */
+    fun editWordInsert(text: String) {
+        if (editWordOverlay == null || text.isEmpty()) return
+        editWordBuffer.insert(editWordCursor, text)
+        editWordCursor += text.length
+        renderEditWordText()
+    }
+
+    fun editWordBackspace() {
+        if (editWordOverlay == null || editWordCursor == 0) return
+        editWordBuffer.deleteCharAt(editWordCursor - 1)
+        editWordCursor--
+        renderEditWordText()
+    }
+
+    fun editWordCommit() {
+        if (editWordOverlay == null) return
+        val edited = editWordBuffer.toString()
+        hideEditWordOverlay()
+        if (edited.isNotEmpty() && !isDestroyed) {
+            onEditWordCommitListener?.invoke(edited)
         }
+    }
+
+    /**
+     * Draws the overlay caret as a thin 2 dp bar. A caret GLYPH ("│") has a full character advance in
+     * the font, which rendered as a phantom space between the word and a thin line — this span replaces
+     * the placeholder character with a fixed-width drawn bar instead.
+     */
+    private class CaretSpan(private val color: Int, private val widthPx: Int) :
+        android.text.style.ReplacementSpan() {
+        override fun getSize(
+            paint: android.graphics.Paint,
+            text: CharSequence?,
+            start: Int,
+            end: Int,
+            fm: android.graphics.Paint.FontMetricsInt?
+        ): Int {
+            fm?.let {
+                val pfm = paint.fontMetricsInt
+                it.ascent = pfm.ascent
+                it.descent = pfm.descent
+                it.top = pfm.top
+                it.bottom = pfm.bottom
+            }
+            return widthPx
+        }
+
+        override fun draw(
+            canvas: android.graphics.Canvas,
+            text: CharSequence?,
+            start: Int,
+            end: Int,
+            x: Float,
+            top: Int,
+            y: Int,
+            bottom: Int,
+            paint: android.graphics.Paint
+        ) {
+            val oldColor = paint.color
+            paint.color = color
+            val ascent = paint.fontMetrics.ascent
+            val descent = paint.fontMetrics.descent
+            canvas.drawRect(x, y + ascent, x + widthPx, y + descent, paint)
+            paint.color = oldColor
+        }
+    }
+
+    private fun renderEditWordText() {
+        val tv = editWordTextView ?: return
+        val density = context.resources.displayMetrics.density
+        val sb = android.text.SpannableStringBuilder()
+        sb.append(editWordBuffer, 0, editWordCursor)
+        val caretStart = sb.length
+        sb.append("│")
+        sb.setSpan(
+            CaretSpan(suggestionAccentColor(), (2 * density).toInt().coerceAtLeast(2)),
+            caretStart,
+            caretStart + 1,
+            android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+        sb.append(editWordBuffer, editWordCursor, editWordBuffer.length)
+        tv.text = sb
+    }
+
+    private fun moveEditWordCursorTo(x: Float) {
+        val tv = editWordTextView ?: return
+        val layout = tv.layout ?: return
+        val offset = layout.getOffsetForHorizontal(0, x - tv.totalPaddingLeft + tv.scrollX)
+        // The rendered string contains the caret glyph at [editWordCursor]; offsets past it are shifted by 1.
+        editWordCursor = (if (offset > editWordCursor) offset - 1 else offset)
+            .coerceIn(0, editWordBuffer.length)
+        renderEditWordText()
+    }
+
+    private fun isTouchInEditWordOverlay(x: Float, y: Float): Boolean {
+        val overlay = editWordOverlay ?: return false
+        return y >= overlay.top && y < overlay.bottom && x >= overlay.left && x < overlay.right
+    }
+
+    /** The word the ✎ chip edits, or null to hide the chip; evaluated on each bar render. */
+    fun setEditChipWordProvider(provider: () -> String?) {
+        editChipWordProvider = provider
+    }
+
+    fun setOnEditWordCommitListener(listener: (String) -> Unit) {
+        onEditWordCommitListener = listener
     }
 
     private fun calculateResponsiveSuggestionTextSize(): Float {
@@ -1779,7 +1954,7 @@ constructor(
         val overlayViews =
             setOf(
                 swipeOverlay, suggestionBar, emojiPickerContainer, emojiSearchContainer,
-                confirmationOverlay, candidatesPaneContainer
+                editWordOverlay, candidatesPaneContainer
             )
         for (i in 0 until childCount) {
             val child = getChildAt(i)
@@ -1814,9 +1989,10 @@ constructor(
     private fun createKeyboardLayout(layout: KeyboardLayout, state: KeyboardState) {
         if (isDestroyed) return
 
-        if (confirmationOverlay != null) {
-            hideRemovalConfirmation()
-        }
+        // The edit-word overlay survives keyboard rebuilds (a shift or mode change rebuilds the layout
+        // mid-edit). The purge below keeps only the two topmost persistent overlays, so detach it here
+        // and re-attach it after the fresh keyboard child is in.
+        val editOverlayToRestore = editWordOverlay?.also { removeView(it) }
 
         if (isShowingEmojiPicker) {
             hideEmojiPicker()
@@ -1928,6 +2104,9 @@ constructor(
                 updateSuggestionBarContent()
             }
 
+            // Back under the swipe-trail/resize overlays, above everything rebuilt.
+            editOverlayToRestore?.let { addView(it, childCount - 2, it.layoutParams) }
+
             post {
                 requestLayout()
                 post {
@@ -1974,7 +2153,7 @@ constructor(
     }
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
-        if (!isDestroyed && confirmationOverlay == null &&
+        if (!isDestroyed && !isTouchInEditWordOverlay(ev.x, ev.y) &&
             (gestureHandler.isActive || isSwipeActive || spaceMenuColumns != null)
         ) {
             return onTouchEvent(ev)
@@ -1985,7 +2164,7 @@ constructor(
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
         if (isDestroyed) return false
 
-        if (confirmationOverlay != null) {
+        if (isTouchInEditWordOverlay(ev.x, ev.y)) {
             return false
         }
 
@@ -2248,7 +2427,7 @@ constructor(
             return true
         }
 
-        if (confirmationOverlay != null) {
+        if (isTouchInEditWordOverlay(event.x, event.y)) {
             return false
         }
 
@@ -2268,7 +2447,11 @@ constructor(
 
                 val key = layoutEngine.findKeyAt(event.x, event.y)
                 if (key != null) {
-                    swipeDetector?.handleTouchEvent(event) { x, y -> layoutEngine.findKeyAt(x, y) }
+                    // Keys stay tappable under the edit-word overlay, but a swipe there would compose a
+                    // word into the target field — suppress swipe recognition, keep taps.
+                    if (editWordOverlay == null) {
+                        swipeDetector?.handleTouchEvent(event) { x, y -> layoutEngine.findKeyAt(x, y) }
+                    }
                     return true
                 }
                 return false
@@ -2285,7 +2468,8 @@ constructor(
                     return true
                 }
 
-                val isSwipe = swipeDetector?.handleTouchEvent(event) { x, y -> layoutEngine.findKeyAt(x, y) } ?: false
+                val isSwipe = editWordOverlay == null &&
+                    (swipeDetector?.handleTouchEvent(event) { x, y -> layoutEngine.findKeyAt(x, y) } ?: false)
                 if (isSwipe) {
                     isSwipeActive = true
                     return true
@@ -2362,10 +2546,14 @@ constructor(
             viewScope.launch(Dispatchers.Default) {
                 try {
                     val bestCandidate = selectBestCandidate(candidates)
+                    // The full ranked list travels with the winner — the bar shows the swipe's own
+                    // candidates (winner first, cluster-style), not the spell-checker's neighbours.
+                    val ranked = listOf(bestCandidate) +
+                        candidates.map { it.word }.filterNot { it == bestCandidate }
 
                     withContext(Dispatchers.Main) {
                         if (!isDestroyed) {
-                            onSwipeWordListener?.invoke(bestCandidate)
+                            onSwipeWordListener?.invoke(ranked)
                         }
                     }
                 } catch (e: Exception) {
@@ -2383,7 +2571,7 @@ constructor(
 
                     withContext(Dispatchers.Main) {
                         if (!isDestroyed) {
-                            onSwipeWordListener?.invoke(fallback)
+                            onSwipeWordListener?.invoke(listOf(fallback))
                         }
                     }
                 }
@@ -2514,7 +2702,11 @@ constructor(
         hasTouchStart = false
         isSwipeActive = false
 
-        hideRemovalConfirmation()
+        hideEditWordOverlay()
+        editChipView = null
+        editChipWord = null
+        editChipWordProvider = null
+        onEditWordCommitListener = null
         hideEmojiPicker()
 
         removeAllViews()
@@ -2556,8 +2748,15 @@ constructor(
     }
 
     private fun updateSwipeStateForLayout(layout: KeyboardLayout?) {
-        val hasFlickKeys = layout?.rows?.flatten()?.any { it is KeyboardKey.FlickKey } == true
-        swipeDetector?.setSwipeEnabled(!hasFlickKeys)
+        // Swipe glides over plain letter keys. "Any flick key present" used to mean a compass/cluster
+        // board with no such letters — but the flat 10c boards mix Character letters WITH auxiliary
+        // compass keys (number row, punctuation, ⇥/⏎/mic), so gate on what actually matters. This is
+        // a layout-capability gate only — the user's swipe setting and split mode are the service's
+        // separate gate on the detector.
+        val hasFlatLetters = layout?.rows?.flatten()?.any {
+            it is KeyboardKey.Character && it.type == KeyboardKey.KeyType.LETTER
+        } == true
+        swipeDetector?.setLayoutSwipeCapable(hasFlatLetters)
     }
 
     companion object {

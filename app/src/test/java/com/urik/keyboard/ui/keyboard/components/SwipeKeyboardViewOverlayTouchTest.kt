@@ -21,8 +21,8 @@ import com.urik.keyboard.theme.ThemeManager
 import com.urik.keyboard.utils.CacheMemoryManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -40,6 +40,7 @@ import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
+/** The edit-word overlay: opening, in-overlay editing, commit/cancel/remove, and touch/swipe gating. */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33])
 class SwipeKeyboardViewOverlayTouchTest {
@@ -108,109 +109,145 @@ class SwipeKeyboardViewOverlayTouchTest {
         error("suggestion view for 'badword' not found")
     }
 
-    private fun confirmationOverlay(): android.widget.FrameLayout? {
-        val field = SwipeKeyboardView::class.java.getDeclaredField("confirmationOverlay")
+    private fun overlayView(): android.widget.LinearLayout? {
+        val field = SwipeKeyboardView::class.java.getDeclaredField("editWordOverlay")
         field.isAccessible = true
-        return field.get(view) as? android.widget.FrameLayout
+        return field.get(view) as? android.widget.LinearLayout
     }
 
-    private fun showRemovalConfirmation() {
-        findSuggestionView().performLongClick()
-        assertNotNull("confirmationOverlay should be set after long press", confirmationOverlay())
+    private fun findOverlayGlyph(glyph: String): TextView {
+        val overlay = overlayView() ?: error("edit-word overlay not shown")
+        for (i in 0 until overlay.childCount) {
+            val child = overlay.getChildAt(i)
+            if (child is TextView && child.text.toString() == glyph) return child
+        }
+        error("overlay glyph '$glyph' not found")
+    }
+
+    private fun findOverlayByDescription(descRes: Int): TextView {
+        val overlay = overlayView() ?: error("edit-word overlay not shown")
+        val desc = view.context.getString(descRes)
+        for (i in 0 until overlay.childCount) {
+            val child = overlay.getChildAt(i)
+            if (child is TextView && child.contentDescription?.toString() == desc) return child
+        }
+        error("overlay button with description '$desc' not found")
     }
 
     private fun motionEvent(action: Int, x: Float = 50f, y: Float = 50f): MotionEvent =
         MotionEvent.obtain(0L, 0L, action, x, y, 0)
 
     @Test
-    fun `onInterceptTouchEvent returns false and does not feed swipeDetector when overlay shown`() {
-        showRemovalConfirmation()
+    fun `long press on a candidate opens the overlay for that word`() {
+        var committed: String? = null
+        view.setOnEditWordCommitListener { committed = it }
+
+        findSuggestionView().performLongClick()
+
+        assertTrue(view.isEditWordOverlayVisible)
+        view.editWordCommit()
+        assertEquals("badword", committed)
+    }
+
+    @Test
+    fun `tapping the edit chip opens the overlay with the render-time word`() {
+        view.setEditChipWordProvider { "mata" }
+        view.updateSuggestions(listOf("badword"))
+
+        val suggestionBarField = SwipeKeyboardView::class.java.getDeclaredField("suggestionBar")
+        suggestionBarField.isAccessible = true
+        val bar = suggestionBarField.get(view) as android.widget.LinearLayout
+        var chip: TextView? = null
+        for (i in 0 until bar.childCount) {
+            val child = bar.getChildAt(i)
+            if (child is TextView && child.text.toString() == "✎") chip = child
+        }
+        checkNotNull(chip) { "edit chip not rendered" }
+
+        var committed: String? = null
+        view.setOnEditWordCommitListener { committed = it }
+        chip.performClick()
+
+        assertTrue("chip tap must open the overlay", view.isEditWordOverlayVisible)
+        view.editWordCommit()
+        assertEquals("mata", committed)
+    }
+
+    @Test
+    fun `overlay opens with cursor at end - insert and backspace edit the buffer`() {
+        var committed: String? = null
+        view.setOnEditWordCommitListener { committed = it }
+
+        view.showEditWordOverlay("dobry")
+        assertTrue(view.isEditWordOverlayVisible)
+
+        view.editWordInsert("!")
+        view.editWordBackspace()
+        view.editWordBackspace()
+        view.editWordCommit()
+
+        assertEquals("dobr", committed)
+        assertFalse(view.isEditWordOverlayVisible)
+    }
+
+    @Test
+    fun `commit button commits the edited text and hides the overlay`() {
+        var committed: String? = null
+        view.setOnEditWordCommitListener { committed = it }
+
+        view.showEditWordOverlay("kina")
+        findOverlayGlyph("✓").performClick()
+
+        assertEquals("kina", committed)
+        assertFalse(view.isEditWordOverlayVisible)
+        assertNull(overlayView())
+    }
+
+    @Test
+    fun `cancel button hides the overlay without committing`() {
+        var committed: String? = null
+        view.setOnEditWordCommitListener { committed = it }
+
+        view.showEditWordOverlay("kina")
+        findOverlayGlyph("✕").performClick()
+
+        assertNull(committed)
+        assertFalse(view.isEditWordOverlayVisible)
+    }
+
+    @Test
+    fun `remove button reports the ORIGINAL word even after edits and hides the overlay`() {
+        var removed: String? = null
+        view.setOnSuggestionLongPressListener { removed = it }
+
+        view.showEditWordOverlay("badword")
+        view.editWordInsert("xyz")
+        findOverlayByDescription(R.string.edit_word_remove_description).performClick()
+
+        assertEquals("badword", removed)
+        assertFalse(view.isEditWordOverlayVisible)
+    }
+
+    @Test
+    fun `swipe recognition is suppressed while the overlay is open but key taps still work`() {
+        view.showEditWordOverlay("dobry")
         clearInvocations(swipeDetector)
 
         val down = motionEvent(MotionEvent.ACTION_DOWN)
-        val move = motionEvent(MotionEvent.ACTION_MOVE)
-        val up = motionEvent(MotionEvent.ACTION_UP)
+        val move = motionEvent(MotionEvent.ACTION_MOVE, 250f, 50f)
         try {
-            assertFalse(view.onInterceptTouchEvent(down))
-            assertFalse(view.onInterceptTouchEvent(move))
-            assertFalse(view.onInterceptTouchEvent(up))
+            view.onTouchEvent(down)
+            view.onTouchEvent(move)
         } finally {
             down.recycle()
             move.recycle()
-            up.recycle()
         }
 
         verify(swipeDetector, never()).handleTouchEvent(any(), any())
     }
 
     @Test
-    fun `onTouchEvent returns false when overlay shown`() {
-        showRemovalConfirmation()
-
-        val down = motionEvent(MotionEvent.ACTION_DOWN)
-        try {
-            assertFalse(view.onTouchEvent(down))
-        } finally {
-            down.recycle()
-        }
-    }
-
-    @Test
-    fun `dispatchTouchEvent routes to overlay children even with stale gesture state`() {
-        showRemovalConfirmation()
-
-        val isSwipeActiveField = SwipeKeyboardView::class.java.getDeclaredField("isSwipeActive")
-        isSwipeActiveField.isAccessible = true
-        isSwipeActiveField.setBoolean(view, true)
-
-        val windowManager = view.context.getSystemService(android.content.Context.WINDOW_SERVICE) as WindowManager
-        windowManager.addView(view, WindowManager.LayoutParams(1080, 2400))
-        shadowOf(Looper.getMainLooper()).idle()
-
-        val widthSpec = android.view.View.MeasureSpec.makeMeasureSpec(1080, android.view.View.MeasureSpec.EXACTLY)
-        val heightSpec = android.view.View.MeasureSpec.makeMeasureSpec(2400, android.view.View.MeasureSpec.EXACTLY)
-        view.measure(widthSpec, heightSpec)
-        view.layout(0, 0, 1080, 2400)
-
-        val overlay = confirmationOverlay()!!
-        val removeButton = findButtonByText(overlay, "Remove")
-
-        val viewLocation = IntArray(2)
-        view.getLocationOnScreen(viewLocation)
-        val buttonLocation = IntArray(2)
-        removeButton.getLocationOnScreen(buttonLocation)
-        val x = buttonLocation[0] - viewLocation[0] + removeButton.width / 2f
-        val y = buttonLocation[1] - viewLocation[1] + removeButton.height / 2f
-
-        val down = motionEvent(MotionEvent.ACTION_DOWN, x, y)
-        val up = motionEvent(MotionEvent.ACTION_UP, x, y)
-        try {
-            view.dispatchTouchEvent(down)
-            assertTrue("Remove button should receive the DOWN through the overlay", removeButton.isPressed)
-            view.dispatchTouchEvent(up)
-        } finally {
-            down.recycle()
-            up.recycle()
-        }
-        shadowOf(Looper.getMainLooper()).idle()
-
-        assertNull("confirmationOverlay should be cleared after Remove is tapped", confirmationOverlay())
-    }
-
-    @Test
-    fun `Cancel button click hides overlay`() {
-        showRemovalConfirmation()
-
-        val overlay = confirmationOverlay()!!
-        val cancelButton = findButtonByText(overlay, "Cancel")
-
-        cancelButton.performClick()
-
-        assertNull("confirmationOverlay should be cleared after Cancel is clicked", confirmationOverlay())
-    }
-
-    @Test
-    fun `showRemovalConfirmation flushes in-flight gesture state`() {
+    fun `showEditWordOverlay flushes in-flight gesture state`() {
         val down = motionEvent(MotionEvent.ACTION_DOWN)
         try {
             view.onTouchEvent(down)
@@ -218,7 +255,7 @@ class SwipeKeyboardViewOverlayTouchTest {
             down.recycle()
         }
 
-        showRemovalConfirmation()
+        view.showEditWordOverlay("dobry")
 
         verify(swipeDetector).handleTouchEvent(
             argThat { action == MotionEvent.ACTION_CANCEL },
@@ -235,8 +272,8 @@ class SwipeKeyboardViewOverlayTouchTest {
     }
 
     @Test
-    fun `updateKeyboard while overlay shown removes overlay and resets pending suggestion`() {
-        showRemovalConfirmation()
+    fun `keyboard rebuild keeps the overlay visible and attached`() {
+        view.showEditWordOverlay("dobry")
 
         val layout = KeyboardLayout(
             mode = KeyboardMode.LETTERS,
@@ -244,11 +281,8 @@ class SwipeKeyboardViewOverlayTouchTest {
         )
         view.updateKeyboard(layout, KeyboardState())
 
-        assertNull("confirmationOverlay should be cleared after keyboard rebuild", confirmationOverlay())
-
-        val pendingField = SwipeKeyboardView::class.java.getDeclaredField("pendingRemovalSuggestion")
-        pendingField.isAccessible = true
-        assertNull(pendingField.get(view))
+        assertTrue("overlay must survive a keyboard rebuild (shift/mode changes)", view.isEditWordOverlayVisible)
+        assertTrue("overlay must remain attached", overlayView()?.parent === view)
 
         val swipeOverlayField = SwipeKeyboardView::class.java.getDeclaredField("swipeOverlay")
         swipeOverlayField.isAccessible = true
@@ -257,30 +291,46 @@ class SwipeKeyboardViewOverlayTouchTest {
     }
 
     @Test
-    fun `showRemovalConfirmation works again after keyboard rebuild`() {
-        showRemovalConfirmation()
+    fun `touches inside the overlay area reach its children even with stale gesture state`() {
+        view.showEditWordOverlay("dobry")
 
-        val layout = KeyboardLayout(
-            mode = KeyboardMode.LETTERS,
-            rows = listOf((0 until 9).map { KeyboardKey.Character("a", KeyboardKey.KeyType.LETTER) })
-        )
-        view.updateKeyboard(layout, KeyboardState())
-        view.updateSuggestions(listOf("badword"))
+        val isSwipeActiveField = SwipeKeyboardView::class.java.getDeclaredField("isSwipeActive")
+        isSwipeActiveField.isAccessible = true
+        isSwipeActiveField.setBoolean(view, true)
 
-        showRemovalConfirmation()
-    }
+        val windowManager = view.context.getSystemService(android.content.Context.WINDOW_SERVICE) as WindowManager
+        windowManager.addView(view, WindowManager.LayoutParams(1080, 2400))
+        shadowOf(Looper.getMainLooper()).idle()
 
-    private fun findButtonByText(group: android.view.ViewGroup, text: String): android.widget.Button {
-        for (i in 0 until group.childCount) {
-            val child = group.getChildAt(i)
-            if (child is android.widget.Button && child.text.toString() == text) {
-                return child
-            }
-            if (child is android.view.ViewGroup) {
-                val found = runCatching { findButtonByText(child, text) }.getOrNull()
-                if (found != null) return found
-            }
+        val widthSpec = android.view.View.MeasureSpec.makeMeasureSpec(1080, android.view.View.MeasureSpec.EXACTLY)
+        val heightSpec = android.view.View.MeasureSpec.makeMeasureSpec(2400, android.view.View.MeasureSpec.EXACTLY)
+        view.measure(widthSpec, heightSpec)
+        view.layout(0, 0, 1080, 2400)
+
+        var committed: String? = null
+        view.setOnEditWordCommitListener { committed = it }
+
+        val commitButton = findOverlayGlyph("✓")
+        val viewLocation = IntArray(2)
+        view.getLocationOnScreen(viewLocation)
+        val buttonLocation = IntArray(2)
+        commitButton.getLocationOnScreen(buttonLocation)
+        val x = buttonLocation[0] - viewLocation[0] + commitButton.width / 2f
+        val y = buttonLocation[1] - viewLocation[1] + commitButton.height / 2f
+
+        val down = motionEvent(MotionEvent.ACTION_DOWN, x, y)
+        val up = motionEvent(MotionEvent.ACTION_UP, x, y)
+        try {
+            view.dispatchTouchEvent(down)
+            assertTrue("✓ should receive the DOWN through the overlay", commitButton.isPressed)
+            view.dispatchTouchEvent(up)
+        } finally {
+            down.recycle()
+            up.recycle()
         }
-        error("Button with text '$text' not found")
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertEquals("dobry", committed)
+        assertNull("overlay should be gone after ✓ is tapped", overlayView())
     }
 }

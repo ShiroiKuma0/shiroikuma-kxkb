@@ -98,7 +98,7 @@ class SwipeWordHandlerTest {
             (invocation.arguments[0] as SpellingSuggestion).word
         }
         whenever(mockOutputBridge.safeGetTextBeforeCursor(50)).thenReturn("")
-        handler.handle("hello")
+        handler.handle(listOf("hello"))
         verify(mockOutputBridge).commitText("hello", 1)
     }
 
@@ -111,7 +111,7 @@ class SwipeWordHandlerTest {
             (invocation.arguments[0] as SpellingSuggestion).word
         }
 
-        handler.handle("hello")
+        handler.handle(listOf("hello"))
         advanceUntilIdle()
 
         verify(mockOutputBridge).commitText("hello", 1)
@@ -124,7 +124,7 @@ class SwipeWordHandlerTest {
 
     @Test
     fun `empty validated word returns early without side effects`() {
-        handler.handle("")
+        handler.handle(listOf(""))
         testDispatcher.scheduler.advanceUntilIdle()
         assertEquals(0, coordinateStateClearCalls.size)
     }
@@ -178,7 +178,7 @@ class SwipeWordHandlerTest {
         whenever(mockOutputBridge.safeGetTextBeforeCursor(1)).thenReturn("")
         whenever(mockOutputBridge.safeGetTextBeforeCursor(50)).thenReturn("Hello. ")
 
-        localHandler.handle("world")
+        localHandler.handle(listOf("world"))
 
         verify(mockOutputBridge).commitText("World", 1)
         verify(mockOutputBridge).beginBatchEdit()
@@ -208,7 +208,7 @@ class SwipeWordHandlerTest {
             null
         }.`when`(mockOutputBridge).endBatchEdit()
 
-        handler.handle("word")
+        handler.handle(listOf("word"))
 
         // endBatchEdit must come after commitText — ensures batch wraps the commit
         val commitIdx = callOrder.indexOf("commitText")
@@ -232,7 +232,7 @@ class SwipeWordHandlerTest {
         whenever(mockSwipeSpaceManager.isWhitespace("o ")).thenReturn(true)
         whenever(mockOutputBridge.safeGetTextBeforeCursor(50)).thenReturn("Hello world ")
 
-        localHandler.handle("foo")
+        localHandler.handle(listOf("foo"))
 
         verify(mockOutputBridge).commitText("foo", 1)
         assertEquals(1, localAutoCap.size)
@@ -251,7 +251,7 @@ class SwipeWordHandlerTest {
         whenever(mockOutputBridge.safeGetTextBeforeCursor(1)).thenReturn("")
         whenever(mockOutputBridge.safeGetTextBeforeCursor(50)).thenReturn("")
 
-        localHandler.handle("hello")
+        localHandler.handle(listOf("hello"))
 
         verify(mockOutputBridge).commitText("Hello", 1)
         assertEquals(1, localDisableShift.size)
@@ -289,7 +289,7 @@ class SwipeWordHandlerTest {
             onDisableShiftAfterSwipe = { callOrder.add("disableShift") }
         )
 
-        localHandler.handle("hello")
+        localHandler.handle(listOf("hello"))
 
         val disableIdx = callOrder.indexOf("disableShift")
         val commitIdx = callOrder.indexOf("commitText")
@@ -309,7 +309,7 @@ class SwipeWordHandlerTest {
         whenever(mockOutputBridge.safeGetTextBeforeCursor(1)).thenReturn("")
         whenever(mockOutputBridge.safeGetTextBeforeCursor(50)).thenReturn("")
 
-        localHandler.handle("hello")
+        localHandler.handle(listOf("hello"))
 
         verify(mockOutputBridge).commitText("HELLO", 1)
         assertEquals(0, localDisableShift.size)
@@ -326,7 +326,7 @@ class SwipeWordHandlerTest {
             localDisableShift
         )
 
-        localHandler.handle("hello")
+        localHandler.handle(listOf("hello"))
 
         verify(mockOutputBridge).commitText("hello", 1)
         verify(mockOutputBridge, org.mockito.Mockito.never()).beginBatchEdit()
@@ -345,7 +345,7 @@ class SwipeWordHandlerTest {
             localDisableShift
         )
 
-        localHandler.handle("hello")
+        localHandler.handle(listOf("hello"))
 
         verify(mockOutputBridge).commitText("hello", 1)
         verify(mockOutputBridge, org.mockito.Mockito.never()).beginBatchEdit()
@@ -363,7 +363,7 @@ class SwipeWordHandlerTest {
             localDisableShift
         )
 
-        localHandler.handle("hello")
+        localHandler.handle(listOf("hello"))
 
         verify(mockOutputBridge, org.mockito.Mockito.never()).commitText(any(), any())
         verify(mockOutputBridge, org.mockito.Mockito.never()).beginBatchEdit()

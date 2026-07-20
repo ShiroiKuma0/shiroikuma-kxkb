@@ -2077,7 +2077,7 @@ class KeyboardLayoutManager(
                 SpaceMenuItem(context.getString(R.string.space_menu_editor), false) { onMenuAction("editor") },
                 SpaceMenuItem(context.getString(R.string.space_menu_mode), false) { onMenuAction("mode") },
                 SpaceMenuItem(context.getString(R.string.space_menu_user_dictionary), false) { onMenuAction("user_dictionary") },
-                SpaceMenuItem(context.getString(R.string.space_menu_voice), false) { onMenuAction("voice") },
+                SpaceMenuItem(context.getString(R.string.space_menu_learned_words), false) { onMenuAction("learned_words") },
                 SpaceMenuItem(context.getString(R.string.space_menu_all_settings), false) { onMenuAction("settings") },
                 SpaceMenuItem(context.getString(R.string.space_menu_export_import), false) { onMenuAction("export_import") }
             )

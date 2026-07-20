@@ -36,8 +36,7 @@
             "char": "7"
           },
           {
-            "type": "cluster",
-            "cluster": "8",
+            "type": "compass",
             "char": "8",
             "flick": {
               "up": {
@@ -51,8 +50,7 @@
             }
           },
           {
-            "type": "cluster",
-            "cluster": "9",
+            "type": "compass",
             "char": "9",
             "flick": {
               "down": {
@@ -62,8 +60,7 @@
             }
           },
           {
-            "type": "cluster",
-            "cluster": "0",
+            "type": "compass",
             "char": "0",
             "flick": {
               "up": {
@@ -79,127 +76,127 @@
         ],
         [
           {
-            "type": "compass",
+            "type": "character",
             "char": "ч"
           },
           {
-            "type": "compass",
+            "type": "character",
             "char": "ц"
           },
           {
-            "type": "compass",
+            "type": "character",
             "char": "ж"
           },
           {
-            "type": "compass",
+            "type": "character",
             "char": "м"
           },
           {
-            "type": "compass",
+            "type": "character",
             "char": "к"
           },
           {
-            "type": "compass",
+            "type": "character",
             "char": "ф"
           },
           {
-            "type": "compass",
+            "type": "character",
             "char": "я"
           },
           {
-            "type": "compass",
+            "type": "character",
             "char": "р"
           },
           {
-            "type": "compass",
+            "type": "character",
             "char": "э"
           },
           {
-            "type": "compass",
+            "type": "character",
             "char": "л"
           }
         ],
         [
           {
-            "type": "compass",
+            "type": "character",
             "char": "и"
           },
           {
-            "type": "compass",
+            "type": "character",
             "char": "о"
           },
           {
-            "type": "compass",
+            "type": "character",
             "char": "а"
           },
           {
-            "type": "compass",
+            "type": "character",
             "char": "е"
           },
           {
-            "type": "compass",
+            "type": "character",
             "char": "в"
           },
           {
-            "type": "compass",
+            "type": "character",
             "char": "б"
           },
           {
-            "type": "compass",
+            "type": "character",
             "char": "т"
           },
           {
-            "type": "compass",
+            "type": "character",
             "char": "н"
           },
           {
-            "type": "compass",
+            "type": "character",
             "char": "с"
           },
           {
-            "type": "compass",
+            "type": "character",
             "char": "х"
           }
         ],
         [
           {
-            "type": "compass",
+            "type": "character",
             "char": "ю"
           },
           {
-            "type": "compass",
+            "type": "character",
             "char": "ь"
           },
           {
-            "type": "compass",
+            "type": "character",
             "char": "п"
           },
           {
-            "type": "compass",
+            "type": "character",
             "char": "у"
           },
           {
-            "type": "compass",
+            "type": "character",
             "char": "з"
           },
           {
-            "type": "compass",
+            "type": "character",
             "char": "г"
           },
           {
-            "type": "compass",
+            "type": "character",
             "char": "д"
           },
           {
-            "type": "compass",
+            "type": "character",
             "char": "ы"
           },
           {
-            "type": "compass",
+            "type": "character",
             "char": "й"
           },
           {
-            "type": "compass",
+            "type": "character",
             "char": "ш"
           }
         ],
@@ -221,8 +218,7 @@
             "width": 2.0
           },
           {
-            "type": "cluster",
-            "cluster": "?!@%",
+            "type": "compass",
             "char": "@",
             "flick": {
               "left": "!",
@@ -231,11 +227,10 @@
             "attributes": {
               "widthClass": "Custom1"
             },
-            "width": 2.0
+            "width": 1.0
           },
           {
-            "type": "cluster",
-            "cluster": ";.,",
+            "type": "compass",
             "char": ".",
             "flick": {
               "left": ";",
@@ -246,7 +241,7 @@
             "attributes": {
               "widthClass": "Custom1"
             },
-            "width": 2.0
+            "width": 1.0
           },
           {
             "type": "action",

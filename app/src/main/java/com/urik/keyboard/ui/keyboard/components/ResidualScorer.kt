@@ -20,7 +20,9 @@ class ResidualScorer
 @Inject
 constructor(private val pathGeometryAnalyzer: PathGeometryAnalyzer) {
     data class CandidateResult(
+        /** Accent-folded scoring form; [displayWord] is what the user sees and gets. */
         val word: String,
+        val displayWord: String,
         val residual: Float,
         val spatialScore: Float,
         val frequencyScore: Float,
@@ -147,7 +149,12 @@ constructor(private val pathGeometryAnalyzer: PathGeometryAnalyzer) {
         val lengthExcessPenalty = 1.0f - lengthExcess * WORD_LENGTH_EXCESS_PENALTY
 
         val lengthDeficit = maxOf(0, signal.expectedWordLength - entry.word.length)
-        val lengthDeficitPenalty = 1.0f - lengthDeficit * WORD_LENGTH_DEFICIT_PENALTY
+        // Floored: expectedWordLength assumes QWERTY-like key travel per letter, but on the kxkb
+        // arrangements two-letter words can span the whole row ("is" on ioaevbtnsh) — an unfloored
+        // deficit zeroed such words out entirely. The floor keeps them viable (frequency can lift
+        // them) while still preferring path-length-matched words spatially.
+        val lengthDeficitPenalty =
+            (1.0f - lengthDeficit * WORD_LENGTH_DEFICIT_PENALTY).coerceAtLeast(WORD_LENGTH_DEFICIT_FLOOR)
         val lengthPenalty = lengthExcessPenalty * lengthDeficitPenalty
 
         val startAnchor = signal.startAnchor
@@ -257,6 +264,7 @@ constructor(private val pathGeometryAnalyzer: PathGeometryAnalyzer) {
 
         return CandidateResult(
             word = entry.word,
+            displayWord = entry.displayWord,
             residual = residual,
             spatialScore = adjustedSpatialScore,
             frequencyScore = entry.frequencyScore,
@@ -925,6 +933,7 @@ constructor(private val pathGeometryAnalyzer: PathGeometryAnalyzer) {
         const val TRAVERSAL_FLOOR_SCORE = 0.65f
         const val WORD_LENGTH_EXCESS_PENALTY = 0.05f
         const val WORD_LENGTH_DEFICIT_PENALTY = 0.20f
+        const val WORD_LENGTH_DEFICIT_FLOOR = 0.45f
         const val START_KEY_MATCH_BONUS = 1.10f
         const val START_KEY_DISTANCE_PENALTY_FACTOR = 0.30f
         const val END_KEY_MATCH_BONUS = 1.15f

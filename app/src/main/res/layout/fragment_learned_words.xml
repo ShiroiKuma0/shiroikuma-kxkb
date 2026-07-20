@@ -1,46 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
     tools:context=".settings.learnedwords.LearnedWordsFragment">
 
-    <LinearLayout
-        android:id="@+id/learned_words_content"
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/learned_words_tabs"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="horizontal">
+        android:layout_height="wrap_content"
+        app:tabMode="scrollable" />
+
+    <FrameLayout
+        android:id="@+id/learned_words_swipe_area"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/learned_words_list"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_weight="1"
             android:clipToPadding="false"
-            android:padding="8dp" />
+            android:paddingVertical="4dp" />
 
-        <com.urik.keyboard.settings.learnedwords.AlphabetSideBar
-            android:id="@+id/alphabet_sidebar"
+        <TextView
+            android:id="@+id/learned_words_empty"
             android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:paddingVertical="8dp" />
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="@string/learned_words_empty"
+            android:textAppearance="?attr/textAppearanceBodyLarge"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:visibility="gone" />
 
-    </LinearLayout>
+        <ProgressBar
+            android:id="@+id/learned_words_loading"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center" />
 
-    <TextView
-        android:id="@+id/learned_words_empty"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:text="@string/learned_words_empty"
-        android:textAppearance="?attr/textAppearanceBodyLarge"
-        android:textColor="?attr/colorOnSurfaceVariant"
-        android:visibility="gone" />
+    </FrameLayout>
 
-    <ProgressBar
-        android:id="@+id/learned_words_loading"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center" />
-
-</FrameLayout>
+</LinearLayout>

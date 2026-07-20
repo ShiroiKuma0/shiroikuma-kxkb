@@ -118,15 +118,15 @@ class OutputBridge(
         return true
     }
 
-    fun attemptRecompositionAtCursor(cursorPosition: Int) {
-        if (state.requiresDirectCommit || state.isUrlOrEmailField || state.isSuggestionsDisabled) return
-        if (state.displayBuffer.isNotEmpty()) return
+    fun attemptRecompositionAtCursor(cursorPosition: Int): Boolean {
+        if (state.requiresDirectCommit || state.isUrlOrEmailField || state.isSuggestionsDisabled) return false
+        if (state.displayBuffer.isNotEmpty()) return false
 
         val textBefore = safeGetTextBeforeCursor(WORD_BOUNDARY_CONTEXT_LENGTH)
         val textAfter = safeGetTextAfterCursor(WORD_BOUNDARY_CONTEXT_LENGTH)
 
         if (textBefore.isNotEmpty() && (textBefore.last().isWhitespace() || textBefore.last() == '\n')) {
-            return
+            return false
         }
 
         val wordBeforeInfo =
@@ -156,8 +156,10 @@ class OutputBridge(
             if (wordStart >= 0 && fullWord.length >= 2) {
                 ic?.setComposingRegion(wordStart, wordStart + fullWord.length)
                 state.onRecompositionSucceeded(fullWord, wordStart)
+                return true
             }
         }
+        return false
     }
 
     fun commitPreviousSwipeAndInsertSpace() {

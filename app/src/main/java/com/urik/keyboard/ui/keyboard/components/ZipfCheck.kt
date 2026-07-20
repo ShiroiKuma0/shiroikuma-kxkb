@@ -39,14 +39,14 @@ constructor(private val spellCheckManager: SpellCheckManager) {
             return ArbitrationResult(emptyList(), false, "empty")
         }
 
-        val filtered = scoredCandidates.filter { !spellCheckManager.isWordBlacklisted(it.word) }
+        val filtered = scoredCandidates.filter { !spellCheckManager.isWordBlacklisted(it.displayWord) }
         val sorted = filtered.sortedByDescending { it.combinedScore }
         val top = sorted.take(10)
 
         if (top.size < 2) {
             val candidates =
                 top.map {
-                    WordCandidate(it.word, it.spatialScore, it.frequencyScore, it.combinedScore)
+                    WordCandidate(it.displayWord, it.spatialScore, it.frequencyScore, it.combinedScore)
                 }
             val enriched = enrichWithPrefixCompletions(candidates, wordFrequencyMap, pathSize)
             return ArbitrationResult(enriched, false, "spatial")
@@ -69,7 +69,7 @@ constructor(private val spellCheckManager: SpellCheckManager) {
             reordered.addAll(top.drop(2))
             val candidates =
                 reordered.take(3).map {
-                    WordCandidate(it.word, it.spatialScore, it.frequencyScore, it.combinedScore)
+                    WordCandidate(it.displayWord, it.spatialScore, it.frequencyScore, it.combinedScore)
                 }
             val enriched = enrichWithPrefixCompletions(candidates, wordFrequencyMap, pathSize)
             return ArbitrationResult(enriched, true, winReason)
@@ -77,7 +77,7 @@ constructor(private val spellCheckManager: SpellCheckManager) {
 
         val candidates =
             top.take(3).map {
-                WordCandidate(it.word, it.spatialScore, it.frequencyScore, it.combinedScore)
+                WordCandidate(it.displayWord, it.spatialScore, it.frequencyScore, it.combinedScore)
             }
         val enriched = enrichWithPrefixCompletions(candidates, wordFrequencyMap, pathSize)
         return ArbitrationResult(enriched, false, "spatial")
@@ -123,8 +123,8 @@ constructor(private val spellCheckManager: SpellCheckManager) {
             0f
         }
 
-        val c1InBigram = candidate1.word.lowercase() in bigramPredictions
-        val c2InBigram = candidate2.word.lowercase() in bigramPredictions
+        val c1InBigram = candidate1.displayWord.lowercase() in bigramPredictions
+        val c2InBigram = candidate2.displayWord.lowercase() in bigramPredictions
 
         val bigramBoost1 =
             when {

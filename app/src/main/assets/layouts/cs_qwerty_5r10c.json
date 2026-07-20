@@ -238,354 +238,82 @@
         ],
         [
           {
-            "type": "compass",
-            "char": "q",
-            "flick": {
-              "up": "Q"
-            }
+            "type": "character",
+            "char": "q"
           },
           {
-            "type": "compass",
-            "char": "w",
-            "flick": {
-              "up": "W"
-            },
-            "longPressKeys": [
-              "₩"
-            ]
+            "type": "character",
+            "char": "w"
           },
           {
-            "type": "compass",
-            "char": "e",
-            "flick": {
-              "up": "E",
-              "right": "é",
-              "upLeft": "Ě",
-              "upRight": "É",
-              "downLeft": "ē",
-              "downRight": "ě"
-            },
-            "longPressKeys": [
-              "é",
-              "ě",
-              "ē",
-              "ę",
-              "€",
-              "É",
-              "Ě",
-              "Ē",
-              "Ę"
-            ]
+            "type": "character",
+            "char": "e"
           },
           {
-            "type": "compass",
-            "char": "r",
-            "flick": {
-              "up": "R",
-              "right": "ř",
-              "upLeft": "₽",
-              "upRight": "Ř",
-              "downLeft": "®",
-              "downRight": "ŕ"
-            },
-            "longPressKeys": [
-              "ř",
-              "₽",
-              "®",
-              "√",
-              "Ř"
-            ]
+            "type": "character",
+            "char": "r"
           },
           {
-            "type": "compass",
-            "char": "t",
-            "flick": {
-              "up": "T",
-              "right": "ť",
-              "upRight": "Ť"
-            },
-            "longPressKeys": [
-              "ť",
-              "þ",
-              "Ť",
-              "Þ"
-            ]
+            "type": "character",
+            "char": "t"
           },
           {
-            "type": "compass",
-            "char": "y",
-            "flick": {
-              "up": "Y",
-              "right": "ý",
-              "upRight": "Ý"
-            },
-            "longPressKeys": [
-              "ý",
-              "¥",
-              "Ý"
-            ]
+            "type": "character",
+            "char": "y"
           },
           {
-            "type": "compass",
-            "char": "u",
-            "flick": {
-              "up": "U",
-              "right": "ú",
-              "upLeft": "ü",
-              "upRight": "Ú",
-              "downLeft": "ū",
-              "downRight": "ů"
-            },
-            "longPressKeys": [
-              "ú",
-              "ů",
-              "ü",
-              "ū",
-              "ű",
-              "Ú",
-              "Ů",
-              "Ü",
-              "Ū",
-              "Ű"
-            ]
+            "type": "character",
+            "char": "u"
           },
           {
-            "type": "compass",
-            "char": "i",
-            "flick": {
-              "up": "I",
-              "right": "í",
-              "upLeft": "Ī",
-              "upRight": "Í",
-              "downLeft": "ī",
-              "downRight": "ï"
-            },
-            "longPressKeys": [
-              "í",
-              "ī",
-              "ï",
-              "″",
-              "Í",
-              "Ī",
-              "Ï"
-            ],
-            "shifted": {
-              "type": "compass",
-              "char": "I",
-              "flick": {
-                "up": "I",
-                "right": "Í",
-                "upLeft": "Ī",
-                "upRight": "Í",
-                "downLeft": "Ī",
-                "downRight": "Ï"
-              },
-              "longPressKeys": [
-                "Í",
-                "Ī",
-                "Ï",
-                "″"
-              ]
-            }
+            "type": "character",
+            "char": "i"
           },
           {
-            "type": "compass",
-            "char": "o",
-            "flick": {
-              "up": "O",
-              "right": "ó",
-              "upLeft": "Ō",
-              "upRight": "Ó",
-              "downLeft": "ō",
-              "downRight": "ö"
-            },
-            "longPressKeys": [
-              "ó",
-              "ö",
-              "ō",
-              "ő",
-              "ø",
-              "ǿ",
-              "Ó",
-              "Ö",
-              "Ō",
-              "Ő",
-              "Ø",
-              "Ǿ"
-            ]
+            "type": "character",
+            "char": "o"
           },
           {
-            "type": "compass",
-            "char": "p",
-            "flick": {
-              "up": "P"
-            },
-            "longPressKeys": [
-              "π",
-              "%",
-              "#",
-              "§",
-              "$"
-            ]
+            "type": "character",
+            "char": "p"
           }
         ],
         [
           {
-            "type": "compass",
-            "char": "a",
-            "flick": {
-              "up": "A",
-              "right": "á",
-              "upLeft": "Ā",
-              "upRight": "Á",
-              "downLeft": "ā",
-              "downRight": "ä"
-            },
-            "longPressKeys": [
-              "á",
-              "ä",
-              "ā",
-              "æ",
-              "α",
-              "ą",
-              "å",
-              "&",
-              "@",
-              "Á",
-              "Ä",
-              "Ā",
-              "Æ",
-              "Ą",
-              "Å"
-            ]
+            "type": "character",
+            "char": "a"
           },
           {
-            "type": "compass",
-            "char": "s",
-            "flick": {
-              "up": "S",
-              "right": "š",
-              "upRight": "Š"
-            },
-            "longPressKeys": [
-              "š",
-              "ß",
-              "ś",
-              "σ",
-              "/",
-              "∑",
-              "∫",
-              "~",
-              "Š",
-              "Ś"
-            ]
+            "type": "character",
+            "char": "s"
           },
           {
-            "type": "compass",
-            "char": "d",
-            "flick": {
-              "up": "D",
-              "right": "ď",
-              "upLeft": "$",
-              "upRight": "Ď",
-              "downLeft": "Đ",
-              "downRight": "đ"
-            },
-            "longPressKeys": [
-              "ď",
-              "δ",
-              "đ",
-              "ð",
-              "$",
-              "°",
-              "Ď",
-              "Đ",
-              "Ð"
-            ]
+            "type": "character",
+            "char": "d"
           },
           {
-            "type": "compass",
-            "char": "f",
-            "flick": {
-              "up": "F",
-              "right": "℉"
-            },
-            "longPressKeys": [
-              "′",
-              "℉"
-            ],
-            "shifted": {
-              "type": "compass",
-              "char": "F",
-              "flick": {
-                "up": "F",
-                "right": "℉"
-              },
-              "longPressKeys": [
-                "℉",
-                "′"
-              ]
-            }
+            "type": "character",
+            "char": "f"
           },
           {
-            "type": "compass",
-            "char": "g",
-            "flick": {
-              "up": "G"
-            },
-            "longPressKeys": [
-              "ğ",
-              "γ",
-              "Ğ"
-            ]
+            "type": "character",
+            "char": "g"
           },
           {
-            "type": "compass",
-            "char": "h",
-            "flick": {
-              "up": "H"
-            }
+            "type": "character",
+            "char": "h"
           },
           {
-            "type": "compass",
-            "char": "j",
-            "flick": {
-              "up": "J",
-              "downLeft": "„",
-              "downRight": "“"
-            }
+            "type": "character",
+            "char": "j"
           },
           {
-            "type": "compass",
-            "char": "k",
-            "flick": {
-              "up": "K"
-            },
-            "longPressKeys": [
-              "¯"
-            ]
+            "type": "character",
+            "char": "k"
           },
           {
-            "type": "compass",
-            "char": "l",
-            "flick": {
-              "up": "L",
-              "right": "ľ",
-              "upLeft": "ł",
-              "upRight": "Ľ",
-              "downLeft": "£",
-              "downRight": "ĺ"
-            },
-            "longPressKeys": [
-              "ľ",
-              "ĺ",
-              "ł",
-              "λ",
-              "£",
-              "Ľ",
-              "Ĺ",
-              "Ł"
-            ]
+            "type": "character",
+            "char": "l"
           },
           {
             "type": "compass",
@@ -604,8 +332,7 @@
         ],
         [
           {
-            "type": "cluster",
-            "cluster": ";.:",
+            "type": "compass",
             "char": ".",
             "flick": {
               "left": ";",
@@ -614,104 +341,32 @@
             }
           },
           {
-            "type": "compass",
-            "char": "z",
-            "flick": {
-              "up": "Z",
-              "right": "ž",
-              "upRight": "Ž"
-            },
-            "longPressKeys": [
-              "ž",
-              "ź",
-              "ż",
-              "〇",
-              "Ž",
-              "Ź",
-              "Ż"
-            ]
+            "type": "character",
+            "char": "z"
           },
           {
-            "type": "compass",
-            "char": "x",
-            "flick": {
-              "up": "X"
-            },
-            "longPressKeys": [
-              "×"
-            ]
+            "type": "character",
+            "char": "x"
           },
           {
-            "type": "compass",
-            "char": "c",
-            "flick": {
-              "up": "C",
-              "right": "č",
-              "upLeft": "ç",
-              "upRight": "Č",
-              "downLeft": "©",
-              "downRight": "℃"
-            },
-            "longPressKeys": [
-              "č",
-              "ç",
-              "ć",
-              "℃",
-              "©",
-              "°",
-              "¢",
-              "Č",
-              "Ç",
-              "Ć"
-            ]
+            "type": "character",
+            "char": "c"
           },
           {
-            "type": "compass",
-            "char": "v",
-            "flick": {
-              "up": "V"
-            }
+            "type": "character",
+            "char": "v"
           },
           {
-            "type": "compass",
-            "char": "b",
-            "flick": {
-              "up": "B",
-              "right": "β",
-              "upLeft": "α"
-            },
-            "longPressKeys": [
-              "β"
-            ]
+            "type": "character",
+            "char": "b"
           },
           {
-            "type": "compass",
-            "char": "n",
-            "flick": {
-              "up": "N",
-              "right": "ň",
-              "upRight": "Ň"
-            },
-            "longPressKeys": [
-              "ň",
-              "ń",
-              "ñ",
-              "Ň",
-              "Ń",
-              "Ñ"
-            ]
+            "type": "character",
+            "char": "n"
           },
           {
-            "type": "compass",
-            "char": "m",
-            "flick": {
-              "up": "M",
-              "right": "¯",
-              "upRight": "ʻ"
-            },
-            "longPressKeys": [
-              "µ"
-            ]
+            "type": "character",
+            "char": "m"
           },
           {
             "type": "compass",
@@ -753,29 +408,27 @@
             "width": 2.0
           },
           {
-            "type": "cluster",
-            "cluster": ";.:",
+            "type": "compass",
             "char": ".",
             "flick": {
               "left": ";",
               "right": ":",
               "up": "…"
             },
-            "width": 2.0,
+            "width": 1.0,
             "attributes": {
               "style": "Functional"
             }
           },
           {
-            "type": "cluster",
-            "cluster": "?,!",
+            "type": "compass",
             "char": ",",
             "flick": {
               "left": "?",
               "right": "!",
               "up": "…"
             },
-            "width": 2.0,
+            "width": 1.0,
             "attributes": {
               "style": "Functional"
             }

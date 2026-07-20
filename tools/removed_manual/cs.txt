@@ -1,0 +1,21 @@
+# Hand-curated pollution the hunspell heuristic cannot catch (clean_dictionaries.sh merges this
+# into cs.removed on every regeneration). Two blind spots: names the CZECH hunspell itself accepts
+# (Danny), and junk BOTH spellers reject — which is exactly where valid colloquial Czech (dobrej)
+# and real words (davy = crowds, dogy = Great Danes, doby, dana/Dana) also live, so removal must
+# stay word-by-word manual. All entries were observed polluting swipe candidates on the 10c boards.
+# "e" alone is not a Czech word (corpus artifact, freq 14147) — unlike a/i/o/u/v/z/k/s.
+e
+danny
+donny
+davey
+darby
+debra
+deane
+denver
+donno
+dovey
+dong
+gonna
+wanna
+dunno
+gotta

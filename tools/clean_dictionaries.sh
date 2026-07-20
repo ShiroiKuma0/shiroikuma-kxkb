@@ -39,5 +39,13 @@ for entry in "${LANGS[@]}"; do
   # removed = rejected-by-L  AND  accepted-by-REF  (= rejected-by-L minus also-rejected-by-REF)
   comm -23 <(sort -u "/tmp/urikdump/${lang}.rejected") <(sort -u "/tmp/urikdump/${lang}.refrej") \
     | awk 'NF' | sort -u > "app/src/main/assets/dictionaries/${lang}.removed"
+  # Merge the hand-curated list (tools/removed_manual/<lang>.txt) — pollution the heuristic can't
+  # catch: names hunspell-L itself accepts (Danny) or junk both spellers reject (donno), which
+  # can't be automated without also nuking valid colloquials (dobrej) and real words (davy, dogy).
+  manual="tools/removed_manual/${lang}.txt"
+  if [ -f "$manual" ]; then
+    sort -u -o "app/src/main/assets/dictionaries/${lang}.removed" \
+      "app/src/main/assets/dictionaries/${lang}.removed" <(grep -v '^#' "$manual" | awk 'NF')
+  fi
   echo "${lang}.removed: $(wc -l < "app/src/main/assets/dictionaries/${lang}.removed") words"
 done

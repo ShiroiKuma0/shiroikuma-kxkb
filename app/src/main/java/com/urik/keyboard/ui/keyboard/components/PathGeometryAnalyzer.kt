@@ -917,7 +917,10 @@ constructor() {
     )
 
     private companion object {
-        const val MAX_PATH_POINTS = 500
+        // Must cover the ring buffer completely: a long swipe's snapshot can hold up to CAPACITY
+        // points, and the profile arrays are indexed by path position — 500 < 512 crashed every
+        // swipe longer than ~100 raw events (ArrayIndexOutOfBounds at 500).
+        const val MAX_PATH_POINTS = SwipePointRingBuffer.CAPACITY
 
         const val SLOW_VELOCITY_THRESHOLD = 0.3f
         const val SLOW_VELOCITY_BOOST = 1.35f

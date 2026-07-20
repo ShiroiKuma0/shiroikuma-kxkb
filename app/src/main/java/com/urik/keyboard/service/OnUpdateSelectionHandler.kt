@@ -8,7 +8,8 @@ class OnUpdateSelectionHandler(
     private val inputState: InputStateManager,
     private val outputBridge: OutputBridge,
     private val imeStateCoordinator: ImeStateCoordinator,
-    private val onCheckAutoCapitalization: (textBefore: String) -> Unit
+    private val onCheckAutoCapitalization: (textBefore: String) -> Unit,
+    private val onWordRecomposed: () -> Unit = {}
 ) {
     fun handle(newSelStart: Int, newSelEnd: Int, candidatesStart: Int, candidatesEnd: Int) {
         if (handleDirectCommitInProgress()) return
@@ -103,7 +104,7 @@ class OnUpdateSelectionHandler(
         inputState.lastKnownCursorPosition = newSelStart
 
         if (!hasComposingText && !inputState.isActivelyEditing && newSelStart == newSelEnd) {
-            outputBridge.attemptRecompositionAtCursor(newSelStart)
+            if (outputBridge.attemptRecompositionAtCursor(newSelStart)) onWordRecomposed()
         }
     }
 
@@ -136,7 +137,7 @@ class OnUpdateSelectionHandler(
         }
         inputState.lastKnownCursorPosition = newSelStart
         if (newSelStart == newSelEnd) {
-            outputBridge.attemptRecompositionAtCursor(newSelStart)
+            if (outputBridge.attemptRecompositionAtCursor(newSelStart)) onWordRecomposed()
         }
         return true
     }

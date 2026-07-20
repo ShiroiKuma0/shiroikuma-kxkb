@@ -716,6 +716,12 @@
     <string name="remove_cancel">Cancel</string>
     <string name="remove_confirm">Remove</string>
 
+    <!-- Edit-word overlay -->
+    <string name="edit_word_chip_description">Edit word</string>
+    <string name="edit_word_commit_description">Commit edited word</string>
+    <string name="edit_word_cancel_description">Cancel editing</string>
+    <string name="edit_word_remove_description">Remove from prediction</string>
+
     <!-- Japanese reading→surface registration -->
     <string name="ja_register_candidate_label">＋登録</string>
     <string name="ja_register_dialog_title">単語登録</string>
@@ -923,6 +929,7 @@
     <string name="voice_import_wrong_zip">Not the expected model zip (missing %1$s)</string>
     <string name="voice_no_browser">No browser available</string>
     <string name="space_menu_voice">Voice input</string>
+    <string name="space_menu_learned_words">Learned words</string>
 
     <!-- Library: add language -->
     <string name="library_add_language">＋ Add language…</string>

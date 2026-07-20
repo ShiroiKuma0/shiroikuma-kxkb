@@ -69,13 +69,16 @@ constructor(private val streamingScoringEngine: StreamingScoringEngine) {
     }
 
     data class DictionaryEntry(
+        /** Accent-FOLDED lowercase form — all geometry (key lookups, pruning) runs on this. */
         val word: String,
         val frequencyScore: Float,
         val rawFrequency: Long,
         val firstChar: Char,
         val uniqueLetterCount: Int,
         val frequencyTier: FrequencyTier = FrequencyTier.COMMON,
-        val uniqueLowercaseChars: Set<Char> = emptySet()
+        val uniqueLowercaseChars: Set<Char> = emptySet(),
+        /** The real dictionary word (diacritics intact) — what the bar shows and the field gets. */
+        val displayWord: String = word
     )
 
     @Suppress("ktlint:standard:backing-property-naming")
@@ -112,6 +115,10 @@ constructor(private val streamingScoringEngine: StreamingScoringEngine) {
 
     @Volatile
     private var swipeEnabled = true
+
+    /** Layout gate: the active layout has flat letter keys to glide over (set by the view). */
+    @Volatile
+    private var layoutSwipeCapable = true
 
     @Volatile
     private var swipeStartDistancePx = 50f
@@ -164,32 +171,19 @@ constructor(private val streamingScoringEngine: StreamingScoringEngine) {
 
     fun updateActiveLanguages(languages: List<String>) {
         activeLanguages = languages
-        streamingScoringEngine.prewarm(languages)
     }
-
-    private fun getScriptCodeForLanguage(languageCode: String): Int = when (languageCode) {
-        "en", "es", "pl", "pt", "de", "cs", "sk", "sv" -> UScript.LATIN
-        "bg", "ru", "uk" -> UScript.CYRILLIC
-        "ar", "fa" -> UScript.ARABIC
-        "ja" -> UScript.HIRAGANA
-        else -> UScript.LATIN
-    }
-
-    private fun areLayoutsCompatible(script1: Int, script2: Int): Boolean = when (script1) {
-        in LATIN_LIKE_SCRIPTS if script2 in LATIN_LIKE_SCRIPTS -> true
-        in ARABIC_SCRIPTS if script2 in ARABIC_SCRIPTS -> true
-        else -> false
-    }
-
-    private fun getCompatibleLanguagesForSwipe(activeLanguages: List<String>, currentScriptCode: Int): List<String> =
-        activeLanguages.filter { lang ->
-            val layoutScript = getScriptCodeForLanguage(lang)
-            areLayoutsCompatible(currentScriptCode, layoutScript)
-        }
 
     fun setSwipeEnabled(enabled: Boolean) {
         swipeEnabled = enabled
         if (!enabled) {
+            reset()
+        }
+    }
+
+    /** The layout-capability gate — independent of the user/mode gate, both must hold. */
+    fun setLayoutSwipeCapable(capable: Boolean) {
+        layoutSwipeCapable = capable
+        if (!capable) {
             reset()
         }
     }
@@ -220,12 +214,17 @@ constructor(private val streamingScoringEngine: StreamingScoringEngine) {
 
     fun updateCurrentLanguage(tag: String) {
         streamingScoringEngine.currentLanguageTag = tag
+        // Prewarm the LAYOUT language's dictionary — the swipe scores against it alone, so the
+        // cache must be keyed the same way. Prewarming the merged active set (the old behaviour)
+        // left every gesture cache-missing and racing an async reload against the stale
+        // English-heavy index — Czech boards offered English words.
+        streamingScoringEngine.prewarm(listOf(tag))
     }
 
     /** @return true if event consumed (swipe in progress), false to propagate */
     @Suppress("ReturnCount")
     fun handleTouchEvent(event: MotionEvent, keyAt: (Float, Float) -> KeyboardKey?): Boolean {
-        if (!swipeEnabled) {
+        if (!swipeEnabled || !layoutSwipeCapable) {
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     startTime = System.currentTimeMillis()
@@ -446,7 +445,10 @@ constructor(private val streamingScoringEngine: StreamingScoringEngine) {
             isSwiping = true
             pointCounter = ringBuffer.size
 
-            val compatibleLanguages = getCompatibleLanguagesForSwipe(activeLanguages, currentScriptCode)
+            // The swipe dictionary is the CURRENT LAYOUT LANGUAGE's only — typing follows the layout
+            // language everywhere in kxkb. Scoring against the merged active-language set let
+            // high-frequency English shadow Czech words on a Czech board (and polluted Russian).
+            val compatibleLanguages = listOf(streamingScoringEngine.currentLanguageTag)
             streamingScoringEngine.startGesture(
                 keyCharacterPositions,
                 compatibleLanguages,
@@ -684,6 +686,9 @@ constructor(private val streamingScoringEngine: StreamingScoringEngine) {
                             _swipeListener?.onSwipeResults(topCandidates)
                         }
                     } catch (e: Exception) {
+                        // Also to logcat at ERROR level — EMUI suppresses release-app INFO logs, and a
+                        // silently-eaten scoring exception cost a long debugging session to find.
+                        android.util.Log.e("kxkb-swipe", "swipe finalize failed", e)
                         ErrorLogger.logException(
                             component = "SwipeDetector",
                             severity = ErrorLogger.Severity.HIGH,

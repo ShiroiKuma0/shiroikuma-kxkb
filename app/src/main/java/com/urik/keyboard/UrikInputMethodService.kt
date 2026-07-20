@@ -498,7 +498,17 @@ open class UrikInputMethodService :
                 inputState = inputState,
                 outputBridge = outputBridge,
                 imeStateCoordinator = imeStateCoordinator,
-                onCheckAutoCapitalization = ::checkAutoCapitalization
+                onCheckAutoCapitalization = ::checkAutoCapitalization,
+                onWordRecomposed = {
+                    // A tap into a committed word underlined it (recomposition) — feed the word through
+                    // the normal pipeline so the bar offers correction candidates. Casing candidates
+                    // follow the tapped word's own surface (a capitalized word gets capitalized
+                    // corrections), not the stale flags of the previously typed word.
+                    inputState.isCurrentWordAtSentenceStart =
+                        inputState.displayBuffer.firstOrNull()?.isUpperCase() == true
+                    inputState.isCurrentWordManualShifted = false
+                    suggestionPipeline.requestSuggestions(inputState.displayBuffer, InputMethod.TYPED)
+                }
             )
 
             suggestionPipeline =
@@ -976,7 +986,7 @@ open class UrikInputMethodService :
                     inputState.clearBigramPredictions()
                     keyEventRouter.route(key)
                 }
-                setOnSwipeWordListener { validatedWord -> handleSwipeWord(validatedWord) }
+                setOnSwipeWordListener { rankedWords -> handleSwipeWord(rankedWords) }
                 setOnSuggestionClickListener { suggestion -> handleSuggestionSelected(suggestion) }
                 setOnExpandRequestedListener {
                     // Build the full (tens-of) candidate list off the main thread, then show the pane.
@@ -991,6 +1001,14 @@ open class UrikInputMethodService :
                     handleSuggestionRemoval(
                         suggestion
                     )
+                }
+                setEditChipWordProvider {
+                    inputState.displayBuffer.takeIf {
+                        it.isNotEmpty() && !inputState.isSuggestionsDisabled
+                    }
+                }
+                setOnEditWordCommitListener { edited ->
+                    serviceScope.launch { suggestionPipeline.commitEditedWord(edited, ::checkAutoCapitalization) }
                 }
                 setOnEmojiSelectedListener { selectedEmoji ->
                     handleEmojiSelected(selectedEmoji)
@@ -1213,6 +1231,9 @@ open class UrikInputMethodService :
             "voice" -> com.urik.keyboard.settings.SettingsActivity.createIntent(
                 this, com.urik.keyboard.settings.SettingsActivity.PAGE_VOICE
             )
+            "learned_words" -> com.urik.keyboard.settings.SettingsActivity.createIntent(
+                this, com.urik.keyboard.settings.SettingsActivity.PAGE_LEARNED_WORDS
+            )
             else -> com.urik.keyboard.settings.SettingsActivity.createIntent(this)
         }
         intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -1320,7 +1341,7 @@ open class UrikInputMethodService :
             // editor action. Routing it through onEnterAction (not outputBridge.sendEnter(), which commits a
             // "\n" that single-line fields normalise to a SPACE) fixes the "ac " trailing-space bug. (Bug E.)
             "enter" -> onEnterAction(EditorInfo.IME_ACTION_NONE)
-            "space" -> outputBridge.sendSpace()
+            "space" -> if (editWordOverlayActive()) swipeKeyboardView?.editWordInsert(" ") else outputBridge.sendSpace()
             "backspace" -> handleBackspace()
             "arrow_up" -> sendKeyEventWithMeta(KeyEvent.KEYCODE_DPAD_UP, 0)
             "arrow_down" -> sendKeyEventWithMeta(KeyEvent.KEYCODE_DPAD_DOWN, 0)
@@ -2303,6 +2324,8 @@ open class UrikInputMethodService :
     }
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
+        // A field change invalidates whatever word the edit overlay was correcting.
+        if (!restarting) swipeKeyboardView?.hideEditWordOverlay()
         layoutManager.updateLongPressDuration(currentSettings.longPressDuration)
         layoutManager.updateLongPressPunctuationMode(currentSettings.longPressPunctuationMode)
         layoutManager.updateKeySize(currentSettings.keySize)
@@ -2498,6 +2521,10 @@ open class UrikInputMethodService :
     override fun onSpace() = handleSpace()
 
     override fun onEnterAction(imeAction: Int) {
+        if (editWordOverlayActive()) {
+            swipeKeyboardView?.editWordCommit()
+            return
+        }
         serviceScope.launch { performInputAction(imeAction) }
     }
 
@@ -2612,6 +2639,7 @@ open class UrikInputMethodService :
     }
 
     override fun onTab() {
+        if (editWordOverlayActive()) return
         // Cluster typing: Tab ("tap") advances the highlighted candidate that Space will commit, rather
         // than emitting a literal tab. Falls back to a real KEYCODE_TAB when there's nothing to cycle.
         // No-prediction context (the GNU code layout, the manual no-prediction mode, secure/terminal fields):
@@ -2704,14 +2732,29 @@ open class UrikInputMethodService :
 
     override fun onLanguageSwitch() {}
 
+    // While the edit-word overlay is open, every key press edits ITS buffer, never the target field.
+    // These four wrappers are the single choke points all input paths (tap, flick, repeat, GNU action)
+    // funnel through, so gating here covers them all.
+    private fun editWordOverlayActive() = swipeKeyboardView?.isEditWordOverlayVisible == true
+
     private fun handleLetterInput(char: String) {
+        if (editWordOverlayActive()) {
+            swipeKeyboardView?.editWordInsert(char)
+            return
+        }
         japaneseCandidateHandler.reset()
         letterInputHandler.handle(char)
     }
 
-    private fun handleNonLetterInput(char: String) = nonLetterInputHandler.handle(char)
+    private fun handleNonLetterInput(char: String) {
+        if (editWordOverlayActive()) {
+            swipeKeyboardView?.editWordInsert(char)
+            return
+        }
+        nonLetterInputHandler.handle(char)
+    }
 
-    private fun handleSwipeWord(validatedWord: String) = swipeWordHandler.handle(validatedWord)
+    private fun handleSwipeWord(rankedWords: List<String>) = swipeWordHandler.handle(rankedWords)
 
     /**
      * Apply a special-key shortcut ([SpecialTokens]) tapped on the toolbar or pressed as a layout key: a
@@ -2908,7 +2951,13 @@ open class UrikInputMethodService :
         )
     }
 
-    private fun handleBackspace() = backspaceHandler.handle()
+    private fun handleBackspace() {
+        if (editWordOverlayActive()) {
+            swipeKeyboardView?.editWordBackspace()
+            return
+        }
+        backspaceHandler.handle()
+    }
 
     /**
      * Resolve the CURRENT layout language's custom-suggestion row (per-language override → built-in default)
@@ -2920,7 +2969,13 @@ open class UrikInputMethodService :
         inputState.setCustomSuggestions(CustomSuggestionRow.parse(raw))
     }
 
-    private fun handleSpace() = spaceInputHandler.handle()
+    private fun handleSpace() {
+        if (editWordOverlayActive()) {
+            swipeKeyboardView?.editWordInsert(" ")
+            return
+        }
+        spaceInputHandler.handle()
+    }
 
     private fun handleSpacebarCursorMove(distance: Int) {
         if (inputState.requiresDirectCommit || !currentSettings.spacebarCursorControl) {
@@ -2942,6 +2997,7 @@ open class UrikInputMethodService :
     }
 
     private fun handleBackspaceSwipeDelete() {
+        if (editWordOverlayActive()) return
         if (inputState.requiresDirectCommit || !currentSettings.backspaceSwipeDelete) {
             return
         }

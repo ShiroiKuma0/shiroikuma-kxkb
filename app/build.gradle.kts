@@ -122,6 +122,8 @@ android {
 
             all {
                 it.jvmArgs("-XX:+EnableDynamicAgentLoading")
+                // Forward the DictDumpTool trigger into the forked test JVM (tools/clean_dictionaries.sh).
+                System.getProperty("urik.dump")?.let { v -> it.systemProperty("urik.dump", v) }
             }
         }
     }

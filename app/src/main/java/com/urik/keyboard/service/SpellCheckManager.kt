@@ -642,11 +642,11 @@ constructor(
                         }
                     result.add(
                         SpellingSuggestion(
-                            word = word,
+                            word = learnedSurface(word),
                             confidence = confidence,
                             ranking = index,
                             source = "learned",
-                            preserveCase = true
+                            preserveCase = word.length > 1
                         )
                     )
                     seenWords.add(word.lowercase())
@@ -870,6 +870,14 @@ constructor(
      * under an exact dictionary hit at [EXACT_MATCH_CONFIDENCE]); used twice or more → above that ceiling so
      * it lands as the #1 candidate, with higher frequency ranking higher within that top band.
      */
+    /**
+     * A stored single-letter learned surface is a sentence-start auto-cap artifact ("A" for Czech "a"),
+     * never deliberate casing — fold it so it can't shadow the lowercase dictionary word and doesn't
+     * display capitalized mid-sentence (sentence-start recasing still capitalizes it there).
+     */
+    private fun learnedSurface(word: String): String =
+        if (word.length == 1) word.lowercase(getLocaleForLanguage()) else word
+
     private fun userDictionaryConfidence(frequency: Int): Double =
         if (frequency <= 1) {
             USER_DICT_NEAR_TOP_CONFIDENCE
@@ -951,11 +959,11 @@ constructor(
                     seenWords.add(dedupeKey)
                     result.add(
                         SpellingSuggestion(
-                            word = word,
+                            word = learnedSurface(word),
                             confidence = learnedHeavyConfidence(frequency),
                             ranking = 0,
                             source = "learned",
-                            preserveCase = true
+                            preserveCase = word.length > 1
                         )
                     )
                 }

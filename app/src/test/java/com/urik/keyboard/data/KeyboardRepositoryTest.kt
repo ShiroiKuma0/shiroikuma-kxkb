@@ -75,14 +75,13 @@ class KeyboardRepositoryTest {
 
     @Test
     fun `Russian layout letter keys are all Cyrillic`() = runTest {
-        // The current Russian roster (registry default ru_6r8c) is a compass/cluster board: its letters are
-        // FlickKey centres, not flat Character keys. Same intent — every single-character LETTER face is
-        // Cyrillic — over the FlickKey letter keys (digits, punctuation and chord labels like "Ctrl" are
-        // non-LETTER or multi-character, so they're excluded).
+        // The Russian default (registry: ЯВЕРТЫ 10c) is a flat tap board — its letters are plain
+        // Character keys (swipe-capable, accents on long-press), not FlickKey centres. Every
+        // single-character LETTER face must be Cyrillic (digits and punctuation are non-LETTER).
         val letterFaces = loadLetters("ru").getOrNull()!!.rows.flatten()
-            .filterIsInstance<KeyboardKey.FlickKey>()
+            .filterIsInstance<KeyboardKey.Character>()
             .filter { it.type == KeyboardKey.KeyType.LETTER }
-            .map { it.center }
+            .map { it.value }
             .filter { it.length == 1 && it.first().isLetter() }
         assertTrue("Russian layout must have letter keys", letterFaces.isNotEmpty())
         letterFaces.forEach { face ->

@@ -38,7 +38,11 @@ class AutofillStateCoordinator(
 
         if (suggestions.isEmpty()) {
             serviceScope.launch(Dispatchers.Main) {
-                candidateBarController.forceClearAllSuggestions()
+                // Only clear a bar that is actually showing AUTOFILL chips. The system fires an
+                // empty inline response after every input RESTART (Enter in some apps, language
+                // switches) — force-clearing here wiped live typing/swipe candidates that had
+                // just been published, a beat after they appeared.
+                candidateBarController.clearAutofillIfShowing()
             }
             return false
         }

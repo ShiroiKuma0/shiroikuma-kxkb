@@ -36,6 +36,19 @@ class ResizeOverlayView(context: Context) : View(context) {
     var onHaptic: (() -> Unit)? = null
     var longPressMs: Long = 400L
 
+    /**
+     * When set and true for a DOWN point, the top-left grip yields the touch entirely (used while the
+     * edit-word overlay is open — its ✕/🗑 buttons live in the corner the grip covers).
+     */
+    var gripExclusion: ((Float, Float) -> Boolean)? = null
+
+    /**
+     * A quick TAP in the grip (released before long-press activation, no drag) is forwarded here so a
+     * clickable view under the grip — the suggestion bar's ✎ edit chip — still gets its tap while the
+     * grip keeps owning the corner for long-press resize.
+     */
+    var onGripTap: ((Float, Float) -> Unit)? = null
+
     var handleColor: Int = 0xFFFFFF00.toInt()
         set(value) { field = value; dotFill.color = value; dotRing.color = value; invalidate() }
 
@@ -139,6 +152,7 @@ class ResizeOverlayView(context: Context) : View(context) {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 if (!inGrip(event.x, event.y)) return false // let keys / suggestions handle it
+                if (gripExclusion?.invoke(event.x, event.y) == true) return false
                 downInGrip = true
                 movedBeforeActivate = false
                 primaryId = event.getPointerId(0)
@@ -259,7 +273,9 @@ class ResizeOverlayView(context: Context) : View(context) {
             }
 
             MotionEvent.ACTION_UP -> {
+                val wasTap = downInGrip && !active && !movedBeforeActivate
                 deactivate(commit = active)
+                if (wasTap) onGripTap?.invoke(event.x, event.y)
                 return true
             }
 

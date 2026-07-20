@@ -3,6 +3,7 @@ package com.urik.keyboard.service
 import com.urik.keyboard.data.WordFrequencyRepository
 import com.urik.keyboard.data.database.LearnedWord
 import com.urik.keyboard.utils.CaseTransformer
+import com.urik.keyboard.utils.CursorEditingUtils
 import com.urik.keyboard.utils.ErrorLogger
 import com.urik.keyboard.utils.KanaTransformUtils
 import kotlinx.coroutines.CoroutineScope
@@ -205,6 +206,10 @@ class SuggestionPipeline(
      */
     private suspend fun learnCommittedCasing(committed: String) {
         if (isJapaneseLayout) return
+        // A single letter has NO deliberate-casing signal: sentence-start auto-cap makes it "all-caps"
+        // ("A" for Czech "a"), and learning that surface poisons the bar — the preserve-case "A" then
+        // shadows the hugely frequent lowercase dictionary word forever.
+        if (committed.length < 2) return
         val lang = host.currentLayoutLanguage().split("-").first()
         if (lang in CASELESS_LANGUAGES) return
         // casingIntentScore: 0 = all-lower, 2 = first-letter-only (ambiguous with auto-cap) → skip both;
@@ -448,9 +453,16 @@ class SuggestionPipeline(
                 // (the first Space accepts the highlighted conversion, a tap accepts a tapped one) must insert
                 // the surface ONLY, with no trailing " ". Every other (Latin / cluster) path still appends a
                 // space so words stay separated — except when the caller suppresses it ([appendSpace] = false,
-                // the cluster Enter path: "OK⏎", not "OK ⏎"). The cursor math below accounts for it via
-                // [trailingSpaceLen]. (Japanese FIX 1.)
-                val trailing = if (isJapaneseLayout || !appendSpace) "" else " "
+                // the cluster Enter path: "OK⏎", not "OK ⏎"), and except when the text already continues with
+                // whitespace/punctuation right after the composing region (a tap-recompose correction mid-
+                // sentence, or typing a word in front of existing text) — appending there would double the
+                // space. The cursor math below accounts for it via [trailingSpaceLen]. (Japanese FIX 1.)
+                val trailing =
+                    if (isJapaneseLayout || !appendSpace || trailingSpaceSuppressedByNextChar(actualCursorPos)) {
+                        ""
+                    } else {
+                        " "
+                    }
                 val trailingSpaceLen = trailing.length
 
                 outputBridge.beginBatchEdit()
@@ -480,6 +492,85 @@ class SuggestionPipeline(
                     severity = ErrorLogger.Severity.HIGH,
                     exception = e,
                     context = mapOf("operation" to "coordinateSuggestionSelection")
+                )
+                outputBridge.coordinateStateClear()
+            }
+        }
+    }
+
+    /**
+     * True when the character immediately after the composing region (or after the cursor when nothing
+     * is composing) is whitespace or punctuation — a commit there must not append its own trailing space.
+     */
+    private fun trailingSpaceSuppressedByNextChar(actualCursorPos: Int): Boolean {
+        val regionEnd =
+            if (state.composingRegionStart != -1 && state.displayBuffer.isNotEmpty()) {
+                state.composingRegionStart + state.displayBuffer.length
+            } else {
+                actualCursorPos
+            }
+        val skip = (regionEnd - actualCursorPos).coerceAtLeast(0)
+        val lookahead: String? = outputBridge.safeGetTextAfterCursor(skip + 1)
+        val next = lookahead?.getOrNull(skip) ?: return false
+        return next.isWhitespace() || CursorEditingUtils.isPunctuation(next)
+    }
+
+    /**
+     * Commit the text from the edit-word overlay VERBATIM over the composing (underlined) word — no
+     * re-casing, no pronoun correction, no learning: the user typed exactly what they want, possibly
+     * several words ("Jak se") or trailing punctuation ("kina?"). Trailing space follows the same
+     * next-char rule as a candidate commit; with no composing region it inserts at the cursor.
+     */
+    suspend fun commitEditedWord(edited: String, checkAutoCapitalization: (String) -> Unit) {
+        if (edited.isEmpty()) return
+        withContext(Dispatchers.Main) {
+            try {
+                val actualCursorPos = outputBridge.safeGetCursorPosition()
+
+                // If the composing region was invalidated while the overlay was open, re-underline the
+                // word at the cursor so the commit REPLACES it instead of inserting a duplicate.
+                if (state.composingRegionStart == -1 || state.displayBuffer.isEmpty()) {
+                    outputBridge.attemptRecompositionAtCursor(actualCursorPos)
+                }
+
+                if (state.composingRegionStart != -1 && state.displayBuffer.isNotEmpty()) {
+                    @Suppress("UnnecessaryParentheses")
+                    val expectedCursorRange =
+                        state.composingRegionStart..(state.composingRegionStart + state.displayBuffer.length)
+                    if (actualCursorPos !in expectedCursorRange) {
+                        outputBridge.invalidateComposingStateOnCursorJump()
+                        return@withContext
+                    }
+                }
+
+                state.isActivelyEditing = true
+
+                val trailing =
+                    if (isJapaneseLayout || trailingSpaceSuppressedByNextChar(actualCursorPos)) "" else " "
+
+                outputBridge.beginBatchEdit()
+                try {
+                    outputBridge.commitText("$edited$trailing")
+
+                    val base =
+                        if (state.composingRegionStart != -1) state.composingRegionStart else actualCursorPos
+                    val expectedNewPosition = base + edited.length + trailing.length
+                    state.selectionStateTracker.setExpectedPositionAfterOperation(expectedNewPosition)
+                    state.lastKnownCursorPosition = expectedNewPosition
+
+                    outputBridge.coordinateStateClear()
+
+                    val textBefore = outputBridge.safeGetTextBeforeCursor(50)
+                    checkAutoCapitalization(textBefore)
+                } finally {
+                    outputBridge.endBatchEdit()
+                }
+            } catch (e: Exception) {
+                ErrorLogger.logException(
+                    component = "SuggestionPipeline",
+                    severity = ErrorLogger.Severity.HIGH,
+                    exception = e,
+                    context = mapOf("operation" to "commitEditedWord")
                 )
                 outputBridge.coordinateStateClear()
             }

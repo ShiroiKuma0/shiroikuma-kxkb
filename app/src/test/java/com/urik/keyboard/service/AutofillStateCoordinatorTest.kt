@@ -105,14 +105,17 @@ class AutofillStateCoordinatorTest {
     }
 
     @Test
-    fun `onInlineSuggestionsResponse with empty suggestions calls forceClearAllSuggestions and returns false`() {
+    fun `onInlineSuggestionsResponse with empty suggestions clears only showing autofill and returns false`() {
+        // An empty inline response arrives after every input RESTART — it must never wipe live
+        // typing/swipe candidates, only autofill chips that are actually showing.
         val response = mock<InlineSuggestionsResponse>()
         whenever(response.inlineSuggestions).thenReturn(emptyList())
 
         val result = coordinator.onInlineSuggestionsResponse(response, false)
         testScope.advanceUntilIdle()
 
-        verify(candidateBarController).forceClearAllSuggestions()
+        verify(candidateBarController).clearAutofillIfShowing()
+        verify(candidateBarController, never()).forceClearAllSuggestions()
         assertFalse(result)
     }
 

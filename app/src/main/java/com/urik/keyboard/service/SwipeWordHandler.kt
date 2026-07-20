@@ -25,7 +25,48 @@ class SwipeWordHandler(
     private val onCheckAutoCapitalization: (textBefore: String) -> Unit,
     private val onDisableShiftAfterSwipe: () -> Unit
 ) {
-    fun handle(validatedWord: String) {
+    /**
+     * Pre-announce the selection update our setComposingText will trigger, exactly like typed
+     * input does — without it, onUpdateSelection can classify the swipe's own composing update as
+     * a non-sequential cursor jump (stale bookkeeping after an app-driven input restart, e.g.
+     * Enter in some editors) and invalidate the composing state, wiping the just-published
+     * candidates off the bar.
+     */
+    private fun announceExpectedSelection(displayWord: String) {
+        if (inputState.composingRegionStart == -1) return
+        val expectedEnd = inputState.composingRegionStart + displayWord.length
+        // The tracker-level announcement is what actually defuses the jump classifier: composing a
+        // whole word moves the cursor by more than JUMP_THRESHOLD in one hop, and on a fresh line
+        // (no previous composing region — e.g. right after Enter) that read as a non-sequential
+        // jump and wiped the composing state + candidates. Same pattern as the backspace word
+        // delete and suggestion replacement.
+        inputState.selectionStateTracker.setExpectedPositionAfterOperation(expectedEnd)
+        inputState.enqueueTypingOus(
+            InputStateManager.ExpectedTypingOus(
+                composingStart = inputState.composingRegionStart,
+                composingEnd = expectedEnd,
+                cursorPosition = expectedEnd
+            )
+        )
+    }
+
+    /**
+     * Show the swipe's own ranked candidates in the bar — the composed word first, alternates
+     * after, exactly like cluster typing. Tapping one replaces the composing word via the normal
+     * suggestion flow; Space commits the composed word as usual.
+     */
+    private fun publishSwipeCandidates(displayWord: String, alternates: List<String>, isSentenceStart: Boolean) {
+        val casedAlternates = alternates.map { alt ->
+            if (isSentenceStart) alt.replaceFirstChar { it.uppercaseChar() } else alt
+        }
+        val bar = (listOf(displayWord) + casedAlternates).distinct()
+        inputState.pendingSuggestions = bar
+        inputState.updateSuggestionDisplay(bar)
+    }
+
+    fun handle(rankedWords: List<String>) {
+        val validatedWord = rankedWords.firstOrNull().orEmpty()
+        val alternates = rankedWords.drop(1)
         try {
             inputState.clearBigramPredictions()
 
@@ -154,7 +195,12 @@ class SwipeWordHandler(
                                     inputState.composingRegionStart =
                                         outputBridge.safeGetCursorPosition() - displayWord.length
                                     inputState.displayBuffer = displayWord
+                                    announceExpectedSelection(displayWord)
                                     suggestionPipeline.coordinateStateTransition(result.wordState)
+                                    // The bar shows the swipe's OWN ranked candidates — composed word
+                                    // first, cluster-style (coordinateStateTransition would have shown
+                                    // spell-check neighbours and even filters the composed word out).
+                                    publishSwipeCandidates(displayWord, alternates, isSentenceStart)
                                 } finally {
                                     outputBridge.endBatchEdit()
                                 }
@@ -185,6 +231,8 @@ class SwipeWordHandler(
                                             graphemeCount = displayWord.length,
                                             scriptCode = swipeScriptCode
                                         )
+                                    announceExpectedSelection(displayWord)
+                                    publishSwipeCandidates(displayWord, alternates, isSentenceStart)
                                 } finally {
                                     outputBridge.endBatchEdit()
                                 }
@@ -228,6 +276,7 @@ class SwipeWordHandler(
                                     graphemeCount = fallbackDisplay.length,
                                     scriptCode = swipeScriptCode
                                 )
+                            announceExpectedSelection(fallbackDisplay)
                         } finally {
                             outputBridge.endBatchEdit()
                         }

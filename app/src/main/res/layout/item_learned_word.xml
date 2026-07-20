@@ -1,13 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:gravity="center_vertical"
-    android:minHeight="48dp"
+    android:minHeight="36dp"
     android:orientation="horizontal"
-    android:paddingHorizontal="16dp"
-    android:paddingVertical="4dp">
+    android:paddingStart="4dp"
+    android:paddingEnd="18dp">
+
+    <TextView
+        android:id="@+id/user_dict_marker"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="6dp"
+        android:background="@drawable/bg_user_dict_pill"
+        android:gravity="center"
+        android:paddingHorizontal="7dp"
+        android:paddingVertical="1dp"
+        android:text="＋"
+        android:textColor="?attr/colorPrimary"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:visibility="invisible"
+        tools:ignore="HardcodedText" />
 
     <TextView
         android:id="@+id/word_text"
@@ -21,8 +38,8 @@
 
     <ImageButton
         android:id="@+id/delete_button"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
+        android:layout_width="40dp"
+        android:layout_height="36dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:contentDescription="@string/remove_confirm"
         android:src="@drawable/ic_delete"

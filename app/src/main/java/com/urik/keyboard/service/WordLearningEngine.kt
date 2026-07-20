@@ -1071,6 +1071,68 @@ class WordLearningEngine(
         }
     }
 
+    /** All learned words grouped by language tag, each group collated for its own locale (Learned-words page). */
+    suspend fun getAllLearnedWordsByLanguage(): Result<Map<String, List<String>>> = withContext(ioDispatcher) {
+        try {
+            val grouped = learnedWordDao.getAllLearnedWords()
+                .groupBy({ it.languageTag }, { it.word })
+                .toSortedMap()
+                .mapValues { (lang, words) ->
+                    val collator = java.text.Collator.getInstance(java.util.Locale.forLanguageTag(lang))
+                    words.distinct().sortedWith(collator)
+                }
+            Result.success(grouped)
+        } catch (e: SQLiteException) {
+            ErrorLogger.logException(
+                component = "WordLearningEngine",
+                severity = ErrorLogger.Severity.HIGH,
+                exception = e,
+                context = mapOf("operation" to "getAllLearnedWordsByLanguage")
+            )
+            Result.failure(e)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Delete [word] from ONE language's learned store (the Learned-words page row 🗑). Unlike the
+     * candidate long-press removal this does NOT blacklist — typing the word again relearns it. The
+     * cross-language frequency/bigram records go only when no other language still knows the word.
+     */
+    suspend fun deleteWordForLanguage(word: String, languageTag: String): Result<Unit> = withContext(ioDispatcher) {
+        try {
+            val normalized = learnedWordDao.findNormalizedByDisplayWord(word)
+                ?: wordNormalizer.normalize(word, languageTag)
+
+            database.withTransaction {
+                learnedWordDao.removeWordComplete(languageTag, normalized)
+                if (learnedWordDao.findLanguagesForWord(normalized).isEmpty()) {
+                    userWordFrequencyDao.deleteByNormalizedWord(normalized)
+                    userWordBigramDao.deleteByWord(normalized)
+                }
+            }
+
+            learnedWordsCache.invalidateAll()
+            hotFrequencyBuffer.clear()
+            swipeWordsCache = emptyList()
+            swipeWordsCacheLanguage = ""
+            invalidateLearnedListCache()
+
+            Result.success(Unit)
+        } catch (e: SQLiteException) {
+            ErrorLogger.logException(
+                component = "WordLearningEngine",
+                severity = ErrorLogger.Severity.HIGH,
+                exception = e,
+                context = mapOf("operation" to "deleteWordForLanguage")
+            )
+            Result.failure(e)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun deleteWordCompletely(word: String): Result<Unit> = withContext(ioDispatcher) {
         try {
             val normalized = learnedWordDao.findNormalizedByDisplayWord(word)
