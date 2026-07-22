@@ -235,8 +235,17 @@ prepends the buffer when `!hasClusterAmbiguity`); **cluster centre-word rescue**
 hit/fit/lit, dít via folding, rare luft — were pool-truncated; a singleton re-query merges them past
 the CLUSTER_BAR_POOL cut).
 
-**Released `0.23.1+292`** (2026-07-20; tagged `v0.23.1+292`, APK attached, on the fork's GitHub; default
-branch `custom`; README badge + `CHANGELOG.md` track it). Recent fork releases: `+230`, `+250`, `+287`,
-`+292` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`, `+211`, `+213`, `+214`, `+215`,
-`+217`, `+222`). Remaining M5 tail (low priority): number/arrow rows on the look page, quick-period
-flick. Full architecture + milestone sequence in `docs/PLAN.md`.
+**Shipped since `+292`** (the `+295` line): **the Samsung dictation crash fix** — One UI restarts the
+input connection after every committed text, rebuilding the keyboard while the voice indicator is
+visible; the cached indicator was still a child of the OLD suggestion bar and the bare re-add threw
+"child already has a parent", killing the IME once per dictated sentence (diagnosed via dropbox crash
+records + R8-mapping retrace; fix = detach-first at all indicator add-sites; RULE: any view cached
+across keyboard rebuilds must detach before addView — see `memory/samsung-fold5-indicator-crash.md`);
+**slideable voice timings** (silence-before-stop 200–2000 ms/100 ms, session-end 1–30 s/0.5 s; stored
+as `voice_session_end_ms` with legacy-seconds migration; fresh-install default **2.5 s**).
+
+**Released `0.23.1+295`** (2026-07-22; tagged `v0.23.1+295`, APK attached, on the fork's GitHub; default
+branch `custom`; README badge + `CHANGELOG.md` track it). Recent fork releases: `+250`, `+287`, `+292`,
+`+295` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`, `+211`, `+213`, `+214`, `+215`,
+`+217`, `+222`, `+230`). Remaining M5 tail (low priority): number/arrow rows on the look page,
+quick-period flick. Full architecture + milestone sequence in `docs/PLAN.md`.
