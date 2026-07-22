@@ -4,7 +4,32 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+292 — current
+## 0.23.1+295 — current
+
+Built on Urik `0.23.1-beta`. The Samsung release: the Galaxy Fold 5 dictation crash fixed, and the
+voice timing settings turned into fine-grained sliders.
+
+### 🛠 Samsung dictation crash
+
+- On Samsung (Galaxy Fold 5, One UI): **every dictated sentence killed the keyboard** — One UI
+  restarts the input connection after each committed text, which rebuilds the keyboard while the
+  "Dictating…" indicator is visible; the cached indicator view was still a child of the previous
+  suggestion bar, and re-adding it threw "The specified child already has a parent" on the main
+  thread (One UI's crash-loop dialog after repeats). Diagnosed from the device's dropbox crash
+  records retraced against the release R8 mapping.
+- Fixed with detach-first at every indicator add-site — which also cures the inverted symptom
+  (the indicator silently NOT appearing after a rebuild, because a stale parent skipped the add).
+  The voice engine itself was blameless: pure-CPU ONNX, no device-specific inference issue.
+
+### 🎚 Slideable voice timings
+
+- **Silence before stop** and **End dictation after silence** are now sliders in the house style
+  (live value while dragging, persisted on release) instead of fixed four-value pickers:
+  200–2000 ms in 100 ms steps, and 1–30 s in 0.5 s steps — 3.5 s is a real choice now.
+- The session-end value is stored in milliseconds (the legacy seconds key migrates transparently;
+  a previously chosen value carries over exactly). **Fresh-install default: 2.5 s** (was 10 s).
+
+## 0.23.1+292
 
 Built on Urik `0.23.1-beta`. The spacing-and-pairs release: correct word separation around
 „quotes“, brackets and parentheses on every input path, a literal Space after cursor movement, the
