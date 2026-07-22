@@ -272,6 +272,26 @@ class SwipeKeyboardViewOverlayTouchTest {
     }
 
     @Test
+    fun `voice indicator survives a keyboard rebuild without crashing`() {
+        // The Fold 5 dictation crash: Samsung restarts input after each committed sentence, which
+        // rebuilds the keyboard (a NEW suggestion bar) while the voice indicator is visible and
+        // still parented to the OLD bar — the next bar update then re-added it bare and threw
+        // "The specified child already has a parent".
+        view.showVoiceIndicator("Dictating…")
+
+        val layout = KeyboardLayout(
+            mode = KeyboardMode.LETTERS,
+            rows = listOf((0 until 9).map { KeyboardKey.Character("a", KeyboardKey.KeyType.LETTER) })
+        )
+        view.updateKeyboard(layout, KeyboardState())
+
+        // The rebuild preserves suggestions via updateSuggestions — this re-adds the indicator.
+        view.updateSuggestions(listOf("badword"))
+        view.showVoiceIndicator("Dictating…")
+        view.updateSuggestions(listOf("badword"))
+    }
+
+    @Test
     fun `keyboard rebuild keeps the overlay visible and attached`() {
         view.showEditWordOverlay("dobry")
 

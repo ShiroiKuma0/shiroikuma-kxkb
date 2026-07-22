@@ -135,11 +135,11 @@ data class KeyboardSettings(
     val voiceAutoDetect: Boolean = false,
     /**
      * Continuous dictation: every VAD end-of-utterance commits that sentence and the mic keeps
-     * listening (decoding runs in parallel), until a mic tap or [voiceSessionEndSec] of silence.
+     * listening (decoding runs in parallel), until a mic tap or [voiceSessionEndMs] of silence.
      * Only effective with [voiceAutoStop].
      */
     val voiceContinuous: Boolean = true,
-    val voiceSessionEndSec: Int = 10,
+    val voiceSessionEndMs: Int = 2500,
     /** Dictation beeps: one when a pause commits the sentence, three when the session ends. */
     val voiceBeeps: Boolean = true
 ) {

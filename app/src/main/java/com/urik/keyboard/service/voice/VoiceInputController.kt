@@ -122,7 +122,7 @@ constructor(
                 useVad = true,
                 silenceDurationMs = settings.voiceSilenceMs,
                 chunkMode = true,
-                sessionEndMs = settings.voiceSessionEndSec * 1000,
+                sessionEndMs = settings.voiceSessionEndMs,
                 onChunk = { samples -> mainHandler.post { onChunkReady(samples, myGeneration) } },
                 onFinished = { mainHandler.post { onSessionRecorderDone(myGeneration) } }
             ).also { it.start() }

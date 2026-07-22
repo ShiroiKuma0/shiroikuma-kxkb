@@ -1232,7 +1232,11 @@ constructor(
         if (!isInitialized || isDestroyed) return
         val indicator = getOrCreateDegradedIndicator()
         if (degraded) {
-            if (indicator.parent == null) {
+            // Detach-first: after a keyboard rebuild the cached indicator is still a child of the
+            // OLD bar — a bare parent==null guard then skips the add (invisible indicator), and a
+            // bare addView throws "child already has a parent" (the Fold 5 dictation crash).
+            if (indicator.parent !== suggestionBar) {
+                (indicator.parent as? ViewGroup)?.removeView(indicator)
                 suggestionBar?.addView(indicator, 0)
             }
             indicator.visibility = VISIBLE
@@ -1247,7 +1251,8 @@ constructor(
         val indicator = getOrCreateVoiceIndicator()
         if (text != null) {
             indicator.text = text
-            if (indicator.parent == null) {
+            if (indicator.parent !== suggestionBar) {
+                (indicator.parent as? ViewGroup)?.removeView(indicator)
                 suggestionBar?.addView(indicator, 0)
             }
             indicator.visibility = VISIBLE
@@ -1268,14 +1273,20 @@ constructor(
 
             bar.removeAllViews()
 
+            // Detach-first: after a keyboard rebuild these cached indicators can still be children
+            // of the PREVIOUS bar — adding them bare crashed the IME ("child already has a parent")
+            // on every Samsung dictation sentence (Samsung restarts input after each commit, which
+            // rebuilds the keyboard while the voice indicator is visible).
             degradedIndicatorView?.let { indicator ->
                 if (indicator.visibility == VISIBLE) {
+                    (indicator.parent as? ViewGroup)?.removeView(indicator)
                     bar.addView(indicator, 0)
                 }
             }
 
             voiceIndicatorView?.let { indicator ->
                 if (indicator.visibility == VISIBLE) {
+                    (indicator.parent as? ViewGroup)?.removeView(indicator)
                     bar.addView(indicator, 0)
                 }
             }

@@ -140,6 +140,9 @@ constructor(
         val VOICE_AUTO_DETECT = booleanPreferencesKey("voice_auto_detect")
         val VOICE_CONTINUOUS = booleanPreferencesKey("voice_continuous")
         val VOICE_SESSION_END_SEC = intPreferencesKey("voice_session_end_sec")
+
+        /** Sub-second session-end silence (slider); the legacy SEC key migrates on read. */
+        val VOICE_SESSION_END_MS = intPreferencesKey("voice_session_end_ms")
         val VOICE_BEEPS = booleanPreferencesKey("voice_beeps")
     }
 
@@ -308,7 +311,8 @@ constructor(
                     voiceTranslate = preferences[PreferenceKeys.VOICE_TRANSLATE] ?: false,
                     voiceAutoDetect = preferences[PreferenceKeys.VOICE_AUTO_DETECT] ?: false,
                     voiceContinuous = preferences[PreferenceKeys.VOICE_CONTINUOUS] ?: true,
-                    voiceSessionEndSec = preferences[PreferenceKeys.VOICE_SESSION_END_SEC] ?: 10,
+                    voiceSessionEndMs = preferences[PreferenceKeys.VOICE_SESSION_END_MS]
+                        ?: preferences[PreferenceKeys.VOICE_SESSION_END_SEC]?.times(1000) ?: 2500,
                     voiceBeeps = preferences[PreferenceKeys.VOICE_BEEPS] ?: true
                 ).validated()
             }.catch { e ->
@@ -1250,8 +1254,8 @@ constructor(
         Result.failure(e)
     }
 
-    suspend fun updateVoiceSessionEndSec(sec: Int): Result<Unit> = try {
-        dataStore.edit { it[PreferenceKeys.VOICE_SESSION_END_SEC] = sec }
+    suspend fun updateVoiceSessionEndMs(ms: Int): Result<Unit> = try {
+        dataStore.edit { it[PreferenceKeys.VOICE_SESSION_END_MS] = ms }
         Result.success(Unit)
     } catch (e: Exception) {
         Result.failure(e)

@@ -151,10 +151,14 @@ class VoiceSettingsFragment : Fragment() {
             ) { checked -> lifecycleScope.launch { settingsRepository.updateVoiceAutoStop(checked); rebuild() } })
 
             if (settings.voiceAutoStop) {
-                root.addView(valueRow(
+                root.addView(sliderRow(
                     getString(R.string.voice_opt_silence),
-                    getString(R.string.voice_opt_silence_value, settings.voiceSilenceMs)
-                ) { pickSilenceDuration(settings.voiceSilenceMs) })
+                    min = 200,
+                    max = 2000,
+                    step = 100,
+                    current = settings.voiceSilenceMs,
+                    format = { getString(R.string.voice_opt_silence_value, it) }
+                ) { ms -> lifecycleScope.launch { settingsRepository.updateVoiceSilenceMs(ms) } })
 
                 root.addView(optionCheckbox(
                     getString(R.string.voice_opt_continuous),
@@ -163,10 +167,16 @@ class VoiceSettingsFragment : Fragment() {
                 ) { checked -> lifecycleScope.launch { settingsRepository.updateVoiceContinuous(checked); rebuild() } })
 
                 if (settings.voiceContinuous) {
-                    root.addView(valueRow(
+                    root.addView(sliderRow(
                         getString(R.string.voice_opt_session_end),
-                        getString(R.string.voice_opt_session_end_value, settings.voiceSessionEndSec)
-                    ) { pickSessionEnd(settings.voiceSessionEndSec) })
+                        min = 1000,
+                        max = 30000,
+                        step = 500,
+                        current = settings.voiceSessionEndMs,
+                        format = {
+                            String.format(java.util.Locale.getDefault(), "%.1f s", it / 1000f)
+                        }
+                    ) { ms -> lifecycleScope.launch { settingsRepository.updateVoiceSessionEndMs(ms) } })
 
                     root.addView(optionCheckbox(
                         getString(R.string.voice_opt_beeps),
@@ -444,37 +454,7 @@ class VoiceSettingsFragment : Fragment() {
 
     // ---- options ---------------------------------------------------------------------------------------
 
-    private fun pickSessionEnd(current: Int) {
-        val values = intArrayOf(5, 10, 15, 30)
-        val labels = values.map { getString(R.string.voice_opt_session_end_value, it) }.toTypedArray()
-        AlertDialog.Builder(requireContext(), R.style.Theme_Urik_Dialog)
-            .setTitle(R.string.voice_opt_session_end)
-            .setSingleChoiceItems(labels, values.indexOf(current)) { dialog, which ->
-                lifecycleScope.launch {
-                    settingsRepository.updateVoiceSessionEndSec(values[which])
-                    dialog.dismiss()
-                    rebuild()
-                }
-            }
-            .setNegativeButton(R.string.export_import_cancel, null)
-            .show()
-    }
 
-    private fun pickSilenceDuration(current: Int) {
-        val values = intArrayOf(500, 800, 1200, 2000)
-        val labels = values.map { getString(R.string.voice_opt_silence_value, it) }.toTypedArray()
-        AlertDialog.Builder(requireContext(), R.style.Theme_Urik_Dialog)
-            .setTitle(R.string.voice_opt_silence)
-            .setSingleChoiceItems(labels, values.indexOf(current)) { dialog, which ->
-                lifecycleScope.launch {
-                    settingsRepository.updateVoiceSilenceMs(values[which])
-                    dialog.dismiss()
-                    rebuild()
-                }
-            }
-            .setNegativeButton(R.string.export_import_cancel, null)
-            .show()
-    }
 
     // ---- view builders ---------------------------------------------------------------------------------
 
@@ -520,6 +500,49 @@ class VoiceSettingsFragment : Fragment() {
             setOnCheckedChangeListener { _, c -> onChange(c) }
         })
         addView(caption(description).apply { setPadding(dp(40), 0, 0, 0) })
+    }
+
+    /** Title + live value + a yellow slider; persists on finger release, label updates while dragging. */
+    private fun sliderRow(
+        title: String,
+        min: Int,
+        max: Int,
+        step: Int,
+        current: Int,
+        format: (Int) -> String,
+        onCommit: (Int) -> Unit
+    ): View = LinearLayout(requireContext()).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(0, dp(10), 0, dp(2))
+        val valueView = TextView(requireContext()).apply {
+            text = format(current.coerceIn(min, max))
+            setTextColor(dim)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+            setPadding(0, dp(2), 0, 0)
+        }
+        addView(TextView(requireContext()).apply {
+            text = title
+            setTextColor(yellow)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+        })
+        addView(valueView)
+        addView(android.widget.SeekBar(requireContext()).apply {
+            this.max = (max - min) / step
+            progress = (current.coerceIn(min, max) - min) / step
+            progressTintList = android.content.res.ColorStateList.valueOf(yellow)
+            thumbTintList = android.content.res.ColorStateList.valueOf(yellow)
+            setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: android.widget.SeekBar, p: Int, fromUser: Boolean) {
+                    valueView.text = format(min + p * step)
+                }
+
+                override fun onStartTrackingTouch(sb: android.widget.SeekBar) {}
+
+                override fun onStopTrackingTouch(sb: android.widget.SeekBar) {
+                    onCommit(min + sb.progress * step)
+                }
+            })
+        })
     }
 
     private fun valueRow(title: String, value: String, onClick: () -> Unit): View =
