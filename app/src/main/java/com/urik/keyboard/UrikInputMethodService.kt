@@ -552,13 +552,17 @@ open class UrikInputMethodService :
                     onLanguageSwitch = { languageCode -> handleLanguageSwitch(languageCode) },
                     onSwitchToLayout = { lang, layoutId -> switchToLayout(lang, layoutId) },
                     onMenuAction = { action -> handleSpaceMenuAction(action) },
-                    onClusterBands = { bands ->
+                    onClusterBands = { bands, flatLetters ->
                         spellCheckManager.setClusterBands(bands)
                         // A cluster layout enables Space-commits-candidate / Tab-advances + the bar highlight.
-                        // Japanese uses the same model, so the highlight stays on for it too.
-                        inputState.clusterLayoutActive = bands.isNotEmpty()
+                        // Flat swipe boards run the same bar-commit model: the typed buffer leads the bar
+                        // (typedLeads) so Space commits exactly what was typed, and long-press Space is the
+                        // literal-commit-and-learn escape — without this they'd fall into the spell-check
+                        // path where the typed word is excluded from its own bar. Japanese uses the same
+                        // model, so the highlight stays on for it too.
+                        inputState.clusterLayoutActive = bands.isNotEmpty() || flatLetters
                         candidateBarController.setSuggestionSelectionEnabled(
-                            bands.isNotEmpty() || suggestionPipeline.isJapaneseLayout
+                            inputState.clusterLayoutActive || suggestionPipeline.isJapaneseLayout
                         )
                     },
                     onSpaceLongPress = { handleSpaceLongPressLiteral() },

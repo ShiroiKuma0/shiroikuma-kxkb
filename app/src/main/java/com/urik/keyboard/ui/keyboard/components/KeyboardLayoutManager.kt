@@ -65,7 +65,9 @@ class KeyboardLayoutManager(
     private val onLanguageSwitch: (String) -> Unit = {},
     private val onSwitchToLayout: (String, String) -> Unit = { _, _ -> },
     private val onMenuAction: (String) -> Unit = {},
-    private val onClusterBands: (Map<Char, String>) -> Unit = {},
+    // Letters-page capabilities: the cluster bands (centre char -> band) and whether the page has flat
+    // Character letter keys (a swipe board) — either one puts the host in bar-commit (cluster) mode.
+    private val onClusterBands: (Map<Char, String>, Boolean) -> Unit = { _, _ -> },
     // Long-press Space (held, not slid): returns true if the host consumed it (e.g. a literal-space escape
     // during cluster typing), false to fall back to the default long-press behaviour (punctuation popup).
     private val onSpaceLongPress: () -> Boolean = { false },
@@ -1703,6 +1705,10 @@ class KeyboardLayoutManager(
             isActivated = getKeyActivatedState(key, state)
             isClickable = true
             isFocusable = true
+            // All long presses are handled by our own posted runnables — keep the framework's
+            // long-press machinery off so OEM skins (One UI) can't pop a content-description
+            // tooltip that marks the press handled and swallows the release click.
+            isLongClickable = false
 
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
             contentDescription = getKeyContentDescription(key, state)
@@ -2148,14 +2154,18 @@ class KeyboardLayoutManager(
     /** Extract the letters layout's cluster bands (centre char -> band, e.g. 'w' -> "mwk") for prediction. */
     private fun publishClusterBands(layout: KeyboardLayout) {
         val bands = mutableMapOf<Char, String>()
+        var hasFlatLetters = false
         for (row in layout.rows) {
             for (key in row) {
                 if (key is KeyboardKey.FlickKey && key.clusterMains.length > 1) {
                     key.center.firstOrNull()?.let { bands[it] = key.clusterMains }
                 }
+                if (key is KeyboardKey.Character && key.type == KeyboardKey.KeyType.LETTER) {
+                    hasFlatLetters = true
+                }
             }
         }
-        onClusterBands(bands)
+        onClusterBands(bands, hasFlatLetters)
     }
 
     /** Cycle to the next active layout language (globe-key tap + interim space long-press). */
@@ -2377,7 +2387,13 @@ class KeyboardLayoutManager(
         }
 
         if (longPressPunctuationMode != LongPressPunctuationMode.SPACEBAR) {
-            return false
+            // Nothing else applies: commit the space HERE and consume. Leaving the long press
+            // unconsumed hands it to the framework, where OEM decorations (One UI's
+            // content-description tooltip — the "Mezerník" flash) mark it handled and swallow
+            // the release click, so the key silently did nothing on Samsung.
+            performContextualHaptic(KeyboardKey.Action(KeyboardKey.ActionType.SPACE))
+            onKeyClick(KeyboardKey.Action(KeyboardKey.ActionType.SPACE))
+            return true
         }
 
         performContextualHaptic(KeyboardKey.Action(KeyboardKey.ActionType.SPACE))
