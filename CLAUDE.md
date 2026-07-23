@@ -244,8 +244,23 @@ across keyboard rebuilds must detach before addView — see `memory/samsung-fold
 **slideable voice timings** (silence-before-stop 200–2000 ms/100 ms, session-end 1–30 s/0.5 s; stored
 as `voice_session_end_ms` with legacy-seconds migration; fresh-install default **2.5 s**).
 
-**Released `0.23.1+295`** (2026-07-22; tagged `v0.23.1+295`, APK attached, on the fork's GitHub; default
-branch `custom`; README badge + `CHANGELOG.md` track it). Recent fork releases: `+250`, `+287`, `+292`,
-`+295` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`, `+211`, `+213`, `+214`, `+215`,
-`+217`, `+222`, `+230`). Remaining M5 tail (low priority): number/arrow rows on the look page,
-quick-period flick. Full architecture + milestone sequence in `docs/PLAN.md`.
+**Shipped since `+295`** (the `+296` line): **flat boards get REAL cluster mode** — the `+292`
+"flat boards run in cluster mode" was never true on-device: the `;.:`/`?,!` cluster keys sit only on
+the numbers/symbols pages while `publishClusterBands` runs for LETTERS only, so `clusterLayoutActive`
+stayed false and typedLeads / Space-commits-from-bar / long-space-literal-and-learn were dead code
+(unit tests set the flag directly, hiding it); `publishClusterBands` now also reports `hasFlatLetters`
+(any Character LETTER key) and the service activates cluster mode on either signal — the typed word is
+always candidate #1 on flat boards, Space commits it verbatim, long-space commits+learns+spaces
+(`recordWordUsage` boosts even in-dictionary words); **the Samsung long-press-Space swallow fix** —
+`configureButton`'s `setOnLongClickListener(null)` still sets LONG_CLICKABLE (AOSP quirk), so One UI
+popped a content-description tooltip ("Mezerník") on held Space, marked the press handled and ate the
+release click; keys are now created `isLongClickable = false` (backspace's real listener re-enables
+itself) and the space long-press runnable always consumes and commits the space itself (see
+`memory/swipe-typing-10c.md`, root cause #12).
+
+**Released `0.23.1+296`** (2026-07-23; tagged `v0.23.1+296`, APK + gzipped R8 `mapping.txt` attached,
+on the fork's GitHub; default branch `custom`; README badge + `CHANGELOG.md` track it). Recent fork
+releases: `+250`, `+287`, `+292`, `+295`, `+296` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`,
+`+198`, `+204`, `+211`, `+213`, `+214`, `+215`, `+217`, `+222`, `+230`). Remaining M5 tail (low
+priority): number/arrow rows on the look page, quick-period flick. Full architecture + milestone
+sequence in `docs/PLAN.md`.
