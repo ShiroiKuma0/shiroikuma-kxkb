@@ -4,7 +4,39 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+295 — current
+## 0.23.1+296 — current
+
+Built on Urik `0.23.1-beta`. The flat-board typing release: the swiping boards finally run the
+real cluster typing model — the typed word always leads the bar, long-press Space commits and
+learns it — and the Samsung long-press-Space swallow is fixed at its root.
+
+### ⌨️ Flat boards get real cluster mode
+
+- The flat swipe boards (en/cs/ru 10c, QWERTY/QWERTZ/ЯВЕРТЫ, ru 12c) never actually ran in
+  cluster mode: the small `;.:`/`?,!` cluster keys live only on the numbers/symbols pages, and
+  cluster bands are published from the letters page only — so the `+292` typed-word-leads-the-bar
+  path, Space-commits-from-the-bar, and the long-press-Space literal-commit-and-learn escape were
+  all silently inactive on-device. The letters page now also reports its flat letter keys, and
+  either signal activates cluster mode.
+- Result on every swiping board: the **directly typed word is always candidate #1** in the bar —
+  prepended unconditionally, so a common word ("sebou") can never be crowded out of its own bar
+  by frequency neighbours again — plain Space commits exactly what was typed, and **long-press
+  Space commits the literal word, learns it (and boosts its personal ranking even when it is
+  already in the dictionary), and enters the space** — identical to the cluster boards.
+
+### 🛠 Samsung long-press-Space swallow
+
+- On One UI, holding Space flashed a "Mezerník" tooltip and then did **nothing** — no space, no
+  commit. Root cause: the key recycler's `setOnLongClickListener(null)` still marks a view
+  long-clickable (AOSP sets the flag even for a null listener), so every key was framework-long-
+  clickable; One UI popped a tooltip with the key's accessibility label, marked the long press
+  handled, and swallowed the release click.
+- Keys are now created explicitly non-long-clickable (backspace's real long-press listener
+  re-enables itself), and the Space long-press always consumes and acts itself — when neither the
+  literal-commit escape nor the punctuation popup applies, it commits the space directly, leaving
+  nothing for OEM long-press machinery to eat.
+
+## 0.23.1+295
 
 Built on Urik `0.23.1-beta`. The Samsung release: the Galaxy Fold 5 dictation crash fixed, and the
 voice timing settings turned into fine-grained sliders.
