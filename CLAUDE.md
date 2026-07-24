@@ -286,9 +286,15 @@ warn-red when unset) with the last-backup line beneath; thin yellow 40 %-alpha d
 flat, yellow-tinted checkbox checklist (bold Select all); Import | Export as equal-width side-by-side
 pills; the All-Files-Access gate kept between intro and folder box.
 
-**Released `0.23.1+300`** (2026-07-24; tagged `v0.23.1+300`, APK + gzipped R8 `mapping.txt` attached,
+**Shipped since `+300`** (the `+301` line): **the ArcaneChat-style button bar** on the Export/import
+page — Cancel alone on the left (back navigation), Import + Export grouped right; all pills fully
+round (50 dp radius, 1.5 dp yellow stroke, black fill, yellow text, translucent-yellow ripple),
+natural width instead of the stretched halves; the grant-access button shares the styling.
+
+**Released `0.23.1+301`** (2026-07-24; tagged `v0.23.1+301`, APK + gzipped R8 `mapping.txt` attached,
 on the fork's GitHub; default branch `custom`; README badge + `CHANGELOG.md` track it). Recent fork
-releases: `+295`, `+296`, `+298`, `+299`, `+300` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`,
-`+198`, `+204`, `+211`, `+213`, `+214`, `+215`, `+217`, `+222`, `+230`, `+250`, `+287`, `+292`). Remaining M5 tail (low
+releases: `+296`, `+298`, `+299`, `+300`, `+301` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`,
+`+198`, `+204`, `+211`, `+213`, `+214`, `+215`, `+217`, `+222`, `+230`, `+250`, `+287`, `+292`,
+`+295`). Remaining M5 tail (low
 priority): number/arrow rows on the look page, quick-period flick. Full architecture + milestone
 sequence in `docs/PLAN.md`.
