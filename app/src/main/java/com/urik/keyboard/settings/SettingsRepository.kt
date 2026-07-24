@@ -14,6 +14,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import androidx.room.withTransaction
 import com.urik.keyboard.data.database.KeyboardDatabase
 import com.urik.keyboard.model.KeyboardDisplayMode
+import com.urik.keyboard.service.GeometryBucket
 import com.urik.keyboard.service.KeyboardLookKnobs
 import com.urik.keyboard.settings.SettingsRepository.Companion.EXPORT_SET_DELIMITER
 import com.urik.keyboard.utils.CacheMemoryManager
@@ -102,6 +103,10 @@ constructor(
         // The last REAL (non-self) app·layout·geometry the keyboard was shown in, so the Keyboard UI "Reset
         // layout to default" button can target the app the user was actually typing in (not the settings app).
         val CURRENT_SIZE_TARGET = stringPreferencesKey("current_size_target")
+        // The Keyboard UI "Apply to all keyboards" toggle — ON (the default) fans an edit out to every
+        // baseline/combo (style knobs) or to the edited geometry's keys (dimension knobs); OFF keeps the
+        // legacy strictly-per-combo write.
+        val LOOK_APPLY_EVERYWHERE = booleanPreferencesKey("look_apply_everywhere")
         val HAPTIC_FEEDBACK = booleanPreferencesKey("haptic_feedback")
         val VIBRATION_STRENGTH = intPreferencesKey("vibration_strength")
         val DOUBLE_SPACE_PERIOD = booleanPreferencesKey("double_space_period")
@@ -947,6 +952,60 @@ constructor(
         geometry: String,
         knobs: KeyboardLookKnobs
     ): Result<Unit> = putLook(sizeOverrideKey(app, layoutId, geometry), knobs)
+
+    /** The Keyboard UI "Apply to all keyboards" toggle. Defaults ON — colour/style edits are usually global. */
+    val lookApplyEverywhere: Flow<Boolean> =
+        dataStore.data
+            .map { it[PreferenceKeys.LOOK_APPLY_EVERYWHERE] ?: true }
+            .distinctUntilChanged()
+
+    suspend fun setLookApplyEverywhere(enabled: Boolean): Result<Unit> = try {
+        dataStore.edit { it[PreferenceKeys.LOOK_APPLY_EVERYWHERE] = enabled }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    /**
+     * "Apply to all keyboards": fan a single-edit [delta] out across the whole look store. The STYLE subset
+     * (colours, fonts, weights, bold, key shape) lands on every geometry's baseline and every stored combo,
+     * so it holds everywhere — including combos/layouts that don't exist yet (they inherit the baselines).
+     * The DIMENSION subset (heights, widths, offsets, mode…) lands only on [geometry]'s baseline and the
+     * stored combos of that geometry, so fold states never overwrite each other's sizes.
+     */
+    suspend fun applyLookDeltaEverywhere(delta: KeyboardLookKnobs, geometry: String): Result<Unit> = try {
+        val style = delta.styleOnly()
+        val dimension = delta.dimensionOnly()
+        if (!style.isEmpty() || !dimension.isEmpty()) {
+            dataStore.edit { preferences ->
+                val current = preferences[PreferenceKeys.PER_GEOMETRY_LOOK]?.let { decodeLookMap(it) } ?: emptyMap()
+                val updated = current.toMutableMap()
+                if (!style.isEmpty()) {
+                    GeometryBucket.entries.forEach { g ->
+                        updated[g.key] = (updated[g.key] ?: KeyboardLookKnobs()).overlay(style)
+                    }
+                }
+                if (!dimension.isEmpty()) {
+                    updated[geometry] = (updated[geometry] ?: KeyboardLookKnobs()).overlay(dimension)
+                }
+                // Overwrite the touched field in every stored combo fork too — a stale per-combo value would
+                // otherwise shadow the new baseline for exactly the keyboards the user sees most.
+                current.keys.filter { it.count { c -> c == '|' } == 2 }.forEach { comboKey ->
+                    val knobs = updated[comboKey] ?: return@forEach
+                    var merged = knobs
+                    if (!style.isEmpty()) merged = merged.overlay(style)
+                    if (!dimension.isEmpty() && comboKey.substringAfterLast('|') == geometry) {
+                        merged = merged.overlay(dimension)
+                    }
+                    updated[comboKey] = merged
+                }
+                preferences[PreferenceKeys.PER_GEOMETRY_LOOK] = encodeLookMap(updated)
+            }
+        }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
 
     /**
      * Per-app "reset layout to default": remove ONLY this (app·layout·geometry) size override, so this app's

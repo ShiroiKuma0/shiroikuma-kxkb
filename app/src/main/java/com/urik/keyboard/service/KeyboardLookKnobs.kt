@@ -224,6 +224,136 @@ data class KeyboardLookKnobs(
         displayMode = o.displayMode ?: displayMode
     )
 
+    /** True when every field is null (nothing set — encodes to the empty string). */
+    fun isEmpty(): Boolean = this == KeyboardLookKnobs()
+
+    /**
+     * The sparse delta of THIS set against [old]: only fields whose (non-null) value differs from [old]'s
+     * survive; everything unchanged — and any field cleared back to null — comes out null. Feeds the
+     * "apply to all keyboards" fan-out, which must propagate exactly the knob the user just touched and
+     * never the rest of the effective snapshot.
+     */
+    fun changedFrom(old: KeyboardLookKnobs): KeyboardLookKnobs = KeyboardLookKnobs(
+        cornerRadiusDp = cornerRadiusDp.takeIf { it != old.cornerRadiusDp },
+        keyBorderWidthDp = keyBorderWidthDp.takeIf { it != old.keyBorderWidthDp },
+        boldKeyLabels = boldKeyLabels.takeIf { it != old.boldKeyLabels },
+        keyFontScale = keyFontScale.takeIf { it != old.keyFontScale },
+        primaryOffsetXDp = primaryOffsetXDp.takeIf { it != old.primaryOffsetXDp },
+        primaryOffsetYDp = primaryOffsetYDp.takeIf { it != old.primaryOffsetYDp },
+        keyHeightScale = keyHeightScale.takeIf { it != old.keyHeightScale },
+        topRowHeightScale = topRowHeightScale.takeIf { it != old.topRowHeightScale },
+        bottomRowHeightScale = bottomRowHeightScale.takeIf { it != old.bottomRowHeightScale },
+        keySpacingHScale = keySpacingHScale.takeIf { it != old.keySpacingHScale },
+        keySpacingVScale = keySpacingVScale.takeIf { it != old.keySpacingVScale },
+        hintScale = hintScale.takeIf { it != old.hintScale },
+        compassFontScale = compassFontScale.takeIf { it != old.compassFontScale },
+        extraStripFontScale = extraStripFontScale.takeIf { it != old.extraStripFontScale },
+        hintColor = hintColor.takeIf { it != old.hintColor },
+        hintFont = hintFont.takeIf { it != old.hintFont },
+        hintWeight = hintWeight.takeIf { it != old.hintWeight },
+        keyboardWidthScale = keyboardWidthScale.takeIf { it != old.keyboardWidthScale },
+        splitFraction = splitFraction.takeIf { it != old.splitFraction },
+        bottomLiftDp = bottomLiftDp.takeIf { it != old.bottomLiftDp },
+        fontFamily = fontFamily.takeIf { it != old.fontFamily },
+        keyboardBgColor = keyboardBgColor.takeIf { it != old.keyboardBgColor },
+        keyBgColor = keyBgColor.takeIf { it != old.keyBgColor },
+        functionalKeyBgColor = functionalKeyBgColor.takeIf { it != old.functionalKeyBgColor },
+        keyTextColor = keyTextColor.takeIf { it != old.keyTextColor },
+        keyBorderColor = keyBorderColor.takeIf { it != old.keyBorderColor },
+        capsLockShiftColor = capsLockShiftColor.takeIf { it != old.capsLockShiftColor },
+        labelWeight = labelWeight.takeIf { it != old.labelWeight },
+        hintTopColor = hintTopColor.takeIf { it != old.hintTopColor },
+        hintTopScale = hintTopScale.takeIf { it != old.hintTopScale },
+        hintTopFont = hintTopFont.takeIf { it != old.hintTopFont },
+        hintTopMarginDp = hintTopMarginDp.takeIf { it != old.hintTopMarginDp },
+        hintBottomColor = hintBottomColor.takeIf { it != old.hintBottomColor },
+        hintBottomScale = hintBottomScale.takeIf { it != old.hintBottomScale },
+        hintBottomFont = hintBottomFont.takeIf { it != old.hintBottomFont },
+        hintBottomMarginDp = hintBottomMarginDp.takeIf { it != old.hintBottomMarginDp },
+        hintLeftMarginDp = hintLeftMarginDp.takeIf { it != old.hintLeftMarginDp },
+        hintRightMarginDp = hintRightMarginDp.takeIf { it != old.hintRightMarginDp },
+        clusterLeftOffsetDp = clusterLeftOffsetDp.takeIf { it != old.clusterLeftOffsetDp },
+        clusterRightOffsetDp = clusterRightOffsetDp.takeIf { it != old.clusterRightOffsetDp },
+        suggestionBarHeightScale = suggestionBarHeightScale.takeIf { it != old.suggestionBarHeightScale },
+        suggestionBgColor = suggestionBgColor.takeIf { it != old.suggestionBgColor },
+        suggestionFont = suggestionFont.takeIf { it != old.suggestionFont },
+        suggestionWeight = suggestionWeight.takeIf { it != old.suggestionWeight },
+        suggestionTextScale = suggestionTextScale.takeIf { it != old.suggestionTextScale },
+        suggestionColor = suggestionColor.takeIf { it != old.suggestionColor },
+        floatXFraction = floatXFraction.takeIf { it != old.floatXFraction },
+        floatYFraction = floatYFraction.takeIf { it != old.floatYFraction },
+        floatWidthFraction = floatWidthFraction.takeIf { it != old.floatWidthFraction },
+        floatHeightScale = floatHeightScale.takeIf { it != old.floatHeightScale },
+        displayMode = displayMode.takeIf { it != old.displayMode }
+    )
+
+    /**
+     * The pure-STYLE subset: colours, font families, weights, the bold flag and the key shape (corner
+     * radius / border width). These are geometry-independent, so the "apply to all keyboards" fan-out
+     * writes them to every geometry's baseline and every stored combo. Complement of [dimensionOnly].
+     */
+    fun styleOnly(): KeyboardLookKnobs = KeyboardLookKnobs(
+        cornerRadiusDp = cornerRadiusDp,
+        keyBorderWidthDp = keyBorderWidthDp,
+        boldKeyLabels = boldKeyLabels,
+        hintColor = hintColor,
+        hintFont = hintFont,
+        hintWeight = hintWeight,
+        fontFamily = fontFamily,
+        keyboardBgColor = keyboardBgColor,
+        keyBgColor = keyBgColor,
+        functionalKeyBgColor = functionalKeyBgColor,
+        keyTextColor = keyTextColor,
+        keyBorderColor = keyBorderColor,
+        capsLockShiftColor = capsLockShiftColor,
+        labelWeight = labelWeight,
+        hintTopColor = hintTopColor,
+        hintTopFont = hintTopFont,
+        hintBottomColor = hintBottomColor,
+        hintBottomFont = hintBottomFont,
+        suggestionBgColor = suggestionBgColor,
+        suggestionFont = suggestionFont,
+        suggestionWeight = suggestionWeight,
+        suggestionColor = suggestionColor
+    )
+
+    /**
+     * The DIMENSION subset: every size, scale, offset, position and mode knob — everything a fold state
+     * legitimately keeps its own value of. The fan-out confines these to the geometry being edited, so a
+     * height dragged on the folded keyboard can never overwrite the unfolded one. Complement of [styleOnly].
+     */
+    fun dimensionOnly(): KeyboardLookKnobs = KeyboardLookKnobs(
+        keyFontScale = keyFontScale,
+        primaryOffsetXDp = primaryOffsetXDp,
+        primaryOffsetYDp = primaryOffsetYDp,
+        keyHeightScale = keyHeightScale,
+        topRowHeightScale = topRowHeightScale,
+        bottomRowHeightScale = bottomRowHeightScale,
+        keySpacingHScale = keySpacingHScale,
+        keySpacingVScale = keySpacingVScale,
+        hintScale = hintScale,
+        compassFontScale = compassFontScale,
+        extraStripFontScale = extraStripFontScale,
+        keyboardWidthScale = keyboardWidthScale,
+        splitFraction = splitFraction,
+        bottomLiftDp = bottomLiftDp,
+        hintTopScale = hintTopScale,
+        hintTopMarginDp = hintTopMarginDp,
+        hintBottomScale = hintBottomScale,
+        hintBottomMarginDp = hintBottomMarginDp,
+        hintLeftMarginDp = hintLeftMarginDp,
+        hintRightMarginDp = hintRightMarginDp,
+        clusterLeftOffsetDp = clusterLeftOffsetDp,
+        clusterRightOffsetDp = clusterRightOffsetDp,
+        suggestionBarHeightScale = suggestionBarHeightScale,
+        suggestionTextScale = suggestionTextScale,
+        floatXFraction = floatXFraction,
+        floatYFraction = floatYFraction,
+        floatWidthFraction = floatWidthFraction,
+        floatHeightScale = floatHeightScale,
+        displayMode = displayMode
+    )
+
     /** Compact `k=v;` encoding; null fields are omitted. Pairs with [decode] (lenient). */
     fun encode(): String = buildList {
         cornerRadiusDp?.let { add("cr=$it") }

@@ -29,6 +29,10 @@ import kotlinx.coroutines.launch
  * height / split / colour / mode change here sticks to that one layout, per app and per geometry, and never
  * bleeds into others — matching the on-keyboard resize gesture. Falls back to the per-geometry baseline only
  * when no real combo has been published yet. Writes live-apply via the look-store flow the IME observes.
+ *
+ * The "Apply to all keyboards" toggle ([applyEverywhere], default ON) replaces the per-combo write with a
+ * store-wide fan-out of just the touched field: style knobs to every baseline and combo, dimension knobs
+ * confined to the selected geometry (see [SettingsRepository.applyLookDeltaEverywhere]).
  */
 @HiltViewModel
 class KeyboardUiViewModel
@@ -77,6 +81,24 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
                 started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
                 initialValue = true
             )
+
+    // The "Apply to all keyboards" toggle (default ON): edits fan out via the repository instead of forking
+    // only the current combo. Eager so [persist] can read .value before the fragment's collector attaches.
+    val applyEverywhere: StateFlow<Boolean> =
+        settingsRepository.lookApplyEverywhere
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.Eagerly,
+                initialValue = true
+            )
+
+    fun updateApplyEverywhere(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository
+                .setLookApplyEverywhere(enabled)
+                .onFailure { _events.emit(SettingsEvent.Error.KeyboardUiUpdateFailed) }
+        }
+    }
 
     // The keyboard display mode for the current combo (per app·layout·geometry). Backed by [current] — refreshed
     // whenever the combo/geometry is (re)loaded or a mode is picked — so the picker reflects THIS layout's mode.
@@ -345,16 +367,24 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
 
     private fun persist(updated: KeyboardLookKnobs) {
         val geometry = _uiState.value.geometry
+        val before = current
         current = updated
         _displayMode.value = updated.displayMode ?: KeyboardDisplayMode.STANDARD
         _uiState.value = updated.toUiState(geometry)
         viewModelScope.launch {
-            val combo = comboFor(geometry)
-            val result = if (combo != null) {
-                settingsRepository.updateSizeOverride(combo.first, combo.second, combo.third, updated)
+            val result = if (applyEverywhere.value) {
+                // Apply-to-all: fan ONLY the touched field(s) out — style knobs to every geometry's baseline
+                // and every stored combo, dimension knobs to this geometry's keys. Not the full effective
+                // snapshot, which would blast this combo's sizes onto every keyboard.
+                settingsRepository.applyLookDeltaEverywhere(updated.changedFrom(before), geometry)
             } else {
-                // No real app·layout has been published yet — fall back to the per-geometry baseline.
-                settingsRepository.updateGeometryBaselineLook(geometry, updated)
+                val combo = comboFor(geometry)
+                if (combo != null) {
+                    settingsRepository.updateSizeOverride(combo.first, combo.second, combo.third, updated)
+                } else {
+                    // No real app·layout has been published yet — fall back to the per-geometry baseline.
+                    settingsRepository.updateGeometryBaselineLook(geometry, updated)
+                }
             }
             result.onFailure { _events.emit(SettingsEvent.Error.KeyboardUiUpdateFailed) }
         }
