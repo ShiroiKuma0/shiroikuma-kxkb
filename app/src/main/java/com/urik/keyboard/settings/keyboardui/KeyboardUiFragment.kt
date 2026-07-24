@@ -150,13 +150,40 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
 
         eventHandler = SettingsEventHandler(requireContext())
 
-        // Top of the page: the Voice input section (offline Whisper model setup + dictation options) — a
+        // Top of the page: the Export / import section (back up & restore colours, layouts, dicts…) — a
         // real heading like Geometry, with the navigation row beneath it.
+        val exportImportCategory =
+            PreferenceCategory(context).apply {
+                key = "kb_ui_cat_export_import"
+                title = resources.getString(R.string.export_import_title)
+                layoutResource = R.layout.preference_category_kxkb_first
+            }
+        val exportImportPref =
+            Preference(context).apply {
+                key = "kb_ui_export_import"
+                isPersistent = false
+                layoutResource = R.layout.preference_item_kxkb
+                title = resources.getString(R.string.export_import_title)
+                summary = resources.getString(R.string.export_import_summary)
+                setOnPreferenceClickListener {
+                    parentFragmentManager
+                        .beginTransaction()
+                        .replace(
+                            R.id.settings_container,
+                            com.urik.keyboard.settings.eximport.ExportImportFragment()
+                        )
+                        .addToBackStack(null)
+                        .commit()
+                    true
+                }
+            }
+
+        // The Voice input section (offline Whisper model setup + dictation options).
         val voiceCategory =
             PreferenceCategory(context).apply {
                 key = "kb_ui_cat_voice"
                 title = resources.getString(R.string.voice_settings_title)
-                layoutResource = R.layout.preference_category_kxkb_first
+                layoutResource = R.layout.preference_category_kxkb
             }
         val voicePref =
             Preference(context).apply {
@@ -178,13 +205,18 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                 }
             }
 
-        // "Apply to all keyboards" — opens the next divider block, above the Geometry heading (which
-        // therefore keeps the no-divider "first" layout: toggle and Geometry share one block).
+        // The "Apply to all keyboards" section — its own divider block with the toggle beneath.
+        val applyEverywhereCategory =
+            PreferenceCategory(context).apply {
+                key = "kb_ui_cat_apply_everywhere"
+                title = resources.getString(R.string.keyboard_ui_apply_everywhere)
+                layoutResource = R.layout.preference_category_kxkb
+            }
         applyEverywherePref =
             SwitchPreferenceCompat(context).apply {
                 key = "kb_ui_apply_everywhere"
                 isPersistent = false
-                layoutResource = R.layout.preference_switch_kxkb_divided
+                layoutResource = R.layout.preference_item_kxkb
                 title = resources.getString(R.string.keyboard_ui_apply_everywhere)
                 summaryOn = resources.getString(R.string.keyboard_ui_apply_everywhere_on)
                 summaryOff = resources.getString(R.string.keyboard_ui_apply_everywhere_off)
@@ -194,7 +226,7 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
             PreferenceCategory(context).apply {
                 key = "kb_ui_cat_geometry"
                 title = resources.getString(R.string.keyboard_ui_category_geometry)
-                layoutResource = R.layout.preference_category_kxkb_first
+                layoutResource = R.layout.preference_category_kxkb
             }
 
         geometryPref =
@@ -337,9 +369,12 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         clusterLeftPref = seekBar("kb_ui_cluster_left", R.string.keyboard_ui_item_left_char_pos, min = 0, max = 48)
         clusterRightPref = seekBar("kb_ui_cluster_right", R.string.keyboard_ui_item_right_char_pos, min = 0, max = 48)
 
+        screen.addPreference(exportImportCategory)
+        exportImportCategory.addPreference(exportImportPref)
         screen.addPreference(voiceCategory)
         voiceCategory.addPreference(voicePref)
-        screen.addPreference(applyEverywherePref)
+        screen.addPreference(applyEverywhereCategory)
+        applyEverywhereCategory.addPreference(applyEverywherePref)
         screen.addPreference(geometryCategory)
         geometryCategory.addPreference(geometryPref)
 
@@ -464,28 +499,6 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                 summary = resources.getString(R.string.keyboard_ui_reset_layout_summary)
             }
         screen.addPreference(resetPref)
-
-        // End of the page: a link to the Export / import window (back up & restore colours, layouts, dicts…).
-        val exportImportPref =
-            Preference(context).apply {
-                key = "kb_ui_export_import"
-                isPersistent = false
-                layoutResource = R.layout.preference_item_kxkb
-                title = resources.getString(R.string.export_import_title)
-                summary = resources.getString(R.string.export_import_summary)
-                setOnPreferenceClickListener {
-                    parentFragmentManager
-                        .beginTransaction()
-                        .replace(
-                            R.id.settings_container,
-                            com.urik.keyboard.settings.eximport.ExportImportFragment()
-                        )
-                        .addToBackStack(null)
-                        .commit()
-                    true
-                }
-            }
-        screen.addPreference(exportImportPref)
 
         preferenceScreen = screen
     }
