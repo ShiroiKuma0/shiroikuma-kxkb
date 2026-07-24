@@ -4,7 +4,20 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+300 — current
+## 0.23.1+301 — current
+
+Built on Urik `0.23.1-beta`. The Export / import buttons get the ArcaneChat treatment.
+
+### 💊 ArcaneChat-style button bar on the Export / import page
+
+- The bottom button line now mirrors ArcaneChat's export/import dialog: **Cancel alone on the
+  left** (closes the page), **Import and Export grouped on the right**.
+- All three are **true round pills** — black fill, fully rounded corners, a thin yellow stroke,
+  yellow text, compact padding, and a translucent-yellow ripple on press — replacing the two
+  stretched half-width buttons.
+- The grant-access button shares the same pill styling.
+
+## 0.23.1+300
 
 Built on Urik `0.23.1-beta`. The Export / import page gets the Kōjiki look.
 
