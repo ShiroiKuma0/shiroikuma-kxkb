@@ -278,9 +278,17 @@ style); Voice input follows as the second section opening its own divider block;
 toggle sits under its own "Apply to all keyboards" heading in its own block (Geometry opens a fresh
 block below); the orphaned `preference_switch_kxkb_divided.xml` deleted.
 
-**Released `0.23.1+299`** (2026-07-24; tagged `v0.23.1+299`, APK + gzipped R8 `mapping.txt` attached,
+**Shipped since `+299`** (the `+300` line): **the Export/import page in the Kōjiki sheet format**
+(`settings/eximport/ExportImportFragment.kt`, visual only — engine/flows untouched): the whole page in
+one bordered rounded box (2 dp yellow stroke, 16 dp corners, inset from the edges) with a centred bold
+title + dim intro; the backup folder as its own bordered tappable box (small label over the bold path,
+warn-red when unset) with the last-backup line beneath; thin yellow 40 %-alpha dividers around the
+flat, yellow-tinted checkbox checklist (bold Select all); Import | Export as equal-width side-by-side
+pills; the All-Files-Access gate kept between intro and folder box.
+
+**Released `0.23.1+300`** (2026-07-24; tagged `v0.23.1+300`, APK + gzipped R8 `mapping.txt` attached,
 on the fork's GitHub; default branch `custom`; README badge + `CHANGELOG.md` track it). Recent fork
-releases: `+292`, `+295`, `+296`, `+298`, `+299` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`,
-`+198`, `+204`, `+211`, `+213`, `+214`, `+215`, `+217`, `+222`, `+230`, `+250`, `+287`). Remaining M5 tail (low
+releases: `+295`, `+296`, `+298`, `+299`, `+300` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`,
+`+198`, `+204`, `+211`, `+213`, `+214`, `+215`, `+217`, `+222`, `+230`, `+250`, `+287`, `+292`). Remaining M5 tail (low
 priority): number/arrow rows on the look page, quick-period flick. Full architecture + milestone
 sequence in `docs/PLAN.md`.
