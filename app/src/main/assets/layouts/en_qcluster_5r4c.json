@@ -549,8 +549,25 @@
           {
             "type": "action",
             "action": "shift",
-            "attributes": {
-              "widthClass": "Custom1"
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "!",
+            "width": 1.0
+          },
+          {
+            "type": "compass",
+            "char": "?",
+            "flick": {
+              "up": {
+                "layer": "alt1",
+                "label": "altGr"
+              },
+              "down": {
+                "layer": "alt3",
+                "label": "Num"
+              }
             },
             "width": 1.0
           },
@@ -560,7 +577,7 @@
             "attributes": {
               "style": "Spacebar"
             },
-            "width": 2.0
+            "width": 4.0
           },
           {
             "type": "cluster",
@@ -571,10 +588,7 @@
               "right": ":",
               "up": "…"
             },
-            "attributes": {
-              "widthClass": "Custom1"
-            },
-            "width": 2.0
+            "width": 1.0
           },
           {
             "type": "cluster",
@@ -585,38 +599,12 @@
               "right": "!",
               "up": "…"
             },
-            "attributes": {
-              "widthClass": "Custom1"
-            },
-            "width": 2.0
-          },
-          {
-            "type": "compass",
-            "char": "⇥",
-            "flick": {
-              "center": {
-                "action": "tab",
-                "label": "⇥"
-              },
-              "up": {
-                "layer": "alt1",
-                "label": "altGr"
-              },
-              "down": {
-                "layer": "alt3",
-                "label": "Num"
-              }
-            },
-            "attributes": {
-              "widthClass": "Custom1"
-            },
             "width": 1.0
           },
           {
             "type": "action",
             "action": "backspace",
             "attributes": {
-              "widthClass": "Custom1",
               "repeatableEnabled": true
             },
             "width": 1.0
@@ -625,18 +613,9 @@
             "type": "action",
             "action": "enter",
             "attributes": {
-              "widthClass": "Custom1",
               "style": "Action"
             },
             "width": 1.0
-          },
-          {
-            "type": "action",
-            "action": "space",
-            "attributes": {
-              "style": "Spacebar"
-            },
-            "width": 2.0
           },
           {
             "type": "compass",
@@ -646,9 +625,6 @@
                 "action": "voice",
                 "label": "🎙"
               }
-            },
-            "attributes": {
-              "widthClass": "Custom1"
             },
             "width": 1.0
           }
