@@ -272,9 +272,15 @@ carries the block divider). Plus **the bottom-row redesign** of the nine en/cs f
 end, bottom row = Shift | ! | ? (layer flicks) | 4-wide Space | . | , | mic; `'`/`"` case key on the
 flat boards; Tab key dropped, uniform widths.
 
-**Released `0.23.1+298`** (2026-07-24; tagged `v0.23.1+298`, APK + gzipped R8 `mapping.txt` attached,
+**Shipped since `+298`** (the `+299` line): **kxkb UI page restructure** — Export/import moved from
+the page bottom to the top as the first section (own underlined heading + navigation row, Voice-input
+style); Voice input follows as the second section opening its own divider block; the apply-to-all
+toggle sits under its own "Apply to all keyboards" heading in its own block (Geometry opens a fresh
+block below); the orphaned `preference_switch_kxkb_divided.xml` deleted.
+
+**Released `0.23.1+299`** (2026-07-24; tagged `v0.23.1+299`, APK + gzipped R8 `mapping.txt` attached,
 on the fork's GitHub; default branch `custom`; README badge + `CHANGELOG.md` track it). Recent fork
-releases: `+287`, `+292`, `+295`, `+296`, `+298` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`,
-`+198`, `+204`, `+211`, `+213`, `+214`, `+215`, `+217`, `+222`, `+230`, `+250`). Remaining M5 tail (low
+releases: `+292`, `+295`, `+296`, `+298`, `+299` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`,
+`+198`, `+204`, `+211`, `+213`, `+214`, `+215`, `+217`, `+222`, `+230`, `+250`, `+287`). Remaining M5 tail (low
 priority): number/arrow rows on the look page, quick-period flick. Full architecture + milestone
 sequence in `docs/PLAN.md`.
