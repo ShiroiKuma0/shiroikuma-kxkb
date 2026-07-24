@@ -4,7 +4,24 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+299 — current
+## 0.23.1+300 — current
+
+Built on Urik `0.23.1-beta`. The Export / import page gets the Kōjiki look.
+
+### 📦 Export / import page in the Kōjiki sheet format
+
+- The whole page now lives in **one bordered rounded box** (yellow stroke, rounded corners, inset
+  from the screen edges) — the same surface as Kōjiki's export/import sheet — with a **centred
+  bold title** and the dim intro line at the top.
+- The **backup folder is a bordered, clearly-tappable box** of its own: a small yellow label over
+  the path in bold, shown **warn-red when unset**; the last-backup line sits directly beneath it.
+- A thin yellow divider separates the folder area from the checklist — bold **Select all** over
+  the flat list of part checkboxes, all with yellow-tinted boxes — and a second divider closes
+  the checklist before the **Import | Export buttons, side by side at equal width**.
+- The All-Files-Access gate (red warning + grant button) keeps its place between the intro and
+  the folder box.
+
+## 0.23.1+299
 
 Built on Urik `0.23.1-beta`. A small settings-page release: the 白い熊 kxkb UI page opens on the
 things you reach for, each under its own heading.
