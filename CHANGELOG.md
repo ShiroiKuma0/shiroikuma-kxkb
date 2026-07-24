@@ -4,7 +4,41 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+296 — current
+## 0.23.1+298 — current
+
+Built on Urik `0.23.1-beta`. The edit-once release: keyboard-look edits finally apply everywhere
+by default instead of forking the one keyboard on screen, and the nine en/cs flat and cluster
+boards get a redesigned bottom row.
+
+### 🎨 Apply to all keyboards
+
+- New **"Apply to all keyboards" toggle** at the top of the 白い熊 kxkb UI page (default **ON**),
+  sitting between the Voice input section and the Geometry heading. Until now every colour, font
+  or size edit stuck only to the exact (app · layout · geometry) combo the keyboard was last
+  shown in — right for sizes, maddening for colours, which had to be re-set per app and layout.
+- With the toggle on, an edit propagates **only the knob just touched** — never the whole look
+  snapshot of the current keyboard: **style knobs** (all colours, font families, weights, bold,
+  corner radius, border width) go to every geometry baseline **and** every stored per-app/layout
+  fork, so they hold everywhere — including layouts and apps never customised, which inherit the
+  baselines from then on; **dimension knobs** (heights, width, split, offsets, scales, display
+  mode, floating rect) fan out to every app and layout but stay **confined to the geometry being
+  edited**, so the folded keyboard's height can never overwrite the unfolded one's.
+- Toggled off, edits behave exactly as before: strictly per current app · layout · geometry.
+- Page restructure: **Voice input is now a real section heading** (bold, word-underlined, with
+  its divider) like Geometry, with the navigation row beneath it; the next divider block opens
+  with the new toggle and then the Geometry heading.
+
+### ⌨️ Flat/cluster boards: bottom-row redesign
+
+- The nine en/cs boards (QWERTY/QWERTZ 10c and the Q/QZ cluster 4c/9c families) get a rebuilt
+  bottom area: **backspace moves up to the end of the home row**, **Enter to the end of the
+  punctuation row**, and the bottom row becomes Shift | **!** | **?** (carrying the
+  altGr/sym/Num layer flicks) | a **4-wide spacebar** | . | , | mic.
+- On the flat boards the apostrophe becomes a case key — `'` normally, `"` when shifted. The Tab
+  compass key is dropped and all custom width classes removed: every bottom-row key is a uniform
+  width except the spacebar.
+
+## 0.23.1+296
 
 Built on Urik `0.23.1-beta`. The flat-board typing release: the swiping boards finally run the
 real cluster typing model — the typed word always leads the bar, long-press Space commits and
