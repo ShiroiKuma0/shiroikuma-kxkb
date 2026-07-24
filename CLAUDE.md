@@ -258,9 +258,23 @@ release click; keys are now created `isLongClickable = false` (backspace's real 
 itself) and the space long-press runnable always consumes and commits the space itself (see
 `memory/swipe-typing-10c.md`, root cause #12).
 
-**Released `0.23.1+296`** (2026-07-23; tagged `v0.23.1+296`, APK + gzipped R8 `mapping.txt` attached,
+**Shipped since `+296`** (the `+298` line): **the apply-to-all-keyboards toggle** — a new switch at
+the top of the kxkb UI page (default ON, between the new Voice-input heading and Geometry) fans an
+edit out as ONLY the touched field via `SettingsRepository.applyLookDeltaEverywhere`: style knobs
+(colours/fonts/weights/bold/corner/border — `KeyboardLookKnobs.styleOnly`) land on all six geometry
+baselines + every stored `app|layout|geometry` combo, dimension knobs (`dimensionOnly` — heights,
+width, split, offsets, scales, mode, floating rect) stay confined to the edited geometry, so fold
+states never cross-contaminate; OFF = the legacy strictly-per-combo write; the delta comes from
+`KeyboardLookKnobs.changedFrom` so a colour change never drags the current combo's sizes along;
+"Voice input" is now a real section heading (category + row, `preference_switch_kxkb_divided.xml`
+carries the block divider). Plus **the bottom-row redesign** of the nine en/cs flat/cluster boards
+(QWERTY/QWERTZ 10c, Q/QZ cluster 4c/9c): backspace to the home-row end, Enter to the punctuation-row
+end, bottom row = Shift | ! | ? (layer flicks) | 4-wide Space | . | , | mic; `'`/`"` case key on the
+flat boards; Tab key dropped, uniform widths.
+
+**Released `0.23.1+298`** (2026-07-24; tagged `v0.23.1+298`, APK + gzipped R8 `mapping.txt` attached,
 on the fork's GitHub; default branch `custom`; README badge + `CHANGELOG.md` track it). Recent fork
-releases: `+250`, `+287`, `+292`, `+295`, `+296` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`,
-`+198`, `+204`, `+211`, `+213`, `+214`, `+215`, `+217`, `+222`, `+230`). Remaining M5 tail (low
+releases: `+287`, `+292`, `+295`, `+296`, `+298` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`,
+`+198`, `+204`, `+211`, `+213`, `+214`, `+215`, `+217`, `+222`, `+230`, `+250`). Remaining M5 tail (low
 priority): number/arrow rows on the look page, quick-period flick. Full architecture + milestone
 sequence in `docs/PLAN.md`.
