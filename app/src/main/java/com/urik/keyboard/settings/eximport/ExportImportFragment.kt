@@ -204,17 +204,22 @@ class ExportImportFragment : Fragment() {
         alpha = 0.4f
     }
 
+    /** The ArcaneChat button bar: Cancel alone on the left, Import + Export grouped on the right. */
     private fun actionRow(): View = LinearLayout(requireContext()).apply {
         orientation = LinearLayout.HORIZONTAL
         clipChildren = false
         clipToPadding = false
         setPadding(0, dp(14), 0, 0)
+        addView(pillButton(getString(R.string.export_import_cancel)) {
+            requireActivity().onBackPressedDispatcher.onBackPressed()
+        })
+        addView(View(requireContext()).also {
+            it.layoutParams = LinearLayout.LayoutParams(0, 0, 1f)
+        })
         addView(pillButton(getString(R.string.export_import_import)) { onImport() }.also {
-            (it.layoutParams as LinearLayout.LayoutParams).apply { width = 0; weight = 1f; marginEnd = dp(6) }
+            (it.layoutParams as LinearLayout.LayoutParams).marginEnd = dp(8)
         })
-        addView(pillButton(getString(R.string.export_import_export)) { onExport() }.also {
-            (it.layoutParams as LinearLayout.LayoutParams).apply { width = 0; weight = 1f; marginStart = dp(6) }
-        })
+        addView(pillButton(getString(R.string.export_import_export)) { onExport() })
     }
 
     // ---- export ----------------------------------------------------------------------------------------
@@ -439,14 +444,20 @@ class ExportImportFragment : Fragment() {
         layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(height))
     }
 
+    /** An ArcaneChat-style round pill: black fill, thin accent stroke, accent text, accent ripple. */
     private fun pillButton(text: String, onClick: () -> Unit): Button = Button(requireContext()).apply {
         this.text = text
+        isAllCaps = false
         setTextColor(yellow)
-        background = makePillBg()
+        background = android.graphics.drawable.RippleDrawable(
+            android.content.res.ColorStateList.valueOf((yellow and 0x00FFFFFF) or 0x33000000),
+            makePillBg(),
+            null
+        )
         // Explicit padding + zeroed minimums so the rounded stroke is never clipped at the view edge.
         minHeight = 0
         minimumHeight = 0
-        setPadding(dp(20), dp(14), dp(20), dp(14))
+        setPadding(dp(20), dp(6), dp(20), dp(6))
         stateListAnimator = null
         setOnClickListener { onClick() }
         layoutParams = LinearLayout.LayoutParams(
@@ -457,8 +468,8 @@ class ExportImportFragment : Fragment() {
 
     private fun makePillBg() = android.graphics.drawable.GradientDrawable().apply {
         setColor(0xFF000000.toInt())
-        setStroke(dp(2), yellow)
-        cornerRadius = dp(8).toFloat()
+        setStroke((1.5f * resources.displayMetrics.density).toInt(), yellow)
+        cornerRadius = dp(50).toFloat()
     }
 
     private fun flash(msg: String) = KxkbToast.show(requireContext(), msg)
