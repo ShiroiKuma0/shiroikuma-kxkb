@@ -40,6 +40,11 @@ import kotlinx.coroutines.withContext
  * same model as the Library git path), then Exports (writes a timestamped .zip) or Imports (picks a .zip from
  * the folder). The page scans the folder for the newest backup and shows when it was made.
  *
+ * Visual format = the Kōjiki export/import sheet: one bordered rounded box carries the whole page —
+ * centred bold title, dim description, a bordered tappable folder box (small label over a bold value,
+ * warn-red when unset), the last-backup line, a divider, Select all + the part checkboxes, a divider,
+ * then the two equal-width Import | Export buttons.
+ *
  * Reached from the space-slide menu (Actions → Export/import) and from a link at the end of the kxkb UI page.
  */
 @AndroidEntryPoint
@@ -65,7 +70,7 @@ class ExportImportFragment : Fragment() {
         }
         root = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(16), dp(20), dp(36))
+            setPadding(dp(10), dp(10), dp(10), dp(24))
             clipToPadding = false
             clipChildren = false
         }
@@ -89,44 +94,81 @@ class ExportImportFragment : Fragment() {
             exportDir = settingsRepository.getExportImportPath()
             root.removeAllViews()
 
-            root.addView(heading(getString(R.string.export_import_title)))
-            root.addView(caption(getString(R.string.export_import_intro), topGap = 6))
+            // The bordered box the whole page lives in.
+            val box = LinearLayout(requireContext()).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(20), dp(16), dp(20), dp(20))
+                clipToPadding = false
+                clipChildren = false
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    setColor(0xFF000000.toInt())
+                    setStroke(dp(2), yellow)
+                    cornerRadius = dp(16).toFloat()
+                }
+            }
+            root.addView(
+                box,
+                LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            )
+
+            box.addView(heading(getString(R.string.export_import_title)))
+            box.addView(caption(getString(R.string.export_import_intro)).apply {
+                alpha = 0.85f
+                setPadding(0, 0, 0, dp(10))
+            })
 
             if (!hasAllFilesAccess()) {
-                root.addView(caption(getString(R.string.export_import_need_access), topGap = 16, color = red))
-                root.addView(pillButton(getString(R.string.export_import_grant_access)) { requestAllFilesAccess() })
+                box.addView(caption(getString(R.string.export_import_need_access), color = red))
+                box.addView(pillButton(getString(R.string.export_import_grant_access)) { requestAllFilesAccess() })
+                box.addView(spacer(6))
             }
 
-            root.addView(spacer(16))
-            root.addView(dirRow(exportDir))
-            root.addView(statusLine())
+            box.addView(dirRow(exportDir))
+            box.addView(statusLine())
 
-            root.addView(spacer(14))
-            root.addView(selectAllRow())
-            BackupPart.entries.forEach { part -> root.addView(partRow(part)) }
+            box.addView(divider())
+            box.addView(selectAllRow())
+            BackupPart.entries.forEach { part -> box.addView(partRow(part)) }
 
-            root.addView(spacer(20))
-            root.addView(actionRow())
+            box.addView(divider(topGap = 8))
+            box.addView(actionRow())
         }
     }
 
     // ---- rows ------------------------------------------------------------------------------------------
 
+    /** The folder box: a bordered, clearly-tappable box — small label over the bold value, warn when unset. */
     private fun dirRow(path: String?): View = LinearLayout(requireContext()).apply {
         orientation = LinearLayout.VERTICAL
-        setPadding(0, dp(8), 0, dp(8))
         isClickable = true
         isFocusable = true
+        setPadding(dp(12), dp(10), dp(12), dp(10))
+        background = android.graphics.drawable.GradientDrawable().apply {
+            setColor(0xFF000000.toInt())
+            setStroke(dp(2), yellow)
+            cornerRadius = dp(10).toFloat()
+        }
         setOnClickListener { editDir(path) }
-        addView(label(getString(R.string.export_import_dir_label)))
         addView(
             TextView(requireContext()).apply {
-                text = path?.takeIf { it.isNotBlank() } ?: getString(R.string.export_import_dir_unset)
-                setTextColor(dim)
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
-                setPadding(0, dp(2), 0, 0)
+                text = getString(R.string.export_import_dir_label)
+                setTextColor(yellow)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             }
         )
+        val set = path?.takeIf { it.isNotBlank() }
+        addView(
+            TextView(requireContext()).apply {
+                text = set ?: getString(R.string.export_import_dir_unset)
+                setTextColor(if (set == null) red else dim)
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+            }
+        )
+        layoutParams = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply { topMargin = dp(6); bottomMargin = dp(6) }
     }
 
     private fun statusLine(): View {
@@ -134,15 +176,13 @@ class ExportImportFragment : Fragment() {
         return TextView(requireContext()).apply {
             this.text = text
             setTextColor(if (warn) red else dim)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-            setPadding(0, dp(4), 0, 0)
+            alpha = if (warn) 1f else 0.8f
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+            setPadding(dp(2), 0, 0, dp(8))
         }
     }
 
-    private fun selectAllRow(): View = CheckBox(requireContext()).apply {
-        text = getString(R.string.export_import_select_all)
-        setTextColor(yellow)
-        textSize = 16f
+    private fun selectAllRow(): View = checkbox(getString(R.string.export_import_select_all), bold = true).apply {
         isChecked = selectedParts.size == BackupPart.entries.size
         setOnClickListener {
             if (isChecked) selectedParts.addAll(BackupPart.entries) else selectedParts.clear()
@@ -150,27 +190,30 @@ class ExportImportFragment : Fragment() {
         }
     }
 
-    private fun partRow(part: BackupPart): View = CheckBox(requireContext()).apply {
-        text = getString(part.labelRes)
-        setTextColor(yellow)
-        textSize = 15f
-        setPadding(dp(40), 0, 0, 0)
+    private fun partRow(part: BackupPart): View = checkbox(getString(part.labelRes)).apply {
         isChecked = part in selectedParts
         setOnCheckedChangeListener { _, checked ->
             if (checked) selectedParts.add(part) else selectedParts.remove(part)
         }
     }
 
+    private fun divider(topGap: Int = 0): View = View(requireContext()).apply {
+        layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(1))
+            .apply { topMargin = dp(topGap) }
+        setBackgroundColor(yellow)
+        alpha = 0.4f
+    }
+
     private fun actionRow(): View = LinearLayout(requireContext()).apply {
         orientation = LinearLayout.HORIZONTAL
         clipChildren = false
         clipToPadding = false
-        setPadding(0, dp(4), 0, dp(8))
+        setPadding(0, dp(14), 0, 0)
         addView(pillButton(getString(R.string.export_import_import)) { onImport() }.also {
-            (it.layoutParams as LinearLayout.LayoutParams).apply { width = 0; weight = 1f; marginEnd = dp(8) }
+            (it.layoutParams as LinearLayout.LayoutParams).apply { width = 0; weight = 1f; marginEnd = dp(6) }
         })
         addView(pillButton(getString(R.string.export_import_export)) { onExport() }.also {
-            (it.layoutParams as LinearLayout.LayoutParams).apply { width = 0; weight = 1f }
+            (it.layoutParams as LinearLayout.LayoutParams).apply { width = 0; weight = 1f; marginStart = dp(6) }
         })
     }
 
@@ -367,7 +410,10 @@ class ExportImportFragment : Fragment() {
     private fun heading(text: String) = TextView(requireContext()).apply {
         this.text = text
         setTextColor(yellow)
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
+        setTypeface(typeface, android.graphics.Typeface.BOLD)
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+        gravity = Gravity.CENTER
+        setPadding(0, dp(2), 0, dp(6))
     }
 
     private fun caption(text: String, topGap: Int = 0, color: Int = dim) = TextView(requireContext()).apply {
@@ -380,10 +426,13 @@ class ExportImportFragment : Fragment() {
         ).apply { topMargin = dp(topGap) }
     }
 
-    private fun label(text: String) = TextView(requireContext()).apply {
-        this.text = text
+    private fun checkbox(labelText: String, bold: Boolean = false): CheckBox = CheckBox(requireContext()).apply {
+        text = labelText
         setTextColor(yellow)
+        if (bold) setTypeface(typeface, android.graphics.Typeface.BOLD)
         setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+        buttonTintList = android.content.res.ColorStateList.valueOf(yellow)
+        setPadding(dp(8), dp(7), 0, dp(7))
     }
 
     private fun spacer(height: Int) = View(requireContext()).apply {
