@@ -4,7 +4,23 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+298 — current
+## 0.23.1+299 — current
+
+Built on Urik `0.23.1-beta`. A small settings-page release: the 白い熊 kxkb UI page opens on the
+things you reach for, each under its own heading.
+
+### 🧭 kxkb UI page restructure
+
+- **Export / import moved to the top of the page** — it was the very last row; now it is the
+  first section, a real bold word-underlined heading (like Voice input) with the navigation row
+  beneath it, separated from the rest of the page by the full-width divider line.
+- **Voice input** follows as the second section, now opening its own divider block.
+- **"Apply to all keyboards" is a section of its own** — the toggle no longer floats between
+  Voice input and Geometry; it sits under its own underlined heading in its own divider block,
+  and Geometry opens a fresh block below it.
+- The now-unused divided-switch row layout was removed.
+
+## 0.23.1+298
 
 Built on Urik `0.23.1-beta`. The edit-once release: keyboard-look edits finally apply everywhere
 by default instead of forking the one keyboard on screen, and the nine en/cs flat and cluster
