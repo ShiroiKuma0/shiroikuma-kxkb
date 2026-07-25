@@ -15,7 +15,7 @@ candidate line.
 Installs **side-by-side** with the official Urik and with any other keyboard (package
 `shiroikuma.kxkb`).
 
-**📥 Latest release: [`0.23.1+301`](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases)
+**📥 Latest release: [`0.23.1+302`](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases)
 
 </div>
 
@@ -108,6 +108,18 @@ bottom-lift lets the app show through the gap below the keys.
 (open the kxkb settings, the languages list, all settings, the system keyboard chooser), your other
 **active languages**, and the **layouts** available in the current language — release on an item to
 pick it, release outside to dismiss.
+
+---
+
+## 💾 Back it up — by hand or automatically
+
+Everything settable — colours, layouts, learned words, the user dictionary, per-app memory — exports
+to **one ZIP**, part by part, into a real folder you choose (no SAF hoops). Import merges rather than
+wipes, so a restore never destroys what it didn’t cover.
+
+The same export answers a **token-gated broadcast**, so an automation app can back the keyboard up
+headlessly alongside every other app on the phone: one master switch (off until you turn it on), one
+copyable token, real-count progress while it runs, and the written path and size reported back.
 
 ---
 

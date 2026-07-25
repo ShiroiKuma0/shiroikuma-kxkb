@@ -4,7 +4,50 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+301 — current
+## 0.23.1+302 — current
+
+Built on Urik `0.23.1-beta`. The keyboard joins 白い熊 自由作業盤's 保存復元 backup batch.
+
+### 🤖 The 保存復元 state-export automation contract
+
+- The keyboard now answers the **sister-app backup contract**, so 白い熊 自由作業盤's 保存復元
+  project can back it up **headlessly** in the same run as every other app — no Activity, no taps.
+- Two exported broadcast actions: **`shiroikuma.kxkb.action.EXPORT_STATE`** runs the export, and
+  **`shiroikuma.kxkb.action.LIST_CATEGORIES`** enumerates the backup parts for the caller's
+  checkbox picker (`id⇥label` per line). Neither is protected by a permission — **the token is the
+  gate**, and both are dead until the switch below is turned on.
+- The headless export goes through the **same engine as the Export / import page** — one ZIP, the
+  same parts, the same format — so an automated backup restores exactly like a manual one. It
+  honours a `path` extra (an absolute directory that overrides the configured backup folder) and an
+  `items` extra (a comma-separated subset of category ids).
+- The reply is a **fresh broadcast** carrying `OK:<path>|<bytes>|<human size>|<n> categories`, or a
+  distinct `ERROR:…` line — exactly one reply per request. No Binder is ever handed over and the
+  ordered-broadcast result is never relied upon, because EMUI severs both between third-party apps.
+- **Progress broadcasts report real numbers, never a percentage** — `区分 3/8 — 学習した単語`, with
+  structured `current`/`total`/`unit` extras alongside, throttled to at most one every 500 ms and
+  always sending the final one.
+
+### 🔑 Automation switch and token
+
+- Two new rows sit **inside the Export / import section** of the 白い熊 kxkb UI page, right below
+  the Export / import entry — because this is a backup feature, and it belongs where backup lives.
+- **Automation export** — a master switch, **off by default**. Nothing external can reach the
+  keyboard until it is on.
+- **Automation token** — a 24-byte random secret shown abbreviated; **tap the row to copy the whole
+  token**, or hit **Regenerate** on the right to roll it (pasted copies then need updating). The
+  token is compared in constant time, lives in its own private preferences file, and is **never
+  included in a backup ZIP**.
+
+### 📛 One uniform backup filename
+
+- Backups are now named **`shiroikuma-kxkb_<yyyy-MM-dd_HH-mm-ss>.zip`** — no version, no `_backup`
+  suffix, no decoration — from the Export / import page and the automation path alike. Every 白い熊
+  app writes its backups into one shared folder, so they must sort and read uniformly.
+- The "last backup" line and the import picker now **filter by the app's own prefix**, so a folder
+  full of sister-app backups no longer offers you somebody else's ZIP. Backups written under the
+  old name are still recognised.
+
+## 0.23.1+301
 
 Built on Urik `0.23.1-beta`. The Export / import buttons get the ArcaneChat treatment.
 
