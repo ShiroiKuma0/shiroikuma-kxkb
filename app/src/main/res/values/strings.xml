@@ -762,6 +762,14 @@
     <string name="user_dictionary_incomplete">Please fill in every field.</string>
     <string name="user_dictionary_freq">×%1$d</string>
 
+    <!-- Automation export (the sister-app state-export contract) -->
+    <string name="automation_export_title">Automation export</string>
+    <string name="automation_export_summary">Let sister-app tasks trigger this backup via the token-gated EXPORT_STATE intent.</string>
+    <string name="automation_token_title">Automation token (tap to copy)</string>
+    <string name="automation_token_regenerate">Regenerate</string>
+    <string name="automation_token_copied">Automation token copied</string>
+    <string name="automation_token_regenerated">Automation token regenerated — update pasted copies</string>
+
     <!-- Export / import -->
     <string name="export_import_title">Export / import</string>
     <string name="export_import_summary">Back up and restore your keyboard — colours, layouts, dictionaries and more.</string>

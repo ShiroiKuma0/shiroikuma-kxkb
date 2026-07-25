@@ -1,5 +1,7 @@
 package com.urik.keyboard.settings.keyboardui
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.net.Uri
 import android.os.Bundle
 import android.text.InputType
@@ -7,6 +9,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
+import android.widget.Toast
 import com.urik.keyboard.utils.KxkbToast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.Lifecycle
@@ -18,10 +21,12 @@ import androidx.preference.ListPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceCategory
 import androidx.preference.PreferenceFragmentCompat
+import androidx.preference.PreferenceViewHolder
 import androidx.preference.SeekBarPreference
 import androidx.preference.SwitchPreferenceCompat
 import android.content.Context
 import com.urik.keyboard.R
+import com.urik.keyboard.automation.AutomationAuth
 import com.urik.keyboard.model.KeyboardDisplayMode
 import com.urik.keyboard.service.CustomSuggestionDefaults
 import com.urik.keyboard.service.GeometryBucket
@@ -177,6 +182,24 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                     true
                 }
             }
+
+        // Below the Export/import entry, in the same section (this is a backup feature, so it lives where
+        // backup lives — the sister-app convention): the automation intent surface. Default OFF; nothing is
+        // reachable until the switch is on, and the token is what 自由作業盤's 保存復元 task must carry.
+        val automationSwitchPref =
+            SwitchPreferenceCompat(context).apply {
+                key = "kb_ui_automation_enabled"
+                isPersistent = false
+                layoutResource = R.layout.preference_item_kxkb
+                title = resources.getString(R.string.automation_export_title)
+                summary = resources.getString(R.string.automation_export_summary)
+                isChecked = AutomationAuth.enabled(context)
+                setOnPreferenceChangeListener { _, value ->
+                    AutomationAuth.setEnabled(context, value as Boolean)
+                    true
+                }
+            }
+        val automationTokenPref = automationTokenPreference(context)
 
         // The Voice input section (offline Whisper model setup + dictation options).
         val voiceCategory =
@@ -371,6 +394,8 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
 
         screen.addPreference(exportImportCategory)
         exportImportCategory.addPreference(exportImportPref)
+        exportImportCategory.addPreference(automationSwitchPref)
+        exportImportCategory.addPreference(automationTokenPref)
         screen.addPreference(voiceCategory)
         voiceCategory.addPreference(voicePref)
         screen.addPreference(applyEverywhereCategory)
@@ -510,6 +535,44 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
             title = resources.getString(titleRes)
             layoutResource = R.layout.preference_category_kxkb
         }
+
+    /**
+     * The automation-token row: shows the token abbreviated, copies the WHOLE token to the clipboard on tap,
+     * and carries a Regenerate action on the right (which warns that pasted copies must be updated). The token
+     * is generated on first read, so this row always shows a value even before the switch is turned on.
+     */
+    private fun automationTokenPreference(context: Context): Preference {
+        val pref = object : Preference(context) {
+            override fun onBindViewHolder(holder: PreferenceViewHolder) {
+                super.onBindViewHolder(holder)
+                holder.findViewById(R.id.automation_regenerate)?.setOnClickListener {
+                    val fresh = AutomationAuth.regenerateToken(context)
+                    summary = AutomationAuth.abbreviate(fresh)
+                    KxkbToast.show(
+                        requireContext(),
+                        resources.getString(R.string.automation_token_regenerated),
+                        Toast.LENGTH_LONG
+                    )
+                }
+            }
+        }
+        return pref.apply {
+            key = "kb_ui_automation_token"
+            isPersistent = false
+            layoutResource = R.layout.preference_item_kxkb
+            widgetLayoutResource = R.layout.preference_widget_regenerate
+            title = resources.getString(R.string.automation_token_title)
+            summary = AutomationAuth.abbreviate(AutomationAuth.token(context))
+            setOnPreferenceClickListener {
+                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                clipboard?.setPrimaryClip(
+                    ClipData.newPlainText("kxkb automation token", AutomationAuth.token(context))
+                )
+                KxkbToast.show(requireContext(), resources.getString(R.string.automation_token_copied))
+                true
+            }
+        }
+    }
 
     /** A non-clickable sub-category heading (one level under a section), indented + word-underlined. */
     private fun subHeader(titleRes: Int): Preference =

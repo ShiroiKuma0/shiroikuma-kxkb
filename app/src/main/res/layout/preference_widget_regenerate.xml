@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The "Regenerate" action shown on the right of the automation-token row (wired in code). -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/automation_regenerate"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_gravity="center"
+    android:background="?android:attr/selectableItemBackground"
+    android:paddingStart="12dp"
+    android:paddingEnd="4dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp"
+    android:text="@string/automation_token_regenerate"
+    android:textColor="@color/kxkb_yellow"
+    android:textSize="14sp"
+    android:textStyle="bold" />

@@ -233,7 +233,9 @@ class ExportImportFragment : Fragment() {
         flash(getString(R.string.export_import_exporting))
         val parts = selectedParts.toSet()
         val version = appVersionName()
-        val name = "${BackupManager.EXPORT_PREFIX}${version}_${timestamp()}${BackupManager.EXPORT_SUFFIX}"
+        // The family name convention — `shiroikuma-kxkb_<yyyy-MM-dd_HH-mm-ss>.zip`, no version, no suffix:
+        // every sister app's backups share one directory, so they must sort and read uniformly.
+        val name = BackupManager.exportFileName()
         lifecycleScope.launch {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
@@ -311,10 +313,14 @@ class ExportImportFragment : Fragment() {
 
     // ---- backup folder helpers -------------------------------------------------------------------------
 
+    /**
+     * Our backups in the folder, newest first. Filtered by [BackupManager.EXPORT_PREFIX] because 白い熊 keeps
+     * every sister app's backups in one directory — an unfiltered `*.zip` scan would offer their files too.
+     */
     private fun listBackups(): List<File> {
         val dir = exportDir?.let { File(it) } ?: return emptyList()
         if (!dir.isDirectory) return emptyList()
-        return dir.listFiles { f -> f.isFile && f.name.endsWith(".zip") }
+        return dir.listFiles { f -> f.isFile && BackupManager.isBackupFileName(f.name) }
             ?.sortedByDescending { it.lastModified() }
             ?: emptyList()
     }
@@ -401,9 +407,6 @@ class ExportImportFragment : Fragment() {
     }
 
     // ---- view builders ---------------------------------------------------------------------------------
-
-    private fun timestamp(): String =
-        DateFormat.format("yyyy-MM-dd_HH-mm-ss", System.currentTimeMillis()).toString()
 
     private fun appVersionName(): String = try {
         val pm = requireContext().packageManager

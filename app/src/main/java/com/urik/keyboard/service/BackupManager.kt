@@ -18,6 +18,9 @@ import com.urik.keyboard.utils.ErrorLogger
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.InputStream
 import java.io.OutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -79,12 +82,25 @@ constructor(
 ) {
     private var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 
-    /** Write the selected [parts] to [out] as a backup ZIP. [appVersion] is recorded in the manifest. */
-    suspend fun export(parts: Set<BackupPart>, out: OutputStream, appVersion: String): BackupResult =
+    /**
+     * Write the selected [parts] to [out] as a backup ZIP. [appVersion] is recorded in the manifest.
+     *
+     * [onProgress] is invoked after each part is written, with `(done, total, part label)` — the headless
+     * automation path ([com.urik.keyboard.automation.StateExportReceiver]) turns those into real-count progress
+     * broadcasts. The UI panel and the receiver are the two thin callers of this one engine.
+     */
+    suspend fun export(
+        parts: Set<BackupPart>,
+        out: OutputStream,
+        appVersion: String,
+        onProgress: ((done: Int, total: Int, partLabel: String) -> Unit)? = null
+    ): BackupResult =
         withContext(ioDispatcher) {
             val lines = mutableListOf<String>()
             val errors = mutableListOf<String>()
             val included = mutableListOf<String>()
+            val total = BackupPart.entries.count { it in parts }
+            var done = 0
             ZipOutputStream(out).use { zip ->
                 for (part in BackupPart.entries) {
                     if (part !in parts) continue
@@ -99,6 +115,8 @@ constructor(
                         logPart("export", part, e)
                         errors.add(context.getString(part.labelRes))
                     }
+                    done++
+                    onProgress?.invoke(done, total, context.getString(part.labelRes))
                 }
                 val manifest = JSONObject()
                     .put("format", FORMAT)
@@ -447,8 +465,21 @@ constructor(
         const val FORMAT_VERSION = 1
         const val MANIFEST = "manifest.json"
 
-        /** Backup filenames start with this; the UI scans the export dir for the newest such file. */
+        /**
+         * Backup filenames start with this; the UI scans the export dir for the newest such file, and the
+         * automation contract writes the same name. 白い熊 keeps every sister app's backups in ONE directory,
+         * so the family convention is mandatory: `<english-app-name>_<yyyy-MM-dd_HH-mm-ss>.zip` — no version,
+         * no `-export` infix, no suffix. Files written before 2026-07-25 carry
+         * `shiroikuma-kxkb_<version>_<stamp>_backup.zip`; they share this prefix, so the newest-backup scan
+         * and the import picker still find them.
+         */
         const val EXPORT_PREFIX = "shiroikuma-kxkb_"
-        const val EXPORT_SUFFIX = "_backup.zip"
+
+        /** The one backup name this app ever writes, from the UI panel and from the automation receiver alike. */
+        fun exportFileName(now: Long = System.currentTimeMillis()): String =
+            EXPORT_PREFIX + SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.ROOT).format(Date(now)) + ".zip"
+
+        /** Whether [name] is one of this app's backups (current or legacy name) rather than a sister app's. */
+        fun isBackupFileName(name: String): Boolean = name.startsWith(EXPORT_PREFIX) && name.endsWith(".zip")
     }
 }

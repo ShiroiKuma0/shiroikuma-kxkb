@@ -291,6 +291,23 @@ page — Cancel alone on the left (back navigation), Import + Export grouped rig
 round (50 dp radius, 1.5 dp yellow stroke, black fill, yellow text, translucent-yellow ripple),
 natural width instead of the stretched halves; the grant-access button shares the styling.
 
+**Shipped since `+301`** (the `+302` line): **the 保存復元 state-export automation contract** — the
+sister-app wire shape 白い熊 自由作業盤 uses to back every app up in one batch. Two exported receiver
+actions (`shiroikuma.kxkb.action.EXPORT_STATE` / `.LIST_CATEGORIES`, no `android:permission` — the token
+is the gate) in `automation/StateExportReceiver.kt`: the export runs headlessly through the SAME
+`BackupManager` the Export/import page uses (now with an `onProgress` hook), honours a `path` override
+and an `items` category subset, and replies with a **fresh broadcast** carrying
+`OK:<path>|<bytes>|<human>|<n> categories` (no Binder, no ordered-result — EMUI severs both;
+`FLAG_INCLUDE_STOPPED_PACKAGES` or a stopped caller never hears us). Progress broadcasts report real
+counts (`区分 3/8 — …`), never a percentage, throttled ≥500 ms with the completion one always sent.
+`automation/AutomationAuth.kt` holds the master switch (**default OFF**) + a 24-byte SecureRandom hex
+token in its own SharedPreferences file (never in the export ZIP), compared constant-time; its two rows
+sit inside the kxkb UI page's Export/import section under the navigation row (tap the token to copy,
+Regenerate on the right). Backup filenames now follow the **mandatory family convention** —
+`shiroikuma-kxkb_<yyyy-MM-dd_HH-mm-ss>.zip`, no version, no `_backup` suffix, from the UI page and the
+automation path alike — and the newest-backup scan / import picker filter by that prefix, since every
+sister app's backups share one directory.
+
 **Released `0.23.1+301`** (2026-07-24; tagged `v0.23.1+301`, APK + gzipped R8 `mapping.txt` attached,
 on the fork's GitHub; default branch `custom`; README badge + `CHANGELOG.md` track it). Recent fork
 releases: `+296`, `+298`, `+299`, `+300`, `+301` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`,
