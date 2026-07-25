@@ -308,10 +308,10 @@ Regenerate on the right). Backup filenames now follow the **mandatory family con
 automation path alike — and the newest-backup scan / import picker filter by that prefix, since every
 sister app's backups share one directory.
 
-**Released `0.23.1+301`** (2026-07-24; tagged `v0.23.1+301`, APK + gzipped R8 `mapping.txt` attached,
+**Released `0.23.1+302`** (2026-07-25; tagged `v0.23.1+302`, APK + gzipped R8 `mapping.txt` attached,
 on the fork's GitHub; default branch `custom`; README badge + `CHANGELOG.md` track it). Recent fork
-releases: `+296`, `+298`, `+299`, `+300`, `+301` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`,
+releases: `+298`, `+299`, `+300`, `+301`, `+302` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`,
 `+198`, `+204`, `+211`, `+213`, `+214`, `+215`, `+217`, `+222`, `+230`, `+250`, `+287`, `+292`,
-`+295`). Remaining M5 tail (low
+`+295`, `+296`). Remaining M5 tail (low
 priority): number/arrow rows on the look page, quick-period flick. Full architecture + milestone
 sequence in `docs/PLAN.md`.
