@@ -15,7 +15,7 @@ candidate line.
 Installs **side-by-side** with the official Urik and with any other keyboard (package
 `shiroikuma.kxkb`).
 
-**📥 Latest release: [`0.23.1+302`](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases)
+**📥 Latest release: [`0.23.1+304`](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases)
 
 </div>
 
@@ -108,6 +108,20 @@ bottom-lift lets the app show through the gap below the keys.
 (open the kxkb settings, the languages list, all settings, the system keyboard chooser), your other
 **active languages**, and the **layouts** available in the current language — release on an item to
 pick it, release outside to dismiss.
+
+---
+
+## 🔒 It types before the phone is unlocked
+
+Most keyboards are gone at the very moment you need one — the first unlock after a reboot. This one
+is **Direct Boot aware**: it comes up on the lock screen, drawn tall and gapless with double-size
+glyphs for fast PIN entry, while every credential-protected store (settings, learned words, the
+database) stays untouched and locked.
+
+**Pick which board that is** — a *Lock-screen keyboard* section in the 白い熊 kxkb settings offers
+the bundled layouts, defaulting to **GNU QWERTY 10c**. The choice is kept in device-protected
+storage so the lock screen can actually read it, and a pick that ever fails to resolve falls back to
+the default and then to a built-in QWERTY: the PIN field is never left without a keyboard.
 
 ---
 

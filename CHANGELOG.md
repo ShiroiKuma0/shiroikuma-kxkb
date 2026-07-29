@@ -4,7 +4,45 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+302 — current
+## 0.23.1+304 — current
+
+Built on Urik `0.23.1-beta`. The lock-screen keyboard becomes a choice, and the GNU 10c boards get
+their bottom row straightened out.
+
+### 🔒 Choose the lock-screen (before-first-unlock) keyboard
+
+- The Direct Boot keyboard — the one you get on the lock screen after a reboot, before the phone has
+  been unlocked once — is no longer hardcoded to GNU 15c. The new default is **GNU QWERTY 10c**.
+- A **Lock-screen keyboard** section in the 白い熊 kxkb UI page (between Voice input and Apply to all
+  keyboards) picks it: **Layout before first unlock**, listing the bundled boards with the GNU family
+  first and the language boards under their native language names.
+- Only **bundled** layouts are offered, by design. Custom and edited copies live in
+  credential-protected storage that is unreadable before first unlock, so choosing one would silently
+  render its unedited stock original; hardware keymaps aren't soft boards at all.
+- The pick is stored in **device-protected storage** — the one place the lock screen can read, and
+  the same mechanism the cold-start window-height cache uses, so it resolves synchronously on the
+  show path with no DataStore access.
+- **It cannot leave you without a keyboard at the PIN field.** The chain is: your pick, if its layout
+  is still present → GNU QWERTY 10c → the built-in code QWERTY. A malformed or path-escaping id is
+  rejected when read, a missing store reads as the default, and the before-unlock layout load now
+  always succeeds instead of being able to fail.
+- The choice travels in the Export / import **Layouts** category, so a restore doesn't silently drop
+  it back to the default (device-protected preferences sit outside the settings store).
+
+### ⌨️ GNU 10c bottom rows aligned to the grid
+
+- On **GNU 10c** and **GNU QWERTY 10c** the bottom row held ten keys across a ten-column grid's worth
+  of width — twelve units squeezed into ten, so every key in it was narrower than the letters above
+  and the spacebar wasn't really three keys wide.
+- The **`:`** key and the **`?,!`** cluster are gone, leaving `Shift | Tab | Esc | Ctrl | Space | ⌫ |
+  ⏎ | 🎙` — eight keys, exactly ten units, flush with the rows above, with a spacebar of exactly
+  three key widths.
+- **Esc** and **Ctrl** now carry a smaller label font so their multi-character names fit inside the
+  key instead of running to the edges.
+- The punctuation moves up: the row's leftmost key becomes the **`:.,`** cluster — tap for `.`, slide
+  left for `:`, right for `,` — with **`?` on the up flick and `!` on the down flick**.
+
+## 0.23.1+302
 
 Built on Urik `0.23.1-beta`. The keyboard joins 白い熊 自由作業盤's 保存復元 backup batch.
 
