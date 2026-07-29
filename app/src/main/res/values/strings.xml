@@ -352,6 +352,8 @@
     <string name="keyboard_ui_apply_everywhere">Apply to all keyboards</string>
     <string name="keyboard_ui_apply_everywhere_on">Colours &amp; style apply everywhere; sizes to every app and layout of this geometry</string>
     <string name="keyboard_ui_apply_everywhere_off">Changes apply only to the current app · layout · geometry</string>
+    <string name="keyboard_ui_bfu_title">Lock-screen keyboard</string>
+    <string name="keyboard_ui_bfu_layout">Layout before first unlock</string>
     <string name="keyboard_ui_reset_layout">Reset layout to default</string>
     <string name="keyboard_ui_reset_layout_summary">Resets the size of the app you last typed in — other apps keep their own</string>
     <string name="keyboard_ui_reset_layout_done">Reset %1$s to default</string>

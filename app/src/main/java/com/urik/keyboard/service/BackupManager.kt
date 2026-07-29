@@ -2,6 +2,7 @@ package com.urik.keyboard.service
 
 import android.content.Context
 import com.urik.keyboard.R
+import com.urik.keyboard.data.BfuLayoutPrefs
 import com.urik.keyboard.data.CustomLayoutStore
 import com.urik.keyboard.data.LayoutEntry
 import com.urik.keyboard.data.LayoutRegistry
@@ -219,6 +220,9 @@ constructor(
             JSONObject()
                 .put("customLayouts", arr)
                 .put("stockNames", JSONObject(CustomLayoutStore.stockNameOverrides(context)))
+                // The lock-screen (BFU) layout pick lives in device-protected prefs, outside DataStore —
+                // carried here so a restore doesn't silently drop it back to the default.
+                .put("bfuLayout", BfuLayoutPrefs.layoutId(context))
                 .put("raw", JSONObject(raw)) to arr.length()
         }
 
@@ -346,6 +350,7 @@ constructor(
             json.optJSONObject("stockNames")?.let { names ->
                 names.keys().forEach { id -> CustomLayoutStore.setStockName(context, id, names.optString(id)) }
             }
+            json.optString("bfuLayout").takeIf { it.isNotBlank() }?.let { BfuLayoutPrefs.setLayoutId(context, it) }
             settingsRepository.importRawBackupValues(json.optJSONObject("raw").toStringMap())
             n
         }

@@ -120,14 +120,10 @@ constructor(
         currentAction: KeyboardKey.ActionType = KeyboardKey.ActionType.ENTER
     ): Result<KeyboardLayout> = withContext(Dispatchers.IO) {
         // BFU / Direct Boot: the active-layout setting is in locked storage and prediction isn't available.
-        // Force the bundled GNU 15c keymap (a no-prediction code layout, loaded straight from the APK assets)
-        // so the keyboard works on the lock screen without touching credential-protected storage.
+        // Load the BFU pick (device-protected storage) straight from the APK assets, so the keyboard works on
+        // the lock screen without touching credential-protected storage. Never fails — see [loadBfuLayout].
         if (!context.isUserUnlocked) {
-            return@withContext try {
-                Result.success(loadLayoutFromAssets(mode, BFU_LAYOUT_ID, currentAction, locale).copy(id = BFU_LAYOUT_ID))
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
+            return@withContext Result.success(loadBfuLayout(mode, currentAction, locale))
         }
         val settings = settingsRepository.settings.first()
         val layoutIdentifier = resolveLayoutIdentifier(settings.alternativeKeyboardLayout, locale.toLanguageTag())
@@ -156,8 +152,56 @@ constructor(
      * the forced bundled keymap.
      */
     suspend fun resolveActiveLayoutId(language: String): String = withContext(Dispatchers.IO) {
-        if (!context.isUserUnlocked) return@withContext BFU_LAYOUT_ID
+        if (!context.isUserUnlocked) return@withContext bfuLayoutId()
         resolveLayoutIdentifier(settingsRepository.settings.first().alternativeKeyboardLayout, language)
+    }
+
+    /**
+     * The layout id the lock screen shows: the user's pick ([BfuLayoutPrefs], device-protected storage) when
+     * it still resolves to a bundled asset, else the hard fallback [BfuLayoutPrefs.DEFAULT_LAYOUT_ID]. Custom
+     * layouts are deliberately not resolvable here — their store is locked before first unlock.
+     */
+    private fun bfuLayoutId(): String {
+        val picked = BfuLayoutPrefs.layoutId(context)
+        return if (picked != BfuLayoutPrefs.DEFAULT_LAYOUT_ID && bundledLayoutExists(picked)) {
+            picked
+        } else {
+            BfuLayoutPrefs.DEFAULT_LAYOUT_ID
+        }
+    }
+
+    /** Whether `layouts/<id>.json` is present in the APK assets (always readable, lock screen included). */
+    private fun bundledLayoutExists(id: String): Boolean = try {
+        context.assets.open("layouts/$id.json").close()
+        true
+    } catch (_: Throwable) {
+        false
+    }
+
+    /**
+     * The lock-screen keyboard, resolved along a fallback chain that CANNOT fail: the BFU pick → the bundled
+     * GNU QWERTY 10c → the built-in code QWERTY ([getFallbackLayout]). A throw on this path would leave the
+     * user staring at a PIN field with no keyboard, so every step is caught.
+     */
+    private suspend fun loadBfuLayout(
+        mode: KeyboardMode,
+        currentAction: KeyboardKey.ActionType,
+        locale: Locale
+    ): KeyboardLayout {
+        val candidates = listOf(bfuLayoutId(), BfuLayoutPrefs.DEFAULT_LAYOUT_ID).distinct()
+        for (id in candidates) {
+            val layout = try {
+                if (bundledLayoutExists(id)) {
+                    loadLayoutFromAssets(mode, id, currentAction, locale).copy(id = id)
+                } else {
+                    null
+                }
+            } catch (_: Throwable) {
+                null
+            }
+            if (layout != null) return layout
+        }
+        return getFallbackLayout(mode, currentAction)
     }
 
     private suspend fun resolveLayoutIdentifier(
@@ -565,8 +609,6 @@ constructor(
     }
 
     private companion object {
-        /** The bundled, no-prediction layout forced before first unlock (Direct Boot). */
-        const val BFU_LAYOUT_ID = "gnu_5r15c"
         const val LAYOUT_CACHE_SIZE = 20
         const val MAX_LAYOUT_RETRIES = 3
         const val LAYOUT_ERROR_COOLDOWN_MS = 60000L

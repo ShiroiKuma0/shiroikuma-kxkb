@@ -27,6 +27,9 @@ import androidx.preference.SwitchPreferenceCompat
 import android.content.Context
 import com.urik.keyboard.R
 import com.urik.keyboard.automation.AutomationAuth
+import com.urik.keyboard.data.BfuLayoutPrefs
+import com.urik.keyboard.data.CustomLayoutStore
+import com.urik.keyboard.data.LayoutRegistry
 import com.urik.keyboard.model.KeyboardDisplayMode
 import com.urik.keyboard.service.CustomSuggestionDefaults
 import com.urik.keyboard.service.GeometryBucket
@@ -228,6 +231,36 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                 }
             }
 
+        // The lock-screen (Direct Boot / before-first-unlock) keyboard section: which bundled layout the
+        // keyboard shows before the device has been unlocked once. Written to device-protected storage, the
+        // only store readable there; the picker offers bundled layouts only (see [bfuLayoutChoices]).
+        val bfuCategory =
+            PreferenceCategory(context).apply {
+                key = "kb_ui_cat_bfu"
+                title = resources.getString(R.string.keyboard_ui_bfu_title)
+                layoutResource = R.layout.preference_category_kxkb
+            }
+        val bfuChoices = bfuLayoutChoices(context)
+        val bfuPref =
+            ListPreference(context).apply {
+                key = "kb_ui_bfu_layout"
+                isPersistent = false
+                layoutResource = R.layout.preference_item_kxkb
+                title = resources.getString(R.string.keyboard_ui_bfu_layout)
+                dialogTitle = resources.getString(R.string.keyboard_ui_bfu_layout)
+                entries = bfuChoices.map { it.second }.toTypedArray()
+                entryValues = bfuChoices.map { it.first }.toTypedArray()
+                // A pick whose layout has since vanished falls back to the default, same as the runtime does.
+                value =
+                    BfuLayoutPrefs.layoutId(context).takeIf { id -> bfuChoices.any { it.first == id } }
+                        ?: BfuLayoutPrefs.DEFAULT_LAYOUT_ID
+                summaryProvider = ListPreference.SimpleSummaryProvider.getInstance()
+                setOnPreferenceChangeListener { _, value ->
+                    BfuLayoutPrefs.setLayoutId(context, value as String)
+                    true
+                }
+            }
+
         // The "Apply to all keyboards" section — its own divider block with the toggle beneath.
         val applyEverywhereCategory =
             PreferenceCategory(context).apply {
@@ -398,6 +431,8 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         exportImportCategory.addPreference(automationTokenPref)
         screen.addPreference(voiceCategory)
         voiceCategory.addPreference(voicePref)
+        screen.addPreference(bfuCategory)
+        bfuCategory.addPreference(bfuPref)
         screen.addPreference(applyEverywhereCategory)
         applyEverywhereCategory.addPreference(applyEverywherePref)
         screen.addPreference(geometryCategory)
@@ -529,6 +564,29 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
     }
 
     /** A top-level section header (big bold word-underlined heading with a full-width divider above it). */
+    /**
+     * The layouts offerable as the lock-screen (BFU) keyboard, as `id to label`: BUNDLED soft boards only —
+     * the user's custom copies live in credential-protected storage and are unreadable before first unlock,
+     * and hardware keymaps aren't soft boards at all. GNU (the no-prediction code boards, and where the hard
+     * fallback lives) sorts first; the language boards follow, labelled with their native language name.
+     */
+    private fun bfuLayoutChoices(context: Context): List<Pair<String, String>> {
+        val customIds = CustomLayoutStore.customEntries(context).map { it.id }.toSet()
+        return LayoutRegistry
+            .load(context)
+            .entries
+            .filter { it.id !in customIds && it.kind != "hwkeymap" }
+            .sortedWith(compareBy({ if (it.lang == "gnu") 0 else 1 }, { it.lang }, { it.name }))
+            .map { entry ->
+                entry.id to
+                    if (entry.lang == "gnu") {
+                        entry.name
+                    } else {
+                        "${LanguageDisplayNames.nativeName(entry.lang)} · ${entry.name}"
+                    }
+            }
+    }
+
     private fun sectionCategory(prefKey: String, titleRes: Int): PreferenceCategory =
         PreferenceCategory(preferenceManager.context).apply {
             key = prefKey
