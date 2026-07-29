@@ -308,10 +308,28 @@ Regenerate on the right). Backup filenames now follow the **mandatory family con
 automation path alike — and the newest-backup scan / import picker filter by that prefix, since every
 sister app's backups share one directory.
 
-**Released `0.23.1+302`** (2026-07-25; tagged `v0.23.1+302`, APK + gzipped R8 `mapping.txt` attached,
+**Shipped since `+302`** (the `+304` line): **the GNU 10c bottom-row fix** (`gnu_5r10c` +
+`gnu_qwerty_5r10c` — the letters bottom row packed 10 keys / 12 grid units into a 10-column grid, so
+every key was narrower than the letters above and Space wasn't really 3 keys wide; the `:` key and the
+`?,!` cluster deleted leaves `Shift | Tab | Esc | Ctrl | Space(3) | ⌫ | ⏎ | 🎙` = 8 keys / exactly 10
+units, Esc+Ctrl at `appearance.fontScale 0.6` so their labels fit, and the punctuation moves up to the
+row above where the `;.:` cluster becomes `:.,` — tap `.`, left `:`, right `,`, up `?`, down `!`; `;`
+and `…` remain on the numbers page); **the selectable BFU layout** — the Direct Boot board was the
+compile-time const `gnu_5r15c` because DataStore/Room/`filesDir` are all locked before first unlock, so
+the pick now lives in DEVICE-PROTECTED SharedPreferences (`data/BfuLayoutPrefs.kt`, file `kb_bfu` — the
+same mechanism as the cold-start window-height cache, read synchronously on the show path), the default
+is **GNU QWERTY 10c**, and a "Lock-screen keyboard" section in the kxkb UI page (between Voice input and
+Apply to all keyboards) picks from the BUNDLED boards only (custom copies would silently render as their
+stock original at BFU; `hwkeymap` entries aren't soft boards); the chain **cannot fail** — pick (if its
+asset is present) → `gnu_qwerty_5r10c` → the built-in code QWERTY, malformed/path-escaping ids rejected
+at read, and `getLayoutForMode` at BFU always returns success now; the pick rides in the Export/import
+**Layouts** category (device-protected prefs are outside DataStore) and `BfuLayoutTest` covers the five
+cases (suite 1 932 green).
+
+**Released `0.23.1+304`** (2026-07-29; tagged `v0.23.1+304`, APK + gzipped R8 `mapping.txt` attached,
 on the fork's GitHub; default branch `custom`; README badge + `CHANGELOG.md` track it). Recent fork
-releases: `+298`, `+299`, `+300`, `+301`, `+302` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`,
+releases: `+299`, `+300`, `+301`, `+302`, `+304` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`,
 `+198`, `+204`, `+211`, `+213`, `+214`, `+215`, `+217`, `+222`, `+230`, `+250`, `+287`, `+292`,
-`+295`, `+296`). Remaining M5 tail (low
+`+295`, `+296`, `+298`). Remaining M5 tail (low
 priority): number/arrow rows on the look page, quick-period flick. Full architecture + milestone
 sequence in `docs/PLAN.md`.
