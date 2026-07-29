@@ -764,12 +764,13 @@
         [
           {
             "type": "cluster",
-            "cluster": ";.:",
+            "cluster": ":.,",
             "char": ".",
             "flick": {
-              "left": ";",
-              "right": ":",
-              "up": "…"
+              "left": ":",
+              "right": ",",
+              "up": "?",
+              "down": "!"
             }
           },
           {
@@ -1014,17 +1015,6 @@
             "width": 1.0
           },
           {
-            "type": "cluster",
-            "cluster": "?,!",
-            "char": ",",
-            "flick": {
-              "left": "?",
-              "right": "!",
-              "up": "…"
-            },
-            "width": 1.0
-          },
-          {
             "type": "compass",
             "char": "Esc",
             "flick": {
@@ -1037,25 +1027,11 @@
                 "label": "altGr"
               }
             },
+            "appearance": {
+              "fontScale": 0.6
+            },
             "attributes": {
               "moreKeyMode": "OnlyExplicit"
-            },
-            "width": 1.0
-          },
-          {
-            "type": "compass",
-            "char": ":",
-            "flick": {
-              "up": "!",
-              "down": {
-                "chord": "C-:",
-                "label": "C-:"
-              },
-              "left": {
-                "chord": "M-:",
-                "label": "M-:"
-              },
-              "right": "?"
             },
             "width": 1.0
           },
@@ -1079,6 +1055,9 @@
                 "chord": "C-SPC",
                 "label": "C-SPC"
               }
+            },
+            "appearance": {
+              "fontScale": 0.6
             },
             "width": 1.0
           },
