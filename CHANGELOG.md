@@ -4,7 +4,45 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+304 — current
+## 0.23.1+305 — current
+
+Built on Urik `0.23.1-beta`. The backup contract learns to say which categories start ticked, and a
+running headless export can now be stopped.
+
+### ☑️ The keyboard states its own default selection
+
+- `LIST_CATEGORIES` — the answer an automation app draws its item picker from — now carries the
+  contract's fourth field: `id⇥label⇥parent⇥on|off`. Whether a category starts ticked is the
+  keyboard's to state, not the caller's to guess. The parent field stays empty because these parts
+  are flat, but it is positional, so it is still sent.
+- **Next-word predictions** is the one category that starts **off**. The statistics rebuild
+  themselves from ordinary typing, so nothing you authored is lost by leaving them out of a backup;
+  everything else — appearance, settings, layouts, the user dictionary, learned words, blocked
+  words, per-app memory — still starts ticked.
+- The Export / import page already read the same flag, so the in-app sheet and an automation app's
+  picker now open on the same answer. An `EXPORT_STATE` that names no categories means that default
+  set rather than literally everything.
+
+### ⏹ A headless export can be cancelled
+
+- A third broadcast action, **`shiroikuma.kxkb.action.CANCEL_EXPORT`**, stops the export that is
+  running. It sits on the same exported receiver behind the same token, takes an optional `reply_id`,
+  and answers nothing at all — it is fire-and-forget by design.
+- The stop is a flag the write loop checks **between entries**, so the archive unwinds at a clean
+  boundary. Nothing is interrupted mid-write, no thread is killed, and the process is never
+  terminated.
+- **A cancelled export leaves the backup folder exactly as it found it.** Every export is now built
+  as `<name>.zip.part` and renamed to its real name only once the archive is complete; the partial is
+  deleted on cancel and on every other failure alike. No short archive, no stray file — and because
+  a `.part` is not a backup name, one can never be offered for import or counted as your last backup.
+- The request that started the export still gets its single terminal answer, `ERROR:cancelled`, so a
+  run is proven ended rather than left to finish unseen.
+- **Safe to send at any moment**: with nothing running, after the export already finished, or for a
+  different run, it is a silent no-op — not an error, not a crash.
+- The in-app **Export** button writes through the same `.part` path, so a failure there can no longer
+  leave a half-written backup in the folder either.
+
+## 0.23.1+304
 
 Built on Urik `0.23.1-beta`. The lock-screen keyboard becomes a choice, and the GNU 10c boards get
 their bottom row straightened out.

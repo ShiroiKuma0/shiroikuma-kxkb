@@ -15,7 +15,7 @@ candidate line.
 Installs **side-by-side** with the official Urik and with any other keyboard (package
 `shiroikuma.kxkb`).
 
-**📥 Latest release: [`0.23.1+304`](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases)
+**📥 Latest release: [`0.23.1+305`](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases)
 
 </div>
 
@@ -133,7 +133,9 @@ wipes, so a restore never destroys what it didn’t cover.
 
 The same export answers a **token-gated broadcast**, so an automation app can back the keyboard up
 headlessly alongside every other app on the phone: one master switch (off until you turn it on), one
-copyable token, real-count progress while it runs, and the written path and size reported back.
+copyable token, real-count progress while it runs, and the written path and size reported back. The
+keyboard tells the caller which categories start ticked, and a run in flight can be **cancelled** —
+the half-written file is removed, so a stopped backup leaves the folder exactly as it found it.
 
 ---
 
