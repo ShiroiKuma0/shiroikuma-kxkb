@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Environment
+import com.urik.keyboard.service.BackupCancelledException
 import com.urik.keyboard.service.BackupManager
 import com.urik.keyboard.service.BackupPart
 import com.urik.keyboard.settings.SettingsRepository
@@ -29,13 +30,21 @@ import kotlinx.coroutines.launch
  * - `<pkg>.action.EXPORT_STATE`: run the ordinary category-ZIP export ([BackupManager]) with no Activity and no
  *   user interaction. Extras (all String): `token` (required — [AutomationAuth]), `path` (optional absolute
  *   directory, wins over the app's configured export folder), `items` (optional comma list of [BackupPart] ids;
- *   absent/empty = everything), `progress_action` (optional — see below), plus the reply trio
+ *   absent/empty = our default set, i.e. the parts LIST_CATEGORIES reports as `on`), `progress_action`
+ *   (optional — see below), plus the reply trio
  *   `reply_action` / `reply_package` / `reply_id`.
  * - `<pkg>.action.LIST_CATEGORIES`: token-gated, instant category enumeration for the caller's checkbox picker.
- *   `id<TAB>label` per line; this app's parts are flat, so no third (parent-id) field is ever emitted.
+ *   `id<TAB>label<TAB>parent<TAB>on|off` per line — the caller redraws its picker from this every time, so
+ *   whether an item starts ticked is ours to state ([BackupPart.defaultSelected]). This app's parts are flat,
+ *   so the parent field is always empty — but it is positional, so it is still emitted.
+ * - `<pkg>.action.CANCEL_EXPORT`: stop the export that is running (extras: `token`, optional `reply_id`) —
+ *   fire-and-forget, it is answered with no reply of its own. The write loop unwinds at the next entry
+ *   boundary, the partial file is deleted, and the ORIGINAL request gets `ERROR:cancelled`. Safe to send at
+ *   any time: with nothing running, or after the export already finished, it is a silent no-op.
  *
  * **ONE ZIP per request** — the single file named by [BackupManager.exportFileName] is the whole backup, with
- * every selected part as an entry inside it. Nothing else is written next to it.
+ * every selected part as an entry inside it. Nothing else is written next to it: it is built as
+ * `<name>.zip.part` and renamed only when complete, so a failed or cancelled run leaves the directory clean.
  *
  * Reply: a FRESH broadcast to `reply_package` with action `reply_action`, extras `reply_id` (echoed verbatim)
  * and `result` = `OK:<path>|<bytes>|<human size>|<n> categories` (EXPORT_STATE), `OK:` + the `id<TAB>label`
@@ -72,8 +81,12 @@ class StateExportReceiver : BroadcastReceiver() {
         val pathOverride = intent.getStringExtra(EXTRA_PATH)?.trim().orEmpty()
         val items = intent.getStringExtra(EXTRA_ITEMS)?.trim().orEmpty()
 
+        // CANCEL_EXPORT answers nothing, ever — not an `OK:`, and not a gate error either.
+        val isCancel = action == cancelExportAction(app)
+
         val replied = AtomicBoolean(false)
         fun reply(result: String) {
+            if (isCancel) return
             if (replyAction.isEmpty() || replyPackage.isEmpty()) return
             if (!replied.compareAndSet(false, true)) return
             app.sendBroadcast(
@@ -106,12 +119,19 @@ class StateExportReceiver : BroadcastReceiver() {
             listCategoriesAction(app) ->
                 reply(
                     "OK:" +
-                        BackupPart.entries.joinToString("\n") { "${it.id}\t${app.getString(it.labelRes)}" }
+                        BackupPart.entries.joinToString("\n") { part ->
+                            // id ⇥ label ⇥ parent (always empty — flat parts) ⇥ on|off
+                            val on = if (part.defaultSelected) "on" else "off"
+                            "${part.id}\t${app.getString(part.labelRes)}\t\t$on"
+                        }
                 )
+
+            cancelExportAction(app) -> requestCancel(replyId)
 
             exportStateAction(app) -> {
                 val parts: Set<BackupPart> = if (items.isEmpty()) {
-                    BackupPart.entries.toSet()
+                    // "Our default set" — which is exactly the ones LIST_CATEGORIES reports as `on`.
+                    BackupPart.entries.filter { it.defaultSelected }.toSet()
                 } else {
                     val ids = items.split(",").map { it.trim() }.filter { it.isNotEmpty() }
                     val resolved = ids.mapNotNull { BackupPart.fromId(it) }
@@ -164,6 +184,7 @@ class StateExportReceiver : BroadcastReceiver() {
         }
 
         val pending = goAsync()
+        markExportRunning(replyId)
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
                 val entry = EntryPointAccessors.fromApplication(app, BackupEntryPoint::class.java)
@@ -186,10 +207,13 @@ class StateExportReceiver : BroadcastReceiver() {
                     reply("ERROR:not a directory: $dirPath")
                     return@launch
                 }
-                val file = File(dir, BackupManager.exportFileName())
-                val result = file.outputStream().use { out ->
-                    entry.backupManager().export(parts, out, appVersionName(app), ::progress)
-                }
+                val (file, result) = entry.backupManager().exportToDirectory(
+                    parts = parts,
+                    dir = dir,
+                    appVersion = appVersionName(app),
+                    onProgress = ::progress,
+                    isCancelled = { cancelRequested }
+                )
                 val written = parts.size - result.errors.size
                 if (written <= 0) {
                     file.delete()
@@ -199,9 +223,16 @@ class StateExportReceiver : BroadcastReceiver() {
                 val bytes = file.length()
                 val failed = if (result.errors.isEmpty()) "" else " (${result.errors.size} failed)"
                 reply("OK:${file.absolutePath}|$bytes|${humanSize(bytes)}|$written categories$failed")
+            } catch (_: BackupCancelledException) {
+                // The partial is already gone (BackupManager deletes it); the original request still gets its
+                // one terminal reply, so the run is proven ended rather than continuing unseen.
+                reply("ERROR:cancelled")
             } catch (e: Exception) {
                 reply("ERROR:${e.message ?: e.javaClass.simpleName}")
             } finally {
+                markExportFinished()
+                // This receiver has no foreground service and no wakelock: releasing the held broadcast is
+                // the whole of the "let the process go" step, on the cancel path exactly as on success.
                 pending.finish()
             }
         }
@@ -213,6 +244,8 @@ class StateExportReceiver : BroadcastReceiver() {
         fun exportStateAction(context: Context): String = "${context.packageName}.action.EXPORT_STATE"
 
         fun listCategoriesAction(context: Context): String = "${context.packageName}.action.LIST_CATEGORIES"
+
+        fun cancelExportAction(context: Context): String = "${context.packageName}.action.CANCEL_EXPORT"
 
         // Contract extras — deliberately bare names, shared verbatim by every sister app.
         const val EXTRA_TOKEN = "token"
@@ -230,6 +263,44 @@ class StateExportReceiver : BroadcastReceiver() {
         const val EXTRA_PROGRESS_UNIT = "unit"
 
         private const val PROGRESS_MIN_INTERVAL_MS = 500L
+
+        // ---- cancellation ------------------------------------------------------------------------------
+        // Process-wide, because each broadcast lands on a FRESH receiver instance: the CANCEL_EXPORT that
+        // stops a run is never the instance that started it. Two exports at once are forbidden by the
+        // contract, so one flag is enough.
+
+        /** Up only between an export's start and its `finally`. */
+        private val exportRunning = AtomicBoolean(false)
+
+        /** The `reply_id` of the run in flight, so a targeted cancel can confirm it means this one. */
+        @Volatile
+        private var runningReplyId: String = ""
+
+        /** Polled by the write loop at every entry boundary — never an interrupt, never a kill. */
+        @Volatile
+        private var cancelRequested: Boolean = false
+
+        private fun markExportRunning(replyId: String) {
+            runningReplyId = replyId
+            cancelRequested = false
+            exportRunning.set(true)
+        }
+
+        private fun markExportFinished() {
+            exportRunning.set(false)
+            cancelRequested = false
+            runningReplyId = ""
+        }
+
+        /**
+         * Raise the flag for the run in flight. An empty [replyId] means "whatever is running"; a given one
+         * must match. Nothing running, already finished, or a different run → silent no-op, by design.
+         */
+        private fun requestCancel(replyId: String) {
+            if (!exportRunning.get()) return
+            if (replyId.isNotEmpty() && replyId != runningReplyId) return
+            cancelRequested = true
+        }
 
         private fun appVersionName(context: Context): String = runCatching {
             context.packageManager.getPackageInfo(context.packageName, 0).versionName

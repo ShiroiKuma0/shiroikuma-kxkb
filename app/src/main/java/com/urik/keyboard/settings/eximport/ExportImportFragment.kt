@@ -240,8 +240,9 @@ class ExportImportFragment : Fragment() {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
                     if (!dir.exists()) dir.mkdirs()
-                    val file = File(dir, name)
-                    file.outputStream().use { backupManager.export(parts, it, version) }
+                    // Same writer as the headless automation path: a `.part` file renamed only once the
+                    // archive is complete, so a failure never leaves a short .zip in the backup folder.
+                    backupManager.exportToDirectory(parts, dir, version, name)
                 }
             }
             result.onSuccess {

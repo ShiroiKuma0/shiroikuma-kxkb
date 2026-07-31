@@ -17,6 +17,8 @@ import com.urik.keyboard.data.database.WordSource
 import com.urik.keyboard.settings.SettingsRepository
 import com.urik.keyboard.utils.ErrorLogger
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.io.File
+import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.text.SimpleDateFormat
@@ -44,7 +46,9 @@ enum class BackupPart(val id: String, val fileName: String, val labelRes: Int, v
     LAYOUTS("layouts", "layouts.json", R.string.backup_part_layouts),
     USER_DICTIONARY("user_dictionary", "user_dictionary.json", R.string.backup_part_user_dictionary),
     LEARNED_WORDS("learned_words", "learned_words.json", R.string.backup_part_learned_words),
-    NEXT_WORD("next_word", "next_word.json", R.string.backup_part_next_word),
+    // Next-word statistics rebuild themselves from ordinary typing — nothing authored is lost by
+    // leaving them out, so this is the one part that starts unticked (here and on the automation wire).
+    NEXT_WORD("next_word", "next_word.json", R.string.backup_part_next_word, defaultSelected = false),
     BLACKLIST("blacklist", "blacklist.json", R.string.backup_part_blacklist),
     PER_APP("per_app", "per_app.json", R.string.backup_part_per_app);
 
@@ -57,6 +61,13 @@ enum class BackupPart(val id: String, val fileName: String, val labelRes: Int, v
 data class BackupResult(val lines: List<String>, val errors: List<String>) {
     val ok: Boolean get() = errors.isEmpty()
 }
+
+/**
+ * Thrown out of [BackupManager.export] when the caller's cancel flag went up between two entries — the one
+ * failure that is not an error. The partial file is deleted like any other failure, so a cancelled export
+ * leaves the backup directory exactly as it found it.
+ */
+class BackupCancelledException : Exception("cancelled")
 
 /**
  * The modular export/import engine. An export is a single ZIP — one JSON file per selected [BackupPart] plus
@@ -89,12 +100,16 @@ constructor(
      * [onProgress] is invoked after each part is written, with `(done, total, part label)` — the headless
      * automation path ([com.urik.keyboard.automation.StateExportReceiver]) turns those into real-count progress
      * broadcasts. The UI panel and the receiver are the two thin callers of this one engine.
+     *
+     * [isCancelled] is polled at every entry boundary; when it goes up the write unwinds with a
+     * [BackupCancelledException] rather than being interrupted mid-`write()`.
      */
     suspend fun export(
         parts: Set<BackupPart>,
         out: OutputStream,
         appVersion: String,
-        onProgress: ((done: Int, total: Int, partLabel: String) -> Unit)? = null
+        onProgress: ((done: Int, total: Int, partLabel: String) -> Unit)? = null,
+        isCancelled: (() -> Boolean)? = null
     ): BackupResult =
         withContext(ioDispatcher) {
             val lines = mutableListOf<String>()
@@ -105,6 +120,7 @@ constructor(
             ZipOutputStream(out).use { zip ->
                 for (part in BackupPart.entries) {
                     if (part !in parts) continue
+                    if (isCancelled?.invoke() == true) throw BackupCancelledException()
                     try {
                         val (payload, count) = exportPart(part)
                         zip.putNextEntry(ZipEntry(part.fileName))
@@ -119,6 +135,7 @@ constructor(
                     done++
                     onProgress?.invoke(done, total, context.getString(part.labelRes))
                 }
+                if (isCancelled?.invoke() == true) throw BackupCancelledException()
                 val manifest = JSONObject()
                     .put("format", FORMAT)
                     .put("version", FORMAT_VERSION)
@@ -132,6 +149,34 @@ constructor(
             }
             BackupResult(lines, errors)
         }
+
+    /**
+     * Write the selected [parts] into [dir] as one backup ZIP named [fileName], through a `<name>.part` temp
+     * file that is renamed to its final name only once the archive is complete. Any failure — a cancel
+     * ([isCancelled]) included — deletes the partial in the same `finally`, so the backup directory is left
+     * exactly as it was found: no short archive, no stray `.part`. Returns the finished file and its result.
+     *
+     * Both callers go through here: the Export/import page and the headless automation receiver.
+     */
+    suspend fun exportToDirectory(
+        parts: Set<BackupPart>,
+        dir: File,
+        appVersion: String,
+        fileName: String = exportFileName(),
+        onProgress: ((done: Int, total: Int, partLabel: String) -> Unit)? = null,
+        isCancelled: (() -> Boolean)? = null
+    ): Pair<File, BackupResult> = withContext(ioDispatcher) {
+        val target = File(dir, fileName)
+        val partial = File(dir, fileName + PART_SUFFIX)
+        try {
+            val result = partial.outputStream().use { export(parts, it, appVersion, onProgress, isCancelled) }
+            if (!partial.renameTo(target)) throw IOException("cannot rename ${partial.name} to ${target.name}")
+            target to result
+        } finally {
+            // A no-op after a successful rename; the whole point of the `.part` name on every other path.
+            partial.delete()
+        }
+    }
 
     /** Read a backup ZIP from [input] and apply the selected [parts] that it contains. */
     suspend fun import(parts: Set<BackupPart>, input: InputStream): BackupResult = withContext(ioDispatcher) {
@@ -479,6 +524,13 @@ constructor(
          * and the import picker still find them.
          */
         const val EXPORT_PREFIX = "shiroikuma-kxkb_"
+
+        /**
+         * An export in flight is written as `<final-name>.part`; it becomes the real backup only on a
+         * complete archive. The suffix keeps it out of [isBackupFileName], so a partial is never offered
+         * for import and never counts as the newest backup.
+         */
+        const val PART_SUFFIX = ".part"
 
         /** The one backup name this app ever writes, from the UI panel and from the automation receiver alike. */
         fun exportFileName(now: Long = System.currentTimeMillis()): String =
