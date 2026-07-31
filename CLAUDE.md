@@ -326,10 +326,27 @@ at read, and `getLayoutForMode` at BFU always returns success now; the pick ride
 **Layouts** category (device-protected prefs are outside DataStore) and `BfuLayoutTest` covers the five
 cases (suite 1 932 green).
 
-**Released `0.23.1+304`** (2026-07-29; tagged `v0.23.1+304`, APK + gzipped R8 `mapping.txt` attached,
+**Shipped since `+304`** (the `+305` line): **the automation contract's `on|off` column and a
+cancellable export** — `LIST_CATEGORIES` now emits the contract's optional fourth field
+(`id⇥label⇥parent⇥on|off`, the parent always empty since our parts are flat) so 保存復元 redraws its
+item picker from OUR answer instead of assuming everything starts ticked; `NEXT_WORD` is the one
+part with `defaultSelected = false` (the statistics rebuild themselves from typing), and an
+`EXPORT_STATE` with no `items` extra now means that default set rather than every category. Plus a
+third exported action `shiroikuma.kxkb.action.CANCEL_EXPORT` (token-gated, optional `reply_id`,
+**answers nothing** — not an `OK:`, not even a gate error): a `@Volatile` flag in the receiver's
+COMPANION (each broadcast lands on a fresh instance) that `BackupManager.export` polls at every
+entry boundary, unwinding through the new `BackupCancelledException` — never an interrupt, never a
+kill; every export is now written as `<name>.zip.part` and renamed only when complete, with the
+partial deleted in the same `finally` as any other failure (the suffix keeps partials out of
+`isBackupFileName`), the original request still gets its single `ERROR:cancelled`, and nothing
+running / already finished / a foreign `reply_id` is a silent no-op. `BackupManager.exportToDirectory`
+is the one `.part` writer both callers use, so the in-app Export button can't leave a half-written
+backup either.
+
+**Released `0.23.1+305`** (2026-07-31; tagged `v0.23.1+305`, APK + gzipped R8 `mapping.txt` attached,
 on the fork's GitHub; default branch `custom`; README badge + `CHANGELOG.md` track it). Recent fork
-releases: `+299`, `+300`, `+301`, `+302`, `+304` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`,
+releases: `+300`, `+301`, `+302`, `+304`, `+305` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`,
 `+198`, `+204`, `+211`, `+213`, `+214`, `+215`, `+217`, `+222`, `+230`, `+250`, `+287`, `+292`,
-`+295`, `+296`, `+298`). Remaining M5 tail (low
+`+295`, `+296`, `+298`, `+299`). Remaining M5 tail (low
 priority): number/arrow rows on the look page, quick-period flick. Full architecture + milestone
 sequence in `docs/PLAN.md`.
