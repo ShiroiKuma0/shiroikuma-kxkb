@@ -83,6 +83,7 @@ constructor(
         val PRIMARY_LANGUAGE = stringPreferencesKey("primary_language")
         val PRIMARY_LAYOUT_LANGUAGE = stringPreferencesKey("primary_layout_language")
         val PER_APP_LAYOUT_LANGUAGES = stringPreferencesKey("per_app_layout_languages")
+        val PER_APP_LAYOUT_BINDINGS = stringPreferencesKey("per_app_layout_bindings")
         val ACTIVE_LAYOUT_BY_LANGUAGE = stringPreferencesKey("active_layout_by_language")
         val VISIBLE_LAYOUTS_BY_LANGUAGE = stringPreferencesKey("visible_layouts_by_language")
         val LAYOUT_DEFAULTS_MIGRATED = booleanPreferencesKey("layout_defaults_migrated")
@@ -500,6 +501,59 @@ constructor(
         Result.failure(e)
     }
 
+    /**
+     * Per-(app · geometry) layout binding: the language+layout pair last chosen in each app IN EACH
+     * fold-state·orientation, so folding / rotating restores the board that geometry last used there
+     * (semi-folded Termux on one layout, folded Termux on another). The map key is
+     * `<package>` + U+001F + `<geometry>` — U+001F occurs in neither a package name nor a geometry key,
+     * and is not the `\t`/`\n` the encoder uses; the value is `"<language>|<layoutId>"`.
+     *
+     * An app·geometry with no binding of its own falls back to the geometry-less
+     * [getPerAppLayoutLanguage] (which remembers a language but no layout) — so a fold state entered for
+     * the first time still opens in a sensible language, and becomes independent the moment a layout is
+     * picked there.
+     */
+    suspend fun getPerAppLayoutBinding(packageName: String, geometry: String): Pair<String, String>? = try {
+        if (packageName.isBlank() || geometry.isBlank()) {
+            null
+        } else {
+            dataStore.data
+                .first()[PreferenceKeys.PER_APP_LAYOUT_BINDINGS]
+                ?.let { decodePerAppLayouts(it)[appGeometryKey(packageName, geometry)] }
+                ?.split("|")
+                ?.takeIf { it.size == 2 && it[0].isNotEmpty() && it[1].isNotEmpty() }
+                ?.let { it[0] to it[1] }
+        }
+    } catch (e: Exception) {
+        null
+    }
+
+    suspend fun setPerAppLayoutBinding(
+        packageName: String,
+        geometry: String,
+        language: String,
+        layoutId: String
+    ): Result<Unit> = try {
+        if (packageName.isNotBlank() && geometry.isNotBlank() && language.isNotBlank() && layoutId.isNotBlank()) {
+            dataStore.edit { preferences ->
+                val current = preferences[PreferenceKeys.PER_APP_LAYOUT_BINDINGS]
+                    ?.let { decodePerAppLayouts(it) } ?: emptyMap()
+                val key = appGeometryKey(packageName, geometry)
+                val value = "$language|$layoutId"
+                if (current[key] != value) {
+                    preferences[PreferenceKeys.PER_APP_LAYOUT_BINDINGS] =
+                        encodePerAppLayouts(current.toMutableMap().apply { this[key] = value })
+                }
+            }
+        }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    private fun appGeometryKey(packageName: String, geometry: String): String =
+        "$packageName$APP_GEOMETRY_SEP$geometry"
+
     /** The active layout id chosen for [language] (1D switcher), or null = use the registry default. */
     suspend fun getActiveLayoutForLanguage(language: String): String? = try {
         if (language.isBlank()) null
@@ -788,6 +842,7 @@ constructor(
         RAW_KEY_ACTIVE_LAYOUT_BY_LANGUAGE to PreferenceKeys.ACTIVE_LAYOUT_BY_LANGUAGE,
         RAW_KEY_VISIBLE_LAYOUTS_BY_LANGUAGE to PreferenceKeys.VISIBLE_LAYOUTS_BY_LANGUAGE,
         RAW_KEY_PER_APP_LAYOUT_LANGUAGES to PreferenceKeys.PER_APP_LAYOUT_LANGUAGES,
+        RAW_KEY_PER_APP_LAYOUT_BINDINGS to PreferenceKeys.PER_APP_LAYOUT_BINDINGS,
         RAW_KEY_CUSTOM_SUGGESTIONS to PreferenceKeys.CUSTOM_SUGGESTIONS,
         RAW_KEY_CUSTOM_SUGGESTIONS_BY_LANG to PreferenceKeys.CUSTOM_SUGGESTIONS_BY_LANG
     )
@@ -795,7 +850,8 @@ constructor(
     /**
      * Raw encoded DataStore strings that [exportPreferences] deliberately OMITS but the backup module needs:
      * the per-geometry look blob (colours/sizing), the library look, the active-layout-per-language
-     * selection, the per-app layout-language memory, and the custom-suggestions toolbar. Only the [names]
+     * selection, the per-app layout memory (language + the per-geometry bindings), and the
+     * custom-suggestions toolbar. Only the [names]
      * requested (a subset of RAW_KEY_*) that are actually present are returned.
      */
     suspend fun exportRawBackupValues(names: Set<String>): Map<String, String> = try {
@@ -1476,11 +1532,18 @@ constructor(
             "gnu" to "gnu_5r13c"
         )
 
+        /**
+         * Separator between the package and the geometry in a per-app layout-binding key. A unit
+         * separator can appear in neither half, and is neither the `\t` nor the `\n` the map encoder uses.
+         */
+        private const val APP_GEOMETRY_SEP = "\u001F"
+
         const val RAW_KEY_PER_GEOMETRY_LOOK = "per_geometry_look"
         const val RAW_KEY_LIBRARY_LOOK = "library_look"
         const val RAW_KEY_ACTIVE_LAYOUT_BY_LANGUAGE = "active_layout_by_language"
         const val RAW_KEY_VISIBLE_LAYOUTS_BY_LANGUAGE = "visible_layouts_by_language"
         const val RAW_KEY_PER_APP_LAYOUT_LANGUAGES = "per_app_layout_languages"
+        const val RAW_KEY_PER_APP_LAYOUT_BINDINGS = "per_app_layout_bindings"
         const val RAW_KEY_CUSTOM_SUGGESTIONS = "custom_suggestions"
         const val RAW_KEY_CUSTOM_SUGGESTIONS_BY_LANG = "custom_suggestions_by_lang"
 

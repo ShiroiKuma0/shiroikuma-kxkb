@@ -339,7 +339,12 @@ constructor(
 
         BackupPart.PER_APP -> {
             val raw = settingsRepository.exportRawBackupValues(
-                setOf(SettingsRepository.RAW_KEY_PER_APP_LAYOUT_LANGUAGES)
+                setOf(
+                    SettingsRepository.RAW_KEY_PER_APP_LAYOUT_LANGUAGES,
+                    // The per-(app · fold-state · orientation) layout bindings live alongside the
+                    // geometry-less language memory — both are "what this app types in".
+                    SettingsRepository.RAW_KEY_PER_APP_LAYOUT_BINDINGS
+                )
             )
             JSONObject().put("raw", JSONObject(raw)) to raw.size
         }

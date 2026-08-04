@@ -37,6 +37,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import com.urik.keyboard.KeyboardConstants.AutofillConstants.MAX_PASSWORD_INLINE_SUGGESTIONS
 import com.urik.keyboard.data.KeyboardRepository
+import com.urik.keyboard.data.LayoutRegistry
 import com.urik.keyboard.model.KeyboardDisplayMode
 import com.urik.keyboard.model.KeyboardEvent
 import com.urik.keyboard.model.KeyboardKey
@@ -108,7 +109,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -1172,6 +1175,9 @@ open class UrikInputMethodService :
                             settingsRepository.setPerAppLayoutLanguage(pkg, languageCode)
                         }
                     }
+                    // …and bind (app · geometry) -> language+layout, so this fold-state·orientation keeps
+                    // this board while the others keep theirs (see rememberLayoutForApp).
+                    rememberLayoutForApp(languageCode)
                 }
             } catch (e: Exception) {
                 ErrorLogger.logException(
@@ -1188,6 +1194,7 @@ open class UrikInputMethodService :
     fun switchToLayout(language: String, layoutId: String) {
         serviceScope.launch {
             settingsRepository.setActiveLayoutForLanguage(language, layoutId)
+            rememberLayoutForApp(language, layoutId)
             if (languageManager.currentLayoutLanguage.value != language) {
                 handleLanguageSwitch(language)
             } else {
@@ -1875,6 +1882,23 @@ open class UrikInputMethodService :
                         outputBridge.endBatchEdit()
                     }
                 }
+            }
+        )
+
+        observerJobs.add(
+            serviceScope.launch {
+                // Fold / rotate while a field is focused → restore the focused app's board for the NEW
+                // geometry, so each fold-state·orientation shows what it last used there. The look store
+                // already re-resolves on a geometry change (refreshLookKnobs above); this does the same for
+                // the layout IDENTITY, which otherwise only switched on field focus. distinctUntilChanged
+                // keeps it to real geometry transitions; drop(1) skips the initial value, already covered by
+                // the field-focus restore.
+                postureDetector
+                    ?.postureInfo
+                    ?.map { geometryKey(it) }
+                    ?.distinctUntilChanged()
+                    ?.drop(1)
+                    ?.collect { restoreLayoutForApp(currentInputEditorInfo?.packageName) }
             }
         )
 
@@ -3212,7 +3236,7 @@ open class UrikInputMethodService :
 
         applyFieldTypeFromEditorInfo(attribute)
 
-        restoreLayoutLanguageForApp(attribute?.packageName)
+        restoreLayoutForApp(attribute?.packageName)
 
         if (inputState.isSecureField) {
             clearSecureFieldState()
@@ -3232,10 +3256,59 @@ open class UrikInputMethodService :
         pkg != null && pkg == applicationContext.packageName
 
     /**
-     * Per-app layout memory: if a layout language was previously remembered for [packageName],
-     * switch to it (no-op when it already matches or is no longer active).
+     * The write half of the per-app layout memory: bind the app currently being typed in, IN THE CURRENT
+     * GEOMETRY, to [language] and the layout that language resolves to right now — so folding / rotating
+     * back into this fold-state·orientation restores this exact board, while the other geometries keep
+     * theirs. Called from every explicit user pick (the space-slide Layouts and Languages columns).
+     *
+     * Skipped inside our own settings UI (previewing a layout there must not rebind — see
+     * [isOwnSettingsApp]) and for hardware-keymap layouts, which deliberately stay active across apps.
+     *
+     * [knownLayoutId] short-circuits the resolve when the caller already knows the id it just activated.
      */
-    private fun restoreLayoutLanguageForApp(packageName: String?) {
+    private suspend fun rememberLayoutForApp(language: String, knownLayoutId: String? = null) {
+        val pkg = currentInputEditorInfo?.packageName
+        if (pkg.isNullOrBlank() || isOwnSettingsApp(pkg)) return
+        val layoutId = knownLayoutId ?: repository.resolveActiveLayoutId(language)
+        if (isHardwareKeymapLayout(layoutId)) return
+        val geometry = postureDetector?.postureInfo?.value?.let { geometryKey(it) }
+            ?: GeometryBucket.FOLDED_PORT.key
+        settingsRepository.setPerAppLayoutBinding(pkg, geometry, language, layoutId)
+    }
+
+    /**
+     * Whether [layoutId] is a physical-keyboard keymap (registry `kind` = `hwkeymap`), not a soft board.
+     * Off the main thread: the FIRST [LayoutRegistry.load] parses `registry.json` plus the custom store,
+     * and both halves of the per-app memory run on the input path.
+     */
+    private suspend fun isHardwareKeymapLayout(layoutId: String): Boolean = withContext(Dispatchers.IO) {
+        LayoutRegistry.load(this@UrikInputMethodService).entries.any {
+            it.id == layoutId && it.kind == "hwkeymap"
+        }
+    }
+
+    /**
+     * Whether [layoutId] still exists in the registry AND still belongs to [language] — a bound layout may
+     * have been deleted in the Library since, or its id re-created under another language.
+     */
+    private suspend fun layoutBelongsToLanguage(layoutId: String, language: String): Boolean =
+        withContext(Dispatchers.IO) {
+            LayoutRegistry.load(this@UrikInputMethodService).entries.any {
+                it.id == layoutId && it.lang == language
+            }
+        }
+
+    /**
+     * Per-app layout memory: restore the board [packageName] last used IN THE CURRENT GEOMETRY — the
+     * (app · fold-state · orientation) binding written by [rememberLayoutForApp], which carries the
+     * language AND the layout. An app·geometry never bound yet falls back to the geometry-less
+     * language-only memory, so a fold state entered for the first time still opens in a sensible
+     * language and becomes independent as soon as a layout is picked there.
+     *
+     * Called on field focus and on every geometry change while a field is focused. A no-op when the
+     * remembered board already matches.
+     */
+    private fun restoreLayoutForApp(packageName: String?) {
         if (packageName.isNullOrBlank()) return
         // Never restore inside our own settings UI / Keyboard editor — preserve the current layout so it can
         // be modified (see isOwnSettingsApp).
@@ -3243,21 +3316,45 @@ open class UrikInputMethodService :
         // A hardware-keymap layout (NexDock etc.) stays active across apps — on a physical keyboard the user
         // doesn't want it swapped out per-app, which would silently drop the remapping.
         if (::viewModel.isInitialized && viewModel.layout.value?.hardwareKeymap == true) return
+        val geometry = postureDetector?.postureInfo?.value?.let { geometryKey(it) }
+            ?: GeometryBucket.FOLDED_PORT.key
         serviceScope.launch {
             try {
-                val remembered = settingsRepository.getPerAppLayoutLanguage(packageName) ?: return@launch
-                if (remembered == languageManager.currentLayoutLanguage.value) return@launch
-                if (remembered !in languageManager.activeLanguages.value) return@launch
+                val bound = settingsRepository.getPerAppLayoutBinding(packageName, geometry)
+                val language = bound?.first
+                    ?: settingsRepository.getPerAppLayoutLanguage(packageName)
+                    ?: return@launch
+                if (language !in languageManager.activeLanguages.value) return@launch
 
-                if (languageManager.switchLayoutLanguage(remembered).isSuccess) {
-                    updateScriptContext(ULocale.forLanguageTag(remembered))
+                val layoutId = bound?.second?.takeIf { layoutBelongsToLanguage(it, language) }
+                val layoutChanged = layoutId != null &&
+                    settingsRepository.getActiveLayoutForLanguage(language) != layoutId
+                if (layoutChanged) {
+                    // Write the bound layout BEFORE switching language, so the reload the language switch
+                    // triggers already loads it — one rebuild, never a visible flip through the old board.
+                    settingsRepository.setActiveLayoutForLanguage(language, layoutId!!)
+                }
+                val languageChanged = language != languageManager.currentLayoutLanguage.value
+                if (!languageChanged && !layoutChanged) return@launch
+
+                if (languageChanged) {
+                    if (languageManager.switchLayoutLanguage(language).isSuccess) {
+                        updateScriptContext(ULocale.forLanguageTag(language))
+                    }
+                } else if (::viewModel.isInitialized) {
+                    // Same language, different layout: the view model reloads only on a LANGUAGE change,
+                    // so drive the reload here — the same path switchToLayout takes.
+                    repository.cleanup()
+                    viewModel.reloadLayout()
+                    refreshLookKnobs()
+                    withContext(Dispatchers.Main) { updateSwipeKeyboard() }
                 }
             } catch (e: Exception) {
                 ErrorLogger.logException(
                     component = "UrikInputMethodService",
                     severity = ErrorLogger.Severity.LOW,
                     exception = e,
-                    context = mapOf("operation" to "restoreLayoutLanguageForApp")
+                    context = mapOf("operation" to "restoreLayoutForApp")
                 )
             }
         }
