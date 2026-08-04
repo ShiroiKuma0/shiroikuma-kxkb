@@ -343,10 +343,30 @@ running / already finished / a foreign `reply_id` is a silent no-op. `BackupMana
 is the one `.part` writer both callers use, so the in-app Export button can't leave a half-written
 backup either.
 
-**Released `0.23.1+305`** (2026-07-31; tagged `v0.23.1+305`, APK + gzipped R8 `mapping.txt` attached,
+**Shipped since `+305`** (the `+306` line): **per-(app · fold-state · orientation) layout memory** —
+the layout a switch picked lived in `active_layout_by_language`, ONE global cell per language, and
+the per-app memory held only the language, keyed by package with no geometry; so one board set in
+Termux semi-folded and another folded wrote the same cell twice and both fold states showed the
+second (geometry reached the LOOK store — `app|layout|geometry` — but never the layout IDENTITY).
+futokxkb bound the whole subtype per (package × geometry) and re-applied it on focus AND on geometry
+change; only the per-app half had been re-derived here. New store `per_app_layout_bindings` (key
+`<package>` + U+001F + `<geometry>`, value `<language>|<layoutId>` — bound TOGETHER so a fold state
+can't keep a language while landing on another language's board), written by `switchToLayout` (with
+the id it just activated) and `handleLanguageSwitch` (resolving the id that language loads), skipped
+in our own settings app and for `hwkeymap` layouts; `restoreLayoutForApp` (was
+`restoreLayoutLanguageForApp`) resolves binding-for-this-geometry → the geometry-less language memory
+→ nothing, re-validates the bound layout against the registry (still present, still that language)
+and writes it to `active_layout_by_language` BEFORE the language switch so the reload the switch
+triggers already loads it (one rebuild, never a visible flip through the old board); a
+`postureInfo → geometryKey` collector (`distinctUntilChanged` + `drop(1)`) restores on fold/rotate,
+not only at the next field focus — without it a geometry-keyed store would still have been invisible
+until a refocus; registry lookups moved to `Dispatchers.IO` (they sit on the input path); the key
+rides in the existing **Per-app** backup category (`PerAppLayoutBindingTest`, suite 1 940 green).
+
+**Released `0.23.1+306`** (2026-08-04; tagged `v0.23.1+306`, APK + gzipped R8 `mapping.txt` attached,
 on the fork's GitHub; default branch `custom`; README badge + `CHANGELOG.md` track it). Recent fork
-releases: `+300`, `+301`, `+302`, `+304`, `+305` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`,
+releases: `+301`, `+302`, `+304`, `+305`, `+306` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`,
 `+198`, `+204`, `+211`, `+213`, `+214`, `+215`, `+217`, `+222`, `+230`, `+250`, `+287`, `+292`,
-`+295`, `+296`, `+298`, `+299`). Remaining M5 tail (low
+`+295`, `+296`, `+298`, `+299`, `+300`). Remaining M5 tail (low
 priority): number/arrow rows on the look page, quick-period flick. Full architecture + milestone
 sequence in `docs/PLAN.md`.
