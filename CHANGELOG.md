@@ -4,7 +4,32 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+305 — current
+## 0.23.1+306 — current
+
+Built on Urik `0.23.1-beta`. Each app now remembers its keyboard **per fold state and orientation**,
+not just per app.
+
+### 🖥️ A layout per app · per fold state · per orientation
+
+- Until now the layout a switch picked was remembered **per language** — one setting for the whole
+  device. Choosing one board for Termux with the phone half-open and a different one folded wrote
+  the same setting twice: the second choice replaced the first, and both fold states showed it.
+  Size, colours and split already varied per fold state; **which keyboard** did not.
+- Each app now remembers a **language and layout together, separately in every fold state and
+  orientation** — folded, half-open and unfolded, portrait and landscape, six independent slots per
+  app. Set Termux to a compact cluster board folded and a wide QWERTZ half-open, and each stays
+  where you put it.
+- The switch happens **the moment you fold, unfold or rotate**, not at the next time you tap a text
+  field. The keyboard that opens is already the one that geometry belongs to.
+- A fold state you have never chosen in falls back to the language that app last used, so it opens
+  in something sensible rather than blank — and becomes independent the instant you pick a layout
+  there.
+- Activating a layout in the **Library** still sets the per-language default, which is what apps and
+  fold states with no choice of their own follow.
+- The bindings are carried in the **Per-app** category of a backup, so export/import and the 保存復元
+  automation preserve them.
+
+## 0.23.1+305
 
 Built on Urik `0.23.1-beta`. The backup contract learns to say which categories start ticked, and a
 running headless export can now be stopped.
