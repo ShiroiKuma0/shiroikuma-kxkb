@@ -527,8 +527,7 @@ class SuggestionPipeline(
             }
         val skip = (regionEnd - actualCursorPos).coerceAtLeast(0)
         val lookahead: String? = outputBridge.safeGetTextAfterCursor(skip + 1)
-        val next = lookahead?.getOrNull(skip) ?: return false
-        return next.isWhitespace() || CursorEditingUtils.isPunctuation(next)
+        return CursorEditingUtils.trailingSpaceSuppressedByNextChar(lookahead?.getOrNull(skip))
     }
 
     /**
@@ -634,6 +633,10 @@ class SuggestionPipeline(
      * one string, then the caret is walked back over [suffix] via [moveCursorLeft] (a real LEFT keypress) —
      * `commitText(_, 0)` is not honoured by every editor, but caret-left navigation is. Mirrors
      * [coordinateCustomSuggestionSelection]'s finish-composing → commit → state-clear flow.
+     *
+     * A PAIR opens a group, exactly like a typed `(`: dropped straight after a word („Ahoj|“ + `(…)`) it
+     * would glue as „Ahoj()“, because the word commit inside quotes suppressed the space that would
+     * normally separate them. So it writes that space itself, on the same rule a typed opener uses.
      */
     suspend fun coordinateSpecialCommit(
         prefix: String,
@@ -647,7 +650,21 @@ class SuggestionPipeline(
                 outputBridge.beginBatchEdit()
                 try {
                     outputBridge.finishComposingText()
-                    outputBridge.commitText(prefix + suffix, 1)
+                    // Japanese writes without inter-word spaces (「…」 must hug the text), and a space
+                    // injected into "example.com/(" would break the address.
+                    val leading = if (
+                        suffix.isNotEmpty() &&
+                        !isJapaneseLayout &&
+                        !state.isUrlOrEmailField &&
+                        CursorEditingUtils.needsSpaceBeforeOpeningPair(
+                            outputBridge.safeGetTextBeforeCursor(1)
+                        )
+                    ) {
+                        " "
+                    } else {
+                        ""
+                    }
+                    outputBridge.commitText(leading + prefix + suffix, 1)
                     state.clearInternalStateOnly()
                     showBigramPredictions()
                     checkAutoCapitalization(outputBridge.safeGetTextBeforeCursor(50))

@@ -64,10 +64,15 @@ class NonLetterInputHandler(
                     val before = outputBridge.safeGetTextBeforeCursor(2)
                     if (before.length >= 2 && before.last() == ' ' && !before[before.length - 2].isWhitespace()) {
                         val single = char.single()
+                        // …unless the mark is typed INSIDE a pair („word |“): the re-added space would
+                        // land in front of the closer. Suppress it and remember it as the next word's
+                        // separator, exactly like a word commit does.
+                        val suppressTrailing = nextCharSuppressesTrailingSpace()
                         outputBridge.beginBatchEdit()
                         try {
                             outputBridge.deleteSurroundingText(1, 0)
-                            outputBridge.commitText("$char ", 1)
+                            outputBridge.commitText(if (suppressTrailing) char else "$char ", 1)
+                            inputState.pendingWordSeparator = suppressTrailing
                             inputState.lastAutocorrection = null
                             if (inputState.postCommitReplacementState != null) {
                                 inputState.postCommitReplacementState = null
@@ -324,8 +329,8 @@ class NonLetterInputHandler(
      * After a cluster candidate has been committed (which appends a trailing space, like Space does), attach
      * the punctuation [punctuation] with the right spacing: delete that auto-space, commit the mark, and decide
      * the trailing space.
-     *  - CLOSING_PUNCTUATION (`.,?!:;`), ellipsis, closing brackets/quotes (`)]}"`…), and the em dash all get a
-     *    trailing space (they end a clause/word).
+     *  - CLOSING_PUNCTUATION (`.,?!:;`), ellipsis, closing brackets/quotes (`)]}"`…), and the spaced dashes
+     *    all get a trailing space (they end a clause/word).
      *  - OPENING brackets/quotes (`([{"`…) join the FOLLOWING word, so NO trailing space.
      *  - The hyphen "-" joins words, so NO trailing space.
      * Re-runs sentence-end auto-cap so the next word capitalises. (Bugs A & C.)
@@ -333,26 +338,30 @@ class NonLetterInputHandler(
     private suspend fun commitPunctuationAfterClusterCommit(punctuation: Char) {
         outputBridge.beginBatchEdit()
         try {
-            // Openers ("word (") and the spaced em dash ("word — ") KEEP the preceding space; everything else
+            // Openers ("word (") and the spaced dashes ("word — ") KEEP the preceding space; everything else
             // (closers "word) ", the hyphen "word-", ellipsis/.,?!:;) attaches to the word, eating that space.
-            val keepPreceding = punctuation in OPENING_BRACKETS_QUOTES || punctuation == EM_DASH
-            if (!keepPreceding) {
-                val before = outputBridge.safeGetTextBeforeCursor(1)
-                if (before == " ") {
-                    outputBridge.deleteSurroundingText(1, 0)
-                }
+            val keepPreceding = punctuation in OPENING_BRACKETS_QUOTES || punctuation in SPACED_DASHES
+            val before = outputBridge.safeGetTextBeforeCursor(1)
+            // Inside a pair („Ahoj|“) there IS no preceding space to keep — the word commit suppressed it —
+            // so a mark that wants one has to write it itself, or it glues to the word („Ahoj(“, „Ahoj—“).
+            val leading = if (keepPreceding && needsLeadingSpace(before)) " " else ""
+            if (!keepPreceding && before == " ") {
+                outputBridge.deleteSurroundingText(1, 0)
             }
             val wantsTrailingSpace =
                 punctuation in CLOSING_PUNCTUATION ||
                     punctuation == '…' ||
                     punctuation in CLOSING_BRACKETS_QUOTES ||
-                    punctuation == EM_DASH
-            if (wantsTrailingSpace) {
-                outputBridge.commitText("$punctuation ", 1)
-            } else {
-                // Openers and the hyphen attach to what follows -> no trailing space.
-                outputBridge.commitText(punctuation.toString(), 1)
-            }
+                    punctuation in SPACED_DASHES
+            // A mark typed INSIDE a pair („Ahoj|“, “word|”, (word|) ) must not push its space in front of
+            // the closer — suppress it exactly like a word commit does and remember it as the following
+            // word's separator: „Ahoj|“ + "," gives „Ahoj,|“ (not the stranded-space „Ahoj, |“), and the
+            // next word then starts with its separator -> „Ahoj, světe|“.
+            val suppressTrailing = wantsTrailingSpace && nextCharSuppressesTrailingSpace()
+            // Openers and the hyphen attach to what follows -> no trailing space.
+            val trailing = if (wantsTrailingSpace && !suppressTrailing) " " else ""
+            outputBridge.commitText("$leading$punctuation$trailing", 1)
+            inputState.pendingWordSeparator = suppressTrailing
             swipeSpaceManager.clearAutoSpaceFlag()
             inputState.lastAutocorrection = null
             if (isSentenceEndingPunctuation(punctuation) && !inputState.requiresDirectCommit) {
@@ -365,6 +374,28 @@ class NonLetterInputHandler(
     }
 
     private fun isClusterTerminator(c: Char): Boolean = isClusterTerminatorChar(c)
+
+    /**
+     * True when the text right after the cursor already continues with whitespace or a mark — the closing
+     * half of the pair the user is typing inside („word|“). A punctuation commit there drops its trailing
+     * space (which would otherwise sit in front of the closer) and hands it to the next word via
+     * [InputStateManager.pendingWordSeparator]; the same rule the word commits use.
+     */
+    private fun nextCharSuppressesTrailingSpace(): Boolean =
+        CursorEditingUtils.trailingSpaceSuppressedByNextChar(
+            outputBridge.safeGetTextAfterCursor(1).firstOrNull()
+        )
+
+    /**
+     * True when a mark that KEEPS a preceding space (an opener, a spaced dash) has none in front of it
+     * because the commit before it suppressed one — the „Ahoj|“ + "(" case, which would otherwise glue as
+     * „Ahoj(“. The rule itself is [CursorEditingUtils.needsSpaceBeforeOpeningPair], shared with the custom
+     * row's cursor pairs. URL and email fields are exempt — a space injected into "example.com/(" would
+     * break the address.
+     */
+    private fun needsLeadingSpace(textBeforeCursor: String): Boolean =
+        !inputState.isUrlOrEmailField &&
+            CursorEditingUtils.needsSpaceBeforeOpeningPair(textBeforeCursor)
 
     /**
      * Commit the auto-corrected word immediately followed by [punctuation] (no trailing space), the same
@@ -474,7 +505,11 @@ class NonLetterInputHandler(
             if (before == " ") {
                 outputBridge.deleteSurroundingText(1, 0)
             }
-            outputBridge.commitText("$ellipsis ", 1)
+            // Inside a pair („Ahoj…|“) the trailing space would land before the closer: suppress it and
+            // hand it to the next word as its separator, like every other mark and word commit.
+            val suppressTrailing = nextCharSuppressesTrailingSpace()
+            outputBridge.commitText(if (suppressTrailing) ellipsis else "$ellipsis ", 1)
+            inputState.pendingWordSeparator = suppressTrailing
             swipeSpaceManager.clearAutoSpaceFlag()
             inputState.lastAutocorrection = null
             inputState.postCommitReplacementState = null
@@ -496,9 +531,11 @@ class NonLetterInputHandler(
         // Punctuation that attaches to the preceding word, eating an auto-space before it.
         private val CLOSING_PUNCTUATION = setOf('.', ',', '?', '!', ':', ';')
 
-        // The em dash (U+2014): closes a clause, so it gets a trailing space (and is NOT caught by
-        // isPunctuation, which excludes DASH_PUNCTUATION).
-        private const val EM_DASH = '—'
+        // The SPACED dashes — em (U+2014) and en (U+2013, the Czech/German "pomlčka" set off by spaces on
+        // both sides). They set a clause off, so they keep the space BEFORE them and get one AFTER — unlike
+        // the hyphen, which glues words. Neither is caught by isPunctuation (it excludes DASH_PUNCTUATION),
+        // so both must be named explicitly, here and in isClusterTerminatorChar.
+        private val SPACED_DASHES = setOf('—', '–')
 
         // Opening brackets/quotes: typed as a CHARACTER, they begin a group and join the FOLLOWING word, so
         // they terminate the composing cluster word but get NO trailing space. Includes the curly opens.
@@ -526,7 +563,7 @@ class NonLetterInputHandler(
             CursorEditingUtils.isPunctuation(c) ||
                 c == '-' ||
                 c == '…' ||
-                c == EM_DASH ||
+                c in SPACED_DASHES ||
                 c in OPENING_BRACKETS_QUOTES
     }
 }

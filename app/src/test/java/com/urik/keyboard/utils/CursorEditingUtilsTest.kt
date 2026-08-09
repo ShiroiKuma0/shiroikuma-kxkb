@@ -5,6 +5,32 @@ import org.junit.Test
 
 class CursorEditingUtilsTest {
     @Test
+    fun `needsSpaceBeforeOpeningPair separates an opener from a word end only`() {
+        // A real word end earns the separator: a letter, a digit, or a mark that closed a word.
+        Assert.assertTrue(CursorEditingUtils.needsSpaceBeforeOpeningPair("Ahoj"))
+        Assert.assertTrue(CursorEditingUtils.needsSpaceBeforeOpeningPair("Ahoj."))
+        Assert.assertTrue(CursorEditingUtils.needsSpaceBeforeOpeningPair("(test)"))
+        Assert.assertTrue(CursorEditingUtils.needsSpaceBeforeOpeningPair("15"))
+        // Whitespace already separates; openers and dashes glue legitimately; nothing before = line start.
+        Assert.assertFalse(CursorEditingUtils.needsSpaceBeforeOpeningPair("Ahoj "))
+        Assert.assertFalse(CursorEditingUtils.needsSpaceBeforeOpeningPair("„"))
+        Assert.assertFalse(CursorEditingUtils.needsSpaceBeforeOpeningPair("("))
+        Assert.assertFalse(CursorEditingUtils.needsSpaceBeforeOpeningPair("Ahoj—"))
+        Assert.assertFalse(CursorEditingUtils.needsSpaceBeforeOpeningPair(""))
+        Assert.assertFalse(CursorEditingUtils.needsSpaceBeforeOpeningPair(null))
+    }
+
+    @Test
+    fun `trailingSpaceSuppressedByNextChar fires on a closer or whitespace only`() {
+        Assert.assertTrue(CursorEditingUtils.trailingSpaceSuppressedByNextChar('“'))
+        Assert.assertTrue(CursorEditingUtils.trailingSpaceSuppressedByNextChar('”'))
+        Assert.assertTrue(CursorEditingUtils.trailingSpaceSuppressedByNextChar(')'))
+        Assert.assertTrue(CursorEditingUtils.trailingSpaceSuppressedByNextChar(' '))
+        Assert.assertFalse(CursorEditingUtils.trailingSpaceSuppressedByNextChar('a'))
+        Assert.assertFalse(CursorEditingUtils.trailingSpaceSuppressedByNextChar(null))
+    }
+
+    @Test
     fun `shouldClearStateOnEmptyField detects stale state in empty field`() {
         val shouldClear =
             CursorEditingUtils.shouldClearStateOnEmptyField(

@@ -310,6 +310,86 @@ class SuggestionPipelineTest {
             verify(mockIc).commitText("hello ", 1)
         }
 
+    // ---- Custom-row cursor pairs open a group: they need the separator a typed "(" gets. ----
+
+    @Test
+    fun `cursor pair after a word writes the separator space the word commit suppressed`() =
+        runTest(testDispatcher) {
+            // „Ahoj|“ — inside quotes the word commit left no trailing space for the pair to lean on.
+            whenever(mockIc.getTextBeforeCursor(eq(1), any())).thenReturn("j")
+
+            pipeline.coordinateSpecialCommit("(", ")", moveCursorLeft = {}, checkAutoCapitalization = {})
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            verify(mockIc).commitText(" ()", 1)
+        }
+
+    @Test
+    fun `cursor pair after a space is not double-spaced`() = runTest(testDispatcher) {
+        whenever(mockIc.getTextBeforeCursor(eq(1), any())).thenReturn(" ")
+
+        pipeline.coordinateSpecialCommit("[", "]", moveCursorLeft = {}, checkAutoCapitalization = {})
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockIc).commitText("[]", 1)
+    }
+
+    @Test
+    fun `cursor pair right inside an opening quote stays glued to it`() = runTest(testDispatcher) {
+        // „|“ — the pair opens where the quote just opened: no separator between „ and (.
+        whenever(mockIc.getTextBeforeCursor(eq(1), any())).thenReturn("„")
+
+        pipeline.coordinateSpecialCommit("(", ")", moveCursorLeft = {}, checkAutoCapitalization = {})
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockIc).commitText("()", 1)
+    }
+
+    @Test
+    fun `date template is not a pair and gains no leading space`() = runTest(testDispatcher) {
+        whenever(mockIc.getTextBeforeCursor(eq(1), any())).thenReturn("j")
+
+        pipeline.coordinateSpecialCommit("2026-08-09", "", moveCursorLeft = {}, checkAutoCapitalization = {})
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockIc).commitText("2026-08-09", 1)
+    }
+
+    @Test
+    fun `cursor pair in a url field never gains a leading space`() = runTest(testDispatcher) {
+        inputState.isUrlOrEmailField = true
+        whenever(mockIc.getTextBeforeCursor(eq(1), any())).thenReturn("m")
+
+        pipeline.coordinateSpecialCommit("(", ")", moveCursorLeft = {}, checkAutoCapitalization = {})
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockIc).commitText("()", 1)
+    }
+
+    @Test
+    fun `japanese cursor pair hugs the text with no leading space`() = runTest(testDispatcher) {
+        val japanesePipeline = SuggestionPipeline(
+            state = inputState,
+            outputBridge = outputBridge,
+            textInputProcessor = mockTextInputProcessor,
+            spellCheckManager = mockSpellCheckManager,
+            wordLearningEngine = mockWordLearningEngine,
+            wordFrequencyRepository = mockWordFrequencyRepository,
+            languageManager = mockLanguageManager,
+            caseTransformer = mockCaseTransformer,
+            scriptConverterRegistry = mockScriptConverterRegistry,
+            serviceScope = kotlinx.coroutines.CoroutineScope(testDispatcher),
+            host = FakeJapanesePipelineHost()
+        )
+        japanesePipeline.setJapaneseLayout(true)
+        whenever(mockIc.getTextBeforeCursor(eq(1), any())).thenReturn("京")
+
+        japanesePipeline.coordinateSpecialCommit("「", "」", moveCursorLeft = {}, checkAutoCapitalization = {})
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockIc).commitText("「」", 1)
+    }
+
     // ---- Japanese FIX 2: the trailing "＋登録" registration affordance. ----
 
     @Test

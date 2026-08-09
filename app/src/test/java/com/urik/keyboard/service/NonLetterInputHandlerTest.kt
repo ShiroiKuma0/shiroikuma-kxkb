@@ -164,6 +164,204 @@ class NonLetterInputHandlerTest {
         verify(mockOutputBridge).commitText(". ", 1)
     }
 
+    // ---- Punctuation typed INSIDE a pair („…“ / “…” / (…) ) defers its trailing space. ----
+
+    @Test
+    fun `cluster punctuation before a closing quote drops its trailing space and defers it`() {
+        realInputState.clusterLayoutActive = true
+        whenever(mockLanguageManager.currentLanguage)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("cs"))
+        // The word was already committed with its trailing space suppressed: cursor at „Ahoj|“.
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn("j")
+        whenever(mockOutputBridge.safeGetTextAfterCursor(eq(1), any())).thenReturn("“")
+
+        handler.handle(",")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Bare mark — the space must NOT land in front of the closing quote…
+        verify(mockOutputBridge).commitText(",", 1)
+        verify(mockOutputBridge, never()).commitText(", ", 1)
+        // …it is remembered as the separator the next word inserts ahead of itself.
+        assert(realInputState.pendingWordSeparator)
+    }
+
+    @Test
+    fun `cluster punctuation before a closing bracket drops its trailing space and defers it`() {
+        realInputState.clusterLayoutActive = true
+        whenever(mockLanguageManager.currentLanguage)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("en"))
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn("t")
+        whenever(mockOutputBridge.safeGetTextAfterCursor(eq(1), any())).thenReturn(")")
+
+        handler.handle(".")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockOutputBridge).commitText(".", 1)
+        assert(realInputState.pendingWordSeparator)
+    }
+
+    @Test
+    fun `cluster punctuation in open text keeps its trailing space and defers nothing`() {
+        realInputState.clusterLayoutActive = true
+        whenever(mockLanguageManager.currentLanguage)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("en"))
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn("t")
+        whenever(mockOutputBridge.safeGetTextAfterCursor(eq(1), any())).thenReturn("")
+
+        handler.handle(".")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockOutputBridge).commitText(". ", 1)
+        assert(!realInputState.pendingWordSeparator)
+    }
+
+    @Test
+    fun `auto-spacing punctuation before a closing quote defers its trailing space`() {
+        // "„Ahoj |“" (a literal space before the closer): the mark eats that space and must not re-add one.
+        whenever(mockLanguageManager.currentLanguage)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("cs"))
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(2), any())).thenReturn("j ")
+        whenever(mockOutputBridge.safeGetTextAfterCursor(eq(1), any())).thenReturn("“")
+
+        handler.handle(",")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockOutputBridge).deleteSurroundingText(1, 0)
+        verify(mockOutputBridge).commitText(",", 1)
+        assert(realInputState.pendingWordSeparator)
+    }
+
+    @Test
+    fun `ellipsis before a closing quote defers its trailing space`() {
+        whenever(mockLanguageManager.currentLanguage)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("cs"))
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn("j")
+        whenever(mockOutputBridge.safeGetTextAfterCursor(eq(1), any())).thenReturn("“")
+
+        handler.handle("…")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockOutputBridge).commitText("…", 1)
+        assert(realInputState.pendingWordSeparator)
+    }
+
+    // ---- The mirror case: a mark that KEEPS a preceding space must write it when none is there. ----
+
+    @Test
+    fun `opener inside quotes writes the preceding space the word commit suppressed`() {
+        realInputState.clusterLayoutActive = true
+        whenever(mockLanguageManager.currentLanguage)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("cs"))
+        // „Ahoj|“ — the word commit suppressed its trailing space, so there is none for "(" to keep.
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn("j")
+        whenever(mockOutputBridge.safeGetTextAfterCursor(eq(1), any())).thenReturn("“")
+
+        handler.handle("(")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // „Ahoj (|“ — not the glued „Ahoj(|“. An opener joins the FOLLOWING word: no trailing space,
+        // and nothing deferred (the next word attaches to the bracket).
+        verify(mockOutputBridge).commitText(" (", 1)
+        assert(!realInputState.pendingWordSeparator)
+    }
+
+    @Test
+    fun `opener after an existing auto-space does not double it`() {
+        realInputState.clusterLayoutActive = true
+        whenever(mockLanguageManager.currentLanguage)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("en"))
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn(" ")
+
+        handler.handle("(")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockOutputBridge).commitText("(", 1)
+        verify(mockOutputBridge, never()).deleteSurroundingText(1, 0)
+    }
+
+    @Test
+    fun `opener right after another opener stays glued`() {
+        realInputState.clusterLayoutActive = true
+        whenever(mockLanguageManager.currentLanguage)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("cs"))
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn("(")
+
+        handler.handle("[")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockOutputBridge).commitText("[", 1)
+    }
+
+    @Test
+    fun `opener in a url field never gains a leading space`() {
+        realInputState.clusterLayoutActive = true
+        realInputState.isUrlOrEmailField = true
+        whenever(mockLanguageManager.currentLanguage)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("en"))
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn("m")
+
+        handler.handle("(")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockOutputBridge).commitText("(", 1)
+    }
+
+    @Test
+    fun `em dash inside quotes gets both spaces - the leading one written, the trailing deferred`() {
+        realInputState.clusterLayoutActive = true
+        whenever(mockLanguageManager.currentLanguage)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("en"))
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn("d")
+        whenever(mockOutputBridge.safeGetTextAfterCursor(eq(1), any())).thenReturn("”")
+
+        handler.handle("—")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // “word —|” with the trailing space handed to the next word, never stranded before the closer.
+        verify(mockOutputBridge).commitText(" —", 1)
+        assert(realInputState.pendingWordSeparator)
+    }
+
+    @Test
+    fun `en dash is a spaced dash - it terminates the cluster word and takes both spaces`() {
+        realInputState.clusterLayoutActive = true
+        realInputState.displayBuffer = "Deh"
+        realInputState.pendingSuggestions = listOf("Yes")
+        whenever(mockLanguageManager.currentLanguage)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("cs"))
+        // The candidate commit left its auto-space: open text, so the dash keeps it and adds its own.
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn(" ")
+
+        handler.handle("–")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // The centre letters never take the dash — the candidate is committed first, then " – " spacing.
+        verifyBlocking(mockSuggestionPipeline) { coordinateSuggestionSelection(eq("Yes"), any(), any()) }
+        verify(mockOutputBridge).commitText("– ", 1)
+        verify(mockOutputBridge, never()).deleteSurroundingText(1, 0)
+    }
+
+    @Test
+    fun `en dash inside quotes writes its leading space and defers the trailing one`() {
+        realInputState.clusterLayoutActive = true
+        whenever(mockLanguageManager.currentLanguage)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("cs"))
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn("j")
+        whenever(mockOutputBridge.safeGetTextAfterCursor(eq(1), any())).thenReturn("“")
+
+        handler.handle("–")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockOutputBridge).commitText(" –", 1)
+        assert(realInputState.pendingWordSeparator)
+    }
+
+    @Test
+    fun `en dash is a cluster terminator so it never joins the centre-letter buffer`() {
+        assert(NonLetterInputHandler.isClusterTerminatorChar('–'))
+        assert(NonLetterInputHandler.isClusterTerminatorChar('—'))
+    }
+
     // ---- Bug 2: ellipsis gets a trailing space like sentence-ending punctuation. ----
 
     @Test

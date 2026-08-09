@@ -12,6 +12,9 @@ object CursorEditingUtils {
     private const val UNAMBIGUOUS_CLOSERS = ")]}»"
     private const val QUOTE_GLYPHS = "“”\"«"
 
+    // Marks that END a word, so an opener/dash following one needs a separator space before it.
+    private const val WORD_ENDING_MARKS = ".,?!:;…)]}\"”»"
+
     /**
      * True when the character immediately before the cursor closes a bracket/quote pair — a NEW word
      * started there needs a separator space ("(test)|so" → "(test) so"). Unambiguous closers always
@@ -27,6 +30,33 @@ object CursorEditingUtils {
             return textBeforeCursor.length >= 2 && textBeforeCursor[textBeforeCursor.length - 2].isLetterOrDigit()
         }
         return false
+    }
+
+    /**
+     * The mirror of [needsSpaceAfterClosingPair]: true when an OPENING mark (a typed `(`/`“`/dash, or a
+     * whole cursor pair `(…)` tapped on the custom row) would glue to what precedes it. Only a real word
+     * end earns the separator — a letter/digit, or a mark that closed one (`.,?!:;`, `)]}"”»`, `…`).
+     * Whitespace already separates; an opener or dash right before glues legitimately („(|“ + "[" -> „([“);
+     * nothing before means the field/line just started. Inside a pair („Ahoj|“) there is no preceding space
+     * to keep — the word commit suppressed it — so the mark has to write one itself.
+     */
+    fun needsSpaceBeforeOpeningPair(textBeforeCursor: String?): Boolean {
+        val prev = textBeforeCursor?.lastOrNull() ?: return false
+        return prev.isLetterOrDigit() || prev in WORD_ENDING_MARKS
+    }
+
+    /**
+     * True when the character right after the cursor is whitespace or a mark — typically the closing
+     * half of a pair the text already continues with („word|“, “word|”, (word|) ). A commit there must
+     * NOT append its own trailing space, or the space lands INSIDE the pair („word “). The suppressed
+     * space is the FOLLOWING word's separator: callers remember it in
+     * InputStateManager.pendingWordSeparator and the next word start inserts it. Shared by the word
+     * commits (SuggestionPipeline) and the punctuation commits (NonLetterInputHandler) so a mark typed
+     * inside quotes behaves exactly like a word typed there.
+     */
+    fun trailingSpaceSuppressedByNextChar(nextChar: Char?): Boolean {
+        val next = nextChar ?: return false
+        return next.isWhitespace() || isPunctuation(next)
     }
 
     fun isPunctuation(char: Char): Boolean {
