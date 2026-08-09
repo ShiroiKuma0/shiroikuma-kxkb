@@ -4,7 +4,47 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+306 — current
+## 0.23.1+309 — current
+
+Built on Urik `0.23.1-beta`. Punctuation, brackets and dashes typed **inside quotation marks** now
+space themselves the way words already did.
+
+### 🔤 A mark inside quotes no longer strands its space
+
+- Typing `,` or `.` inside „…“ / “…” / (…) pushed a space in front of the closing mark — „Ahoj, “
+  instead of „Ahoj,“. Words learned this rule long ago: a commit that lands before a closer holds
+  its space back and hands it to the next word. Every mark now does the same, so the space appears
+  only when the following word starts — „Ahoj, světe“.
+- Applies to `.,?!:;`, the ellipsis, closing brackets and quotes and both dashes, on the cluster
+  path, the auto-spacing path and the ellipsis path alike.
+- The decision is made from the character actually sitting after the caret, so every language's
+  quotes are covered at once — “…”, „…“, «…», (…), […], {…}.
+
+### ➡️ Openers and dashes write the space they expect
+
+- The mirror case: `(`, `[`, `{`, `"`, `“`, `‘` and the dashes keep the space **before** them — but
+  inside quotes there was none left to keep, so they glued to the word: „Ahoj(“. They now write it
+  themselves when the character before really ends a word (a letter, a digit, or a mark that closed
+  one).
+- Nothing is added after a space, after another opener or dash, at the start of a line, or in URL
+  and e-mail fields, where an injected space would break the address.
+
+### ➖ The en dash is a real keyboard character again
+
+- `–` (U+2013) was never registered as a word terminator — only the em dash `—` was — so on every
+  cluster and flat board it was appended to the tapped centre letters and corrupted the word being
+  composed. It is now a spaced dash alongside the em dash: it ends the word, keeps the space before
+  it and takes one after — „slovo – slovo“.
+
+### 🔗 The `()` and `[]` entries in the candidate row
+
+- The custom-row cursor pairs — `(…)`, `[…]`, `{…}`, `„…“`, `«…»`, `"…"` — open a group exactly like
+  a typed bracket, so they take the same separator: tapped straight after a word inside quotes they
+  now give „Ahoj (|)“ instead of „Ahoj()“, with the caret still between the brackets.
+- Japanese is exempt (「…」 hugs its text, as the language requires), as are URL and e-mail fields;
+  date templates and plain literals are untouched.
+
+## 0.23.1+306
 
 Built on Urik `0.23.1-beta`. Each app now remembers its keyboard **per fold state and orientation**,
 not just per app.
