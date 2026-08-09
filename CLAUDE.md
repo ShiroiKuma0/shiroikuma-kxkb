@@ -363,10 +363,31 @@ not only at the next field focus — without it a geometry-keyed store would sti
 until a refocus; registry lookups moved to `Dispatchers.IO` (they sit on the input path); the key
 rides in the existing **Per-app** backup category (`PerAppLayoutBindingTest`, suite 1 940 green).
 
-**Released `0.23.1+306`** (2026-08-04; tagged `v0.23.1+306`, APK + gzipped R8 `mapping.txt` attached,
+**Shipped since `+306`** (the `+309` line): **spacing around marks and pairs typed INSIDE quotation
+pairs** — `+292` taught the WORD commit to hold its trailing space back before a closer and hand it
+to the next word (`pendingWordSeparator`), but punctuation never learned it, so „Ahoj|“ + `,` gave
+the stranded „Ahoj, |“; every mark that wants a trailing space (`.,?!:;`, `…`, closing
+brackets/quotes, both dashes) now suppresses it on the same shared rule
+(`CursorEditingUtils.trailingSpaceSuppressedByNextChar`, read by the word commits too) across the
+cluster path, the auto-spacing path and the ellipsis path, and defers it as the next word's
+separator; the MIRROR case — openers (`([{"“‘`) and the spaced dashes KEEP a preceding space, but
+inside a pair the word commit had already suppressed it, so they glued („Ahoj(“) — is fixed by
+`CursorEditingUtils.needsSpaceBeforeOpeningPair` (a real word end only: letter/digit or a mark that
+closed one; never after whitespace/another opener/a dash/at line start, URL+email fields exempt);
+the **en dash U+2013 was not a cluster terminator at all** (`isPunctuation` excludes
+DASH_PUNCTUATION and only U+2014 was named), so on every cluster and flat board it was appended to
+the centre-letter buffer — the Bug C corruption — and both dashes now share one `SPACED_DASHES` set
+driving routing and both spaces; the **custom-row cursor pairs** (`(…)` `[…]` `{…}` `„…“` `«…»`
+`"…"`) open a group like a typed bracket and take the same separator in `coordinateSpecialCommit`
+(Japanese exempt — 「…」 hugs its text —, URL/email exempt, date templates and plain literals
+untouched). Suite 1 961 green. Known gap left alone: a Czech closing `“` typed from a KEY (not a
+pair) still keeps the word's auto-space in front of it — U+201C is an English opener and a Czech
+closer, so resolving it needs a per-layout-language decision.
+
+**Released `0.23.1+309`** (2026-08-09; tagged `v0.23.1+309`, APK + gzipped R8 `mapping.txt` attached,
 on the fork's GitHub; default branch `custom`; README badge + `CHANGELOG.md` track it). Recent fork
-releases: `+301`, `+302`, `+304`, `+305`, `+306` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`,
+releases: `+304`, `+305`, `+306`, `+309` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`,
 `+198`, `+204`, `+211`, `+213`, `+214`, `+215`, `+217`, `+222`, `+230`, `+250`, `+287`, `+292`,
-`+295`, `+296`, `+298`, `+299`, `+300`). Remaining M5 tail (low
+`+295`, `+296`, `+298`, `+299`, `+300`, `+301`, `+302`). Remaining M5 tail (low
 priority): number/arrow rows on the look page, quick-period flick. Full architecture + milestone
 sequence in `docs/PLAN.md`.
