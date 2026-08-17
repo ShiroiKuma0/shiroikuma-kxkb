@@ -15,6 +15,9 @@ object CursorEditingUtils {
     // Marks that END a word, so an opener/dash following one needs a separator space before it.
     private const val WORD_ENDING_MARKS = ".,?!:;…)]}\"”»"
 
+    // Marks that can sit INSIDE a number — time/ratio, decimal, thousands separator. See isNumberInternalMark.
+    private const val NUMBER_INTERNAL_MARKS = ":,."
+
     /**
      * True when the character immediately before the cursor closes a bracket/quote pair — a NEW word
      * started there needs a separator space ("(test)|so" → "(test) so"). Unambiguous closers always
@@ -58,6 +61,19 @@ object CursorEditingUtils {
         val next = nextChar ?: return false
         return next.isWhitespace() || isPunctuation(next)
     }
+
+    /**
+     * A colon, comma or period typed straight after a digit may belong INSIDE the number — a 24-hour time
+     * or ratio ("10:35", "16:9"), a Czech decimal or English thousands separator ("3,14", "1,000"), an
+     * English decimal ("3.14") — so it must not push a space between the two halves.
+     *
+     * The space is deferred, not dropped: the caller remembers it in
+     * InputStateManager.pendingWordSeparator, which only a following WORD consumes. So the rest of the
+     * number arrives glued ("10:35", "3,14") while the readings that DO end a clause get their space back
+     * as soon as a word follows — "bod 3: text", the Czech ordinal "10. května", "…in 1999, then…".
+     */
+    fun isNumberInternalMark(mark: Char, charBefore: Char?): Boolean =
+        mark in NUMBER_INTERNAL_MARKS && charBefore != null && charBefore.isDigit()
 
     fun isPunctuation(char: Char): Boolean {
         if (char == '\'' || char == '\u2019' || char == '-') return false

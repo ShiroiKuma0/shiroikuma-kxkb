@@ -216,6 +216,84 @@ class NonLetterInputHandlerTest {
     }
 
     @Test
+    fun `a colon straight after a digit holds its space back so a time stays glued`() {
+        // Czech 24-hour times: "10" + ":" must give "10:" — the trailing space would split it into "10: 35".
+        realInputState.clusterLayoutActive = true
+        whenever(mockLanguageManager.currentLanguage)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("cs"))
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn("0")
+        whenever(mockOutputBridge.safeGetTextAfterCursor(eq(1), any())).thenReturn("")
+
+        handler.handle(":")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockOutputBridge).commitText(":", 1)
+        // Deferred, not dropped: a WORD after it ("bod 3: text") still gets the separator back.
+        assert(realInputState.pendingWordSeparator)
+    }
+
+    @Test
+    fun `a comma after a digit holds its space back so a decimal stays glued`() {
+        // Czech decimals and English thousands separators: "3," runs on as "3,14", "1," as "1,000".
+        realInputState.clusterLayoutActive = true
+        whenever(mockLanguageManager.currentLanguage)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("cs"))
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn("3")
+        whenever(mockOutputBridge.safeGetTextAfterCursor(eq(1), any())).thenReturn("")
+
+        handler.handle(",")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockOutputBridge).commitText(",", 1)
+        assert(realInputState.pendingWordSeparator)
+    }
+
+    @Test
+    fun `a period after a digit holds its space back - decimal or Czech ordinal, the next word decides`() {
+        realInputState.clusterLayoutActive = true
+        whenever(mockLanguageManager.currentLanguage)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("cs"))
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn("0")
+        whenever(mockOutputBridge.safeGetTextAfterCursor(eq(1), any())).thenReturn("")
+
+        handler.handle(".")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockOutputBridge).commitText(".", 1)
+        assert(realInputState.pendingWordSeparator)
+    }
+
+    @Test
+    fun `a mark after a word keeps its trailing space`() {
+        realInputState.clusterLayoutActive = true
+        whenever(mockLanguageManager.currentLanguage)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("cs"))
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn("o")
+        whenever(mockOutputBridge.safeGetTextAfterCursor(eq(1), any())).thenReturn("")
+
+        handler.handle(":")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockOutputBridge).commitText(": ", 1)
+        assert(!realInputState.pendingWordSeparator)
+    }
+
+    @Test
+    fun `a question mark after a digit still takes its space - it never sits inside a number`() {
+        realInputState.clusterLayoutActive = true
+        whenever(mockLanguageManager.currentLanguage)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("cs"))
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn("0")
+        whenever(mockOutputBridge.safeGetTextAfterCursor(eq(1), any())).thenReturn("")
+
+        handler.handle("?")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockOutputBridge).commitText("? ", 1)
+        assert(!realInputState.pendingWordSeparator)
+    }
+
+    @Test
     fun `auto-spacing punctuation before a closing quote defers its trailing space`() {
         // "„Ahoj |“" (a literal space before the closer): the mark eats that space and must not re-add one.
         whenever(mockLanguageManager.currentLanguage)

@@ -66,8 +66,10 @@ class NonLetterInputHandler(
                         val single = char.single()
                         // …unless the mark is typed INSIDE a pair („word |“): the re-added space would
                         // land in front of the closer. Suppress it and remember it as the next word's
-                        // separator, exactly like a word commit does.
-                        val suppressTrailing = nextCharSuppressesTrailingSpace()
+                        // separator, exactly like a word commit does. A mark closing a number ("10 :")
+                        // defers its space the same way, so a time comes out as "10:35".
+                        val suppressTrailing = nextCharSuppressesTrailingSpace() ||
+                            CursorEditingUtils.isNumberInternalMark(single, before[before.length - 2])
                         outputBridge.beginBatchEdit()
                         try {
                             outputBridge.deleteSurroundingText(1, 0)
@@ -356,8 +358,15 @@ class NonLetterInputHandler(
             // A mark typed INSIDE a pair („Ahoj|“, “word|”, (word|) ) must not push its space in front of
             // the closer — suppress it exactly like a word commit does and remember it as the following
             // word's separator: „Ahoj|“ + "," gives „Ahoj,|“ (not the stranded-space „Ahoj, |“), and the
-            // next word then starts with its separator -> „Ahoj, světe|“.
-            val suppressTrailing = wantsTrailingSpace && nextCharSuppressesTrailingSpace()
+            // next word then starts with its separator -> „Ahoj, světe|“. A `:`, `,` or `.` straight after
+            // a digit defers its space on the same rule: it may belong inside the number, so "10:" runs on
+            // as "10:35" and "3," as "3,14", while a word after it ("bod 3: text", "10. května") still gets
+            // the separator back.
+            val suppressTrailing = wantsTrailingSpace &&
+                (
+                    nextCharSuppressesTrailingSpace() ||
+                        CursorEditingUtils.isNumberInternalMark(punctuation, before.lastOrNull())
+                )
             // Openers and the hyphen attach to what follows -> no trailing space.
             val trailing = if (wantsTrailingSpace && !suppressTrailing) " " else ""
             outputBridge.commitText("$leading$punctuation$trailing", 1)
