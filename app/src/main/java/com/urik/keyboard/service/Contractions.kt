@@ -62,6 +62,7 @@ object Contractions {
         "wouldve" to "would've"
     )
 
+
     /**
      * Cluster-keyboard contractions: on a cluster layout the typed buffer is the tapped clusters' centre
      * letters, so the apostrophe-less key ("dont") is never in the buffer verbatim — but each tap is a
@@ -90,6 +91,19 @@ object Contractions {
         for ((key, value) in GENERAL) consider(key, value, preserveCase = false)
         return result
     }
+
+    /**
+     * Does the one tap made after a typed apostrophe spell the English possessive `s`? [tailSets] is the
+     * per-tap accent-folded lowercase character set (the same cluster bands the DAWG walk uses), so a tap on
+     * the `sh)` key answers yes — "notes'" plus that tap is "notes's", not the centre-letter "notes'h".
+     *
+     * The possessive is the ONE apostrophe ending worth synthesizing over an arbitrary word: it is an open
+     * class, so no dictionary holds "notes's" and the constrained walk can never produce it. Every other
+     * ending ('ll 've 're 't 'd 'm) is closed — "it'll", "we've", "don't" are dictionary words the walk finds
+     * on its own — so synthesizing those only manufactured nonsense ("In'll", "On'll") ahead of the real one.
+     */
+    fun possessiveFollowsBands(tailSets: List<Set<Char>>): Boolean =
+        tailSets.size == 1 && 's' in tailSets[0]
 
     /** The contraction for [typedWord] (case-insensitive), or null if none. */
     fun forWord(typedWord: String): SpellingSuggestion? {

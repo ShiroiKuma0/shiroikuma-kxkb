@@ -1,6 +1,7 @@
 package com.urik.keyboard.service
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -162,5 +163,22 @@ class ContractionsTest {
     @Test
     fun `candidatesForBands returns empty for empty input`() {
         assertTrue(Contractions.candidatesForBands(emptyList()).isEmpty())
+    }
+
+    @Test
+    fun `possessiveFollowsBands reads the possessive out of the tap band`() {
+        // One tap on the `sh)` key: `s` is in that band, so "notes'" + that tap is "notes's".
+        assertTrue(Contractions.possessiveFollowsBands(listOf(setOf('s', 'h', ')'))))
+        assertFalse("no possessive without an s", Contractions.possessiveFollowsBands(listOf(setOf('o'))))
+    }
+
+    @Test
+    fun `possessiveFollowsBands takes exactly one tap`() {
+        val s = setOf('s', 'h', ')')
+        assertFalse(
+            "two taps are an ending, not the possessive",
+            Contractions.possessiveFollowsBands(listOf(s, s))
+        )
+        assertFalse(Contractions.possessiveFollowsBands(emptyList()))
     }
 }

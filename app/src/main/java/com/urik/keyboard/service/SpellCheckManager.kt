@@ -773,6 +773,57 @@ constructor(
         wordNormalizer.stripDiacritics(c.toString()).lowercase().firstOrNull()
 
     /**
+     * The cluster-matching form of a typed buffer: accent-folded, lower-cased, and with every apostrophe
+     * variant canonicalised to `'` (the cs boards type U+2019 as their apostrophe, the en boards the
+     * straight quote — both must reach [apostropheSplit] as the same character).
+     */
+    private fun foldClusterBuffer(word: String): String =
+        wordNormalizer.canonicalizeApostrophes(wordNormalizer.stripDiacritics(word).lowercase())
+
+    /**
+     * A cluster buffer split around a typed apostrophe: the taps BEFORE it (to be resolved as a word), the
+     * [suffix] the taps after it spell, its confidence [weight], and whether that suffix is the OPEN-class
+     * possessive — the only ending that may be hung on an arbitrary word (see [apostropheSplit]).
+     */
+    private data class ApostropheSplit(
+        val head: String,
+        val suffix: String,
+        val possessive: Boolean,
+        val weight: Double
+    )
+
+    /**
+     * Split an accent-folded cluster buffer around a typed apostrophe, or null when there is nothing to
+     * split — no apostrophe, one in first position (no head to resolve), more than one (the whole-buffer
+     * walk owns those), or a tail longer than an ending.
+     *
+     * "notes'" and "notes's" are in no dictionary — the possessive is an open class — so the constrained
+     * DAWG walk over the WHOLE buffer goes empty the moment the apostrophe joins the buffer, and the bar
+     * fell back to a Levenshtein guess at the centre-letter garbage ("titeh'" → "titch", then "titch'h").
+     * Resolving the head alone and re-attaching the apostrophe keeps the word the taps had already resolved
+     * to. Only the possessive rides along freely; any other tail is the literal centre letters, weighted
+     * down and offered only for a head the dictionary already knows an apostrophe form of, because the
+     * closed endings ('ll 've 't …) belong to the walk — synthesizing them put "In'll" ahead of "It'll".
+     */
+    private fun apostropheSplit(folded: String, languageCode: String): ApostropheSplit? {
+        val index = folded.indexOf('\'')
+        if (index <= 0 || folded.indexOf('\'', index + 1) >= 0) return null
+        val head = folded.substring(0, index)
+        val tail = folded.substring(index + 1)
+        if (tail.length > MAX_ENDING_TAPS) return null
+        if (tail.isEmpty()) return ApostropheSplit(head, "", possessive = true, weight = 1.0)
+        val bands = clusterBands
+        val tailSets = tail.map { ch -> bands[ch] ?: setOf(ch) }
+        if (languageCode == "en" && Contractions.possessiveFollowsBands(tailSets)) {
+            return ApostropheSplit(head, "s", possessive = true, weight = 1.0)
+        }
+        return ApostropheSplit(head, tail, possessive = false, weight = LITERAL_TAIL_WEIGHT)
+    }
+
+    /** The apostrophe form [base] carries for [split] — "notes" → "notes's". */
+    private fun apostropheForm(base: String, split: ApostropheSplit): String = "$base'${split.suffix}"
+
+    /**
      * True when [word] contains at least one letter with an ambiguous cluster band — i.e. it was
      * typed on multi-letter cluster keys, so the raw buffer is centre-letter garbage rather than
      * the word itself. A word typed on FLAT keys (even on a layout in cluster mode) returns false.
@@ -822,22 +873,31 @@ constructor(
         return try {
             val entries = repo.matchesFor(languageCode)
             if (entries.isEmpty()) return emptyList()
-            val bufFolded = wordNormalizer.stripDiacritics(normalizedWord).lowercase()
+            val bufFolded = foldClusterBuffer(normalizedWord)
             if (bufFolded.isEmpty()) return emptyList()
             val bands = clusterBands
+            // A typed apostrophe matches your entry against the taps BEFORE it and re-attaches the
+            // possessive, so "Marek" + "'s" still reaches the bar — that form is in no dictionary, yours
+            // included. Only the possessive: "Marek'll" is not a word, and the closed endings belong to the
+            // dictionary walk (see apostropheSplit).
+            val split = if (bands.isEmpty()) null else apostropheSplit(bufFolded, languageCode)?.takeIf {
+                it.possessive
+            }
+            val matchBuffer = split?.head ?: bufFolded
             val result = mutableListOf<SpellingSuggestion>()
             entries
                 .asSequence()
                 .filter { it.kind != com.urik.keyboard.data.database.UserDictionaryKind.JAPANESE }
-                .filter { matchesTypedBuffer(it.foldedKey, bufFolded, bands) }
+                .filter { matchesTypedBuffer(it.foldedKey, matchBuffer, bands, exactLength = split != null) }
                 .sortedByDescending { it.frequency }
                 .forEach { entry ->
-                    val dedupeKey = entry.value.lowercase()
+                    val surface = if (split == null) entry.value else apostropheForm(entry.value, split)
+                    val dedupeKey = surface.lowercase()
                     if (dedupeKey in seenWords || isWordBlacklisted(entry.value)) return@forEach
                     seenWords.add(dedupeKey)
                     result.add(
                         SpellingSuggestion(
-                            word = entry.value,
+                            word = surface,
                             confidence = userDictionaryConfidence(entry.frequency),
                             ranking = 0,
                             source = "userdict",
@@ -861,10 +921,18 @@ constructor(
      * Does a user-dictionary entry (accent-folded [foldedKey]) match what the user has typed so far
      * ([bufFolded], also accent-folded)? On a normal layout this is a plain prefix test. On a cluster layout
      * each typed centre stands for its whole [bands] set, so the entry char at each position must fall in the
-     * tapped key's band — a predictive, band-constrained prefix.
+     * tapped key's band — a predictive, band-constrained prefix. [exactLength] closes that prefix off: an
+     * apostrophe form is built on the taps before the apostrophe, so only an entry that ENDS there can carry
+     * the clitic ("Marek" + "'s", never "Markéta" + "'s" off the same three taps).
      */
-    private fun matchesTypedBuffer(foldedKey: String, bufFolded: String, bands: Map<Char, Set<Char>>): Boolean {
+    private fun matchesTypedBuffer(
+        foldedKey: String,
+        bufFolded: String,
+        bands: Map<Char, Set<Char>>,
+        exactLength: Boolean = false
+    ): Boolean {
         if (foldedKey.length < bufFolded.length) return false
+        if (exactLength && foldedKey.length != bufFolded.length) return false
         if (bands.isEmpty()) return foldedKey.startsWith(bufFolded)
         for (i in bufFolded.indices) {
             val allowed = bands[bufFolded[i]] ?: setOf(bufFolded[i])
@@ -951,23 +1019,34 @@ constructor(
         return try {
             val learned = wordLearningEngine.getLearnedWordsForLanguage(languageCode)
             if (learned.isEmpty()) return emptyList()
-            val bufFolded = wordNormalizer.stripDiacritics(normalizedWord).lowercase()
+            val bufFolded = foldClusterBuffer(normalizedWord)
             if (bufFolded.isEmpty()) return emptyList()
+            // As in the user dictionary: a typed apostrophe matches the taps before it and re-attaches the
+            // possessive, so a word only YOU have taught the keyboard still carries one.
+            val split = apostropheSplit(bufFolded, languageCode)?.takeIf { it.possessive }
+            val matchBuffer = split?.head ?: bufFolded
             val result = mutableListOf<SpellingSuggestion>()
             learned
                 .asSequence()
                 .filter { (word, _) ->
-                    matchesTypedBuffer(wordNormalizer.stripDiacritics(word).lowercase(), bufFolded, bands)
+                    matchesTypedBuffer(
+                        wordNormalizer.stripDiacritics(word).lowercase(),
+                        matchBuffer,
+                        bands,
+                        exactLength = split != null
+                    )
                 }
                 .sortedByDescending { it.second }
                 .take(LEARNED_HEAVY_MAX_RESULTS)
                 .forEach { (word, frequency) ->
-                    val dedupeKey = word.lowercase()
+                    val base = learnedSurface(word)
+                    val surface = if (split == null) base else apostropheForm(base, split)
+                    val dedupeKey = surface.lowercase()
                     if (dedupeKey in seenWords || isWordBlacklisted(word)) return@forEach
                     seenWords.add(dedupeKey)
                     result.add(
                         SpellingSuggestion(
-                            word = learnedSurface(word),
+                            word = surface,
                             confidence = learnedHeavyConfidence(frequency),
                             ranking = 0,
                             source = "learned",
@@ -1003,7 +1082,7 @@ constructor(
     ): List<SpellingSuggestion> {
         val bands = clusterBands
         if (bands.isEmpty() || normalizedWord.isEmpty()) return emptyList()
-        val folded = wordNormalizer.stripDiacritics(normalizedWord).lowercase()
+        val folded = foldClusterBuffer(normalizedWord)
         val allowedSets = folded.map { ch -> bands[ch] ?: setOf(ch) }
         if (allowedSets.none { it.size > 1 }) return emptyList()
         val dict = getUrikDictionary(languageCode) ?: return emptyList()
@@ -1037,14 +1116,21 @@ constructor(
         // the exact centre word and its immediate completions past the cut; ranking stays natural.
         val centerMatches = dict.clusterCandidates(folded.map { setOf(it) }, CENTER_WORD_POOL)
             .filterNot { c -> pooled.any { it.first == c.first } }
-        val rawDict = pooled + centerMatches
+        val attested = (pooled + centerMatches).map { (word, freq) -> ClusterCandidate(word, word, freq, 1.0) }
+        // A typed apostrophe (possessive "notes'", "notes's") matches no dictionary word, so the walk above
+        // returns nothing for it: resolve the taps BEFORE the apostrophe instead and re-attach it.
+        val synthesized = clusterApostropheCandidates(folded, languageCode, dict, attested)
         // Your own usage dominates dictionary frequency on a cluster layout: a word you have committed climbs
         // (used once → near the top, twice or more → the #1 candidate band), so a phrase you type constantly
         // like Czech "Teď" leads the row. Without this the cluster bar ranked purely by bundled-dictionary
         // frequency and ignored how often YOU type a word. Frequencies are keyed by the layout language (the
-        // same tag recordWordUsage now writes under), so they actually match.
+        // same tag recordWordUsage now writes under), so they actually match. An apostrophe form is ranked by
+        // its HEAD word, so "notes'" inherits everything "notes" had earned and the bar order never jumps.
         val userFreqs = try {
-            wordFrequencyRepository.getFrequencies(rawDict.map { it.first }, languageCode)
+            wordFrequencyRepository.getFrequencies(
+                (attested + synthesized).map { it.rankWord }.distinct(),
+                languageCode
+            )
         } catch (e: Exception) {
             ErrorLogger.logException(
                 component = "SpellCheckManager",
@@ -1054,18 +1140,67 @@ constructor(
             )
             emptyMap()
         }
-        val dictCandidates = rawDict
-            .mapNotNull { (word, freq) ->
-                val key = word.lowercase()
-                if (key in seenWords || isWordBlacklisted(word)) return@mapNotNull null
-                seenWords.add(key)
-                val freqScore = ln(freq.toDouble() + 1.0) / ln(MAX_DICT_FREQUENCY)
-                val base = (0.55 + 0.44 * freqScore).coerceIn(0.0, 0.99)
-                val userFreq = userFreqs[word] ?: 0
-                val confidence = if (userFreq > 0) maxOf(base, learnedHeavyConfidence(userFreq)) else base
-                SpellingSuggestion(word, confidence, 0, "cluster")
-            }
-        return contractions + dictCandidates
+        fun score(candidate: ClusterCandidate): Double {
+            val freqScore = ln(candidate.frequency.toDouble() + 1.0) / ln(MAX_DICT_FREQUENCY)
+            val base = (0.55 + 0.44 * freqScore).coerceIn(0.0, 0.99)
+            val userFreq = userFreqs[candidate.rankWord] ?: 0
+            return (if (userFreq > 0) maxOf(base, learnedHeavyConfidence(userFreq)) else base) * candidate.weight
+        }
+        fun emit(candidate: ClusterCandidate, confidence: Double): SpellingSuggestion? {
+            val key = candidate.word.lowercase()
+            if (key in seenWords || isWordBlacklisted(candidate.word)) return null
+            seenWords.add(key)
+            return SpellingSuggestion(candidate.word, confidence, 0, "cluster")
+        }
+        val attestedSuggestions = attested.mapNotNull { emit(it, score(it)) }
+        // A synthesized form is a guess; a dictionary one is evidence. Rank every guess UNDER the weakest
+        // attested form of the same buffer, or the huge frequency of a wrong head wins: "in" is a common
+        // word and "it'll" a rare one, so "In'll" led the bar over the "It'll" the walk had actually found.
+        val floor = attestedSuggestions.minOfOrNull { it.confidence }
+        val synthesizedSuggestions = synthesized.mapNotNull { candidate ->
+            val confidence = score(candidate)
+            emit(candidate, if (floor == null) confidence else minOf(confidence, floor - SYNTHESIZED_GAP))
+        }
+        return contractions + attestedSuggestions + synthesizedSuggestions
+    }
+
+    /**
+     * A cluster-walk candidate: the surface [word], the [rankWord] whose standing it inherits (the head word
+     * for an apostrophe form), the dictionary [frequency] of that rank word, and a confidence [weight] below
+     * 1.0 for a tail offered as its literal centre letters rather than as the possessive.
+     */
+    private data class ClusterCandidate(
+        val word: String,
+        val rankWord: String,
+        val frequency: Long,
+        val weight: Double
+    )
+
+    /**
+     * Cluster candidates for a buffer carrying a typed apostrophe: every word the taps before it resolve to,
+     * re-joined with the apostrophe and what followed it (see [apostropheSplit]). Forms the whole-buffer walk
+     * already produced — real dictionary contractions like "don't" and "o'clock", which keep their own
+     * frequency — are dropped here so they are never ranked twice.
+     *
+     * The possessive hangs on any head. A literal tail hangs only on a head the dictionary already knows an
+     * apostrophe form of ("it'" → it'll/it's, so "it'd" is offered; "in'" → nothing, so "in'll" never is).
+     */
+    private fun clusterApostropheCandidates(
+        folded: String,
+        languageCode: String,
+        dict: UrikDictionary,
+        alreadyFound: List<ClusterCandidate>
+    ): List<ClusterCandidate> {
+        val split = apostropheSplit(folded, languageCode) ?: return emptyList()
+        val bands = clusterBands
+        val headSets = split.head.map { ch -> bands[ch] ?: setOf(ch) }
+        val heads = dict.clusterCandidates(headSets, CLUSTER_BAR_POOL)
+        val headCenters = dict.clusterCandidates(split.head.map { setOf(it) }, CENTER_WORD_POOL)
+            .filterNot { c -> heads.any { it.first == c.first } }
+        return (heads + headCenters)
+            .filter { (word, _) -> split.possessive || dict.getWordsWithPrefix("$word'", 1).isNotEmpty() }
+            .map { (word, freq) -> ClusterCandidate(apostropheForm(word, split), word, freq, split.weight) }
+            .filterNot { c -> alreadyFound.any { it.word.equals(c.word, ignoreCase = true) } }
     }
 
     private suspend fun queryUrikSuggestions(
@@ -1712,6 +1847,15 @@ constructor(
 
         /** The singleton (no-bands) re-query cap that rescues the centre-letter word from pool truncation. */
         const val CENTER_WORD_POOL = 4
+
+        /** Longest ending a typed apostrophe may be followed by ("'ll", "'ve") — see apostropheSplit. */
+        const val MAX_ENDING_TAPS = 2
+
+        /** Weight for an apostrophe tail taken literally rather than as the possessive. */
+        const val LITERAL_TAIL_WEIGHT = 0.85
+
+        /** How far under the weakest attested candidate a synthesized apostrophe form is held. */
+        const val SYNTHESIZED_GAP = 0.01
         const val MIN_COMPLETION_LENGTH = 4
         const val FAT_FINGER_MIN_WORD_LENGTH = 4
         const val APOSTROPHE_BOOST = 0.30

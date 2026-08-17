@@ -124,9 +124,19 @@ class SpellCheckManagerTest {
         bested 300
         bester 100
         bestow 800
+        girl 900
+        girl's 300
+        it 90000
+        on 50000
+        it'll 70
         a 25000000
         e 5
         """.trimIndent()
+
+    // The `dgt` and `sh)` bands below stand in for a real cluster board: the `sh)` key commits its CENTRE
+    // `h`, so "doeh" is the centre-letter buffer of does/goes/toes and a tap after an apostrophe arrives
+    // as `h` too — exactly the "notes" + "'" + `sh)` sequence that used to collapse into "titch'h".
+    private val apostropheBands = mapOf('d' to "dgt", 'h' to "sh)")
 
     @Before
     fun setup() {
@@ -1850,6 +1860,102 @@ class SpellCheckManagerTest {
         val eRank = words.indexOf("e")
         assertTrue("`a` must rank above the literal `e`, got: $words", eRank < 0 || aRank < eRank)
         assertEquals("`a` should be the top cluster prediction, got: $words", "a", words.first())
+    }
+
+    @Test
+    fun `a typed apostrophe keeps the resolved cluster words`() = runTest {
+        // Before: the constrained walk found no dictionary word ending in an apostrophe, went empty, and the
+        // bar fell back to a Levenshtein guess at the centre-letter garbage ("notes" + "'" showed "titch").
+        whenever(wordLearningEngine.getSimilarLearnedWordsWithFrequency(any(), any(), any()))
+            .thenReturn(emptyList())
+        spellCheckManager.setClusterBands(apostropheBands)
+
+        val words = spellCheckManager.getSpellingSuggestionsWithConfidence("doeh'").map { it.word }
+
+        assertEquals("the head word must survive the apostrophe, got: $words", "does'", words.first())
+        assertTrue("every band word keeps its apostrophe form, got: $words", "goes'" in words)
+        assertTrue("every band word keeps its apostrophe form, got: $words", "toes'" in words)
+    }
+
+    @Test
+    fun `a tap after the apostrophe spells the possessive, not the centre letter`() = runTest {
+        whenever(wordLearningEngine.getSimilarLearnedWordsWithFrequency(any(), any(), any()))
+            .thenReturn(emptyList())
+        spellCheckManager.setClusterBands(apostropheBands)
+
+        // The tap after the apostrophe commits the `sh)` centre `h`, but the only clitic in that band is `s`.
+        val words = spellCheckManager.getSpellingSuggestionsWithConfidence("doeh'h").map { it.word }
+
+        assertTrue("the possessive must be offered, got: $words", "does's" in words)
+        assertFalse("the centre letter must not be taken literally, got: $words", "does'h" in words)
+    }
+
+    @Test
+    fun `an apostrophe form inherits the ranking its head word earned`() = runTest {
+        whenever(wordLearningEngine.getSimilarLearnedWordsWithFrequency(any(), any(), any()))
+            .thenReturn(emptyList())
+        whenever(wordFrequencyRepository.getFrequencies(any(), any())).thenReturn(mapOf("toes" to 3))
+        spellCheckManager.setClusterBands(apostropheBands)
+
+        val plain = spellCheckManager.getSpellingSuggestionsWithConfidence("doeh").map { it.word }
+        val possessive = spellCheckManager.getSpellingSuggestionsWithConfidence("doeh'").map { it.word }
+
+        assertEquals("your own word leads the bar, got: $plain", "toes", plain.first())
+        assertEquals("...and still leads it after the apostrophe, got: $possessive", "toes'", possessive.first())
+    }
+
+    @Test
+    fun `a dictionary contraction still resolves through the whole-buffer walk`() = runTest {
+        whenever(wordLearningEngine.getSimilarLearnedWordsWithFrequency(any(), any(), any()))
+            .thenReturn(emptyList())
+        spellCheckManager.setClusterBands(mapOf('g' to "gj", 'h' to "sh)"))
+
+        val words = spellCheckManager.getSpellingSuggestionsWithConfidence("girl'h").map { it.word }
+
+        assertEquals("an in-dictionary apostrophe word leads, got: $words", "girl's", words.first())
+    }
+
+    @Test
+    fun `a closed ending is left to the dictionary walk, never hung on any band word`() = runTest {
+        // "It'll" IS a dictionary word, so the whole-buffer walk finds it. Synthesizing the ending over
+        // every band word instead put the huge frequency of "in"/"on" on top: In'll, On'll, then It'll.
+        whenever(wordLearningEngine.getSimilarLearnedWordsWithFrequency(any(), any(), any()))
+            .thenReturn(emptyList())
+        spellCheckManager.setClusterBands(mapOf('i' to "io", 't' to "tn"))
+
+        val words = spellCheckManager.getSpellingSuggestionsWithConfidence("it'll").map { it.word }
+
+        assertEquals("the real contraction must lead, got: $words", "it'll", words.first())
+        assertFalse("no ending on a word that never takes one, got: $words", "in'll" in words)
+        assertFalse("no ending on a word that never takes one, got: $words", "on'll" in words)
+    }
+
+    @Test
+    fun `an unattested ending is offered only for a head the dictionary contracts`() = runTest {
+        // "it'd" is in no dictionary, so nothing is attested — but "it'" is a known contraction stem
+        // ("it'll", "it's") while "in'" and "on'" are not, so only "it'd" reaches the bar.
+        whenever(wordLearningEngine.getSimilarLearnedWordsWithFrequency(any(), any(), any()))
+            .thenReturn(emptyList())
+        spellCheckManager.setClusterBands(mapOf('i' to "io", 't' to "tn"))
+
+        val words = spellCheckManager.getSpellingSuggestionsWithConfidence("it'd").map { it.word }
+
+        assertEquals("the contractible head must lead, got: $words", "it'd", words.first())
+        assertFalse("in never contracts, got: $words", "in'd" in words)
+        assertFalse("on never contracts, got: $words", "on'd" in words)
+    }
+
+    @Test
+    fun `an attested form outranks a synthesized possessive of a commoner word`() = runTest {
+        // "it's" is attested but rare (500) next to the head "on" (50000): evidence must beat frequency.
+        whenever(wordLearningEngine.getSimilarLearnedWordsWithFrequency(any(), any(), any()))
+            .thenReturn(emptyList())
+        spellCheckManager.setClusterBands(mapOf('i' to "io", 't' to "tn", 'h' to "sh)"))
+
+        val words = spellCheckManager.getSpellingSuggestionsWithConfidence("it'h").map { it.word }
+
+        assertEquals("the dictionary form leads, got: $words", "it's", words.first())
+        assertTrue("the possessive of a band word still follows it, got: $words", "on's" in words)
     }
 
     @Test
