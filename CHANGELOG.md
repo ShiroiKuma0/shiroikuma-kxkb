@@ -4,7 +4,52 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+309 — current
+## 0.23.1+312 — current
+
+Built on Urik `0.23.1-beta`. Two spacing/prediction repairs: a typed **apostrophe** no longer
+destroys the cluster word being predicted, and a `:`, `,` or `.` **inside a number** no longer
+splits it with a space.
+
+### ’ Cluster prediction survives a typed apostrophe
+
+- The apostrophe is deliberately not a cluster terminator — it is a contraction character, so it
+  joins the centre-letter buffer. The constrained dictionary walk then demanded a literal `'` at
+  that tap position, and no dictionary holds `notes'`: the possessive is an open class. The walk
+  went empty and the bar fell back to a similarity guess at the raw centre letters, so `notes` (the
+  tapped centres `titeh`) became **`titch`**, and the next tap **`titch'h`**.
+- The taps **before** the apostrophe are now resolved as a word of their own and the apostrophe is
+  re-attached: `notes'`, and with one tap on the `sh)` key — whose band holds the possessive `s` —
+  `notes's`.
+- Only the possessive is synthesized. Every other ending is closed-class: `it'll`, `we've`, `don't`
+  and `o'clock` are dictionary words the whole-buffer walk finds by itself, and hanging endings on
+  every band word ranked the huge frequency of `in`/`on` above the real one — `In'll`, `On'll`, then
+  `It'll`. An unattested ending is offered only for a head the dictionary already knows an
+  apostrophe form of (`it'` → it'll/it's, so `it'd` is offered; `in'` → nothing, so `in'll` is not).
+- Evidence beats frequency: a synthesized form is always ranked under the weakest attested form of
+  the same buffer, so a rare real contraction outranks a common wrong head.
+- An apostrophe form inherits its **head word's** standing — dictionary frequency and your own
+  usage — so whatever led the bar before the apostrophe still leads after it.
+- Learned words and your user dictionary take the same possessive split, so a name only you have
+  taught the keyboard still carries `'s`. The cs boards' `’` and the en boards' `'` are canonicalised
+  to one character first.
+
+### 🔢 A time, a decimal and a thousands separator stay whole
+
+- Every punctuation commit on a cluster board appends a trailing space, even with nothing composing,
+  so a Czech 24-hour time came out as `10: 35`, a decimal as `3, 14`, English thousands as `1, 000`.
+  (Flat boards were unaffected — that path adds no trailing space at all.)
+- A `:`, `,` or `.` typed straight after a digit now **holds its space back** on the same rule the
+  quotation-pair spacing uses: it is deferred, not dropped, and only a following **word** consumes
+  it. So the rest of the number arrives glued — `10:35`, `3,14`, `1,000`, `3.14` — while the
+  readings that really do end a clause get their space back the moment a word follows: `bod 3: text`,
+  the Czech ordinal `10. května`.
+- `?` and `!` never sit inside a number and keep their space as before.
+- Because `10.` no longer leaves whitespace behind it, auto-capitalisation stops arming on a Czech
+  ordinal — `10. května` stays lowercase.
+- The one trade-off: a list of **bare** numbers typed as `1, 2, 3` glues to `1,2,3`, since digits do
+  not consume the deferred separator — the other side of the decimal comma.
+
+## 0.23.1+309
 
 Built on Urik `0.23.1-beta`. Punctuation, brackets and dashes typed **inside quotation marks** now
 space themselves the way words already did.
