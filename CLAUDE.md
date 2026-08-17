@@ -384,10 +384,35 @@ untouched). Suite 1 961 green. Known gap left alone: a Czech closing `“` typed
 pair) still keeps the word's auto-space in front of it — U+201C is an English opener and a Czech
 closer, so resolving it needs a per-layout-language decision.
 
-**Released `0.23.1+309`** (2026-08-09; tagged `v0.23.1+309`, APK + gzipped R8 `mapping.txt` attached,
+**Shipped since `+309`** (the `+312` line): **cluster prediction survives a typed apostrophe** — the
+apostrophe is deliberately NOT a cluster terminator (it is a contraction character), so it joins the
+centre-letter buffer, and the constrained DAWG walk then demanded a literal `'` at that tap: no
+dictionary holds `notes'` (the possessive is an open class), the walk went EMPTY and the bar fell
+back to a Levenshtein guess at the centres, turning "notes" (buffer `titeh`) into "titch", then
+"titch'h"; `SpellCheckManager.apostropheSplit` now resolves the taps BEFORE the apostrophe as a word
+of their own and re-attaches it (`notes'`, and with one tap on the `sh)` key — whose band holds the
+possessive `s` — `notes's`), ranked by the HEAD word's standing (dict frequency + your own usage) so
+the bar order never jumps; **only the possessive is synthesized** — every other ending is
+closed-class (`it'll`, `we've`, `don't`, `o'clock` are dictionary words the whole-buffer walk finds
+itself), and hanging endings on every band word had ranked the huge frequency of `in`/`on` over the
+real one ("In'll", "On'll", then "It'll"); an unattested ending is offered only for a head the
+dictionary already knows an apostrophe form of (`it'` → it'll/it's, so `it'd` is offered; `in'` →
+nothing); every synthesized guess is ranked strictly UNDER the weakest attested form of the same
+buffer (evidence beats frequency); the learned-words and user-dictionary paths take the same
+possessive split (so a name only you taught the keyboard carries `'s`), and the cluster paths
+canonicalise `’`→`'` so the cs boards split like the en ones. Plus **no trailing space for a `:`,
+`,` or `.` inside a number** — the cluster path appends a trailing space after EVERY mark, even with
+nothing composing (flat boards never did), so a Czech time came out `10: 35`, a decimal `3, 14`,
+English thousands `1, 000`; those three marks typed straight after a digit now defer the space into
+`pendingWordSeparator` (`CursorEditingUtils.isNumberInternalMark`), which only a following WORD
+consumes — `10:35`/`3,14`/`3.14` stay whole while `bod 3: text` and the Czech ordinal `10. května`
+get the separator back; `?`/`!` keep theirs; side effect: `10.` leaves no whitespace so auto-cap no
+longer arms on an ordinal; trade-off: bare `1, 2, 3` glues to `1,2,3`. Suite 1 975 green.
+
+**Released `0.23.1+312`** (2026-08-17; tagged `v0.23.1+312`, APK + gzipped R8 `mapping.txt` attached,
 on the fork's GitHub; default branch `custom`; README badge + `CHANGELOG.md` track it). Recent fork
-releases: `+304`, `+305`, `+306`, `+309` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`,
+releases: `+305`, `+306`, `+309`, `+312` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`,
 `+198`, `+204`, `+211`, `+213`, `+214`, `+215`, `+217`, `+222`, `+230`, `+250`, `+287`, `+292`,
-`+295`, `+296`, `+298`, `+299`, `+300`, `+301`, `+302`). Remaining M5 tail (low
+`+295`, `+296`, `+298`, `+299`, `+300`, `+301`, `+302`, `+304`). Remaining M5 tail (low
 priority): number/arrow rows on the look page, quick-period flick. Full architecture + milestone
 sequence in `docs/PLAN.md`.
