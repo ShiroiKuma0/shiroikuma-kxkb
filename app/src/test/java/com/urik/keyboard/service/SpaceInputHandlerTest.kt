@@ -64,6 +64,10 @@ class SpaceInputHandlerTest {
         mockSwipeDetector = mock(SwipeDetector::class.java)
         mockCandidateBarController = mock(CandidateBarController::class.java)
         mockLanguageManager = mock(LanguageManager::class.java)
+        // The real bridge never returns null (it falls back to ""); the mock must not either, or the
+        // dash-expansion check below reads a null context.
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(any(), any())).thenReturn("")
+        whenever(mockOutputBridge.safeGetTextAfterCursor(any(), any())).thenReturn("")
         handler = SpaceInputHandler(
             inputState = realInputState,
             outputBridge = mockOutputBridge,
@@ -123,6 +127,95 @@ class SpaceInputHandlerTest {
         testDispatcher.scheduler.advanceUntilIdle()
         org.mockito.Mockito.verify(mockOutputBridge, org.mockito.Mockito.times(2)).sendSpace()
         org.mockito.Mockito.verify(mockOutputBridge, org.mockito.Mockito.never()).commitText(". ", 1)
+    }
+
+    // ---- Space right after a tight dash expands it to the spaced form (the Czech pomlčka). ----
+
+    @Test
+    fun `space after a bare en dash rewrites it as the spaced pomlcka`() {
+        whenever(mockLanguageManager.currentLanguage).thenReturn(MutableStateFlow("cs"))
+        // "slovo–|" — the tight dash the punctuation commit just entered.
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(2), any())).thenReturn("o–")
+
+        handler.handle()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockOutputBridge).deleteSurroundingText(1, 0)
+        verify(mockOutputBridge).commitText(" – ", 1)
+        // Never a bare space: the press was consumed by the rewrite.
+        verify(mockOutputBridge, org.mockito.Mockito.never()).commitText(" ", 1)
+    }
+
+    @Test
+    fun `space after a bare em dash expands it too`() {
+        whenever(mockLanguageManager.currentLanguage).thenReturn(MutableStateFlow("en"))
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(2), any())).thenReturn("d—")
+
+        handler.handle()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockOutputBridge).commitText(" — ", 1)
+    }
+
+    @Test
+    fun `a dash starting the line gets no leading space`() {
+        whenever(mockLanguageManager.currentLanguage).thenReturn(MutableStateFlow("cs"))
+        // A dialogue dash at the very start — nothing precedes it, so nothing is pushed in front of it.
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(2), any())).thenReturn("–")
+
+        handler.handle()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockOutputBridge).commitText("– ", 1)
+    }
+
+    @Test
+    fun `the expansion is skipped while a word is composing`() {
+        whenever(mockLanguageManager.currentLanguage).thenReturn(MutableStateFlow("cs"))
+        realInputState.displayBuffer = "slovo"
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(2), any())).thenReturn("o–")
+        // Non-empty context, or the empty-field guard above clears the buffer before we get there.
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn("–")
+
+        handler.handle()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockOutputBridge, org.mockito.Mockito.never()).commitText(" – ", 1)
+    }
+
+    @Test
+    fun `long-press space never expands a dash - it is the literal escape`() {
+        whenever(mockLanguageManager.currentLanguage).thenReturn(MutableStateFlow("cs"))
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(2), any())).thenReturn("o–")
+
+        handler.handle(literalSpace = true)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockOutputBridge).commitText(" ", 1)
+        verify(mockOutputBridge, org.mockito.Mockito.never()).commitText(" – ", 1)
+    }
+
+    @Test
+    fun `a hyphen is not a dash - space after it stays a space`() {
+        whenever(mockLanguageManager.currentLanguage).thenReturn(MutableStateFlow("cs"))
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(2), any())).thenReturn("e-")
+
+        handler.handle()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockOutputBridge).commitText(" ", 1)
+    }
+
+    @Test
+    fun `a URL field never gets spaces injected around a dash`() {
+        whenever(mockLanguageManager.currentLanguage).thenReturn(MutableStateFlow("en"))
+        realInputState.isUrlOrEmailField = true
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(2), any())).thenReturn("o–")
+
+        handler.handle()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockOutputBridge, org.mockito.Mockito.never()).commitText(" – ", 1)
     }
 
     private suspend fun stubDecisionPath(decision: AutocorrectDecision, buffer: String) {

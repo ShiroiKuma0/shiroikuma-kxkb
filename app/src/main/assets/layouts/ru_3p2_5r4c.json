@@ -463,10 +463,10 @@
             "type": "case",
             "normal": {
               "type": "cluster",
-              "cluster": "—й_",
+              "cluster": "–й_",
               "char": "й",
               "flick": {
-                "left": "—",
+                "left": "–",
                 "right": "_",
                 "up": "-",
                 "down": "—"
@@ -475,10 +475,10 @@
             },
             "shifted": {
               "type": "cluster",
-              "cluster": "—Й_",
+              "cluster": "–Й_",
               "char": "Й",
               "flick": {
-                "left": "—",
+                "left": "–",
                 "right": "_",
                 "up": "-",
                 "down": "—"

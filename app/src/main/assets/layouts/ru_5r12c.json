@@ -213,7 +213,10 @@
           },
           {
             "type": "compass",
-            "char": "—"
+            "char": "–",
+            "flick": {
+              "down": "—"
+            }
           },
           {
             "type": "character",

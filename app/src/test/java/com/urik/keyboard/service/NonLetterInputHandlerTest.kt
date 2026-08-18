@@ -57,6 +57,12 @@ class NonLetterInputHandlerTest {
         mockTextInputProcessor = mock(TextInputProcessor::class.java)
         whenever(mockOutputBridge.safeGetTextBeforeCursor(any(), any())).thenReturn("")
         whenever(mockOutputBridge.safeGetTextAfterCursor(any(), any())).thenReturn("")
+        // currentLanguage = the PRIMARY (settings) language; currentLayoutLanguage = the board on screen.
+        // Spacing rules key off the latter, so both are stubbed here and overridden per test.
+        whenever(mockLanguageManager.currentLanguage)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("en"))
+        whenever(mockLanguageManager.currentLayoutLanguage)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("en"))
         handler = NonLetterInputHandler(
             inputState = realInputState,
             outputBridge = mockOutputBridge,
@@ -387,7 +393,71 @@ class NonLetterInputHandlerTest {
     @Test
     fun `em dash inside quotes gets both spaces - the leading one written, the trailing deferred`() {
         realInputState.clusterLayoutActive = true
-        whenever(mockLanguageManager.currentLanguage)
+        // Russian is the language whose dashes are spaced by default (see dashIsSpacedHere).
+        whenever(mockLanguageManager.currentLayoutLanguage)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("ru"))
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn("о")
+        whenever(mockOutputBridge.safeGetTextAfterCursor(eq(1), any())).thenReturn("»")
+
+        handler.handle("—")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // «слово —|» with the trailing space handed to the next word, never stranded before the closer.
+        verify(mockOutputBridge).commitText(" —", 1)
+        assert(realInputState.pendingWordSeparator)
+    }
+
+    @Test
+    fun `en dash in Czech closes up - the spaced pomlcka is Space's job, not the dash's`() {
+        realInputState.clusterLayoutActive = true
+        whenever(mockLanguageManager.currentLayoutLanguage)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("cs"))
+        // The word before it left the usual auto-space — the tight dash must eat it.
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn(" ")
+
+        handler.handle("–")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockOutputBridge).deleteSurroundingText(1, 0)
+        verify(mockOutputBridge).commitText("–", 1)
+        assert(!realInputState.pendingWordSeparator)
+    }
+
+    @Test
+    fun `em dash in English closes up - no space before it and none after`() {
+        realInputState.clusterLayoutActive = true
+        whenever(mockLanguageManager.currentLayoutLanguage)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("en"))
+        // The word before it left the usual auto-space — the dash must eat it, not keep it.
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn(" ")
+
+        handler.handle("—")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockOutputBridge).deleteSurroundingText(1, 0)
+        verify(mockOutputBridge).commitText("—", 1)
+        // Nothing was deferred either: the next word starts flush against the dash ("word—word").
+        assert(!realInputState.pendingWordSeparator)
+    }
+
+    @Test
+    fun `en dash in English closes up too - a range stays whole`() {
+        realInputState.clusterLayoutActive = true
+        whenever(mockLanguageManager.currentLayoutLanguage)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("en"))
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn("9")
+
+        handler.handle("–")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockOutputBridge, never()).deleteSurroundingText(1, 0)
+        verify(mockOutputBridge).commitText("–", 1)
+    }
+
+    @Test
+    fun `em dash in English inside quotes stays tight and defers nothing`() {
+        realInputState.clusterLayoutActive = true
+        whenever(mockLanguageManager.currentLayoutLanguage)
             .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("en"))
         whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn("d")
         whenever(mockOutputBridge.safeGetTextAfterCursor(eq(1), any())).thenReturn("”")
@@ -395,9 +465,8 @@ class NonLetterInputHandlerTest {
         handler.handle("—")
         testDispatcher.scheduler.advanceUntilIdle()
 
-        // “word —|” with the trailing space handed to the next word, never stranded before the closer.
-        verify(mockOutputBridge).commitText(" —", 1)
-        assert(realInputState.pendingWordSeparator)
+        verify(mockOutputBridge).commitText("—", 1)
+        assert(!realInputState.pendingWordSeparator)
     }
 
     @Test
@@ -405,8 +474,10 @@ class NonLetterInputHandlerTest {
         realInputState.clusterLayoutActive = true
         realInputState.displayBuffer = "Deh"
         realInputState.pendingSuggestions = listOf("Yes")
-        whenever(mockLanguageManager.currentLanguage)
-            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("cs"))
+        // The Russian BOARD with an English PRIMARY language (setUp's default) — the geometry that broke
+        // on device: keying the rule off currentLanguage left the Russian board on the primary's tight dash.
+        whenever(mockLanguageManager.currentLayoutLanguage)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("ru"))
         // The candidate commit left its auto-space: open text, so the dash keeps it and adds its own.
         whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn(" ")
 
@@ -422,10 +493,10 @@ class NonLetterInputHandlerTest {
     @Test
     fun `en dash inside quotes writes its leading space and defers the trailing one`() {
         realInputState.clusterLayoutActive = true
-        whenever(mockLanguageManager.currentLanguage)
-            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("cs"))
-        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn("j")
-        whenever(mockOutputBridge.safeGetTextAfterCursor(eq(1), any())).thenReturn("“")
+        whenever(mockLanguageManager.currentLayoutLanguage)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("ru"))
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn("о")
+        whenever(mockOutputBridge.safeGetTextAfterCursor(eq(1), any())).thenReturn("»")
 
         handler.handle("–")
         testDispatcher.scheduler.advanceUntilIdle()
@@ -619,12 +690,12 @@ class NonLetterInputHandlerTest {
     }
 
     @Test
-    fun `cluster em dash commits the candidate then the dash with a trailing space`() {
+    fun `cluster em dash commits the candidate then the dash - spaced in Russian`() {
         realInputState.clusterLayoutActive = true
         realInputState.displayBuffer = "Deh"
         realInputState.pendingSuggestions = listOf("Yes")
-        whenever(mockLanguageManager.currentLanguage)
-            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("en"))
+        whenever(mockLanguageManager.currentLayoutLanguage)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("ru"))
         whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn(" ")
 
         handler.handle("—") // U+2014 em dash, typed as a character on a cluster key
@@ -632,6 +703,24 @@ class NonLetterInputHandlerTest {
 
         verifyBlocking(mockSuggestionPipeline) { coordinateSuggestionSelection(eq("Yes"), any(), any()) }
         verify(mockOutputBridge).commitText("— ", 1)
+    }
+
+    @Test
+    fun `cluster em dash commits the candidate then the dash - closed up in English`() {
+        realInputState.clusterLayoutActive = true
+        realInputState.displayBuffer = "Deh"
+        realInputState.pendingSuggestions = listOf("Yes")
+        whenever(mockLanguageManager.currentLayoutLanguage)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("en"))
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn(" ")
+
+        handler.handle("—")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verifyBlocking(mockSuggestionPipeline) { coordinateSuggestionSelection(eq("Yes"), any(), any()) }
+        // The candidate commit's auto-space is eaten and no new one is added: "Yes—".
+        verify(mockOutputBridge).deleteSurroundingText(1, 0)
+        verify(mockOutputBridge).commitText("—", 1)
     }
 
     @Test

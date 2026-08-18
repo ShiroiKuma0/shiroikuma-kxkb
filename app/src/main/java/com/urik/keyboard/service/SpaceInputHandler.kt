@@ -3,6 +3,7 @@ package com.urik.keyboard.service
 import com.urik.keyboard.KeyboardConstants.TextProcessingConstants
 import com.urik.keyboard.settings.KeyboardSettings
 import com.urik.keyboard.ui.keyboard.components.SwipeDetector
+import com.urik.keyboard.utils.CursorEditingUtils
 import com.urik.keyboard.utils.ErrorLogger
 import com.urik.keyboard.utils.UrlEmailDetector
 import kotlinx.coroutines.CoroutineScope
@@ -61,6 +62,13 @@ class SpaceInputHandler(
                 if (handleDoubleSpacePeriod(timeSinceLastSpace)) return@launch
 
                 inputState.lastSpaceTime = currentTime
+
+                // A dash is committed TIGHT ("slovo–"); Space right after one is the escape to its SPACED
+                // form — the Czech pomlčka "slovo – ". Must be tested before the candidate commit below,
+                // since the bar may well be showing next-word predictions at that moment.
+                if (!literalSpace && inputState.displayBuffer.isEmpty() && expandDashToSpacedForm()) {
+                    return@launch
+                }
 
                 // Cluster typing: a plain Space commits the highlighted candidate (the best one by default,
                 // advanced by Tab) — both the current word's predictions AND the empty-buffer next-word
@@ -319,6 +327,48 @@ class SpaceInputHandler(
                 inputState.clearInternalStateOnly()
             }
         }
+    }
+
+    /**
+     * Space pressed with the cursor right after a bare em/en dash: rewrite that dash as its SPACED form —
+     * a space in front of it and one behind — and leave the cursor ready for the next word.
+     *
+     * This is the second half of the dash contract. A dash is entered tight, because that is the form that
+     * cannot be typed afterwards without editing ("slovo–slovo", "1999–2003"); the spaced pomlčka
+     * "slovo – slovo" is then one Space away, and typing the next word straight on keeps the tight form.
+     * Czech needs both, English uses the tight one, and Russian's always-spaced dash is written spaced by
+     * [NonLetterInputHandler] — there is no bare dash before the cursor there, so this never fires.
+     *
+     * The leading space is written only when a real word ends in front of the dash (the same rule the
+     * openers use), so a dash starting a line — a dialogue dash — is not pushed off the margin. URL and
+     * email fields are exempt: spaces would break the address.
+     *
+     * @return true when the press was consumed by the rewrite.
+     */
+    private suspend fun expandDashToSpacedForm(): Boolean {
+        if (inputState.isUrlOrEmailField) return false
+        val before = outputBridge.safeGetTextBeforeCursor(2)
+        val dash = before.lastOrNull() ?: return false
+        if (!CursorEditingUtils.isDash(dash)) return false
+
+        val leading =
+            if (CursorEditingUtils.needsSpaceBeforeOpeningPair(before.dropLast(1))) " " else ""
+        outputBridge.beginBatchEdit()
+        try {
+            outputBridge.deleteSurroundingText(1, 0)
+            outputBridge.commitText("$leading$dash ", 1)
+            inputState.clearInternalStateOnly()
+            // The trailing space is real text, not a deferred separator — the next word must not add another.
+            inputState.pendingWordSeparator = false
+            // This press was consumed by the rewrite, so it must not arm the double-space period: a second
+            // Space would otherwise eat the dash's trailing space and leave "slovo –. ".
+            inputState.lastSpaceTime = 0
+            suggestionPipeline.showBigramPredictions()
+            onCheckAutoCapitalization(outputBridge.safeGetTextBeforeCursor(50))
+        } finally {
+            outputBridge.endBatchEdit()
+        }
+        return true
     }
 
     private fun handleDoubleSpacePeriod(timeSinceLastSpace: Long): Boolean {

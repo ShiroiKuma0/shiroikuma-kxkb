@@ -331,18 +331,24 @@ class NonLetterInputHandler(
      * After a cluster candidate has been committed (which appends a trailing space, like Space does), attach
      * the punctuation [punctuation] with the right spacing: delete that auto-space, commit the mark, and decide
      * the trailing space.
-     *  - CLOSING_PUNCTUATION (`.,?!:;`), ellipsis, closing brackets/quotes (`)]}"`…), and the spaced dashes
-     *    all get a trailing space (they end a clause/word).
+     *  - CLOSING_PUNCTUATION (`.,?!:;`), ellipsis, closing brackets/quotes (`)]}"`…) and a dash in a
+     *    language that spaces its dashes (Russian) all get a trailing space (they end a clause/word).
      *  - OPENING brackets/quotes (`([{"`…) join the FOLLOWING word, so NO trailing space.
-     *  - The hyphen "-" joins words, so NO trailing space.
+     *  - The hyphen "-" always joins words; so does a dash in English and Czech ("word—word",
+     *    "slovo–slovo", "1999–2003"), so NO space on either side. The SPACED form there — the Czech
+     *    pomlčka " – " — is reached by pressing Space right after the tight one, which [SpaceInputHandler]
+     *    rewrites in place.
      * Re-runs sentence-end auto-cap so the next word capitalises. (Bugs A & C.)
      */
     private suspend fun commitPunctuationAfterClusterCommit(punctuation: Char) {
         outputBridge.beginBatchEdit()
         try {
-            // Openers ("word (") and the spaced dashes ("word — ") KEEP the preceding space; everything else
-            // (closers "word) ", the hyphen "word-", ellipsis/.,?!:;) attaches to the word, eating that space.
-            val keepPreceding = punctuation in OPENING_BRACKETS_QUOTES || punctuation in SPACED_DASHES
+            // A dash is set off by spaces only where the language always wants it (see dashIsSpacedHere).
+            val spacedDash = CursorEditingUtils.isDash(punctuation) && dashIsSpacedHere()
+            // Openers ("word (") and a spaced dash ("слово — ") KEEP the preceding space; everything else
+            // (closers "word) ", the hyphen "word-", a tight dash "slovo–", ellipsis/.,?!:;) attaches to the
+            // word, eating that space.
+            val keepPreceding = punctuation in OPENING_BRACKETS_QUOTES || spacedDash
             val before = outputBridge.safeGetTextBeforeCursor(1)
             // Inside a pair („Ahoj|“) there IS no preceding space to keep — the word commit suppressed it —
             // so a mark that wants one has to write it itself, or it glues to the word („Ahoj(“, „Ahoj—“).
@@ -354,7 +360,7 @@ class NonLetterInputHandler(
                 punctuation in CLOSING_PUNCTUATION ||
                     punctuation == '…' ||
                     punctuation in CLOSING_BRACKETS_QUOTES ||
-                    punctuation in SPACED_DASHES
+                    spacedDash
             // A mark typed INSIDE a pair („Ahoj|“, “word|”, (word|) ) must not push its space in front of
             // the closer — suppress it exactly like a word commit does and remember it as the following
             // word's separator: „Ahoj|“ + "," gives „Ahoj,|“ (not the stranded-space „Ahoj, |“), and the
@@ -383,6 +389,22 @@ class NonLetterInputHandler(
     }
 
     private fun isClusterTerminator(c: Char): Boolean = isClusterTerminatorChar(c)
+
+    /**
+     * True when the current language sets a dash off with a space on each side **by default**.
+     *
+     * Russian does, for both dashes: the тире stands between clauses ("слово — слово") and is never
+     * closed up. English closes them up (Chicago's "word—word", the range "1999–2003"), and Czech uses
+     * both forms — the tight one for ranges/compounds, the spaced pomlčka " – " between clauses — so it
+     * gets the tight default plus [SpaceInputHandler]'s Space-expands-the-dash escape, which needs a bare
+     * dash before the cursor and therefore never fires on the already-spaced Russian form.
+     *
+     * Read from `currentLayoutLanguage` — the board you are typing on RIGHT NOW. `currentLanguage` is the
+     * PRIMARY (settings) language and does not follow a layout switch, so keying off it left the Russian
+     * board on whatever the primary language wanted, i.e. tight.
+     */
+    private fun dashIsSpacedHere(): Boolean =
+        languageManager.currentLayoutLanguage.value.split("-").first() == "ru"
 
     /**
      * True when the text right after the cursor already continues with whitespace or a mark — the closing
@@ -540,12 +562,6 @@ class NonLetterInputHandler(
         // Punctuation that attaches to the preceding word, eating an auto-space before it.
         private val CLOSING_PUNCTUATION = setOf('.', ',', '?', '!', ':', ';')
 
-        // The SPACED dashes — em (U+2014) and en (U+2013, the Czech/German "pomlčka" set off by spaces on
-        // both sides). They set a clause off, so they keep the space BEFORE them and get one AFTER — unlike
-        // the hyphen, which glues words. Neither is caught by isPunctuation (it excludes DASH_PUNCTUATION),
-        // so both must be named explicitly, here and in isClusterTerminatorChar.
-        private val SPACED_DASHES = setOf('—', '–')
-
         // Opening brackets/quotes: typed as a CHARACTER, they begin a group and join the FOLLOWING word, so
         // they terminate the composing cluster word but get NO trailing space. Includes the curly opens.
         private val OPENING_BRACKETS_QUOTES = setOf('(', '[', '{', '"', '“', '‘')
@@ -572,7 +588,7 @@ class NonLetterInputHandler(
             CursorEditingUtils.isPunctuation(c) ||
                 c == '-' ||
                 c == '…' ||
-                c in SPACED_DASHES ||
+                CursorEditingUtils.isDash(c) ||
                 c in OPENING_BRACKETS_QUOTES
     }
 }

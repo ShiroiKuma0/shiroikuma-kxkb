@@ -18,6 +18,12 @@ object CursorEditingUtils {
     // Marks that can sit INSIDE a number — time/ratio, decimal, thousands separator. See isNumberInternalMark.
     private const val NUMBER_INTERNAL_MARKS = ":,."
 
+    // The dashes that set text off: em (U+2014) and en (U+2013, the Czech pomlčka) — as opposed to the
+    // hyphen, which glues words. Neither is caught by [isPunctuation] (it excludes DASH_PUNCTUATION), so
+    // they are named here once and shared by the three places that care: the cluster terminator test and the
+    // punctuation commit (NonLetterInputHandler) and the Space-expands-a-dash rule (SpaceInputHandler).
+    private const val DASHES = "—–"
+
     /**
      * True when the character immediately before the cursor closes a bracket/quote pair — a NEW word
      * started there needs a separator space ("(test)|so" → "(test) so"). Unambiguous closers always
@@ -74,6 +80,13 @@ object CursorEditingUtils {
      */
     fun isNumberInternalMark(mark: Char, charBefore: Char?): Boolean =
         mark in NUMBER_INTERNAL_MARKS && charBefore != null && charBefore.isDigit()
+
+    /**
+     * True for the em/en dash — the marks that are typed TIGHT ("slovo–slovo", "1999–2003") and expand to
+     * their spaced form (" – ") when Space is pressed right after one. The hyphen is not a dash here: it
+     * glues words and never takes spaces.
+     */
+    fun isDash(char: Char): Boolean = char in DASHES
 
     fun isPunctuation(char: Char): Boolean {
         if (char == '\'' || char == '\u2019' || char == '-') return false
