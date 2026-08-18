@@ -4,7 +4,43 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+312 — current
+## 0.23.1+313 — current
+
+Built on Urik `0.23.1-beta`. Small layout work: the candidate toolbar reordered and given a
+select-all, Backspace moved next to Enter on every Japanese board, and the 携帯 grid's third row
+put back on the grid.
+
+### ⌨ The candidates row
+
+- `:@)` moves in front of the `"…"` quote pair, so the two quote pairs no longer sit side by side
+  and the smiley keeps its place among the plain literals.
+- A **select-all** entry — `[All]` — is added directly behind `[Paste]`. The token was already
+  understood (it runs the editor's select-all, like `[Paste]`/`[Copy]`/`[Cut]`), but no built-in row
+  had ever used it.
+- Both changes land in all four built-in rows: the general/English default and the Czech, Russian
+  and Japanese ones. A language whose row you have edited yourself keeps your version — the
+  built-in defaults are what changed.
+
+### ⌫ Backspace sits left of Enter on the Japanese boards
+
+- All four Japanese boards — 携帯, 五十音, かな and 5×10 — carried Backspace at the far end of the
+  bottom row, with Enter four keys to its left. Backspace now sits immediately **left of Enter**:
+  `… | Space | ⌫ | ⏎ | …`, the pairing the English and Czech boards already use (GNU 10c:
+  `Space(3) | ⌫ | ⏎ | 🎙`).
+- Applied to all three pages of each board — letters, numbers and symbols — so the bottom row is
+  identical wherever you are.
+
+### 📐 The 携帯 third row aligns again
+
+- The row `→| ま や ら 日本語` rendered narrower than the rows above it, its kana off-column: the
+  Space key carried a width of two cells inside a five-column grid, so the row totalled six units.
+  Rows are weighted to the full keyboard width, so those six units were squeezed into the width of
+  the other rows' five.
+- Space is back to one cell — the row totals five units and `ま や ら` line up with `あ か さ` and
+  `た な は` above. Its `日本語` label is drawn at 0.85 scale so it still fits the narrower key, the
+  same remedy the GNU 10c bottom row uses for its `Esc`/`Ctrl` labels.
+
+## 0.23.1+312
 
 Built on Urik `0.23.1-beta`. Two spacing/prediction repairs: a typed **apostrophe** no longer
 destroys the cluster word being predicted, and a `:`, `,` or `.` **inside a number** no longer
