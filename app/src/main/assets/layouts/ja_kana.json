@@ -943,6 +943,15 @@
             "width": 2.0
           },
           {
+            "type": "action",
+            "action": "backspace",
+            "attributes": {
+              "widthClass": "Regular",
+              "repeatableEnabled": true
+            },
+            "width": 1.0
+          },
+          {
             "type": "compass",
             "char": "⏎",
             "flick": {
@@ -981,15 +990,6 @@
             "char": "？",
             "flick": {
               "right": "！"
-            },
-            "width": 1.0
-          },
-          {
-            "type": "action",
-            "action": "backspace",
-            "attributes": {
-              "widthClass": "Regular",
-              "repeatableEnabled": true
             },
             "width": 1.0
           }
@@ -1254,6 +1254,15 @@
             "width": 2.0
           },
           {
+            "type": "action",
+            "action": "backspace",
+            "attributes": {
+              "widthClass": "Regular",
+              "repeatableEnabled": true
+            },
+            "width": 1.0
+          },
+          {
             "type": "compass",
             "char": "⏎",
             "flick": {
@@ -1291,15 +1300,6 @@
             "flick": {
               "left": "!",
               "right": "%"
-            },
-            "width": 1.0
-          },
-          {
-            "type": "action",
-            "action": "backspace",
-            "attributes": {
-              "widthClass": "Regular",
-              "repeatableEnabled": true
             },
             "width": 1.0
           }
@@ -1600,6 +1600,15 @@
             "width": 2.0
           },
           {
+            "type": "action",
+            "action": "backspace",
+            "attributes": {
+              "widthClass": "Regular",
+              "repeatableEnabled": true
+            },
+            "width": 1.0
+          },
+          {
             "type": "compass",
             "char": "⏎",
             "flick": {
@@ -1637,15 +1646,6 @@
             "flick": {
               "left": "!",
               "right": "%"
-            },
-            "width": 1.0
-          },
-          {
-            "type": "action",
-            "action": "backspace",
-            "attributes": {
-              "widthClass": "Regular",
-              "repeatableEnabled": true
             },
             "width": 1.0
           }

@@ -1034,6 +1034,16 @@
             "width": 2.0
           },
           {
+            "type": "action",
+            "action": "backspace",
+            "attributes": {
+              "style": "Functional",
+              "widthClass": "Regular",
+              "repeatableEnabled": true
+            },
+            "width": 1.0
+          },
+          {
             "type": "compass",
             "char": "⏎",
             "flick": {
@@ -1076,16 +1086,6 @@
             "attributes": {
               "style": "Functional",
               "widthClass": "Regular"
-            },
-            "width": 1.0
-          },
-          {
-            "type": "action",
-            "action": "backspace",
-            "attributes": {
-              "style": "Functional",
-              "widthClass": "Regular",
-              "repeatableEnabled": true
             },
             "width": 1.0
           }
@@ -1364,6 +1364,16 @@
             "width": 2.0
           },
           {
+            "type": "action",
+            "action": "backspace",
+            "attributes": {
+              "style": "Functional",
+              "widthClass": "Regular",
+              "repeatableEnabled": true
+            },
+            "width": 1.0
+          },
+          {
             "type": "compass",
             "char": "⏎",
             "flick": {
@@ -1403,16 +1413,6 @@
             "attributes": {
               "style": "Functional",
               "widthClass": "Regular"
-            },
-            "width": 1.0
-          },
-          {
-            "type": "action",
-            "action": "backspace",
-            "attributes": {
-              "style": "Functional",
-              "widthClass": "Regular",
-              "repeatableEnabled": true
             },
             "width": 1.0
           }
@@ -1727,6 +1727,16 @@
             "width": 2.0
           },
           {
+            "type": "action",
+            "action": "backspace",
+            "attributes": {
+              "style": "Functional",
+              "widthClass": "Regular",
+              "repeatableEnabled": true
+            },
+            "width": 1.0
+          },
+          {
             "type": "compass",
             "char": "⏎",
             "flick": {
@@ -1766,16 +1776,6 @@
             "attributes": {
               "style": "Functional",
               "widthClass": "Regular"
-            },
-            "width": 1.0
-          },
-          {
-            "type": "action",
-            "action": "backspace",
-            "attributes": {
-              "style": "Functional",
-              "widthClass": "Regular",
-              "repeatableEnabled": true
             },
             "width": 1.0
           }

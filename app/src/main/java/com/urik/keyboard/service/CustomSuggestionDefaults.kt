@@ -14,19 +14,19 @@ import com.urik.keyboard.settings.KeyboardSettings
 object CustomSuggestionDefaults {
     // Czech: low-high quotes „…“ in place of English “…”.
     private val CS = listOf(
-        "+", "-", "*", "#", "„…“", "\"…\"", "(…)", "[Paste]", ":@)", "[…]",
+        "+", "-", "*", "#", "„…“", ":@)", "\"…\"", "(…)", "[Paste]", "[All]", "[…]",
         "{{yyyy-MM-dd ", "☺", "❤", "♡ ", "{…}", "{{yyyy-MM-dd_HH-mm-ss"
     ).joinToString("\n")
 
     // Russian: guillemets «…» plus the № sign.
     private val RU = listOf(
-        "+", "-", "*", "#", "«…»", "№", "\"…\"", "(…)", "[Paste]", ":@)", "[…]",
+        "+", "-", "*", "#", "«…»", "№", ":@)", "\"…\"", "(…)", "[Paste]", "[All]", "[…]",
         "{{yyyy-MM-dd ", "☺", "❤", "♡ ", "{…}", "{{yyyy-MM-dd_HH-mm-ss"
     ).joinToString("\n")
 
     // Japanese: corner brackets 「…」 in place of English “…”.
     private val JA = listOf(
-        "+", "-", "*", "#", "「…」", "\"…\"", "(…)", "[Paste]", ":@)", "[…]",
+        "+", "-", "*", "#", "「…」", ":@)", "\"…\"", "(…)", "[Paste]", "[All]", "[…]",
         "{{yyyy-MM-dd ", "☺", "❤", "♡ ", "{…}", "{{yyyy-MM-dd_HH-mm-ss"
     ).joinToString("\n")
 

@@ -513,6 +513,15 @@
           },
           {
             "type": "action",
+            "action": "backspace",
+            "attributes": {
+              "widthClass": "Custom1",
+              "repeatableEnabled": true
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
             "action": "enter",
             "attributes": {
               "widthClass": "Custom1",
@@ -565,15 +574,6 @@
             },
             "attributes": {
               "widthClass": "Custom1"
-            },
-            "width": 1.0
-          },
-          {
-            "type": "action",
-            "action": "backspace",
-            "attributes": {
-              "widthClass": "Custom1",
-              "repeatableEnabled": true
             },
             "width": 1.0
           }
@@ -865,6 +865,15 @@
           },
           {
             "type": "action",
+            "action": "backspace",
+            "attributes": {
+              "widthClass": "Custom1",
+              "repeatableEnabled": true
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
             "action": "enter",
             "attributes": {
               "widthClass": "Custom1",
@@ -921,15 +930,6 @@
               "widthClass": "Custom1",
               "style": "Functional",
               "showPopup": false
-            },
-            "width": 1.0
-          },
-          {
-            "type": "action",
-            "action": "backspace",
-            "attributes": {
-              "widthClass": "Custom1",
-              "repeatableEnabled": true
             },
             "width": 1.0
           }
@@ -1205,6 +1205,15 @@
           },
           {
             "type": "action",
+            "action": "backspace",
+            "attributes": {
+              "widthClass": "Custom1",
+              "repeatableEnabled": true
+            },
+            "width": 1.0
+          },
+          {
+            "type": "action",
             "action": "enter",
             "attributes": {
               "widthClass": "Custom1",
@@ -1261,15 +1270,6 @@
               "widthClass": "Custom1",
               "style": "Functional",
               "showPopup": false
-            },
-            "width": 1.0
-          },
-          {
-            "type": "action",
-            "action": "backspace",
-            "attributes": {
-              "widthClass": "Custom1",
-              "repeatableEnabled": true
             },
             "width": 1.0
           }

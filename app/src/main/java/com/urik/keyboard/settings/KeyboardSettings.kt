@@ -212,7 +212,7 @@ data class KeyboardSettings(
          */
         val DEFAULT_CUSTOM_SUGGESTIONS: String =
             listOf(
-                "+", "-", "*", "#", "“…”", "\"…\"", "(…)", "[Paste]", ":@)", "[…]",
+                "+", "-", "*", "#", "“…”", ":@)", "\"…\"", "(…)", "[Paste]", "[All]", "[…]",
                 "{{yyyy-MM-dd ", "☺", "❤", "♡ ", "{…}", "{{yyyy-MM-dd_HH-mm-ss"
             ).joinToString("\n")
 
