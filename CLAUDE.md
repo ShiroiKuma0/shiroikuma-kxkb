@@ -409,9 +409,22 @@ consumes — `10:35`/`3,14`/`3.14` stay whole while `bod 3: text` and the Czech 
 get the separator back; `?`/`!` keep theirs; side effect: `10.` leaves no whitespace so auto-cap no
 longer arms on an ordinal; trade-off: bare `1, 2, 3` glues to `1,2,3`. Suite 1 975 green.
 
-**Released `0.23.1+312`** (2026-08-17; tagged `v0.23.1+312`, APK + gzipped R8 `mapping.txt` attached,
+**Shipped since `+312`** (the `+313` line): **candidates row + Japanese key placement** — the
+custom-suggestion toolbar moves `:@)` in front of the `"…"` pair and gains `[All]` (select-all,
+a `SpecialTokens` action no built-in row had used) right behind `[Paste]`, in all four built-in
+rows (general/en + cs/ru/ja; a stored per-language override still wins); **Backspace left of
+Enter** on all four Japanese boards (携帯/五十音/かな/5×10) on all three pages each — twelve bottom
+rows go from `… ⏎ | 〜 | ⇧ | ⌫` to `… Space | ⌫ | ⏎ | …`, the pairing the en/cs boards already use;
+**the 携帯 third row realigned** — its Space carried `width 2.0` inside a 5-column grid, so the row
+totalled 6 units and, since rows are LinearLayout-weighted to the full keyboard width, every key in
+it rendered narrower than the rows above with the kana off-column (the futokxkb reference YAML has
+it as a plain regular-width space); Space back to 1 cell + `appearance.fontScale 0.85` so the
+`日本語` label still fits, exactly the remedy the GNU 10c bottom row uses for `Esc`/`Ctrl`. Suite
+1 975 green.
+
+**Released `0.23.1+313`** (2026-08-18; tagged `v0.23.1+313`, APK + gzipped R8 `mapping.txt` attached,
 on the fork's GitHub; default branch `custom`; README badge + `CHANGELOG.md` track it). Recent fork
-releases: `+305`, `+306`, `+309`, `+312` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`,
+releases: `+306`, `+309`, `+312`, `+313` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`, `+305`,
 `+198`, `+204`, `+211`, `+213`, `+214`, `+215`, `+217`, `+222`, `+230`, `+250`, `+287`, `+292`,
 `+295`, `+296`, `+298`, `+299`, `+300`, `+301`, `+302`, `+304`). Remaining M5 tail (low
 priority): number/arrow rows on the look page, quick-period flick. Full architecture + milestone
