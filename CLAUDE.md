@@ -422,9 +422,29 @@ it as a plain regular-width space); Space back to 1 cell + `appearance.fontScale
 `日本語` label still fits, exactly the remedy the GNU 10c bottom row uses for `Esc`/`Ctrl`. Suite
 1 975 green.
 
-**Released `0.23.1+313`** (2026-08-18; tagged `v0.23.1+313`, APK + gzipped R8 `mapping.txt` attached,
+**Shipped since `+313`** (the `+316` line): **dash spacing per language** — both dashes were committed
+with a space on each side everywhere (the rule was written for the Czech pomlčka), so English read
+"word — word" and a range couldn't be typed at all; en/cs now enter a dash **tight** (it eats the
+word's auto-space and adds none behind: `word—word`, `slovo–slovo`, `1999–2003`) while **ru keeps the
+spaced тире** for both dashes, and the spaced form in the tight languages is **one Space away** —
+`SpaceInputHandler.expandDashToSpacedForm` rewrites a bare dash before the cursor as ` – ` (leading
+space only after a real word end, never in URL/email, never on long-press Space, and it zeroes
+`lastSpaceTime` so the double-space period can't eat the trailing space into "slovo –. "); the em/en
+pair is defined once in `CursorEditingUtils.isDash`. **The language must be read from
+`languageManager.currentLayoutLanguage`** — `currentLanguage` is the PRIMARY (settings) language and
+does NOT follow a layout switch, so the first cut left the Russian board on the English primary's
+tight dash; the tests passed through it because each stubbed the flow the code read, and the ru cases
+now set layout=ru with primary=en (the on-device geometry). Plus **the ru boards' dash prominence**:
+`ru_3p2_5r4c`/`ru_ycluster_5r4c` had the em dash on the cluster band's left end AND duplicated on the
+left+down flicks → band/left carry the **en** dash, em keeps down; `ru_5r12c`'s whole em-dash key →
+en dash with em on its down flick (the en/cs boards already carry both on the hyphen key's
+upLeft/upRight). `ru_5r10c`/`ru_yaverty_5r10c` carry no dash on any page — left alone. Known
+same-root-cause gap left alone: the English pronoun correction (`i`→`I`) still reads
+`currentLanguage`, so with an English primary it fires on the cs/ru boards. Suite 1 987 green.
+
+**Released `0.23.1+316`** (2026-08-18; tagged `v0.23.1+316`, APK + gzipped R8 `mapping.txt` attached,
 on the fork's GitHub; default branch `custom`; README badge + `CHANGELOG.md` track it). Recent fork
-releases: `+306`, `+309`, `+312`, `+313` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`, `+305`,
+releases: `+309`, `+312`, `+313`, `+316` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`, `+305`, `+306`,
 `+198`, `+204`, `+211`, `+213`, `+214`, `+215`, `+217`, `+222`, `+230`, `+250`, `+287`, `+292`,
 `+295`, `+296`, `+298`, `+299`, `+300`, `+301`, `+302`, `+304`). Remaining M5 tail (low
 priority): number/arrow rows on the look page, quick-period flick. Full architecture + milestone
