@@ -4,7 +4,44 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+313 — current
+## 0.23.1+316 — current
+
+Built on Urik `0.23.1-beta`. The em and en dashes get a spacing rule per language — tight where the
+language closes them up, spaced where it does not, and one keypress between the two.
+
+### — The dash is entered tight, and Space opens it up
+
+- Both dashes were committed with a space on each side, on every board. The rule had been written
+  for the Czech pomlčka and swept everything else along with it: English came out `word — word`,
+  and a range like `1999–2003` could not be typed at all.
+- **English and Czech now enter a dash tight** — it eats the auto-space the word before it left and
+  adds none behind, so `word—word`, `slovo–slovo` and `1999–2003` all come out whole.
+- **The spaced form is one keypress away:** press Space with the cursor right after the dash and it
+  is rewritten in place as ` – ` — a space in front, a space behind — ready for the next word. Type
+  the next word instead and the tight form stands. That is the Czech contract in full: the tight
+  dash for ranges and compounds, the spaced pomlčka between clauses. It is also why tight is the
+  default — the spaced form can always be reached afterwards, the tight one could not.
+- The rewrite is careful about the edges: nothing composing, no leading space unless a real word
+  ends in front of the dash (a dialogue dash at the start of a line keeps its margin), never in a
+  URL or email field, never on a long-press Space (the literal escape), and it disarms the
+  double-space period, which would otherwise have eaten the dash's trailing space into `slovo –. `.
+- **Russian keeps the spaced тире** by default, for both dashes — it is the one language that never
+  closes them up. The Space rewrite can never fire there: the mark is already written spaced.
+- The rule follows the **board you are typing on**, not the primary language in Settings. The first
+  cut read the primary one, which does not move when you switch boards — so with English primary the
+  Russian board stayed on English's tight dash.
+
+### 🇷🇺 The Russian boards make the en dash the prominent one
+
+- All three Russian boards that carry a dash had the **em** dash in the prominent slot. In `3+2 4c`
+  and `Я cluster 4c` it sat on the cluster band's left end and was duplicated on the left and down
+  flicks; the band and the left flick now carry the **en** dash, and the em dash keeps the down
+  flick. In `12c` a whole key was the em dash; its glyph is now the en dash, with the em dash on its
+  down flick.
+- The en/cs boards already carry both on the hyphen key (up-left and up-right), so Russian now
+  matches the family. `ru 10c` and `ЯВЕРТЫ 10c` carry no dash on any page and were left alone.
+
+## 0.23.1+313
 
 Built on Urik `0.23.1-beta`. Small layout work: the candidate toolbar reordered and given a
 select-all, Backspace moved next to Enter on every Japanese board, and the 携帯 grid's third row
