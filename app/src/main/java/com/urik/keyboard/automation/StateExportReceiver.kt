@@ -28,7 +28,8 @@ import kotlinx.coroutines.launch
  * `BackupContactsReceiver`, the EMUI-proven round-trip, and 自由作業盤's own `StateExportReceiver`).
  *
  * - `<pkg>.action.EXPORT_STATE`: run the ordinary category-ZIP export ([BackupManager]) with no Activity and no
- *   user interaction. Extras (all String): `token` (required — [AutomationAuth]), `path` (optional absolute
+ *   user interaction. Extras (all String): `token` (OPTIONAL — [AutomationAuth]; checked only when
+ *   「Use authorization token?」 is on, ignored otherwise), `path` (optional absolute
  *   directory, wins over the app's configured export folder), `items` (optional comma list of [BackupPart] ids;
  *   absent/empty = our default set, i.e. the parts LIST_CATEGORIES reports as `on`), `progress_action`
  *   (optional — see below), plus the reply trio
@@ -99,13 +100,11 @@ class StateExportReceiver : BroadcastReceiver() {
             )
         }
 
-        // Gate first — "disabled" and "bad token" stay distinct, they debug differently.
-        if (!AutomationAuth.enabled(app)) {
-            reply("ERROR:automation disabled")
-            return
-        }
-        if (!AutomationAuth.isTokenValid(app, token)) {
-            reply("ERROR:bad token")
+        // Gate first, through the ONE function both this receiver and the data door ask — "disabled" and
+        // "bad token" stay distinct (they debug differently), and a token sent to an app that does not require
+        // one is IGNORED rather than refused (contract v2 §2).
+        AutomationAuth.refuse(app, token)?.let {
+            reply(it)
             return
         }
         // Before first unlock every store this export reads (DataStore, Room, filesDir) is LOCKED. The receiver
@@ -158,30 +157,17 @@ class StateExportReceiver : BroadcastReceiver() {
         replyId: String,
         reply: (String) -> Unit
     ) {
-        val appLabel = runCatching {
-            app.packageManager.getApplicationLabel(app.applicationInfo).toString()
-        }.getOrDefault(app.packageName)
-        var lastProgressAt = 0L
-
-        fun progress(done: Int, total: Int, partLabel: String) {
-            if (progressAction.isEmpty() || replyPackage.isEmpty()) return
-            val now = System.currentTimeMillis()
-            // At most one every 500 ms — but the completion one always goes out.
-            if (done < total && now - lastProgressAt < PROGRESS_MIN_INTERVAL_MS) return
-            lastProgressAt = now
-            app.sendBroadcast(
-                Intent(progressAction).apply {
-                    setPackage(replyPackage)
-                    addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES)
-                    putExtra(EXTRA_REPLY_ID, replyId)
-                    putExtra(EXTRA_PROGRESS_APP, appLabel)
-                    putExtra(EXTRA_PROGRESS_TEXT, "区分 $done/$total — $partLabel")
-                    putExtra(EXTRA_PROGRESS_CURRENT, done.toLong())
-                    putExtra(EXTRA_PROGRESS_TOTAL, total.toLong())
-                    putExtra(EXTRA_PROGRESS_UNIT, "区分")
-                }
-            )
-        }
+        // ONE progress sender for both doors ([AutomationProgress]), parameterised on the correlation id —
+        // here the request's `reply_id`, at the data door the `job_id`. A second implementation of the same
+        // watchdog drifts, and the one that drifts is always the one nobody is looking at.
+        val progress = AutomationProgress(
+            context = app,
+            progressAction = progressAction,
+            replyPackage = replyPackage,
+            correlationId = replyId,
+            appLabel = AutomationProgress.appLabel(app),
+            ordered = AutomationProgress.writeOrder(parts)
+        )
 
         val pending = goAsync()
         markExportRunning(replyId)
@@ -211,7 +197,7 @@ class StateExportReceiver : BroadcastReceiver() {
                     parts = parts,
                     dir = dir,
                     appVersion = appVersionName(app),
-                    onProgress = ::progress,
+                    onProgress = { done, total, partLabel -> progress.send(done, total, partLabel) },
                     isCancelled = { cancelRequested }
                 )
                 val written = parts.size - result.errors.size
@@ -262,7 +248,11 @@ class StateExportReceiver : BroadcastReceiver() {
         const val EXTRA_PROGRESS_TOTAL = "total"
         const val EXTRA_PROGRESS_UNIT = "unit"
 
-        private const val PROGRESS_MIN_INTERVAL_MS = 500L
+        /** The category id being written right now — how the caller's panel highlights the correct row. */
+        const val EXTRA_PROGRESS_ITEM = "item"
+
+        /** The second progress counter: bytes written so far. */
+        const val EXTRA_PROGRESS_BYTES = "bytes"
 
         // ---- cancellation ------------------------------------------------------------------------------
         // Process-wide, because each broadcast lands on a FRESH receiver instance: the CANCEL_EXPORT that

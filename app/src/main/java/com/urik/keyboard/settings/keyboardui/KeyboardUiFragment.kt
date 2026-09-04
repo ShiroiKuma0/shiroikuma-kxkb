@@ -187,8 +187,17 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
             }
 
         // Below the Export/import entry, in the same section (this is a backup feature, so it lives where
-        // backup lives — the sister-app convention): the automation intent surface. Default OFF; nothing is
-        // reachable until the switch is on, and the token is what 自由作業盤's 保存復元 task must carry.
+        // backup lives — the sister-app convention): the automation surface, as contract v2 §2 lays it out.
+        //
+        // Three rows, in this order. The master switch now ships **ON** and the token is **opt-in**: a pasted
+        // secret cannot survive a wipe, and the case this exists to serve is 応用管理 restoring this keyboard
+        // AND its data onto a clean phone, where nothing has been configured and nobody has pasted anything.
+        // The token row is hidden unless it is actually being asked for — a 48-character secret sitting under
+        // an off switch only invites pasting it somewhere it will do nothing.
+        val automationTokenPref =
+            automationTokenPreference(context).apply {
+                isVisible = AutomationAuth.requireToken(context)
+            }
         val automationSwitchPref =
             SwitchPreferenceCompat(context).apply {
                 key = "kb_ui_automation_enabled"
@@ -202,7 +211,21 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                     true
                 }
             }
-        val automationTokenPref = automationTokenPreference(context)
+        val automationTokenSwitchPref =
+            SwitchPreferenceCompat(context).apply {
+                key = "kb_ui_automation_require_token"
+                isPersistent = false
+                layoutResource = R.layout.preference_item_kxkb
+                title = resources.getString(R.string.automation_require_token_title)
+                summary = resources.getString(R.string.automation_require_token_summary)
+                isChecked = AutomationAuth.requireToken(context)
+                setOnPreferenceChangeListener { _, value ->
+                    val on = value as Boolean
+                    AutomationAuth.setRequireToken(context, on)
+                    automationTokenPref.isVisible = on
+                    true
+                }
+            }
 
         // The Voice input section (offline Whisper model setup + dictation options).
         val voiceCategory =
@@ -428,6 +451,7 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         screen.addPreference(exportImportCategory)
         exportImportCategory.addPreference(exportImportPref)
         exportImportCategory.addPreference(automationSwitchPref)
+        exportImportCategory.addPreference(automationTokenSwitchPref)
         exportImportCategory.addPreference(automationTokenPref)
         screen.addPreference(voiceCategory)
         voiceCategory.addPreference(voicePref)

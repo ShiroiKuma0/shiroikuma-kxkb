@@ -33,12 +33,24 @@ object BfuLayoutPrefs {
         DEFAULT_LAYOUT_ID
     }
 
-    /** Store the pick (written from the settings UI, i.e. always unlocked). A blank/invalid id clears it. */
+    /**
+     * Store the pick (written from the settings UI, and from a backup restore). A blank/invalid id clears it.
+     *
+     * **`commit()`, not `apply()` — deliberately.** This is the one lazily-flushed write on the restore path:
+     * every other store a restore touches is durable by the time its call returns (DataStore commits through a
+     * temp file and rename, Room commits its transaction, the layout stores write real files). `apply()` only
+     * schedules the disk write, and 応用管理 **force-stops this app with a SIGKILL the instant an import
+     * reports success** — which is correct on its side, because a process shutting down orderly would write
+     * its cached preferences back out and silently undo the import. A SIGKILL bypasses the `QueuedWork` flush
+     * that would otherwise save us, so an `apply()` in flight is simply lost and the restore reports success
+     * over a lock-screen keyboard that quietly fell back to the default. It is one short string; the
+     * synchronous write costs nothing worth having.
+     */
     fun setLayoutId(context: Context, id: String) {
         try {
             val editor = prefs(context)?.edit() ?: return
             if (VALID_ID.matches(id)) editor.putString(KEY_LAYOUT_ID, id) else editor.remove(KEY_LAYOUT_ID)
-            editor.apply()
+            editor.commit()
         } catch (_: Throwable) {
             // A failed write just leaves the previous (or default) layout in place — never fatal.
         }

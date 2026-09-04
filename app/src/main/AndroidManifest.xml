@@ -5,11 +5,21 @@
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <!-- Whisper voice input (offline, on-device — audio never leaves the phone). -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- The automation data door runs its export/import in a foreground service (contract v2 §2a): a
+         backgrounded app writing for minutes is frozen mid-stream on this phone, which would yield a
+         truncated archive underneath a success reply. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <queries>
         <intent>
             <action android:name="android.view.InputMethod" />
         </intent>
+        <!-- The two automation callers. Without naming them here, the `setPackage()` on our reply
+             broadcast fails SILENTLY on Android 11+: the export runs, writes correctly, and is never
+             heard of. 応用管理 drives the data door (§2a); 自由作業盤 runs the 保存復元 batch (§1). -->
+        <package android:name="shiroikuma.oyokanri" />
+        <package android:name="shiroikuma.jiyusagyoban" />
     </queries>
 
     <application
@@ -111,10 +121,13 @@
                 android:resource="@xml/method" />
         </service>
 
-        <!-- The sister-app state-export automation contract: a 保存復元 task in 白い熊 自由作業盤 fires these
-             at us and we export headlessly, reporting progress and the written path back by broadcast. No
-             android:permission — the caller cannot hold one; the token (AutomationAuth, default OFF) is the
-             gate. -->
+        <!-- The sister-app state-export automation contract §1: a 保存復元 task in 白い熊 自由作業盤 fires
+             these at us and we export headlessly, reporting progress and the written path back by broadcast.
+             No android:permission — the caller cannot hold one (every app in the family has its own keystore,
+             so a signature permission is impossible and a normal one buys nothing). Since contract v2 this is
+             deliberately the UNAUTHENTICATED half of the surface: it only ever writes where it was told to and
+             reports what it did. Everything that moves data through a caller-supplied descriptor lives behind
+             the provider below, which knows who is calling. -->
         <receiver
             android:name=".automation.StateExportReceiver"
             android:exported="true">
@@ -124,6 +137,33 @@
                 <action android:name="${applicationId}.action.CANCEL_EXPORT" />
             </intent-filter>
         </receiver>
+
+        <!-- Contract v2 §2a — the data door. Exported with no android:permission, because the caller is
+             identified properly instead: AutomationCallers pins the caller's exact package name, cross-checks
+             the uid the kernel reports, and pins the signing certificate. The payload never crosses here — a
+             caller-supplied ParcelFileDescriptor does, and the work runs in the service below. -->
+        <provider
+            android:name=".automation.AutomationProvider"
+            android:authorities="${applicationId}.automation"
+            android:exported="true" />
+
+        <service
+            android:name=".automation.AutomationDataService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Automation data export/import" />
+        </service>
+
+        <!-- Capability discovery, read WITHOUT waking us: 応用管理 builds its list across every installed
+             package at once with MATCH_UNINSTALLED_PACKAGES | MATCH_DISABLED_COMPONENTS, and must be able to
+             answer "can this app be backed up" for an app that is currently frozen — which 白い熊 does a lot,
+             and a frozen app cannot be asked anything. An app without these entries is simply not offered for
+             data backup or restore; that is the opt-out. -->
+        <meta-data android:name="shiroikuma.automation.contract" android:value="2" />
+        <meta-data android:name="shiroikuma.automation.format" android:value="1" />
+        <meta-data android:name="shiroikuma.automation.min_format" android:value="1" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

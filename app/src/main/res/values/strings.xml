@@ -766,11 +766,16 @@
 
     <!-- Automation export (the sister-app state-export contract) -->
     <string name="automation_export_title">Automation export</string>
-    <string name="automation_export_summary">Let sister-app tasks trigger this backup via the token-gated EXPORT_STATE intent.</string>
+    <string name="automation_export_summary">Let sister apps trigger this backup, and back up this keyboard\'s data — including the words it has learned from your typing.</string>
+    <string name="automation_require_token_title">Use authorization token?</string>
+    <string name="automation_require_token_summary">Off: any sister app may drive this app\'s automation. On: a caller must also present the token below. Either way the data door checks the calling app\'s package, uid and signing certificate.</string>
     <string name="automation_token_title">Automation token (tap to copy)</string>
     <string name="automation_token_regenerate">Regenerate</string>
     <string name="automation_token_copied">Automation token copied</string>
     <string name="automation_token_regenerated">Automation token regenerated — update pasted copies</string>
+    <string name="automation_data_channel">Automation data</string>
+    <string name="automation_data_exporting">Backing up keyboard data…</string>
+    <string name="automation_data_importing">Restoring keyboard data…</string>
 
     <!-- Export / import -->
     <string name="export_import_title">Export / import</string>
@@ -809,11 +814,11 @@
     <string name="backup_part_appearance">Appearance &amp; colours</string>
     <string name="backup_part_settings">Settings</string>
     <string name="backup_part_layouts">Keyboard layouts</string>
-    <string name="backup_part_user_dictionary">User dictionary</string>
-    <string name="backup_part_learned_words">Learned words</string>
-    <string name="backup_part_next_word">Next-word predictions</string>
-    <string name="backup_part_blacklist">Blocked words</string>
-    <string name="backup_part_per_app">Per-app layout memory</string>
+    <string name="backup_part_user_dictionary">User dictionary (words and shortcuts you added)</string>
+    <string name="backup_part_learned_words">Learned words (words saved from your typing)</string>
+    <string name="backup_part_next_word">Next-word predictions (word pairs from your typing)</string>
+    <string name="backup_part_blacklist">Blocked words (words you told it to forget)</string>
+    <string name="backup_part_per_app">Per-app layout memory (which keyboard each app opens)</string>
     <string name="backup_part_line">%1$s: %2$d</string>
 
     <!-- Tips -->
