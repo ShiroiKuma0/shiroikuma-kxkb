@@ -140,6 +140,9 @@ class KeyboardLayoutManager(
     private var swipeKeyboardView: SwipeKeyboardView? = null
     private val flickGestureDetector = FlickGestureDetector().also { detector ->
         detector.updateDisplayMetrics(context.resources.displayMetrics.density)
+        // Let the detector widen a key's sectors to the directions that key really carries (see
+        // FlickGestureDetector.computeDirection) — resolved against the face that would actually commit.
+        detector.setPopulatedDirectionsProvider { key -> populatedFlickDirections(key) }
         detector.setFlickListener(object : FlickGestureDetector.FlickListener {
             override fun onFlickStart(key: KeyboardKey.FlickKey, anchorX: Float, anchorY: Float) {}
             override fun onFlickDirectionChanged(
@@ -203,6 +206,31 @@ class KeyboardLayoutManager(
     /** First position with content, used so an empty diagonal falls back to the nearest cardinal. */
     private fun firstFlickPosition(key: KeyboardKey.FlickKey, vararg candidates: String): String =
         candidates.firstOrNull { flickHasContent(key, it) } ?: "center"
+
+    /** Compass position -> the direction that reaches it, for [populatedFlickDirections]. */
+    private val flickDirectionPositions = listOf(
+        FlickGestureDetector.FlickDirection.UP to "up",
+        FlickGestureDetector.FlickDirection.DOWN to "down",
+        FlickGestureDetector.FlickDirection.LEFT to "left",
+        FlickGestureDetector.FlickDirection.RIGHT to "right",
+        FlickGestureDetector.FlickDirection.UP_LEFT to "upLeft",
+        FlickGestureDetector.FlickDirection.UP_RIGHT to "upRight",
+        FlickGestureDetector.FlickDirection.DOWN_LEFT to "downLeft",
+        FlickGestureDetector.FlickDirection.DOWN_RIGHT to "downRight"
+    )
+
+    /**
+     * The directions this key would really commit something in — mirroring exactly what onFlickCommit
+     * reads: a binding off the base key, or a character off the SHIFTED face. An empty result (a key with
+     * a bare centre) leaves the detector on its plain 45° sectors.
+     */
+    private fun populatedFlickDirections(key: KeyboardKey.FlickKey): Set<FlickGestureDetector.FlickDirection> {
+        val face = flickFace(key, lastKeyboardState)
+        return flickDirectionPositions
+            .filter { (_, pos) -> key.bindings.containsKey(pos) || flickCharAt(face, pos) != null }
+            .map { it.first }
+            .toSet()
+    }
 
     private fun effectiveFlickPosition(
         key: KeyboardKey.FlickKey,

@@ -28,6 +28,25 @@ class FlickGestureDetectorTest {
     )
     private val spaceAction = KeyboardKey.Action(KeyboardKey.ActionType.SPACE)
 
+    /** A cluster key's band: letters left and right, a number up, nothing below and no diagonals. */
+    private val clusterDirections = setOf(
+        FlickGestureDetector.FlickDirection.LEFT,
+        FlickGestureDetector.FlickDirection.RIGHT,
+        FlickGestureDetector.FlickDirection.UP
+    )
+
+    /** A full 8-way compass key. */
+    private val compassDirections = setOf(
+        FlickGestureDetector.FlickDirection.UP,
+        FlickGestureDetector.FlickDirection.DOWN,
+        FlickGestureDetector.FlickDirection.LEFT,
+        FlickGestureDetector.FlickDirection.RIGHT,
+        FlickGestureDetector.FlickDirection.UP_LEFT,
+        FlickGestureDetector.FlickDirection.UP_RIGHT,
+        FlickGestureDetector.FlickDirection.DOWN_LEFT,
+        FlickGestureDetector.FlickDirection.DOWN_RIGHT
+    )
+
     @Before
     fun setup() {
         detector = FlickGestureDetector()
@@ -117,13 +136,50 @@ class FlickGestureDetectorTest {
     }
 
     @Test
-    fun `direction locked once threshold crossed — late curve still commits original direction`() {
+    fun `the direction follows the finger through to the release point`() {
         down(100f, 100f)
-        move(100f, 10f) // strong upward, locks UP
-        move(100f, 10f)
-        move(180f, 10f) // curves right after lock
-        up(180f, 10f)
+        move(100f, 10f) // sets off strongly upward
+        assertEquals(FlickGestureDetector.FlickDirection.UP, lastDirectionChanged)
+        move(180f, 100f) // and comes back round to the right
+        assertEquals(FlickGestureDetector.FlickDirection.RIGHT, lastDirectionChanged)
+        up(180f, 100f)
+        // What the compass guide highlights is what the release commits — no direction frozen early on.
+        assertEquals(FlickGestureDetector.FlickDirection.RIGHT, committedDirection)
+    }
+
+    @Test
+    fun `off-axis left flick on a cluster key still commits LEFT`() {
+        detector.setPopulatedDirectionsProvider { clusterDirections }
+        down(100f, 100f)
+        move(60f, 72f)
+        up(20f, 44f) // 35 degrees above horizontal — an UP_LEFT sector under fixed 45 degree sectors
+        assertEquals(FlickGestureDetector.FlickDirection.LEFT, committedDirection)
+    }
+
+    @Test
+    fun `a genuinely upward flick on a cluster key still commits UP`() {
+        detector.setPopulatedDirectionsProvider { clusterDirections }
+        down(100f, 100f)
+        up(70f, 20f) // only 21 degrees off vertical
         assertEquals(FlickGestureDetector.FlickDirection.UP, committedDirection)
+    }
+
+    @Test
+    fun `a flick towards nothing is not dragged into a populated direction`() {
+        detector.setPopulatedDirectionsProvider { clusterDirections } // no down, no diagonals
+        down(100f, 100f)
+        up(100f, 180f)
+        // Straight down stays DOWN (an empty position, so the host commits the centre char) rather than
+        // snapping 90 degrees sideways into the band.
+        assertEquals(FlickGestureDetector.FlickDirection.DOWN, committedDirection)
+    }
+
+    @Test
+    fun `a full compass key keeps the 45 degree sectors`() {
+        detector.setPopulatedDirectionsProvider { compassDirections }
+        down(100f, 100f)
+        up(20f, 44f)
+        assertEquals(FlickGestureDetector.FlickDirection.UP_LEFT, committedDirection)
     }
 
     @Test
