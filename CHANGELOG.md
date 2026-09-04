@@ -4,7 +4,78 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+316 — current
+## 0.23.1+320 — current
+
+Built on Urik `0.23.1-beta`. The sister-app automation is rebuilt to contract v2: the keyboard now
+answers a backup request out of the box, and can hand its whole state to 白い熊 応用管理 — and take
+it back — so a wiped phone can be restored with the words this keyboard learned still in it. Flick
+sectors also stop losing off-axis flicks.
+
+### 💾 The keyboard can be backed up *with its data*, onto a clean phone
+
+A new **data door** — a `ContentProvider` at `shiroikuma.kxkb.automation` — lets 応用管理 export this
+keyboard's entire state and restore it later. The backup travels through a **file descriptor the
+caller opens**, never a path, so it lands inside the caller's encrypted, checksummed archive instead
+of beside it. `import` lives only here, never on the broadcast surface: an import that any app on the
+phone could trigger would let any app on the phone wipe the keyboard.
+
+Because a broadcast cannot say who sent it, the caller is identified three ways — its **exact package
+name** (never a `shiroikuma.*` prefix, which any sideloaded app could take), a **uid cross-check**
+against what the kernel reports, and a **pinned signing certificate**. A caller that fails any of the
+three is refused with a reason, not an exception.
+
+### 🔓 The authorization token is now optional, and off by default
+
+Automation used to ship closed: the switch was off, and every request had to carry a 48-character
+secret pasted from this app's settings into the caller's. **A pasted secret cannot survive a wipe** —
+which is precisely the situation the backup exists for. So the master switch now ships **on**, and a
+new **「Use authorization token?」** switch (default **off**) decides whether a token is wanted at all.
+A token sent to the keyboard when it is not asking for one is **ignored, never refused**, so a caller
+configured long ago keeps working. The token row is hidden unless it is actually being asked for.
+
+### 📝 A backup now says plainly what it contains
+
+The export categories are what the backup app shows you when you choose what to save, so they now
+name what they actually hold rather than what they are called internally: **Learned words (words
+saved from your typing)**, **User dictionary (words and shortcuts you added)**, **Next-word
+predictions (word pairs from your typing)**, **Blocked words (words you told it to forget)** and
+**Per-app layout memory (which keyboard each app opens)**. A keyboard's backup carries text you
+actually typed, and the list you tick should say so.
+
+### 🔒 The lock-screen keyboard survives a restore
+
+Restoring an app ends with it being force-stopped immediately, by design — otherwise the shutting-down
+process writes its cached settings back out and silently undoes the restore. That kill also discards
+any settings write that was merely *scheduled*, and the **lock-screen (Direct Boot) keyboard choice**
+was the one such write on the restore path: it lives in device-protected storage, outside the normal
+settings store, because it has to be readable before the phone is first unlocked. It is now written
+synchronously. Everything else restored was already durable, so the learned-words and user-dictionary
+corpora were never at risk — but the setting deciding *which keyboard exists on the lock screen of a
+freshly restored phone* was.
+
+### 🧭 An off-axis flick reaches the direction the key actually has
+
+A compass key rarely carries all eight positions, yet every key was split into the same plain 45°
+sectors — so a flick aimed at the one direction a key *does* have could land in an empty neighbouring
+sector and commit nothing. Each key's sectors now widen to the positions it really carries, resolved
+against the face that would actually commit (so a binding on the base key and a character on the
+shifted face both count). A key with a bare centre keeps the plain sectors, and a flick towards
+genuinely nothing is never dragged into a populated direction. The direction also follows the finger
+through to the release point now, instead of freezing once the gesture passed a threshold.
+
+### 🐛 Fixes
+
+- **The automation service could kill the keyboard.** Once a foreground service has been requested,
+  Android requires it to actually go foreground — and kills the process if it does not. Two paths that
+  ignored a stale or malformed request returned *before* doing so, so a caller retrying with an expired
+  job id could take the keyboard down with it. It now goes foreground first, then decides.
+- **The exported receiver could not be heard from.** The app's `<queries>` block declared an
+  InputMethod intent but named neither automation caller, so on Android 11+ those apps were invisible
+  to us — which does not merely lose the reply, it fails the caller identity check outright.
+- A caller-supplied descriptor is no longer left open if the export service fails to start, and a
+  restore is spooled to disk rather than read whole into memory.
+
+## 0.23.1+316
 
 Built on Urik `0.23.1-beta`. The em and en dashes get a spacing rule per language — tight where the
 language closes them up, spaced where it does not, and one keypress between the two.
