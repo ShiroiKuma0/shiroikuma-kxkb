@@ -443,10 +443,56 @@ upLeft/upRight). `ru_5r10c`/`ru_yaverty_5r10c` carry no dash on any page — lef
 same-root-cause gap left alone: the English pronoun correction (`i`→`I`) still reads
 `currentLanguage`, so with an English primary it fires on the cs/ru boards. Suite 1 987 green.
 
-**Released `0.23.1+316`** (2026-08-18; tagged `v0.23.1+316`, APK + gzipped R8 `mapping.txt` attached,
-on the fork's GitHub; default branch `custom`; README badge + `CHANGELOG.md` track it). Recent fork
-releases: `+309`, `+312`, `+313`, `+316` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`, `+305`, `+306`,
-`+198`, `+204`, `+211`, `+213`, `+214`, `+215`, `+217`, `+222`, `+230`, `+250`, `+287`, `+292`,
-`+295`, `+296`, `+298`, `+299`, `+300`, `+301`, `+302`, `+304`). Remaining M5 tail (low
-priority): number/arrow rows on the look page, quick-period flick. Full architecture + milestone
-sequence in `docs/PLAN.md`.
+**Shipped since `+316`** (the `+320` line): **sister-app automation contract v2** — the gate stops being
+the token (`automation_enabled` default false→**true**, new `automation_require_token` default **false**,
+both checks in ONE `AutomationAuth.refuse` so "disabled" and "bad token" cannot drift, and a token sent to
+an app that does not require one is **IGNORED, never an error** — a pasted secret cannot survive the wipe
+this whole feature exists to recover from); the **data door** (`automation/AutomationProvider.kt` at
+`shiroikuma.kxkb.automation`, exported, no permission, `describe`/`export`/`import`/`cancel` answering the
+same `OK:`/`ERROR:` grammar and **never throwing across the binder**) whose caller is identified three ways
+— **exact package name (never a prefix**: a sideloaded app may call itself `shiroikuma.evil`), uid
+cross-check against `getPackagesForUid`, and a **pinned signing certificate** (`AutomationCallers.kt` +
+`AutomationJobs.kt` **copied verbatim** from 自由作業盤) — moving the payload through a caller-supplied
+`ParcelFileDescriptor` (`dup()`ed before `call()` returns, closed in a `finally`) rather than a path,
+because the caller renames/encrypts/checksums per file it knows about; **`import` exists ONLY there**, an
+import on the unauthenticated receiver would let any app wipe any sister app. `AutomationDataService`
+(foreground, `specialUse`) streams the SAME one-ZIP `BackupManager` archive, and `AutomationProgress.kt` is
+the **one** §3 progress sender both doors share, parameterised on the correlation id (`reply_id` for the
+receiver, `job_id` for the door, written into both extras) — which is how the §1 receiver finally gained the
+required `item` category id. Four traps paid for along the way: **`onStartCommand` must call
+`startForeground` BEFORE every early return** (the platform kills the process with
+`ForegroundServiceDidNotStartInTimeException`, so a caller retrying with a stale job id **killed the
+keyboard**); the `<queries>` block named an `InputMethod` intent but **neither caller**, and on Android 11+
+an invisible caller does not merely lose the reply, it fails the identity check as "signature unreadable"
+(both `shiroikuma.oyokanri` and `shiroikuma.jiyusagyoban` now named); a refused `startForegroundService`
+closes the fd and drops the job instead of throwing, with one `handedOff` flag covering every other exit;
+and an import is **spooled to a cache file**, never read whole into memory. Plus **`BfuLayoutPrefs` writes
+with `commit()`** — 応用管理 force-stops the app with a SIGKILL the instant an import reports success (an
+orderly shutdown would write cached prefs back out and undo the restore), which discards a scheduled
+`apply()`; it was the ONLY lazily-flushed write on the restore path (DataStore, Room and the layout files
+are all durable on return), and it decides **which keyboard exists on the lock screen of a freshly restored
+phone**. The backup category labels now say plainly what they hold, since 応用管理 renders them verbatim and
+a keyboard's backup carries text that was actually typed — "Learned words (words saved from your typing)",
+"User dictionary (words and shortcuts you added)", "Next-word predictions (word pairs from your typing)",
+"Blocked words (words you told it to forget)", "Per-app layout memory (which keyboard each app opens)".
+Also **flick sectors widen to the directions a key actually carries** (resolved against the face that would
+commit, so a binding on the base key and a character on the shifted face both count; a bare-centre key keeps
+the plain 45° sectors and a flick towards nothing is never dragged into a populated direction), and the
+direction lock is gone — the direction follows the finger to the release point. Suite 1 991 green.
+
+**Released `0.23.1+320`** (2026-09-04; tagged `0.23.1+320`, APK attached, on the fork's GitHub; default
+branch `custom`; README badge + `CHANGELOG.md` track it). **Release tags carry NO `v` prefix** (白い熊,
+2026-09-05): the first fork release was the bare `0.23.1+72`, the `v` crept in at `+147`, and the 30 tags
+from `+147` to `+316` were renamed to bare — their GitHub releases were MOVED onto the new tags
+(`gh release edit --tag`), never deleted and re-cut, so every APK asset, release note and **publication**
+date survived; 11 release TITLES that also carried the `v` were stripped to match. Upstream Urik's own tags
+(`v0.23.1-beta`, `v0.8.x`, …) are untouched — the rename matched `^v0\.23\.1\+[0-9]+$` only.
+**The retag gotcha:** a release's `created_at` is the date of the TAG OBJECT, and the releases page orders
+by it — so recreating 30 tags at once sorted them all above the genuinely newest release, which had an
+older tag object. `publishedAt` is untouched and the `releases/latest` API stayed correct, but the page
+looked wrong until `0.23.1+320`'s tag was force-recreated so its object was the newest again. Retag oldest
+first, or re-cut the newest tag last. Recent fork releases:
+`+313`, `+316`, `+320` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`, `+211`, `+213`,
+`+214`, `+215`, `+217`, `+222`, `+230`, `+250`, `+287`, `+292`, `+295`, `+296`, `+298`, `+299`, `+300`,
+`+301`, `+302`, `+304`, `+305`, `+306`, `+309`, `+312`). Remaining M5 tail (low priority): number/arrow
+rows on the look page, quick-period flick. Full architecture + milestone sequence in `docs/PLAN.md`.
