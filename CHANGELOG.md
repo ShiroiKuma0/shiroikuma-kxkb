@@ -4,7 +4,59 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+320 — current
+## 0.23.1+321 — current
+
+Built on Urik `0.23.1-beta`. Four things you reported, each traced to its root: times and decimals
+typed on the Czech and English boards stay whole; the candidate bar shows the English pronoun the
+way it will be committed; English proper nouns come out capitalised; and every key vibrates — at a
+strength the slider actually controls.
+
+### 🔢 “12:00” no longer becomes “12: 00”
+
+The `+312` rule that keeps a colon, comma or period inside a number was tested on a geometry the keys
+never produce. On our boards the digits are compass keys typed as letters, so “12” **composes as a
+word**; the `:` then commits the candidate “12 ” first and eats that auto-space — but judged the
+number rule on the space itself, never seeing the “2” behind it. And even when the space was deferred,
+the next digit started a new “word” and consumed the deferred separator one key later. Both halves
+are fixed: the mark now reads the character *behind* the space it eats, and a digit that continues
+`<digit><:,.>` **drops** the deferred separator while a letter still takes it. “10:35”, “3,14” and
+“1,000” stay whole; “10. května” and “bod 3: text” keep their space.
+
+### 🔠 The bar shows “I”, not “i”
+
+Mid-sentence, the candidate bar offered the lowercase “i” while Space committed “I”: the pronoun rule
+ran only on commit. It now applies where the bar is built — the typed lead, the cluster candidates,
+the expand pane and the swipe bar — so what you see is what lands, for “I’m”, “I’ll”, “I’ve” and “I’d”
+too. Every pronoun site now also reads the **layout** language rather than the primary one, so the
+Czech “i” on the Czech board is no longer capitalised when English is your primary language, and a
+swiped word looks up your learned casing under the language it was learned in.
+
+### 🇬🇧 Proper nouns are capitalised on the English board
+
+“czech” and “english” were offered lowercase because the bundled dictionaries carry **no case at
+all** — every one of their 137 000 English entries is lowercase, “monday”, “london” and “john”
+included. A generated overlay (`dictionaries/en.cased`, 9 601 words) now gives the English board the
+proper surface of names, places, days, months, nationalities and holidays: a dictionary “czech” is
+shown and committed as “Czech”, on the flat boards’ typed lead as well, so the word you typed lowercase
+comes out capitalised on Space. Long-press Space still commits exactly what you typed, and a word you
+taught the keyboard keeps the casing you gave it. The list is derived with hunspell — a word it rejects
+lowercase but accepts capitalised is a proper noun — plus a hand list for the words it knows in both
+cases (English, French, German, John, China, Japan, Bible, Christian…). English only for now: the
+Czech dictionary has the same limitation (“anglie”, “praha”, “čech”), but hunspell’s hundred thousand
+Czech surnames collide with colloquial spellings (teda, mlíko, todle), so a Czech list needs curating.
+
+### 📳 Every key vibrates, and the strength setting means something
+
+With haptic feedback on, only Space, Enter, Backspace and the candidate bar clicked — the letters
+were silent. Every compass, cluster and column key has its own touch handling that never fired the
+click (the mic key alone did); all of them now click on touch-down, by key kind. And “255 still
+super weak”: the strength was only an amplitude on ~30 ms pulses, faint on most motors even at full
+drive — and on a vibrator without amplitude control (Huawei’s, typically) the slider changed
+**nothing**, while the settings preview silently did nothing there too. The strength now also scales
+the pulse **length**: 128 is the previous feel, 255 twice as long at full amplitude, 1 a quarter.
+The settings preview plays the real letter click at the chosen strength, so you can judge it there.
+
+## 0.23.1+320
 
 Built on Urik `0.23.1-beta`. The sister-app automation is rebuilt to contract v2: the keyboard now
 answers a backup request out of the box, and can hand its whole state to 白い熊 応用管理 — and take
