@@ -23,6 +23,7 @@ import com.urik.keyboard.settings.CursorSpeed
 import com.urik.keyboard.settings.LongPressDuration
 import com.urik.keyboard.settings.LongPressPunctuationMode
 import com.urik.keyboard.settings.SettingsEventHandler
+import com.urik.keyboard.ui.keyboard.components.HapticSignature
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
@@ -301,9 +302,14 @@ class TypingBehaviorFragment : PreferenceFragmentCompat() {
         testField = null
     }
 
-    private fun previewHaptic(amplitude: Int) {
+    /**
+     * Play the letter click exactly as the keyboard will at this strength — the same signature, the same
+     * amplitude-or-default choice and the same length scaling — so the slider previews what typing feels
+     * like. A vibrator without amplitude control still previews: there the strength changes the length.
+     */
+    private fun previewHaptic(strength: Int) {
         val v = vibrator ?: return
-        if (!v.hasAmplitudeControl()) return
-        v.vibrate(VibrationEffect.createOneShot(25L, amplitude.coerceIn(1, 255)))
+        val amplitude = if (v.hasAmplitudeControl()) strength.coerceIn(1, 255) else VibrationEffect.DEFAULT_AMPLITUDE
+        v.vibrate(HapticSignature.LetterClick.createEffect(amplitude, HapticSignature.durationScaleFor(strength)))
     }
 }

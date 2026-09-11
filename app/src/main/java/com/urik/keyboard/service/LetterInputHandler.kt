@@ -108,8 +108,13 @@ class LetterInputHandler(
             // commit suppressed its trailing space (cursor at „word“| BEFORE the closing mark), or
             // the cursor sits right AFTER a closing bracket/quote ("(test)|" via arrow-out).
             if (isStartingNewWord) {
-                val needsSeparator = inputState.consumePendingWordSeparator() ||
-                    CursorEditingUtils.needsSpaceAfterClosingPair(outputBridge.safeGetTextBeforeCursor(2))
+                val textBefore = outputBridge.safeGetTextBeforeCursor(2)
+                // A digit continuing the number before the cursor ("10:" + "3") drops the separator
+                // the mark deferred instead of inserting it — the deferral exists for exactly this key.
+                val pendingSeparator = inputState.consumePendingWordSeparator() &&
+                    !CursorEditingUtils.continuesNumber(char, textBefore)
+                val needsSeparator = pendingSeparator ||
+                    CursorEditingUtils.needsSpaceAfterClosingPair(textBefore)
                 if (needsSeparator) {
                     // The space MUST be pre-announced: its unannounced selection update hit the
                     // composing-reassert branch, which SET THE CURSOR BACK one position mid-word —

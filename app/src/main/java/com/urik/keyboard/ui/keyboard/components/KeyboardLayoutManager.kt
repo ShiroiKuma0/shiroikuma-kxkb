@@ -120,6 +120,14 @@ class KeyboardLayoutManager(
     private var hapticEnabled = true
     private var hapticAmplitude = 170
 
+    /**
+     * The pulse-length factor the strength setting maps to (see [HapticSignature.durationScaleFor]): the
+     * setting must be felt even where the vibrator ignores amplitude, and at 255 a full-amplitude pulse of
+     * the original ~30 ms was still faint — "strong" needs length as much as amplitude.
+     */
+    private val hapticDurationScale: Float
+        get() = HapticSignature.durationScaleFor(hapticAmplitude)
+
     var onDeleteWord: (() -> Unit)? = null
 
     @VisibleForTesting
@@ -854,7 +862,7 @@ class KeyboardLayoutManager(
     fun triggerBackspaceHaptic() {
         if (!hapticEnabled || hapticAmplitude == 0) return
         val amplitude = if (supportsAmplitudeControl) hapticAmplitude else android.os.VibrationEffect.DEFAULT_AMPLITUDE
-        val effect = HapticSignature.BackspaceChirp.createEffect(amplitude)
+        val effect = HapticSignature.BackspaceChirp.createEffect(amplitude, hapticDurationScale)
         vibrateEffect(effect)
     }
 
@@ -984,7 +992,7 @@ class KeyboardLayoutManager(
             } else {
                 android.os.VibrationEffect.DEFAULT_AMPLITUDE
             }
-            vibrateEffect(HapticSignature.VoiceFlipDouble.createEffect(amplitude))
+            vibrateEffect(HapticSignature.VoiceFlipDouble.createEffect(amplitude, hapticDurationScale))
         } catch (e: Exception) {
             ErrorLogger.logException(
                 component = "KeyboardLayoutManager",
@@ -1022,8 +1030,15 @@ class KeyboardLayoutManager(
                     }
 
                     is KeyboardKey.FlickKey ->
-                        // The mic key gets a firm, unmistakable pulse — recording starts/stops on it.
-                        if (isVoiceKey(key)) HapticSignature.VoicePulse else HapticSignature.LetterClick
+                        // The mic key gets a firm, unmistakable pulse — recording starts/stops on it. Every
+                        // other compass/cluster/column key clicks like the plain key of its type.
+                        when {
+                            isVoiceKey(key) -> HapticSignature.VoicePulse
+                            key.type == KeyboardKey.KeyType.PUNCTUATION ||
+                                key.type == KeyboardKey.KeyType.SYMBOL -> HapticSignature.PunctuationTick
+                            key.type == KeyboardKey.KeyType.NUMBER -> HapticSignature.NumberClick
+                            else -> HapticSignature.LetterClick
+                        }
 
                     KeyboardKey.Spacer -> {
                         return
@@ -1039,7 +1054,7 @@ class KeyboardLayoutManager(
             } else {
                 android.os.VibrationEffect.DEFAULT_AMPLITUDE
             }
-            val effect = signature.createEffect(amplitude)
+            val effect = signature.createEffect(amplitude, hapticDurationScale)
             vibrateEffect(effect)
         } catch (e: Exception) {
             ErrorLogger.logException(
@@ -1901,106 +1916,119 @@ class KeyboardLayoutManager(
 
             if (key is KeyboardKey.FlickKey) {
                 setOnClickListener(null)
-                setOnTouchListener { view, event ->
-                    val keyAt = { _: Float, _: Float -> view.getTag(R.id.key_data) as? KeyboardKey }
-                    when (event.action) {
-                        MotionEvent.ACTION_DOWN -> {
-                            // Flick keys own their whole gesture. Stop the parent keyboard view from
-                            // intercepting and cancelling the flick mid-swipe — without this, certain
-                            // keys (e.g. さ) had their flick cancelled on longer swipes, dropping input.
-                            view.parent?.requestDisallowInterceptTouchEvent(true)
-                            // The FlickPopup is this key's own (richer) preview — never stack the plain bubble on top.
-                            keyPreviewPopup?.hide()
-                            flickPopup?.dismiss()
-                            flickPopup = null
-                            flickStripActive = false
-                            flickStripDownX = event.x
-                            flickStripDownY = event.y
-                            flickStripDownRawX = event.rawX
-                            flickStripDownRawY = event.rawY
-                            val arrowBinding = arrowRepeatBinding(key)
-                            if (arrowBinding != null) {
-                                // A held arrow key auto-repeats its motion — no compass guide, no strip.
-                                scheduleArrowRepeat(arrowBinding)
-                            } else if (isVoiceKey(key)) {
-                                // A held mic key flips the voice language — no compass guide either.
-                                // Flick keys have no touch-down haptic; the mic key needs one (the firm
-                                // VoicePulse) so starting/stopping a recording is felt immediately.
-                                performContextualHaptic(key)
-                                scheduleVoiceHold()
-                            } else {
-                                // No guide flash on a plain tap: defer the compass panel to a brief hold or
-                                // a flick-sized move (see scheduleFlickGuide).
-                                scheduleFlickGuide(key, view)
-                                scheduleFlickStrip(key, view) // arm the long-press extra-key strip
-                            }
-                            flickGestureDetector.handleTouchEvent(event, keyAt)
-                        }
-                        MotionEvent.ACTION_MOVE ->
-                            if (flickStripActive) {
-                                onFlickStripMove(event.rawX, event.rawY) // slide picks an extra
-                                true
-                            } else if (arrowRepeatActive) {
-                                true // the repeat owns the touch; wandering neither cancels nor flicks
-                            } else if (voiceHoldFired) {
-                                true // the flip already happened; the release commits nothing more
-                            } else {
-                                // A flick-sized move means the user is flicking/swiping, not holding — drop
-                                // the strip, the pending guide (the guide is hold-only; showing it mid-swipe
-                                // was noise) and a pending arrow repeat or voice hold.
-                                val dx = event.x - flickStripDownX
-                                val dy = event.y - flickStripDownY
-                                if (dx * dx + dy * dy >= flickStripSlopPx * flickStripSlopPx) {
-                                    cancelFlickStripTimer()
-                                    cancelFlickGuideTimer()
-                                    cancelArrowRepeat()
-                                    cancelVoiceHold()
-                                }
-                                flickGestureDetector.handleTouchEvent(event, keyAt)
-                            }
-                        MotionEvent.ACTION_UP -> {
-                            cancelFlickStripTimer()
-                            cancelFlickGuideTimer()
-                            val wasRepeating = arrowRepeatActive
-                            cancelArrowRepeat()
-                            val holdFlipped = voiceHoldFired
-                            cancelVoiceHold()
-                            if (flickStripActive) {
-                                when (extraStripPopup?.releaseAction()) {
-                                    ExtraKeyStripPopup.Release.LOCK -> lockFlickStrip()
-                                    ExtraKeyStripPopup.Release.CANCEL -> dismissFlickStrip()
-                                    else -> commitFlickStrip()
-                                }
-                                flickGestureDetector.cancel()
-                                true
-                            } else if (wasRepeating || holdFlipped) {
-                                true // the hold was the input; the gesture was already cancelled
-                            } else {
-                                flickGestureDetector.handleTouchEvent(event, keyAt)
-                            }
-                        }
-                        MotionEvent.ACTION_CANCEL -> {
-                            cancelFlickStripTimer()
-                            cancelFlickGuideTimer()
-                            val wasRepeating = arrowRepeatActive
-                            cancelArrowRepeat()
-                            cancelVoiceHold()
-                            if (flickStripActive) {
-                                dismissFlickStrip()
-                                flickGestureDetector.cancel()
-                                true
-                            } else if (wasRepeating) {
-                                true
-                            } else {
-                                flickGestureDetector.handleTouchEvent(event, keyAt)
-                            }
-                        }
-                        else -> flickGestureDetector.handleTouchEvent(event, keyAt)
-                    }
-                }
+                setOnTouchListener(flickTouchListener(key))
             }
         }
     }
+
+    /**
+     * The touch listener of a compass/cluster/column key: it owns the whole gesture (tap, flick, hold-guide,
+     * long-press strip, arrow repeat, voice hold) and fires the touch-down haptic every key gives. Exposed so
+     * a test can attach it to a bare button.
+     */
+    @VisibleForTesting
+    @SuppressLint("ClickableViewAccessibility")
+    internal fun flickTouchListener(key: KeyboardKey.FlickKey): View.OnTouchListener =
+        View.OnTouchListener { view, event ->
+            val keyAt = { _: Float, _: Float -> view.getTag(R.id.key_data) as? KeyboardKey }
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    // Flick keys own their whole gesture. Stop the parent keyboard view from
+                    // intercepting and cancelling the flick mid-swipe — without this, certain
+                    // keys (e.g. さ) had their flick cancelled on longer swipes, dropping input.
+                    view.parent?.requestDisallowInterceptTouchEvent(true)
+                    // The touch-down click every key gives. Flick keys replace the standard
+                    // listeners (which fire it for plain character keys), so without this the
+                    // compass/cluster letters — every letter on the kxkb boards — were silent while
+                    // Space/Enter/Backspace clicked. The mic key's firm VoicePulse comes through the
+                    // same call (the signature is chosen by key).
+                    performContextualHaptic(key)
+                    // The FlickPopup is this key's own (richer) preview — never stack the plain bubble on top.
+                    keyPreviewPopup?.hide()
+                    flickPopup?.dismiss()
+                    flickPopup = null
+                    flickStripActive = false
+                    flickStripDownX = event.x
+                    flickStripDownY = event.y
+                    flickStripDownRawX = event.rawX
+                    flickStripDownRawY = event.rawY
+                    val arrowBinding = arrowRepeatBinding(key)
+                    if (arrowBinding != null) {
+                        // A held arrow key auto-repeats its motion — no compass guide, no strip.
+                        scheduleArrowRepeat(arrowBinding)
+                    } else if (isVoiceKey(key)) {
+                        // A held mic key flips the voice language — no compass guide either.
+                        scheduleVoiceHold()
+                    } else {
+                        // No guide flash on a plain tap: defer the compass panel to a brief hold or
+                        // a flick-sized move (see scheduleFlickGuide).
+                        scheduleFlickGuide(key, view)
+                        scheduleFlickStrip(key, view) // arm the long-press extra-key strip
+                    }
+                    flickGestureDetector.handleTouchEvent(event, keyAt)
+                }
+                MotionEvent.ACTION_MOVE ->
+                    if (flickStripActive) {
+                        onFlickStripMove(event.rawX, event.rawY) // slide picks an extra
+                        true
+                    } else if (arrowRepeatActive) {
+                        true // the repeat owns the touch; wandering neither cancels nor flicks
+                    } else if (voiceHoldFired) {
+                        true // the flip already happened; the release commits nothing more
+                    } else {
+                        // A flick-sized move means the user is flicking/swiping, not holding — drop
+                        // the strip, the pending guide (the guide is hold-only; showing it mid-swipe
+                        // was noise) and a pending arrow repeat or voice hold.
+                        val dx = event.x - flickStripDownX
+                        val dy = event.y - flickStripDownY
+                        if (dx * dx + dy * dy >= flickStripSlopPx * flickStripSlopPx) {
+                            cancelFlickStripTimer()
+                            cancelFlickGuideTimer()
+                            cancelArrowRepeat()
+                            cancelVoiceHold()
+                        }
+                        flickGestureDetector.handleTouchEvent(event, keyAt)
+                    }
+                MotionEvent.ACTION_UP -> {
+                    cancelFlickStripTimer()
+                    cancelFlickGuideTimer()
+                    val wasRepeating = arrowRepeatActive
+                    cancelArrowRepeat()
+                    val holdFlipped = voiceHoldFired
+                    cancelVoiceHold()
+                    if (flickStripActive) {
+                        when (extraStripPopup?.releaseAction()) {
+                            ExtraKeyStripPopup.Release.LOCK -> lockFlickStrip()
+                            ExtraKeyStripPopup.Release.CANCEL -> dismissFlickStrip()
+                            else -> commitFlickStrip()
+                        }
+                        flickGestureDetector.cancel()
+                        true
+                    } else if (wasRepeating || holdFlipped) {
+                        true // the hold was the input; the gesture was already cancelled
+                    } else {
+                        flickGestureDetector.handleTouchEvent(event, keyAt)
+                    }
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    cancelFlickStripTimer()
+                    cancelFlickGuideTimer()
+                    val wasRepeating = arrowRepeatActive
+                    cancelArrowRepeat()
+                    cancelVoiceHold()
+                    if (flickStripActive) {
+                        dismissFlickStrip()
+                        flickGestureDetector.cancel()
+                        true
+                    } else if (wasRepeating) {
+                        true
+                    } else {
+                        flickGestureDetector.handleTouchEvent(event, keyAt)
+                    }
+                }
+                else -> flickGestureDetector.handleTouchEvent(event, keyAt)
+            }
+        }
 
     @VisibleForTesting
     @SuppressLint("ClickableViewAccessibility")

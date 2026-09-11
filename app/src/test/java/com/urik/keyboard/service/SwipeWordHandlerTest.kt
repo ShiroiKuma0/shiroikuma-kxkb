@@ -59,6 +59,7 @@ class SwipeWordHandlerTest {
         mockSwipeSpaceManager = mock(SwipeSpaceManager::class.java)
         mockSwipeDetector = mock(SwipeDetector::class.java)
         whenever(mockLanguageManager.currentLanguage).thenReturn(MutableStateFlow("en"))
+        whenever(mockLanguageManager.currentLayoutLanguage).thenReturn(MutableStateFlow("en"))
         handler = SwipeWordHandler(
             inputState = realInputState,
             outputBridge = mockOutputBridge,

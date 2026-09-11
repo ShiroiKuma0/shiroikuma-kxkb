@@ -205,7 +205,7 @@ class SpaceInputHandler(
                             is AutocorrectDecision.Correct -> {
                                 val originalWord = inputState.displayBuffer
                                 val rawCorrected = decision.suggestion
-                                val pronounLang = languageManager.currentLanguage.value.split("-").first()
+                                val pronounLang = languageManager.currentLayoutLanguage.value.split("-").first()
                                 val pronounCorrected = if (pronounLang == "en") {
                                     EnglishPronounCorrection.capitalize(rawCorrected.lowercase()) ?: rawCorrected
                                 } else {
@@ -404,7 +404,7 @@ class SpaceInputHandler(
         word.length >= 2 && word.all { it.isLetter() }
 
     private fun applyPronounCorrectionIfNeeded() {
-        val pronounLang = languageManager.currentLanguage.value.split("-").first()
+        val pronounLang = languageManager.currentLayoutLanguage.value.split("-").first()
         if (pronounLang == "en" && inputState.displayBuffer.isNotEmpty()) {
             val corrected = EnglishPronounCorrection.capitalize(inputState.displayBuffer.lowercase())
             if (corrected != null && corrected != inputState.displayBuffer) {

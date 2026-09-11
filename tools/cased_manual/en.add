@@ -1,0 +1,25 @@
+# Words hunspell en_US knows in BOTH cases, where the capitalised sense is the one people actually type
+# ("english" = billiards spin, "french" = to cut into strips, "john" = a toilet, "china" = porcelain).
+# One cased surface per line; must exist (lowercase) in en.urik or it is skipped.
+English
+French
+German
+Welsh
+Dutch
+Danish
+Roman
+Basque
+Germanic
+Christian
+Catholic
+Protestant
+Bible
+Thanksgiving
+Wales
+China
+Japan
+Brazil
+Berlin
+York
+John
+I

@@ -219,7 +219,7 @@ class NonLetterInputHandler(
                             if (!isValid) {
                                 outputBridge.beginBatchEdit()
                                 try {
-                                    val pronounLang = languageManager.currentLanguage.value.split("-").first()
+                                    val pronounLang = languageManager.currentLayoutLanguage.value.split("-").first()
                                     if (pronounLang == "en" && inputState.displayBuffer.isNotEmpty()) {
                                         val corrected = EnglishPronounCorrection.capitalize(
                                             inputState.displayBuffer.lowercase()
@@ -293,7 +293,7 @@ class NonLetterInputHandler(
 
                 outputBridge.beginBatchEdit()
                 try {
-                    val pronounLang = languageManager.currentLanguage.value.split("-").first()
+                    val pronounLang = languageManager.currentLayoutLanguage.value.split("-").first()
                     if (pronounLang == "en" && inputState.displayBuffer.isNotEmpty()) {
                         val corrected = EnglishPronounCorrection.capitalize(inputState.displayBuffer.lowercase())
                         if (corrected != null && corrected != inputState.displayBuffer) {
@@ -353,7 +353,18 @@ class NonLetterInputHandler(
             // Inside a pair („Ahoj|“) there IS no preceding space to keep — the word commit suppressed it —
             // so a mark that wants one has to write it itself, or it glues to the word („Ahoj(“, „Ahoj—“).
             val leading = if (keepPreceding && needsLeadingSpace(before)) " " else ""
-            if (!keepPreceding && before == " ") {
+            val eatsAutoSpace = !keepPreceding && before == " "
+            // The character the mark will sit against. When the auto-space is about to be eaten, that is the
+            // character BEFORE it — the last letter of the word just committed. Digits are typed as composing
+            // letters, so "12" + ":" commits the candidate "12 " first: judged on the space, the number rule
+            // below never fired and a time came out "12: 00".
+            val charBeforeMark =
+                if (eatsAutoSpace) {
+                    outputBridge.safeGetTextBeforeCursor(2).dropLast(1).lastOrNull()
+                } else {
+                    before.lastOrNull()
+                }
+            if (eatsAutoSpace) {
                 outputBridge.deleteSurroundingText(1, 0)
             }
             val wantsTrailingSpace =
@@ -371,7 +382,7 @@ class NonLetterInputHandler(
             val suppressTrailing = wantsTrailingSpace &&
                 (
                     nextCharSuppressesTrailingSpace() ||
-                        CursorEditingUtils.isNumberInternalMark(punctuation, before.lastOrNull())
+                        CursorEditingUtils.isNumberInternalMark(punctuation, charBeforeMark)
                 )
             // Openers and the hyphen attach to what follows -> no trailing space.
             val trailing = if (wantsTrailingSpace && !suppressTrailing) " " else ""
@@ -435,7 +446,7 @@ class NonLetterInputHandler(
      * and registers a PostCommitReplacementState so the original word can be restored from the bar.
      */
     private suspend fun commitCorrectedThenPunctuation(rawCorrected: String, punctuation: String) {
-        val pronounLang = languageManager.currentLanguage.value.split("-").first()
+        val pronounLang = languageManager.currentLayoutLanguage.value.split("-").first()
         val pronounCorrected = if (pronounLang == "en") {
             EnglishPronounCorrection.capitalize(rawCorrected.lowercase()) ?: rawCorrected
         } else {
@@ -510,7 +521,7 @@ class NonLetterInputHandler(
         if (inputState.displayBuffer.isNotEmpty()) {
             outputBridge.beginBatchEdit()
             try {
-                val pronounLang = languageManager.currentLanguage.value.split("-").first()
+                val pronounLang = languageManager.currentLayoutLanguage.value.split("-").first()
                 if (pronounLang == "en") {
                     val corrected = EnglishPronounCorrection.capitalize(inputState.displayBuffer.lowercase())
                     if (corrected != null && corrected != inputState.displayBuffer) {

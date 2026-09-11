@@ -975,4 +975,69 @@ class SuggestionPipelineTest {
 
         assertEquals(listOf("Yes", "Yeh"), pane)
     }
+
+    // ---- Proper casing at the bar funnel: the pronoun and the dictionary's cased overlay. ----
+
+    /** Echo the words as given — the real transformer keeps a preserve-case surface verbatim mid-sentence. */
+    private fun stubCasingPassThrough() {
+        whenever(mockCaseTransformer.applyCasingToSuggestions(any(), any(), any(), any()))
+            .thenAnswer { inv ->
+                @Suppress("UNCHECKED_CAST")
+                (inv.arguments[0] as List<SpellingSuggestion>).map { it.word }
+            }
+    }
+
+    @Test
+    fun `the English pronoun shows capitalised in the bar - not only on commit`() {
+        stubCasingPassThrough()
+        inputState.displayBuffer = "i"
+        whenever(mockSpellCheckManager.properCasing(any(), any())).thenReturn(null)
+
+        val bar = pipeline.storeAndCapitalizeSuggestions(
+            listOf(SpellingSuggestion("i", 1.0, 0, "typed"), SpellingSuggestion("in", 0.9, 1, "cluster"))
+        )
+
+        assertEquals(listOf("I", "in"), bar)
+        // The raw list the commit re-derives from carries the same surface, preserve-case.
+        val raw = inputState.currentRawSuggestions.first()
+        assertEquals("I", raw.word)
+        assertEquals(true, raw.preserveCase)
+    }
+
+    @Test
+    fun `a dictionary proper noun takes its cased surface from the overlay`() {
+        stubCasingPassThrough()
+        inputState.displayBuffer = "czech"
+        whenever(mockSpellCheckManager.properCasing(eq("czech"), eq("en"))).thenReturn("Czech")
+        whenever(mockSpellCheckManager.properCasing(eq("check"), eq("en"))).thenReturn(null)
+
+        val bar = pipeline.storeAndCapitalizeSuggestions(
+            listOf(SpellingSuggestion("czech", 1.0, 0, "typed"), SpellingSuggestion("check", 0.9, 1, "spell"))
+        )
+
+        assertEquals(listOf("Czech", "check"), bar)
+    }
+
+    @Test
+    fun `a learned word keeps the casing you taught it - the overlay never overrides preserve-case`() {
+        stubCasingPassThrough()
+        inputState.displayBuffer = "czech"
+        whenever(mockSpellCheckManager.properCasing(any(), any())).thenReturn("Czech")
+
+        val bar = pipeline.storeAndCapitalizeSuggestions(
+            listOf(SpellingSuggestion("czech", 1.0, 0, "learned", preserveCase = true))
+        )
+
+        assertEquals(listOf("czech"), bar)
+    }
+
+    @Test
+    fun `properCasingFor answers the swipe path on the layout language`() {
+        whenever(mockSpellCheckManager.properCasing(eq("monday"), eq("en"))).thenReturn("Monday")
+        whenever(mockSpellCheckManager.properCasing(eq("hello"), eq("en"))).thenReturn(null)
+
+        assertEquals("Monday", pipeline.properCasingFor("monday"))
+        assertEquals("I", pipeline.properCasingFor("i"))
+        assertEquals(null, pipeline.properCasingFor("hello"))
+    }
 }

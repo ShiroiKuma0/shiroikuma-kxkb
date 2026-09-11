@@ -133,8 +133,49 @@ class SuggestionPipeline(
         // not the primary language — otherwise typing Czech "id" surfaced the English contraction "I'd".
         val withContractions =
             Contractions.injectForWord(suggestions, state.displayBuffer, host.currentLayoutLanguage())
-        state.currentRawSuggestions = withContractions
-        return capitalizeSuggestions(withContractions, isSentenceStart)
+        // Proper nouns and the English pronoun take their cased surface HERE, before the raw list is stored,
+        // so the bar shows exactly what a selection commits (recaseForCommit re-derives from this list).
+        val properCased = withProperCasing(withContractions)
+        state.currentRawSuggestions = properCased
+        return capitalizeSuggestions(properCased, isSentenceStart)
+    }
+
+    /**
+     * Swap every plain (non-preserve-case) suggestion for its proper-cased surface where one exists —
+     * the English pronoun ("i" -> "I", "i'm" -> "I'm") and the dictionary's proper-casing overlay
+     * ("czech" -> "Czech", "monday" -> "Monday"; the bundled dictionaries are all-lowercase, see
+     * `tools/case_dictionaries.sh`). The result carries preserveCase so sentence-start / shift casing keeps
+     * the surface rather than re-deriving it, and the typed lead on a flat board takes it too, so "czech"
+     * typed and Space-committed becomes "Czech" (long-press Space still commits the literal). A learned
+     * word already arrives preserve-case with the casing you taught it, and is left alone.
+     */
+    private fun withProperCasing(suggestions: List<SpellingSuggestion>): List<SpellingSuggestion> {
+        val lang = host.currentLayoutLanguage().split("-").first()
+        if (lang in CASELESS_LANGUAGES) return suggestions
+        return suggestions.map { suggestion ->
+            if (suggestion.preserveCase) return@map suggestion
+            val proper = properSurface(suggestion.word, lang) ?: return@map suggestion
+            if (proper == suggestion.word) suggestion else suggestion.copy(word = proper, preserveCase = true)
+        }
+    }
+
+    /** The proper-cased surface of [word] in [lang], pronoun rule first, then the dictionary overlay. */
+    private fun properSurface(word: String, lang: String): String? {
+        if (lang == "en") {
+            EnglishPronounCorrection.capitalize(word.lowercase())?.let { return it }
+        }
+        return spellCheckManager.properCasing(word, lang)
+    }
+
+    /**
+     * The proper-cased surface of [word] on the current layout language, or null when it has none — for
+     * callers that build their own bar (the swipe path), so a swiped "czech" is shown and committed as
+     * "Czech" like a typed one.
+     */
+    fun properCasingFor(word: String): String? {
+        val lang = host.currentLayoutLanguage().split("-").first()
+        if (lang in CASELESS_LANGUAGES) return null
+        return properSurface(word, lang)
     }
 
     /**
@@ -181,7 +222,8 @@ class SuggestionPipeline(
         val words = spellCheckManager.clusterCandidatesFor(buffer, lang, maxResults)
         if (words.isEmpty()) return state.withCustomRow(state.pendingSuggestions)
         val predictions =
-            capitalizeSuggestions(words.map { SpellingSuggestion(it, 0.0, 0, "cluster") }).distinct()
+            capitalizeSuggestions(withProperCasing(words.map { SpellingSuggestion(it, 0.0, 0, "cluster") }))
+                .distinct()
         return state.withCustomRow(predictions)
     }
 

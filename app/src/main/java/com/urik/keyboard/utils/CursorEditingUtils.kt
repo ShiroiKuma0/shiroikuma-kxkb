@@ -82,6 +82,19 @@ object CursorEditingUtils {
         mark in NUMBER_INTERNAL_MARKS && charBefore != null && charBefore.isDigit()
 
     /**
+     * True when [char], about to start a new word, is a digit that continues the number before the cursor —
+     * the text ends in `<digit><:,.>` ("10:", "3,", "1."). The separator [isNumberInternalMark] deferred
+     * must then be DROPPED, not inserted: "10:" + "3" -> "10:3", never "10: 3". A letter after the same
+     * mark still takes it ("10. května", "bod 3: text"). Digits are typed as composing letters, so a new
+     * number IS a new word to the letter path — without this test the deferral was undone one key later.
+     */
+    fun continuesNumber(char: String, textBeforeCursor: String?): Boolean {
+        if (char.length != 1 || !char[0].isDigit()) return false
+        val text = textBeforeCursor ?: return false
+        return text.length >= 2 && isNumberInternalMark(text[text.length - 1], text[text.length - 2])
+    }
+
+    /**
      * True for the em/en dash — the marks that are typed TIGHT ("slovo–slovo", "1999–2003") and expand to
      * their spaced form (" – ") when Space is pressed right after one. The hyphen is not a dash here: it
      * glues words and never takes spaces.

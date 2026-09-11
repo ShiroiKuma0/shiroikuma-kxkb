@@ -239,6 +239,43 @@ class NonLetterInputHandlerTest {
     }
 
     @Test
+    fun `a colon after a candidate-committed number reads the digit past the eaten auto-space`() {
+        // The on-device geometry: digits are typed as composing letters, so "12" + ":" commits the
+        // candidate "12 " first and the mark then eats that space. The number rule must look at the "2"
+        // behind the space, not at the space — or a time came out "12: 00".
+        realInputState.clusterLayoutActive = true
+        realInputState.displayBuffer = "12"
+        realInputState.pendingSuggestions = listOf("12")
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn(" ")
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(2), any())).thenReturn("2 ")
+        whenever(mockOutputBridge.safeGetTextAfterCursor(eq(1), any())).thenReturn("")
+
+        handler.handle(":")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verifyBlocking(mockSuggestionPipeline) { coordinateSuggestionSelection(eq("12"), any(), any()) }
+        verify(mockOutputBridge).deleteSurroundingText(1, 0)
+        verify(mockOutputBridge).commitText(":", 1)
+        assert(realInputState.pendingWordSeparator)
+    }
+
+    @Test
+    fun `a colon after a candidate-committed word still takes its space`() {
+        realInputState.clusterLayoutActive = true
+        realInputState.displayBuffer = "Deh"
+        realInputState.pendingSuggestions = listOf("Yes")
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn(" ")
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(2), any())).thenReturn("s ")
+        whenever(mockOutputBridge.safeGetTextAfterCursor(eq(1), any())).thenReturn("")
+
+        handler.handle(":")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockOutputBridge).commitText(": ", 1)
+        assert(!realInputState.pendingWordSeparator)
+    }
+
+    @Test
     fun `a comma after a digit holds its space back so a decimal stays glued`() {
         // Czech decimals and English thousands separators: "3," runs on as "3,14", "1," as "1,000".
         realInputState.clusterLayoutActive = true

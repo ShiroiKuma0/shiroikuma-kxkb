@@ -57,7 +57,12 @@ class SwipeWordHandler(
      */
     private fun publishSwipeCandidates(displayWord: String, alternates: List<String>, isSentenceStart: Boolean) {
         val casedAlternates = alternates.map { alt ->
-            if (isSentenceStart) alt.replaceFirstChar { it.uppercaseChar() } else alt
+            val proper = suggestionPipeline.properCasingFor(alt)
+            when {
+                proper != null -> proper
+                isSentenceStart -> alt.replaceFirstChar { it.uppercaseChar() }
+                else -> alt
+            }
         }
         val bar = (listOf(displayWord) + casedAlternates).distinct()
         inputState.pendingSuggestions = bar
@@ -94,7 +99,7 @@ class SwipeWordHandler(
                         if (keyboardState.isShiftPressed && !keyboardState.isCapsLockOn) {
                             onDisableShiftAfterSwipe()
                         }
-                        val currentLanguage = languageManager.currentLanguage.value.split("-").first()
+                        val currentLanguage = languageManager.currentLayoutLanguage.value.split("-").first()
                         val displayWord = computeSwipeDisplayWord(
                             validatedWord = validatedWord,
                             learnedOriginalCase = null,
@@ -117,7 +122,7 @@ class SwipeWordHandler(
             if (inputState.displayBuffer.isNotEmpty()) {
                 outputBridge.beginBatchEdit()
                 try {
-                    val pronounLang = languageManager.currentLanguage.value.split("-").first()
+                    val pronounLang = languageManager.currentLayoutLanguage.value.split("-").first()
                     if (pronounLang == "en" && inputState.displayBuffer.isNotEmpty()) {
                         val corrected = EnglishPronounCorrection.capitalize(inputState.displayBuffer.lowercase())
                         if (corrected != null && corrected != inputState.displayBuffer) {
@@ -190,8 +195,11 @@ class SwipeWordHandler(
             serviceScope.launch {
                 val swipeScriptCode = textInputProcessor.currentScriptCode
                 try {
+                    // The LAYOUT language — the board being swiped on. Learned words are stored under it
+                    // (WordLearningEngine.learnWord), and the pronoun / proper-casing rules belong to it;
+                    // the primary (settings) language does not follow a layout switch.
                     val currentLanguage =
-                        languageManager.currentLanguage.value
+                        languageManager.currentLayoutLanguage.value
                             .split("-")
                             .first()
 
@@ -337,8 +345,11 @@ class SwipeWordHandler(
             }
         }
 
-        val wordToUse = learnedOriginalCase ?: validatedWord
-        val preserveCase = learnedOriginalCase != null
+        // Your own learned casing first; else the dictionary's proper-casing overlay ("czech" -> "Czech"),
+        // so a swiped proper noun is shown and committed cased exactly like a typed one.
+        val casedSurface = learnedOriginalCase ?: suggestionPipeline.properCasingFor(validatedWord)
+        val wordToUse = casedSurface ?: validatedWord
+        val preserveCase = casedSurface != null
 
         val suggestion =
             SpellingSuggestion(

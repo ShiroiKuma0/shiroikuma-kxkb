@@ -64,6 +64,8 @@ class SpaceInputHandlerTest {
         mockSwipeDetector = mock(SwipeDetector::class.java)
         mockCandidateBarController = mock(CandidateBarController::class.java)
         mockLanguageManager = mock(LanguageManager::class.java)
+        // The pronoun rule keys off the LAYOUT language (the board on screen), not the primary one.
+        whenever(mockLanguageManager.currentLayoutLanguage).thenReturn(MutableStateFlow("en"))
         // The real bridge never returns null (it falls back to ""); the mock must not either, or the
         // dash-expansion check below reads a null context.
         whenever(mockOutputBridge.safeGetTextBeforeCursor(any(), any())).thenReturn("")

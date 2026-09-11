@@ -135,5 +135,14 @@ branch `custom`. Earlier fork releases: `+72`, `+147`, `+156`.
 
 ## Cross-cutting
 - `.urik` dict build pipeline (upstream gitignores its tooling) — our own encoder from `UrikFormat`.
+- **Dictionary proper casing** — the bundled `.urik` dictionaries are all-lowercase (no case information at
+  all), so proper nouns are offered lowercase. `tools/case_dictionaries.sh` derives a per-language overlay
+  `dictionaries/<lang>.cased` with hunspell (rejected lowercase + accepted capitalised = proper noun, plus
+  `tools/cased_manual/<lang>.add` / `.exclude`); `SpellCheckManager.properCasing` + the
+  `SuggestionPipeline` funnel swap candidates for their cased surface. **Generated for `en` only** (~9 600
+  words). **Czech is an open follow-up:** hunspell cs_CZ carries ~100 000 surnames, so every colloquial
+  spelling collides with one (`teda`→Teda, `mlíko`→Mlíko, `todle`, `budem`, `vidim`, `páč`); a cs list
+  needs a curated subset — place names / nationality nouns / holidays by hunspell flag class (`Z`/`ZQ`
+  Praha·Evropa·Anglie, `PD`/`PIV` Angličan·Čech), first names only with a colloquial exclude list.
 - The `cluster-prediction-testing` skill + a Multiling-layout conversion skill (ports of futokxkb's).
 - Per feature: read the relevant futokxkb skill/section first; reuse Urik pieces; never copy FUTO/AOSP source.

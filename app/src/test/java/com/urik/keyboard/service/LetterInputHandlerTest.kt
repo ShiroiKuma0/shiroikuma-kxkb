@@ -84,6 +84,38 @@ class LetterInputHandlerTest {
     }
 
     @Test
+    fun `a digit continuing a number drops the deferred separator instead of inserting it`() {
+        // "10:" deferred its space (a colon inside a number); the "3" of "10:35" must glue, not take it.
+        realInputState.pendingWordSeparator = true
+        org.mockito.Mockito.`when`(mockOutputBridge.safeGetTextBeforeCursor(2)).thenReturn("0:")
+        handler.handle("3")
+        verify(mockOutputBridge, org.mockito.Mockito.never()).commitText(" ", 1)
+        assertEquals("3", realInputState.displayBuffer)
+        // Dropped, not left armed: the next word must not pick it up either.
+        assertEquals(false, realInputState.pendingWordSeparator)
+    }
+
+    @Test
+    fun `a letter after a number-internal mark still takes the deferred separator`() {
+        // "10." + "k" -> "10. k…" (the Czech ordinal), the deferral's other reading.
+        realInputState.pendingWordSeparator = true
+        org.mockito.Mockito.`when`(mockOutputBridge.safeGetTextBeforeCursor(2)).thenReturn("0.")
+        handler.handle("k")
+        verify(mockOutputBridge).commitText(" ", 1)
+        assertEquals("k", realInputState.displayBuffer)
+    }
+
+    @Test
+    fun `a digit after a mark that closed a WORD takes the separator - only numbers glue`() {
+        // „Ahoj,|“ + "5" -> „Ahoj, 5“: the comma follows a letter, so this is not a number.
+        realInputState.pendingWordSeparator = true
+        org.mockito.Mockito.`when`(mockOutputBridge.safeGetTextBeforeCursor(2)).thenReturn("j,")
+        handler.handle("5")
+        verify(mockOutputBridge).commitText(" ", 1)
+        assertEquals("5", realInputState.displayBuffer)
+    }
+
+    @Test
     fun `no pending word separator means no injected space`() {
         handler.handle("a")
         verify(mockOutputBridge, org.mockito.Mockito.never()).commitText(" ", 1)

@@ -372,4 +372,24 @@ class CursorEditingUtilsTest {
             CursorEditingUtils.crossesParagraphBoundary(0, 100, "Hello")
         )
     }
+
+    // ---- continuesNumber: a digit after "<digit><:,.>" glues; anything else takes the separator. ----
+
+    @Test
+    fun `continuesNumber is true for a digit after a digit and a number-internal mark`() {
+        Assert.assertTrue(CursorEditingUtils.continuesNumber("3", "10:"))
+        Assert.assertTrue(CursorEditingUtils.continuesNumber("1", "3,"))
+        Assert.assertTrue(CursorEditingUtils.continuesNumber("5", "12."))
+    }
+
+    @Test
+    fun `continuesNumber is false for a letter, a mark after a letter, a bare digit, or no context`() {
+        Assert.assertFalse(CursorEditingUtils.continuesNumber("k", "10."))
+        Assert.assertFalse(CursorEditingUtils.continuesNumber("5", "j,"))
+        Assert.assertFalse(CursorEditingUtils.continuesNumber("5", "10?"))
+        Assert.assertFalse(CursorEditingUtils.continuesNumber("5", "2"))
+        Assert.assertFalse(CursorEditingUtils.continuesNumber("5", ""))
+        Assert.assertFalse(CursorEditingUtils.continuesNumber("5", null))
+        Assert.assertFalse(CursorEditingUtils.continuesNumber("35", "10:"))
+    }
 }

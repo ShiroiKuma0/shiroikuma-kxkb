@@ -69,6 +69,13 @@ constructor(
 
     private val urikDictionaries = ConcurrentHashMap<String, UrikDictionary>()
 
+    /**
+     * Per language, the PROPER-CASING overlay `dictionaries/<lang>.cased` keyed by lowercase word: the bundled
+     * .urik dictionaries carry no case at all, so this is what turns a dictionary "czech" into the "Czech" the
+     * bar shows and commits. Loaded next to the dictionary; absent file = empty map. See [properCasing].
+     */
+    private val casedSurfaces = ConcurrentHashMap<String, Map<String, String>>()
+
     @Volatile private var currentLanguage: String = "en"
 
     @Volatile private var cachedLocale: Locale = Locale.forLanguageTag("en")
@@ -212,9 +219,45 @@ constructor(
         // cross-language pollution list, which strips foreign words the corpus-built dictionary inherited
         // (e.g. English "bad/bed/bag" inside the Czech dictionary). Both are honoured at lookup/candidate time.
         val removed = BareFormRemovelist.forLanguage(languageCode) + loadRemovedWords(languageCode)
+        casedSurfaces[languageCode] = loadCasedWords(languageCode)
         UrikDictionary(stream, removed)
     } catch (_: Exception) {
         null
+    }
+
+    /**
+     * The generated proper-casing list `dictionaries/<lang>.cased` (one cased surface per line, see
+     * `tools/case_dictionaries.sh`), keyed by its lowercase form.
+     */
+    private fun loadCasedWords(languageCode: String): Map<String, String> = try {
+        context.assets.open("dictionaries/$languageCode.cased").bufferedReader().useLines { lines ->
+            val map = HashMap<String, String>()
+            for (line in lines) {
+                val surface = line.trim()
+                if (surface.isNotEmpty()) map[surface.lowercase()] = surface
+            }
+            map
+        }
+    } catch (_: Exception) {
+        emptyMap()
+    }
+
+    /**
+     * The proper-cased surface of a dictionary [word] in [languageCode] ("czech" -> "Czech", "monday" ->
+     * "Monday"), or null when the word is not a proper noun there. Case-insensitive on the way in, so the
+     * typed "CZECH" resolves too (the caller's casing pass then applies caps-lock etc. on top).
+     */
+    fun properCasing(word: String, languageCode: String): String? {
+        val lang = languageCode.split("-").first()
+        val map = casedSurfaces[lang] ?: run {
+            // The dictionary load populates it; a language queried before its dictionary loads gets the file
+            // read here, once (a missing file caches as empty).
+            val loaded = loadCasedWords(lang)
+            casedSurfaces.putIfAbsent(lang, loaded)
+            loaded
+        }
+        if (map.isEmpty()) return null
+        return map[word.lowercase()]
     }
 
     /** The generated cross-language pollution list `dictionaries/<lang>.removed` (lowercase, one per line). */

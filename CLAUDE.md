@@ -480,6 +480,36 @@ commit, so a binding on the base key and a character on the shifted face both co
 the plain 45° sectors and a flick towards nothing is never dragged into a populated direction), and the
 direction lock is gone — the direction follows the finger to the release point. Suite 1 991 green.
 
+**Shipped since `+320`** (the `+321` line): **numbers stay whole** — the `+312` digit rule was tested on a
+geometry the keys never produce: digits are compass keys with no `keyType`, so the codec types them LETTER
+and "12" COMPOSES as a word; `:` then commits the candidate "12 " and the mark ate that space but judged
+the number rule on the space itself, and even a deferred separator was consumed one key later because the
+next digit starts a new "word" to `LetterInputHandler`. Now `commitPunctuationAfterClusterCommit` reads the
+char BEHIND the auto-space it eats, and a digit continuing `<digit><:,.>` DROPS the deferred separator
+(`CursorEditingUtils.continuesNumber`) while a letter still takes it ("10:35", "3,14", "1,000" vs "10.
+května", "bod 3: text"); **the bar shows "I"** — the pronoun rule ran only on commit, so the bar showed "i"
+while Space wrote "I"; `SuggestionPipeline.withProperCasing` now applies it at the bar funnel
+(`storeAndCapitalizeSuggestions`, the expand pane, the swipe bar) as a preserve-case surface, and every
+pronoun site (`SpaceInputHandler`, `NonLetterInputHandler`, `SwipeWordHandler`) reads the LAYOUT language —
+the "known gap" closed (Czech "i" on the cs board is no longer capitalised under an English primary; the
+swipe path's learned-casing lookup was keyed on the primary too and now matches where words are stored);
+**dictionary proper casing** — the bundled `.urik` dictionaries carry NO case ("english", "czech",
+"monday", "london", "john" — zero capitalised entries), so `tools/case_dictionaries.sh` derives
+`dictionaries/en.cased` (9 601 words) with hunspell (rejected lowercase + accepted capitalised) plus
+`tools/cased_manual/en.add` (English/French/German/John/China/Japan/Bible/Christian… — words hunspell knows
+in both cases) and `en.exclude` (ur); `SpellCheckManager.properCasing` loads it next to the dictionary, the
+funnel swaps a candidate — the flat-board typed lead included — for its cased surface, so "czech" typed
+and Space-committed is "Czech" (long-press Space keeps the literal; learned words keep your casing). **Czech
+deliberately not generated** (hunspell cs_CZ's ~100 k surnames collide with colloquials: teda/mlíko/todle —
+see `docs/PLAN.md` cross-cutting); **haptics on every key** — compass/cluster/column keys are `FlickKey`s
+whose own touch listener (`flickTouchListener`, now extracted) never fired a haptic (only the mic key did),
+so every LETTER on the kxkb boards was silent while Space/Enter/Backspace clicked; the touch-down click now
+fires for all of them, typed by key kind; and **strength drives the pulse LENGTH too**
+(`HapticSignature.durationScaleFor`: 128 → ×1, 255 → ×2, 1 → ×0.25) — a ~30 ms pulse at amplitude 255 was
+still faint, and on a vibrator without amplitude control (Huawei) the slider changed nothing and the
+settings preview bailed out silently; the preview now plays the real LetterClick at the chosen strength.
+Suite 2 008 green.
+
 **Released `0.23.1+320`** (2026-09-04; tagged `0.23.1+320`, APK attached, on the fork's GitHub; default
 branch `custom`; README badge + `CHANGELOG.md` track it). **Release tags carry NO `v` prefix** (白い熊,
 2026-09-05): the first fork release was the bare `0.23.1+72`, the `v` crept in at `+147`, and the 30 tags

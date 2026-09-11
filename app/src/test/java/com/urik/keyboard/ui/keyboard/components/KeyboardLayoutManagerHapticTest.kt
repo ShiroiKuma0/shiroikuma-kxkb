@@ -234,6 +234,47 @@ class KeyboardLayoutManagerHapticTest {
 
     // ── Step 4 group D — tap-backspace haptic at ACTION_DOWN ──────────────────
 
+    // ── Flick (compass / cluster / column) keys click on touch-down like every other key ──
+
+    @Test
+    fun `flick key ACTION_DOWN fires haptic exactly once for the whole tap`() {
+        // Every letter on the kxkb boards is a flick key; they used to be silent while Space clicked.
+        val key = KeyboardKey.FlickKey(
+            center = "a", up = "á", right = null, down = null, left = null, type = KeyboardKey.KeyType.LETTER
+        )
+        val button = buttonFor(key)
+        button.setOnTouchListener(manager.flickTouchListener(key))
+
+        val down = motionEvent(MotionEvent.ACTION_DOWN)
+        button.dispatchTouchEvent(down)
+        down.recycle()
+
+        assertEquals(1, firedKeys.size)
+        assertEquals(key, firedKeys[0])
+
+        val up = motionEvent(MotionEvent.ACTION_UP)
+        button.dispatchTouchEvent(up)
+        up.recycle()
+
+        assertEquals("The release must not click again", 1, firedKeys.size)
+    }
+
+    @Test
+    fun `cluster key ACTION_DOWN fires haptic`() {
+        val key = KeyboardKey.FlickKey(
+            center = "e", up = null, right = "v", down = null, left = "a",
+            type = KeyboardKey.KeyType.LETTER, clusterMains = "aev"
+        )
+        val button = buttonFor(key)
+        button.setOnTouchListener(manager.flickTouchListener(key))
+
+        val down = motionEvent(MotionEvent.ACTION_DOWN)
+        button.dispatchTouchEvent(down)
+        down.recycle()
+
+        assertEquals(1, firedKeys.size)
+    }
+
     @Test
     fun `backspace tap ACTION_DOWN fires haptic`() {
         val key = KeyboardKey.Action(KeyboardKey.ActionType.BACKSPACE)
