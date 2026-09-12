@@ -4,14 +4,20 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.urik.keyboard.R
 import com.urik.keyboard.utils.ErrorLogger
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
+/**
+ * Robolectric has no AndroidKeyStore provider, so every keystore touch throws here — which is exactly the
+ * "keystore unwell" case the verdicts must classify as [PassphraseResult.Unavailable], never as anything that
+ * would touch the file.
+ */
 @RunWith(RobolectricTestRunner::class)
 class DatabaseSecurityManagerTest {
     private lateinit var context: Context
@@ -21,39 +27,75 @@ class DatabaseSecurityManagerTest {
         context = ApplicationProvider.getApplicationContext()
         ErrorLogger.resetForTesting()
         ErrorLogger.init(context)
+        DatabaseSecurityManager(context, lockScreenCheck = { true }).forgetStoredPassphrase()
     }
 
+    private fun dePrefs() = context.createDeviceProtectedStorageContext()
+        .getSharedPreferences("urik_db_prefs", Context.MODE_PRIVATE)
+
     @Test
-    fun `getDatabasePassphrase returns null and logs HIGH warning when no lock screen`() {
+    fun `nothing stored and no lock screen is NoEncryption and logs HIGH`() {
         val manager = DatabaseSecurityManager(context, lockScreenCheck = { false })
         val beforeCount = ErrorLogger.getErrorCount()
 
-        val result = manager.getDatabasePassphrase()
+        val result = manager.resolvePassphrase()
 
-        assertNull(result)
-        val afterCount = ErrorLogger.getErrorCount()
-        assertTrue("Expected at least one new error entry", afterCount > beforeCount)
+        assertTrue(result is PassphraseResult.NoEncryption)
+        assertTrue("Expected at least one new error entry", ErrorLogger.getErrorCount() > beforeCount)
+        assertFalse(manager.hasStoredPassphrase())
     }
 
     @Test
-    fun `getDatabasePassphrase does not log when lock screen present`() {
+    fun `nothing stored with a lock screen but no keystore is Unavailable, nothing stored afterwards`() {
         val manager = DatabaseSecurityManager(context, lockScreenCheck = { true })
-        try {
-            manager.getDatabasePassphrase()
-        } catch (_: Exception) {
-            // Robolectric Keystore throws — expected
-        }
+
+        val result = manager.resolvePassphrase()
+
+        assertTrue("$result", result is PassphraseResult.Unavailable)
+        assertFalse("a failed generation must not leave a half-stored passphrase", manager.hasStoredPassphrase())
     }
 
     @Test
-    fun `prefs field returns the same instance on repeated access`() {
+    fun `stored passphrase with no keystore is Unavailable — never KeyGone, never NoEncryption`() {
+        dePrefs().edit().putString("encrypted_passphrase", "AAAA").putString("encryption_iv", "AAAA").commit()
+        // Even without a lock screen: an encrypted database is decrypted regardless.
         val manager = DatabaseSecurityManager(context, lockScreenCheck = { false })
-        val field = DatabaseSecurityManager::class.java
-            .getDeclaredField("prefs")
-            .apply { isAccessible = true }
-        val first = field.get(manager)
-        val second = field.get(manager)
-        assertTrue("prefs must be eagerly initialized (same instance)", first === second)
+
+        val result = manager.resolvePassphrase()
+
+        assertTrue("$result", result is PassphraseResult.Unavailable)
+        assertTrue(manager.hasStoredPassphrase())
+        assertEquals(DatabaseSecurityManager.LEGACY_MASTER_KEY_ALIAS, manager.storedAlias())
+    }
+
+    @Test
+    fun `forgetStoredPassphrase clears passphrase, iv, alias and strikes`() {
+        dePrefs().edit()
+            .putString("encrypted_passphrase", "AAAA")
+            .putString("encryption_iv", "AAAA")
+            .putString("master_key_alias", DatabaseSecurityManager.MASTER_KEY_ALIAS)
+            .putInt("passphrase_strikes", 3)
+            .commit()
+        val manager = DatabaseSecurityManager(context, lockScreenCheck = { true })
+        assertTrue(manager.hasStoredPassphrase())
+        assertEquals(3, manager.strikes())
+
+        manager.forgetStoredPassphrase()
+
+        assertFalse(manager.hasStoredPassphrase())
+        assertEquals(0, manager.strikes())
+        assertEquals(DatabaseSecurityManager.LEGACY_MASTER_KEY_ALIAS, manager.storedAlias())
+    }
+
+    @Test
+    fun `strikes count up, survive a new instance, and clear`() {
+        val manager = DatabaseSecurityManager(context, lockScreenCheck = { true })
+        assertEquals(0, manager.strikes())
+        assertEquals(1, manager.recordStrike())
+        assertEquals(2, manager.recordStrike())
+        assertEquals(2, DatabaseSecurityManager(context, lockScreenCheck = { true }).strikes())
+        manager.clearStrikes()
+        assertEquals(0, manager.strikes())
     }
 
     @Test
@@ -62,8 +104,7 @@ class DatabaseSecurityManagerTest {
         val field = DatabaseSecurityManager::class.java
             .getDeclaredField("prefs")
             .apply { isAccessible = true }
-        val prefs = field.get(manager)
-        assertNotNull("prefs must be non-null after construction", prefs)
+        assertNotNull("prefs must be non-null after construction", field.get(manager))
     }
 
     @Test

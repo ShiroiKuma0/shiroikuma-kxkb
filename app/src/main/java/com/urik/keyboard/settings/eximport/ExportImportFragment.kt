@@ -23,6 +23,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.urik.keyboard.R
+import com.urik.keyboard.data.database.DatabaseAvailability
 import com.urik.keyboard.service.BackupManager
 import com.urik.keyboard.service.BackupPart
 import com.urik.keyboard.settings.SettingsRepository
@@ -125,6 +126,12 @@ class ExportImportFragment : Fragment() {
 
             box.addView(dirRow(exportDir))
             box.addView(statusLine())
+            if (!DatabaseAvailability.isReal) {
+                // The word database is the in-memory stand-in this process: the dictionary parts would export
+                // empty and import into thin air, so the engine refuses them — say so here rather than in a
+                // failure line after the fact.
+                box.addView(caption(getString(R.string.export_import_db_unavailable), color = red))
+            }
 
             box.addView(divider())
             box.addView(selectAllRow())

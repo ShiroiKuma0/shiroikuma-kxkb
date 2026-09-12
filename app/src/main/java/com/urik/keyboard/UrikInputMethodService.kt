@@ -38,6 +38,7 @@ import androidx.lifecycle.LifecycleRegistry
 import com.urik.keyboard.KeyboardConstants.AutofillConstants.MAX_PASSWORD_INLINE_SUGGESTIONS
 import com.urik.keyboard.data.KeyboardRepository
 import com.urik.keyboard.data.LayoutRegistry
+import com.urik.keyboard.data.database.DatabaseAvailability
 import com.urik.keyboard.model.KeyboardDisplayMode
 import com.urik.keyboard.model.KeyboardEvent
 import com.urik.keyboard.model.KeyboardKey
@@ -100,6 +101,7 @@ import com.urik.keyboard.utils.ErrorLogger
 import com.urik.keyboard.utils.KanaTransformUtils
 import com.urik.keyboard.utils.KeyboardModeUtils
 import com.urik.keyboard.utils.KxkbToast
+import com.urik.keyboard.utils.isDeviceLocked
 import com.urik.keyboard.utils.isUserUnlocked
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -421,6 +423,27 @@ open class UrikInputMethodService :
         } catch (_: Throwable) {
             // Receiver setup must never crash the IME; without it the user just relaunches after unlock.
         }
+    }
+
+    /**
+     * The word database could not be opened at this process start — its passphrase was undecryptable, typically
+     * because the process was created while the screen was locked — and the keyboard has been running on an
+     * in-memory stand-in (see `DatabaseModule`). A fresh process opens the real store; with the keyboard just
+     * hidden and the device unlocked, this is the cheapest moment to end this one. Same mechanism as the
+     * before-first-unlock restart above; the system recreates the IME on next use.
+     */
+    private fun healDatabaseStandInIfUnlocked() {
+        if (!DatabaseAvailability.restartWhenUnlockedHeals) return
+        if (!isUserUnlocked || isDeviceLocked) return
+        ErrorLogger.logException(
+            component = "UrikInputMethodService",
+            severity = ErrorLogger.Severity.HIGH,
+            exception = IllegalStateException("restarting to leave the in-memory database stand-in"),
+            context = mapOf("phase" to "database_stand_in_heal", "detail" to DatabaseAvailability.detail)
+        )
+        // Let this callback unwind first; the kill is not something to do mid-dispatch.
+        window?.window?.decorView?.post { android.os.Process.killProcess(android.os.Process.myPid()) }
+            ?: android.os.Process.killProcess(android.os.Process.myPid())
     }
 
     private fun initializeCoreComponents() {
@@ -3147,6 +3170,8 @@ open class UrikInputMethodService :
 
         // Never record with the keyboard hidden; an in-flight transcription result is dropped too.
         voiceInputController.cancel()
+
+        healDatabaseStandInIfUnlocked()
 
         // Don't leave the expandable candidates pane open across a field/keyboard dismissal.
         swipeKeyboardView?.hideCandidatesPane()

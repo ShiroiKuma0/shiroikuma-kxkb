@@ -510,6 +510,53 @@ still faint, and on a vibrator without amplitude control (Huawei) the slider cha
 settings preview bailed out silently; the preview now plays the real LetterClick at the chosen strength.
 Suite 2 008 green.
 
+**Shipped since `+321`** (the `+322` line): **the database is never deleted by code** — the 2026-09-03
+data loss: every learned word and user-dictionary entry on the old phone vanished (backups from 09-03 and
+09-05 hold empty `user_dictionary.json`/`learned_words.json`; only 08-24's has them), and the new phone was
+restored from one of those in good faith. Root cause: `DatabaseModule` built Room on the encrypted file even
+when the SQLCipher passphrase came back null (the master key was `setUnlockedDeviceRequired`, so any process
+start while the screen was LOCKED — the lock-screen password field, a sister-app backup broadcast, a
+scheduled batch — could not decrypt it); Room opens lazily, so the "aborting_to_prevent_data_loss" catch never
+fired, the first query hit SQLITE_NOTADB as a plain-SQLite "corruption", and Room's default `onCorruption`
+DELETED the file; `UrikApplication`'s uncaught-exception handler deleted on NOTADB too, and SQLCipher's own
+helper deletes on corruption as well — three delete sites, all gone. Now: `DatabaseSecurityManager` returns a
+sealed `PassphraseResult` (Available / NoEncryption / Unavailable / KeyGone), decrypts a stored passphrase
+regardless of the lock-screen setting, generates new master keys WITHOUT the unlocked-device binding and
+re-wraps legacy ones on first successful use (`kxkb_database_master_key`); `DatabaseFiles.probe` opens the file
+EAGERLY through SQLCipher with a throwing error handler before Room sees it, and `DatabaseModule` decides:
+readable → open; plain file (pre-encryption upgrade, or what an old build's wipe left) → `encryptPlainDatabase`;
+unreadable-for-good / corrupt → `DatabaseFiles.moveAside` (`<name>.unreadable-<stamp>` + sidecars, never
+deleted) and a fresh one; passphrase merely `Unavailable` → the in-memory stand-in with the file UNTOUCHED, a
+strike per unlocked start (`MAX_UNLOCKED_STRIKES` 5 → set aside), and the IME ends its process at the next
+hide-while-unlocked so the real store comes back (`healDatabaseStandInIfUnlocked`); Room opens through
+`SafeEncryptedOpenHelperFactory`/`SafePlainOpenHelperFactory`, whose corruption handlers move aside too.
+`DatabaseAvailability` names the mode process-wide and **`BackupManager` refuses the three Room-backed parts
+(export AND import) on a stand-in** — reported as failed, no entry written, `SETTINGS` drops its key-mappings
+section — so a batch can never again produce a valid-looking empty backup; the Export/import page shows a red
+notice in that state. Tests: `DatabaseModuleTest` (the whole tree against a real file), `DatabaseFilesTest`,
+`BackupManagerStandInTest`; the three upstream recovery tests retired. Suite 2 011 green. **`+322` crashed at
+launch** (`UnsatisfiedLinkError` in `SQLiteConnection.nativeOpen`): Hilt injects the Application's fields inside
+`super.onCreate()`, and the graph's first node is the database — whose probe now opens the file through SQLCipher
+— while `System.loadLibrary("sqlcipher")` came only AFTER `super.onCreate()`, an order that was safe solely
+because Room opened lazily; `+323` loads the library (and inits `ErrorLogger`) before `super.onCreate()`, and
+`probe` answers ERROR instead of crashing if the library is somehow absent. **`+323` wiped on every start**:
+its probe used the REAL passphrase, but **every database Urik/kxkb ever made is keyed with 32 ZERO bytes** —
+`DatabaseModule` zeroed the passphrase array in a `finally` right after building Room, Room opens lazily, and
+SQLCipher keys from the array by reference at open (`nativeKey`; nothing in factory → helper → configuration
+copies), so upstream's encryption was always nominal; the probe therefore judged every existing file
+"unreadable", set it aside, and the fresh file was keyed with zeros again by the same reference bug in the new
+factory. `+324`: `SafeEncryptedOpenHelperFactory` COPIES the key; `DatabaseFiles.LEGACY_ZERO_KEY` is the second
+key the probe tries, and a zero-keyed file is re-encrypted to the real passphrase through
+`DatabaseFiles.reencrypt` (`sqlcipher_export` into a verified fresh file; the original renamed
+`.rekeyed-<stamp>`, never deleted — the plain-file upgrade goes through the same routine); **`SetAsideRecovery`**
+(run once per process from `UrikApplication`, only against a REAL live DB) merges every
+`keyboard_database.{unreadable,corrupt,rekeyed}-*` copy that opens (zero key, real key, or plain) back into the
+live database through the backup engine — a second `BackupManager` over the copy's DAOs exports the three
+dictionary parts, the live one imports (row-merging) — and renames it `.recovered-<stamp>`;
+`KeyboardDatabase.openFile` builds that second Room instance. `SetAsideRecoveryTest` runs the merge end to end on
+real Room databases. Suite 2 021 green. The old phone's
+dictionary was restored from the 08-24 backup by hand (8 entries, 252 words, 5 988 pairs).
+
 **Released `0.23.1+321`** (2026-09-11; tagged `0.23.1+321`, APK attached, on the fork's GitHub; default
 branch `custom`; README badge + `CHANGELOG.md` track it). **Release tags carry NO `v` prefix** (白い熊,
 2026-09-05): the first fork release was the bare `0.23.1+72`, the `v` crept in at `+147`, and the 30 tags

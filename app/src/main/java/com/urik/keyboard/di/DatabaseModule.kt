@@ -1,15 +1,18 @@
 package com.urik.keyboard.di
 
 import android.content.Context
-import android.database.sqlite.SQLiteDatabaseCorruptException
 import androidx.annotation.VisibleForTesting
 import androidx.room.Room
+import com.urik.keyboard.utils.isDeviceLocked
 import com.urik.keyboard.utils.isUserUnlocked
 import com.urik.keyboard.data.database.ClipboardDao
 import com.urik.keyboard.data.database.CustomKeyMappingDao
+import com.urik.keyboard.data.database.DatabaseAvailability
+import com.urik.keyboard.data.database.DatabaseFiles
 import com.urik.keyboard.data.database.DatabaseSecurityManager
 import com.urik.keyboard.data.database.KeyboardDatabase
 import com.urik.keyboard.data.database.LearnedWordDao
+import com.urik.keyboard.data.database.PassphraseResult
 import com.urik.keyboard.data.database.UserDictionaryDao
 import com.urik.keyboard.data.database.UserKanjiFrequencyDao
 import com.urik.keyboard.data.database.UserWordBigramDao
@@ -20,18 +23,23 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import java.io.IOException
 import javax.inject.Singleton
-import net.zetetic.database.sqlcipher.SQLiteNotADatabaseException
 
 /**
  * Provides database dependencies with SQLCipher encryption.
  *
  * Database lifecycle:
- * - First launch: Creates encrypted database (if device has lock screen)
- * - Upgrade from unencrypted: Auto-migrates silently
- * - No lock screen: Falls back to unencrypted database
- * - Corruption detection: Automatically deletes and recreates corrupt database
+ * - First launch: creates an encrypted database (if the device has a lock screen)
+ * - Upgrade from unencrypted: brought under encryption once the probe has shown the file to be plain
+ * - No lock screen: falls back to an unencrypted database
+ * - Before first unlock, or with the passphrase undecryptable right now: an in-memory stand-in, flagged in
+ *   [DatabaseAvailability] — the file is not touched
+ * - Unreadable for good (master key gone, corrupt): the file is SET ASIDE, never deleted, and a fresh one made
+ *
+ * Every verdict is reached by an EAGER probe ([DatabaseFiles.probe]) before Room is handed the file. Room opens
+ * lazily, so a try/catch around the builder — what this module used to rely on — sees nothing, and the library's
+ * default corruption handling then decides for us: it deletes. That is how a keyboard whose process started while
+ * the screen was locked lost every learned word on 2026-09-03.
  *
  * Singleton providers ensure single database instance per app lifecycle.
  */
@@ -41,13 +49,32 @@ object DatabaseModule {
     private val defaultOpener = object : DatabaseOpener {
         override fun open(context: Context, passphrase: ByteArray?): KeyboardDatabase =
             KeyboardDatabase.getInstance(context, passphrase)
-
-        override fun reset() = KeyboardDatabase.resetInstance()
     }
+
+    /**
+     * How many process starts in a row may end with the passphrase [PassphraseResult.Unavailable] while the
+     * device is UNLOCKED before the state is treated as permanent and the database set aside. Starts while the
+     * device is locked never count.
+     */
+    const val MAX_UNLOCKED_STRIKES = 5
 
     @Volatile
     @VisibleForTesting
     internal var opener: DatabaseOpener = defaultOpener
+
+    /** The eager file check, swapped by the tests (a real probe needs SQLCipher's native library). */
+    private val defaultProber: (Context, ByteArray?) -> DatabaseFiles.Probe = DatabaseFiles::probe
+
+    @Volatile
+    @VisibleForTesting
+    internal var prober: (Context, ByteArray?) -> DatabaseFiles.Probe = defaultProber
+
+    /** The key change (`sqlcipher_export` into a fresh file), swapped by the tests for the same reason. */
+    private val defaultRekeyer: (Context, ByteArray?, ByteArray) -> Boolean = DatabaseFiles::reencrypt
+
+    @Volatile
+    @VisibleForTesting
+    internal var rekeyer: (Context, ByteArray?, ByteArray) -> Boolean = defaultRekeyer
 
     @VisibleForTesting
     internal fun setOpenerForTesting(testOpener: DatabaseOpener) {
@@ -59,6 +86,22 @@ object DatabaseModule {
         opener = defaultOpener
     }
 
+    @VisibleForTesting
+    internal fun setProberForTesting(testProber: (Context, ByteArray?) -> DatabaseFiles.Probe) {
+        prober = testProber
+    }
+
+    @VisibleForTesting
+    internal fun resetProberForTesting() {
+        prober = defaultProber
+        rekeyer = defaultRekeyer
+    }
+
+    @VisibleForTesting
+    internal fun setRekeyerForTesting(testRekeyer: (Context, ByteArray?, ByteArray) -> Boolean) {
+        rekeyer = testRekeyer
+    }
+
     @Provides
     @Singleton
     fun provideDatabaseSecurityManager(@ApplicationContext context: Context): DatabaseSecurityManager =
@@ -66,183 +109,172 @@ object DatabaseModule {
 
     @Provides
     @Singleton
-    @Suppress("ThrowsCount", "InstanceOfCheckForException")
     fun provideKeyboardDatabase(
         @ApplicationContext context: Context,
         securityManager: DatabaseSecurityManager
     ): KeyboardDatabase {
-        // BFU / Direct Boot: credential-protected storage and the unlock-gated keystore are unavailable, and
-        // Hilt injects this at the IME's onCreate — BEFORE any try/catch of ours — so it must NEVER throw on
-        // the lock screen (that could brick PIN entry). Return a throwaway in-memory DB; the keyboard runs
-        // no-prediction in BFU and never needs real data. When unlocked, the real path keeps its existing
-        // behaviour (it may throw on genuine corruption — the app's recovery handler deals with that).
-        if (!context.isUserUnlocked) return inMemoryDatabase(context)
-        return buildEncryptedDatabase(context, securityManager)
+        // BFU / Direct Boot: credential-protected storage and the keystore are unavailable, and Hilt injects
+        // this at the IME's onCreate — BEFORE any try/catch of ours — so it must NEVER throw on the lock screen
+        // (that could brick PIN entry). Return a throwaway in-memory DB; the keyboard runs no-prediction in BFU
+        // and restarts itself on unlock.
+        if (!context.isUserUnlocked) {
+            return standIn(context, DatabaseAvailability.Mode.BEFORE_FIRST_UNLOCK, "before first unlock")
+        }
+        return openRealDatabase(context, securityManager)
     }
 
-    /** A throwaway empty DB with no storage/keystore dependency — used while the device is locked (BFU). */
-    private fun inMemoryDatabase(context: Context): KeyboardDatabase =
-        Room.inMemoryDatabaseBuilder(context, KeyboardDatabase::class.java)
+    /** The unlocked path, one verdict per [PassphraseResult]. Internal so the tests can drive it directly. */
+    internal fun openRealDatabase(context: Context, securityManager: DatabaseSecurityManager): KeyboardDatabase =
+        when (val verdict = securityManager.resolvePassphrase()) {
+            is PassphraseResult.Available ->
+                try {
+                    openEncrypted(context, securityManager, verdict.passphrase)
+                } finally {
+                    verdict.passphrase.fill(0)
+                }
+
+            PassphraseResult.NoEncryption -> openPlain(context, securityManager)
+
+            is PassphraseResult.Unavailable -> onUnavailable(context, securityManager, verdict)
+
+            is PassphraseResult.KeyGone -> startOver(context, securityManager, verdict.why)
+        }
+
+    private fun openEncrypted(
+        context: Context,
+        securityManager: DatabaseSecurityManager,
+        passphrase: ByteArray
+    ): KeyboardDatabase {
+        var key = passphrase
+        when (prober(context, passphrase)) {
+            DatabaseFiles.Probe.OK, DatabaseFiles.Probe.ABSENT -> Unit
+
+            DatabaseFiles.Probe.NOT_A_DATABASE -> {
+                // Not readable with our key. Two files are expected here and brought under the real key: one
+                // keyed with the 32 zero bytes every build before +324 actually used (see DatabaseFiles), and a
+                // PLAIN one — the pre-encryption upgrade, or what an old build's crash recovery left behind after
+                // it wiped the encrypted file. Anything else is set aside, never deleted. Should the re-encryption
+                // itself fail, the zero-keyed file is opened as it is rather than lost.
+                val zero = DatabaseFiles.LEGACY_ZERO_KEY
+                if (prober(context, zero) == DatabaseFiles.Probe.OK) {
+                    if (rekeyer(context, zero, passphrase)) {
+                        logPhase("legacy_zero_key_reencrypted", ErrorLogger.Severity.HIGH)
+                    } else {
+                        logPhase("legacy_zero_key_kept", ErrorLogger.Severity.CRITICAL)
+                        key = zero
+                    }
+                } else if (prober(context, null) == DatabaseFiles.Probe.OK && rekeyer(context, null, passphrase)) {
+                    logPhase("plain_database_encrypted", ErrorLogger.Severity.HIGH)
+                } else if (!setAside(context, "unreadable")) {
+                    return standInUnmoved(context, "unreadable")
+                }
+            }
+
+            DatabaseFiles.Probe.CORRUPT -> if (!setAside(context, "corrupt")) return standInUnmoved(context, "corrupt")
+
+            // I/O, permissions, locking: nothing is known about the content, so nothing is done to the file.
+            // Counted like an undecryptable passphrase — persistent trouble escalates the same way.
+            DatabaseFiles.Probe.ERROR ->
+                return onUnavailable(context, securityManager, PassphraseResult.Unavailable(null))
+        }
+        securityManager.clearStrikes()
+        DatabaseAvailability.real()
+        return opener.open(context, key)
+    }
+
+    private fun openPlain(context: Context, securityManager: DatabaseSecurityManager): KeyboardDatabase {
+        when (prober(context, null)) {
+            DatabaseFiles.Probe.OK, DatabaseFiles.Probe.ABSENT -> Unit
+
+            // An encrypted file with no passphrase on record cannot be opened by anyone; keep it, start fresh.
+            DatabaseFiles.Probe.NOT_A_DATABASE ->
+                if (!setAside(context, "unreadable")) return standInUnmoved(context, "unreadable")
+
+            DatabaseFiles.Probe.CORRUPT -> if (!setAside(context, "corrupt")) return standInUnmoved(context, "corrupt")
+
+            DatabaseFiles.Probe.ERROR ->
+                return onUnavailable(context, securityManager, PassphraseResult.Unavailable(null))
+        }
+        securityManager.clearStrikes()
+        DatabaseAvailability.real()
+        return opener.open(context, null)
+    }
+
+    /**
+     * The passphrase exists but did not decrypt (or the file did not open) THIS time. The file is left exactly as
+     * it is and the keyboard runs on the stand-in; the IME ends the process at the next quiet unlocked moment so
+     * the real store comes back. Only a run of such starts while unlocked is taken as permanent.
+     */
+    private fun onUnavailable(
+        context: Context,
+        securityManager: DatabaseSecurityManager,
+        verdict: PassphraseResult.Unavailable
+    ): KeyboardDatabase {
+        val locked = context.isDeviceLocked
+        val strikes = if (locked) securityManager.strikes() else securityManager.recordStrike()
+        if (!locked && strikes >= MAX_UNLOCKED_STRIKES) {
+            return startOver(
+                context,
+                securityManager,
+                "passphrase unavailable on $strikes consecutive unlocked starts"
+            )
+        }
+        ErrorLogger.logException(
+            component = "DatabaseModule",
+            severity = ErrorLogger.Severity.CRITICAL,
+            exception = verdict.cause ?: IllegalStateException("passphrase unavailable"),
+            context = mapOf(
+                "phase" to "passphrase_unavailable",
+                "action" to "in_memory_stand_in",
+                "device_locked" to locked.toString(),
+                "strikes" to strikes.toString()
+            )
+        )
+        val why = if (locked) "passphrase unavailable while the device is locked" else "passphrase unavailable"
+        return standIn(context, DatabaseAvailability.Mode.PASSPHRASE_UNAVAILABLE, why)
+    }
+
+    /**
+     * The database can never be read again with what we have: set it aside, forget the passphrase, and make a
+     * fresh one through the ordinary path (which now generates a new passphrase — or, failing that, stands in).
+     */
+    private fun startOver(
+        context: Context,
+        securityManager: DatabaseSecurityManager,
+        why: String
+    ): KeyboardDatabase {
+        ErrorLogger.logException(
+            component = "DatabaseModule",
+            severity = ErrorLogger.Severity.CRITICAL,
+            exception = IllegalStateException(why),
+            context = mapOf("phase" to "key_gone", "action" to "set_aside_and_start_over")
+        )
+        if (!setAside(context, "unreadable")) return standInUnmoved(context, "unreadable")
+        securityManager.forgetStoredPassphrase()
+        return openRealDatabase(context, securityManager)
+    }
+
+    private fun setAside(context: Context, reason: String): Boolean = DatabaseFiles.moveAside(context, reason) != null
+
+    /** The file should have been set aside but could not be renamed: leave it, stand in, try again next start. */
+    private fun standInUnmoved(context: Context, reason: String): KeyboardDatabase =
+        standIn(context, DatabaseAvailability.Mode.PASSPHRASE_UNAVAILABLE, "$reason file could not be set aside")
+
+    /** A throwaway empty DB with no storage/keystore dependency, flagged so nobody mistakes it for the real one. */
+    private fun standIn(context: Context, mode: DatabaseAvailability.Mode, detail: String): KeyboardDatabase {
+        DatabaseAvailability.fallback(mode, detail)
+        return Room.inMemoryDatabaseBuilder(context, KeyboardDatabase::class.java)
             .allowMainThreadQueries()
             .build()
-
-    @Suppress("ThrowsCount", "InstanceOfCheckForException")
-    private fun buildEncryptedDatabase(context: Context, securityManager: DatabaseSecurityManager): KeyboardDatabase {
-        var alreadyLogged = false
-        try {
-            if (securityManager.shouldMigrateToEncrypted(context)) {
-                try {
-                    securityManager.migrateToEncryptedDatabase(context)
-                } catch (e: Exception) {
-                    ErrorLogger.logException(
-                        component = "DatabaseModule",
-                        severity = ErrorLogger.Severity.CRITICAL,
-                        exception = e,
-                        context = mapOf("phase" to "migration")
-                    )
-                    alreadyLogged = true
-                    throw e
-                }
-            }
-
-            val passphrase =
-                try {
-                    securityManager.getDatabasePassphrase()
-                } catch (e: Exception) {
-                    ErrorLogger.logException(
-                        component = "DatabaseModule",
-                        severity = ErrorLogger.Severity.CRITICAL,
-                        exception = e,
-                        context = mapOf("phase" to "passphrase_generation")
-                    )
-                    alreadyLogged = true
-                    throw e
-                }
-
-            val passphraseWasAvailable = passphrase != null
-            val initialPassphrase = passphrase
-            return try {
-                opener.open(context, initialPassphrase)
-            } catch (e: Exception) {
-                if (e !is SQLiteDatabaseCorruptException && e !is SQLiteNotADatabaseException) throw e
-
-                val dbExists = context.getDatabasePath(KeyboardDatabase.DATABASE_NAME).exists()
-                if (!passphraseWasAvailable && dbExists) {
-                    ErrorLogger.logException(
-                        component = "DatabaseModule",
-                        severity = ErrorLogger.Severity.CRITICAL,
-                        exception = e,
-                        context = mapOf(
-                            "phase" to "passphrase_unavailable",
-                            "action" to "aborting_to_prevent_data_loss"
-                        )
-                    )
-                    alreadyLogged = true
-                    throw e
-                }
-
-                alreadyLogged = true
-                ErrorLogger.logException(
-                    component = "DatabaseModule",
-                    severity = ErrorLogger.Severity.CRITICAL,
-                    exception = e,
-                    context = mapOf("phase" to "corruption_detected", "action" to "deleting_and_recreating")
-                )
-
-                deleteDatabaseFiles(context)
-                try {
-                    opener.reset()
-                } catch (e: Exception) {
-                    ErrorLogger.logException(
-                        component = "DatabaseModule",
-                        severity = ErrorLogger.Severity.CRITICAL,
-                        exception = e,
-                        context = mapOf("phase" to "corruption_reset_failed")
-                    )
-                    throw e
-                }
-
-                val freshPassphrase = try {
-                    securityManager.getDatabasePassphrase()
-                } catch (e: Exception) {
-                    ErrorLogger.logException(
-                        component = "DatabaseModule",
-                        severity = ErrorLogger.Severity.CRITICAL,
-                        exception = e,
-                        context = mapOf("phase" to "corruption_passphrase_fetch_failed")
-                    )
-                    alreadyLogged = true
-                    throw e
-                }
-                if (freshPassphrase == null) {
-                    ErrorLogger.logException(
-                        component = "DatabaseModule",
-                        severity = ErrorLogger.Severity.CRITICAL,
-                        exception = IllegalStateException(
-                            "Cannot open database after corruption recovery: no passphrase available"
-                        ),
-                        context = mapOf("phase" to "no_passphrase_after_recovery")
-                    )
-                    error("Cannot open database after corruption recovery: no passphrase available")
-                }
-                try {
-                    opener.open(context, freshPassphrase)
-                } catch (reopenException: Exception) {
-                    ErrorLogger.logException(
-                        component = "DatabaseModule",
-                        severity = ErrorLogger.Severity.CRITICAL,
-                        exception = reopenException,
-                        context = mapOf("phase" to "corruption_recovery_reopen_failed")
-                    )
-                    throw reopenException
-                } finally {
-                    freshPassphrase.fill(0)
-                }
-            } finally {
-                initialPassphrase?.fill(0)
-            }
-        } catch (e: Exception) {
-            if (!alreadyLogged) {
-                ErrorLogger.logException(
-                    component = "DatabaseModule",
-                    severity = ErrorLogger.Severity.CRITICAL,
-                    exception = e,
-                    context = mapOf("phase" to "database_init")
-                )
-            }
-            throw e
-        }
     }
 
-    internal fun deleteDatabaseFiles(context: Context) {
-        val dbPath = context.applicationContext.getDatabasePath(KeyboardDatabase.DATABASE_NAME)
-        dbPath.delete()
-        if (dbPath.exists()) {
-            val ioException = IOException("Failed to delete corrupt database file: ${dbPath.absolutePath}")
-            ErrorLogger.logException(
-                component = "DatabaseModule",
-                severity = ErrorLogger.Severity.CRITICAL,
-                exception = ioException,
-                context = mapOf("phase" to "corruption_db_delete_failed", "path" to dbPath.absolutePath)
-            )
-            throw ioException
-        }
-
-        dbPath.parentFile
-            ?.listFiles()
-            ?.filter {
-                it.name == KeyboardDatabase.DATABASE_NAME ||
-                    it.name.startsWith("${KeyboardDatabase.DATABASE_NAME}-")
-            }?.forEach {
-                if (!it.delete()) {
-                    ErrorLogger.logException(
-                        component = "DatabaseModule",
-                        severity = ErrorLogger.Severity.HIGH,
-                        exception = IOException("Failed to delete database sidecar: ${it.name}"),
-                        context = mapOf("phase" to "corruption_sidecar_delete_failed", "file" to it.name)
-                    )
-                }
-            }
+    private fun logPhase(phase: String, severity: ErrorLogger.Severity) {
+        ErrorLogger.logException(
+            component = "DatabaseModule",
+            severity = severity,
+            exception = IllegalStateException(phase),
+            context = mapOf("phase" to phase)
+        )
     }
 
     @Provides

@@ -8,6 +8,8 @@ import com.urik.keyboard.data.LayoutEntry
 import com.urik.keyboard.data.LayoutRegistry
 import com.urik.keyboard.data.database.CustomKeyMapping
 import com.urik.keyboard.data.database.CustomKeyMappingDao
+import com.urik.keyboard.data.database.DatabaseAvailability
+import com.urik.keyboard.data.database.DatabaseUnavailableException
 import com.urik.keyboard.data.database.LearnedWord
 import com.urik.keyboard.data.database.LearnedWordDao
 import com.urik.keyboard.data.database.UserDictionaryDao
@@ -78,6 +80,11 @@ class BackupCancelledException : Exception("cancelled")
  *
  * Runs only when the device is unlocked (the Settings UI that drives it is post-unlock), so the
  * credential-protected stores it touches are available.
+ *
+ * The Room-backed parts (user dictionary, learned words, next-word pairs) are REFUSED — reported as failed, no
+ * entry written — while the injected database is the in-memory stand-in ([DatabaseAvailability]). The stand-in
+ * reads as empty, and an export taken against it is a valid-looking archive with no words in it (2026-09-03);
+ * an import into it would vanish with the process. The export line then says the part failed instead.
  */
 @Singleton
 class BackupManager
@@ -223,7 +230,8 @@ constructor(
 
         BackupPart.SETTINGS -> {
             val prefs = settingsRepository.exportPreferences().getOrDefault(emptyMap())
-            val mappings = customKeyMappingDao.getAllMappings()
+            // The key mappings live in the database; from the stand-in they would read as none.
+            val mappings = if (DatabaseAvailability.isReal) customKeyMappingDao.getAllMappings() else emptyList()
             val raw = settingsRepository.exportRawBackupValues(
                 setOf(
                     SettingsRepository.RAW_KEY_CUSTOM_SUGGESTIONS,
@@ -236,7 +244,7 @@ constructor(
             }
             JSONObject()
                 .put("preferences", JSONObject(prefs))
-                .put("customKeyMappings", mappingsArr)
+                .apply { if (DatabaseAvailability.isReal) put("customKeyMappings", mappingsArr) }
                 .put("raw", JSONObject(raw)) to prefs.size
         }
 
@@ -272,6 +280,7 @@ constructor(
         }
 
         BackupPart.USER_DICTIONARY -> {
+            requireRealDatabase()
             val rows = userDictionaryDao.getAll()
             val arr = JSONArray()
             rows.forEach { r ->
@@ -290,6 +299,7 @@ constructor(
         }
 
         BackupPart.LEARNED_WORDS -> {
+            requireRealDatabase()
             val words = learnedWordDao.getAllLearnedWords()
             val wordsArr = JSONArray()
             words.forEach { w ->
@@ -318,6 +328,7 @@ constructor(
         }
 
         BackupPart.NEXT_WORD -> {
+            requireRealDatabase()
             val arr = JSONArray()
             userWordBigramDao.getAll().forEach { b ->
                 arr.put(
@@ -363,7 +374,7 @@ constructor(
             json.optJSONObject("preferences")?.toStringMap()?.let { settingsRepository.importPreferences(it) }
             val mappings = json.optJSONArray("customKeyMappings")
             var n = 0
-            if (mappings != null) {
+            if (mappings != null && DatabaseAvailability.isReal) {
                 for (i in 0 until mappings.length()) {
                     val o = mappings.getJSONObject(i)
                     val baseKey = o.optString("baseKey")
@@ -406,6 +417,7 @@ constructor(
         }
 
         BackupPart.USER_DICTIONARY -> {
+            requireRealDatabase()
             val arr = json.optJSONArray("entries") ?: JSONArray()
             val now = System.currentTimeMillis()
             for (i in 0 until arr.length()) {
@@ -424,6 +436,7 @@ constructor(
         }
 
         BackupPart.LEARNED_WORDS -> {
+            requireRealDatabase()
             val words = json.optJSONArray("words") ?: JSONArray()
             for (i in 0 until words.length()) {
                 val o = words.getJSONObject(i)
@@ -455,6 +468,7 @@ constructor(
         }
 
         BackupPart.NEXT_WORD -> {
+            requireRealDatabase()
             val arr = json.optJSONArray("bigrams") ?: JSONArray()
             for (i in 0 until arr.length()) {
                 val o = arr.getJSONObject(i)
@@ -484,6 +498,11 @@ constructor(
     }
 
     // ---- helpers --------------------------------------------------------------------------------------
+
+    /** The Room-backed parts are only ever read from, or written to, the real database. */
+    private fun requireRealDatabase() {
+        if (!DatabaseAvailability.isReal) throw DatabaseUnavailableException(DatabaseAvailability.detail)
+    }
 
     private fun label(part: BackupPart, count: Int): String =
         context.getString(R.string.backup_part_line, context.getString(part.labelRes), count)

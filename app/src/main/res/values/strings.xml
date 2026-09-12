@@ -787,6 +787,7 @@
     <string name="export_import_need_access">All-files access is required to read and write the backup folder.</string>
     <string name="export_import_grant_access">Grant all-files access</string>
     <string name="export_import_last_none">No backup found in this folder yet.</string>
+    <string name="export_import_db_unavailable">The word database could not be opened when the keyboard started, so the user dictionary, learned words and next-word predictions cannot be exported or imported right now. Hide and reopen the keyboard once the phone is unlocked, then come back.</string>
     <string name="export_import_last_nodir">Set a backup folder first.</string>
     <string name="export_import_last">Last backup: %1$s</string>
     <string name="export_import_select_all">Select all</string>

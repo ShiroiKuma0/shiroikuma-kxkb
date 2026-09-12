@@ -7,7 +7,6 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
-import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
 @Database(
     entities = [
@@ -293,14 +292,44 @@ abstract class KeyboardDatabase : RoomDatabase() {
                             }
                         )
 
-                if (passphrase != null) {
-                    builder.openHelperFactory(SupportOpenHelperFactory(passphrase))
-                }
+                // Both factories set a corrupt file ASIDE instead of deleting it — the libraries' own default.
+                builder.openHelperFactory(
+                    if (passphrase != null) {
+                        DatabaseFiles.SafeEncryptedOpenHelperFactory(passphrase)
+                    } else {
+                        DatabaseFiles.SafePlainOpenHelperFactory()
+                    }
+                )
 
                 builder
                     .build()
                     .also { instance = it }
             }
+
+        /**
+         * A SECOND Room instance on any database file in the app's database directory — a set-aside copy —
+         * with this schema's migrations and the same never-delete open helpers. Not cached; the caller closes it.
+         */
+        fun openFile(context: Context, fileName: String, passphrase: ByteArray?): KeyboardDatabase =
+            Room
+                .databaseBuilder(context.applicationContext, KeyboardDatabase::class.java, fileName)
+                .addMigrations(
+                    MIGRATION_1_2,
+                    MIGRATION_3_4,
+                    MIGRATION_4_5,
+                    MIGRATION_5_6,
+                    MIGRATION_6_7,
+                    MIGRATION_7_8,
+                    MIGRATION_8_9
+                )
+                .openHelperFactory(
+                    if (passphrase != null) {
+                        DatabaseFiles.SafeEncryptedOpenHelperFactory(passphrase)
+                    } else {
+                        DatabaseFiles.SafePlainOpenHelperFactory()
+                    }
+                )
+                .build()
 
         internal fun resetInstance() {
             synchronized(this) {
