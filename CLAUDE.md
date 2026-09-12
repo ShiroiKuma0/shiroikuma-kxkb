@@ -557,7 +557,7 @@ dictionary parts, the live one imports (row-merging) — and renames it `.recove
 real Room databases. Suite 2 021 green. The old phone's
 dictionary was restored from the 08-24 backup by hand (8 entries, 252 words, 5 988 pairs).
 
-**Released `0.23.1+321`** (2026-09-11; tagged `0.23.1+321`, APK attached, on the fork's GitHub; default
+**Released `0.23.1+324`** (2026-09-12; tagged `0.23.1+324`, APK attached, on the fork's GitHub; default
 branch `custom`; README badge + `CHANGELOG.md` track it). **Release tags carry NO `v` prefix** (白い熊,
 2026-09-05): the first fork release was the bare `0.23.1+72`, the `v` crept in at `+147`, and the 30 tags
 from `+147` to `+316` were renamed to bare — their GitHub releases were MOVED onto the new tags
@@ -569,7 +569,7 @@ by it — so recreating 30 tags at once sorted them all above the genuinely newe
 older tag object. `publishedAt` is untouched and the `releases/latest` API stayed correct, but the page
 looked wrong until `0.23.1+320`'s tag was force-recreated so its object was the newest again. Retag oldest
 first, or re-cut the newest tag last. Recent fork releases:
-`+313`, `+316`, `+320`, `+321` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`, `+211`, `+213`,
+`+313`, `+316`, `+320`, `+321`, `+324` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`, `+211`, `+213`,
 `+214`, `+215`, `+217`, `+222`, `+230`, `+250`, `+287`, `+292`, `+295`, `+296`, `+298`, `+299`, `+300`,
 `+301`, `+302`, `+304`, `+305`, `+306`, `+309`, `+312`). Remaining M5 tail (low priority): number/arrow
 rows on the look page, quick-period flick. Full architecture + milestone sequence in `docs/PLAN.md`.
