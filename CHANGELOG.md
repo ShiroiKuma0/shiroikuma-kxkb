@@ -4,7 +4,81 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+321 — current
+## 0.23.1+324 — current
+
+Built on Urik `0.23.1-beta`. One release, one subject: **the word database is never deleted by
+code again** — and, found underneath, **it was never really encrypted either**. Three builds
+(`+322` crashed at launch, `+323` wiped on every start) were the price of getting to the bottom
+of it; the tag is `+324`, which restores what those two set aside.
+
+### 🕳 What was lost, and why
+
+On 2026-09-03 every learned word, user-dictionary entry and next-word pair on the phone vanished.
+The backups taken afterwards faithfully exported the empty tables — a valid-looking archive with no
+words in it — and a restore on a new phone in good faith brought back nothing. Only the backup
+from 08-24 still held the words.
+
+Three code paths **deleted** the database file. The database module built Room on the encrypted
+file even when the SQLCipher passphrase came back null: the master key was bound to an *unlocked*
+device, so any process start while the screen was locked — the lock-screen password field, a
+sister app’s backup broadcast, a scheduled batch — could not decrypt it. Room opens lazily, so the
+module’s “prevent data loss” catch never ran; the first query hit `SQLITE_NOTADB`, the platform
+counted that as corruption, and Room’s default corruption handler deleted the file. The
+application’s uncaught-exception handler deleted on the same error, and SQLCipher’s own open
+helper deletes on corruption as well.
+
+### 🗝 The key was thirty-two zeros
+
+Underneath that: **every database this keyboard — and upstream Urik — ever made was keyed with 32
+zero bytes.** The module zeroed the passphrase array in a `finally` right after building Room; Room
+opens lazily; and SQLCipher keys from that array *by reference* at the open — nothing in the
+factory, the helper or the configuration copies it. The encryption was nominal. A database that
+answers to the zero key is now re-encrypted to the real passphrase on first sight, through
+`sqlcipher_export` into a fresh file that is verified before it takes the original’s place; the
+original is renamed `.rekeyed-<stamp>`, never deleted.
+
+### 🛡 Never deleted, never opened without its key
+
+- The file is **probed eagerly**, through SQLCipher with a handler that throws instead of deleting,
+  before Room ever sees it. Readable with the real passphrase → opened. Keyed with the legacy zero
+  key, or a plain file (the pre-encryption upgrade, or what an old build’s wipe left behind) →
+  re-encrypted. Unreadable for good, or corrupt → **set aside** as
+  `keyboard_database.unreadable-<stamp>` / `.corrupt-<stamp>` with its sidecars, and a fresh
+  database made.
+- A passphrase that merely cannot be decrypted *right now* (a keystore hiccup) leaves the file
+  **untouched**: the keyboard runs on an in-memory stand-in for that session and ends its own
+  process at the next quiet unlocked moment so the real store comes back. Only a run of such
+  starts while unlocked is taken as permanent.
+- New master keys carry no unlocked-device binding — the trigger of the whole loss; keys made by
+  earlier builds are re-wrapped on their first successful use. A stored passphrase is decrypted
+  whether or not a lock screen is still set, so removing your lock screen no longer locks you
+  out of your own words.
+- Room opens through open helpers whose corruption handlers **move aside** rather than delete;
+  the application’s uncaught-exception handler moves aside too.
+- **Every set-aside copy is merged back.** Once per process the keyboard looks for
+  `keyboard_database.{unreadable,corrupt,rekeyed}-*` files, opens each with whatever key fits —
+  the zero key, the real passphrase, or none — and merges its user dictionary, learned words and
+  next-word pairs into the live database through the backup engine’s row-merging import, then
+  renames it `.recovered-<stamp>`. That is what brings back what `+323` set aside.
+
+### 💾 A backup never lies about the words again
+
+The three dictionary parts are **refused** — reported as failed, no entry written — while the
+database in use is the stand-in, on export and import alike, so a batch backup can never again
+produce an archive that looks complete and holds nothing; the Settings part drops its key-mappings
+section in that state instead of exporting it empty. The Export/import page shows a red notice
+while it lasts.
+
+### 🧰 Along the way
+
+- SQLCipher’s native library, and the error log, are loaded before `super.onCreate()` — Hilt now
+  builds the database eagerly in there (`+322` crashed for want of this).
+- New tests drive the whole open decision tree against a real file, the corruption-to-set-aside
+  handlers, the backup refusal on a stand-in, and the set-aside merge end to end on real Room
+  databases; the three upstream recovery tests that documented the old delete-and-retry path are
+  retired. Suite: 2 021 green.
+
+## 0.23.1+321
 
 Built on Urik `0.23.1-beta`. Four things you reported, each traced to its root: times and decimals
 typed on the Czech and English boards stay whole; the candidate bar shows the English pronoun the

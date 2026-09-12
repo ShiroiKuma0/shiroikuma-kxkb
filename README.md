@@ -15,7 +15,7 @@ candidate line.
 Installs **side-by-side** with the official Urik and with any other keyboard (package
 `shiroikuma.kxkb`).
 
-**📥 Latest release: [`0.23.1+321`](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases)
+**📥 Latest release: [`0.23.1+324`](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases)
 
 </div>
 
@@ -136,6 +136,12 @@ headlessly alongside every other app on the phone: one master switch (off until 
 copyable token, real-count progress while it runs, and the written path and size reported back. The
 keyboard tells the caller which categories start ticked, and a run in flight can be **cancelled** —
 the half-written file is removed, so a stopped backup leaves the folder exactly as it found it.
+
+And the word database itself is **never deleted by code**: it is probed before Room opens it, a file
+that cannot be read is set aside under a dated name rather than wiped, whatever was set aside is
+merged back the moment it can be read again, and a backup taken while the real database is not
+available refuses the dictionary parts instead of exporting them empty. (Upstream keyed every
+database with thirty-two zero bytes; this fork re-encrypts it with a real passphrase on first sight.)
 
 ---
 
