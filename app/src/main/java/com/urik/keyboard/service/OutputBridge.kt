@@ -162,6 +162,16 @@ class OutputBridge(
         return false
     }
 
+    /**
+     * Underline [text] — which starts at [start] in the field — as the composing region, the way a tap
+     * recomposes one word (the dictation review uses it for a run of several words).
+     */
+    fun recomposeRange(start: Int, text: String) {
+        if (start < 0 || text.isEmpty()) return
+        ic?.setComposingRegion(start, start + text.length)
+        state.onRecompositionSucceeded(text, start)
+    }
+
     fun commitPreviousSwipeAndInsertSpace() {
         if (!state.wordState.isFromSwipe || state.displayBuffer.isEmpty()) return
 
@@ -204,7 +214,7 @@ class OutputBridge(
         ic?.finishComposingText()
     }
 
-    fun commitText(text: String, cursorPosition: Int = 1) {
+    fun commitText(text: CharSequence, cursorPosition: Int = 1) {
         ic?.commitText(text, cursorPosition)
     }
 

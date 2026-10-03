@@ -17,9 +17,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         UserWordFrequency::class,
         UserWordBigram::class,
         UserKanjiFrequency::class,
-        UserDictionaryEntry::class
+        UserDictionaryEntry::class,
+        VoiceUtterance::class,
+        VoiceWordEvent::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 2, to = 3)
@@ -39,6 +41,8 @@ abstract class KeyboardDatabase : RoomDatabase() {
     abstract fun userKanjiFrequencyDao(): UserKanjiFrequencyDao
 
     abstract fun userDictionaryDao(): UserDictionaryDao
+
+    abstract fun voiceCorpusDao(): VoiceCorpusDao
 
     companion object {
         const val DATABASE_NAME = "keyboard_database"
@@ -253,6 +257,53 @@ abstract class KeyboardDatabase : RoomDatabase() {
             }
 
         /**
+         * Adds the voice corpus: `voice_utterance` (one row per kept dictation chunk, its recording on disk)
+         * and `voice_word_event` (each correction / confirmation of a dictated word). New tables only — no
+         * existing row is touched.
+         */
+        private val MIGRATION_9_10 =
+            object : Migration(9, 10) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        """
+                        CREATE TABLE IF NOT EXISTS voice_utterance (
+                            id TEXT PRIMARY KEY NOT NULL,
+                            language_tag TEXT NOT NULL,
+                            recognized_text TEXT NOT NULL,
+                            final_text TEXT NOT NULL,
+                            clip_file TEXT,
+                            sample_count INTEGER NOT NULL,
+                            created_at INTEGER NOT NULL
+                        )
+                        """.trimIndent()
+                    )
+                    db.execSQL(
+                        """
+                        CREATE TABLE IF NOT EXISTS voice_word_event (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                            utterance_id TEXT NOT NULL,
+                            language_tag TEXT NOT NULL,
+                            word_index INTEGER NOT NULL,
+                            recognized TEXT NOT NULL,
+                            corrected TEXT NOT NULL,
+                            kind TEXT NOT NULL,
+                            confidence REAL,
+                            reason TEXT,
+                            created_at INTEGER NOT NULL
+                        )
+                        """.trimIndent()
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS idx_voice_event_recognized " +
+                            "ON voice_word_event(language_tag, recognized)"
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS idx_voice_event_utterance ON voice_word_event(utterance_id)"
+                    )
+                }
+            }
+
+        /**
          * @param passphrase SQLCipher key from Android Keystore, or null for unencrypted
          * @throws IllegalStateException if encryption mode changes between calls
          */
@@ -281,7 +332,8 @@ abstract class KeyboardDatabase : RoomDatabase() {
                             MIGRATION_5_6,
                             MIGRATION_6_7,
                             MIGRATION_7_8,
-                            MIGRATION_8_9
+                            MIGRATION_8_9,
+                            MIGRATION_9_10
                         )
                         .addCallback(
                             object : Callback() {
@@ -320,7 +372,8 @@ abstract class KeyboardDatabase : RoomDatabase() {
                     MIGRATION_5_6,
                     MIGRATION_6_7,
                     MIGRATION_7_8,
-                    MIGRATION_8_9
+                    MIGRATION_8_9,
+                    MIGRATION_9_10
                 )
                 .openHelperFactory(
                     if (passphrase != null) {

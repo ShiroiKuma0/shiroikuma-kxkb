@@ -50,7 +50,7 @@ constructor(
     interface Listener {
         fun onStateChanged(state: State)
 
-        fun onResult(text: String, languageCode: String?)
+        fun onResult(transcript: VoiceTranscript)
 
         fun onError()
     }
@@ -72,6 +72,12 @@ constructor(
     /** Chunks handed to the engine whose results have not come back yet. */
     private var chunksInFlight = 0
 
+    /**
+     * The audio of every chunk handed to the engine, in submission order. The engine's queue is serial, so
+     * each result (or failure) pairs with the head — the recording a correction is stored with.
+     */
+    private val inFlightSamples = ArrayDeque<FloatArray>()
+
     private var continuousActive = false
     private var stopRequested = false
     private var beepsEnabled = false
@@ -88,7 +94,15 @@ constructor(
     /** Safety net: no state may silently stick — a wedged state self-heals to IDLE. */
     private val stateWatchdog = Runnable { onStateTimeout() }
 
-    fun isModelInstalled(): Boolean = VoiceModelStore.isInstalled(context)
+    fun modelStatus(): VoiceModelStore.Status = VoiceModelStore.status(context)
+
+    /** The session's vocabulary bias (null = none) — handed to the engine now and to any engine loaded later. */
+    private var vocabularyBias: com.whisperonnx.voice_translation.neural_networks.voice.LogitBias? = null
+
+    fun setVocabularyBias(bias: com.whisperonnx.voice_translation.neural_networks.voice.LogitBias?) {
+        vocabularyBias = bias
+        recognizer?.setLogitBias(bias)
+    }
 
     /**
      * The Whisper language code the next utterance will be transcribed as. Primary = the layout
@@ -148,6 +162,7 @@ constructor(
         recorder?.cancel()
         recorder = null
         pendingChunks.clear()
+        inFlightSamples.clear()
         chunksInFlight = 0
         continuousActive = false
         if (_state.value != State.IDLE) setState(State.IDLE)
@@ -289,7 +304,9 @@ constructor(
     // ---- shared ----------------------------------------------------------------------------------------
 
     private fun recognize(samples: FloatArray) {
-        recognizer?.recognize(samples, BEAM_SIZE, requestedLanguage, requestedAction)
+        val engine = recognizer ?: return
+        inFlightSamples.addLast(samples)
+        engine.recognize(samples, BEAM_SIZE, requestedLanguage, requestedAction)
     }
 
     private fun flushPendingChunks() {
@@ -324,6 +341,7 @@ constructor(
                         recognizerFailed = true
                         recognizer = null
                         pendingChunks.clear()
+                        inFlightSamples.clear()
                         chunksInFlight = 0
                         recorder?.cancel()
                         recorder = null
@@ -336,6 +354,7 @@ constructor(
                 }
             }
         ).also { r ->
+            r.setLogitBias(vocabularyBias)
             r.addCallback(object : RecognizerListener {
                 override fun onSpeechRecognizedResult(
                     text: String?,
@@ -344,7 +363,21 @@ constructor(
                     isFinal: Boolean
                 ) {
                     val myGeneration = generation
-                    mainHandler.post { onRecognized(text, languageCode, myGeneration) }
+                    mainHandler.post { onRecognized(text, languageCode, null, null, myGeneration) }
+                }
+
+                override fun onSpeechRecognizedWords(
+                    text: String?,
+                    languageCode: String?,
+                    confidenceScore: Double,
+                    isFinal: Boolean,
+                    words: Array<String>?,
+                    wordConfidences: FloatArray?
+                ) {
+                    val myGeneration = generation
+                    mainHandler.post {
+                        onRecognized(text, languageCode, words?.toList(), wordConfidences, myGeneration)
+                    }
                 }
 
                 override fun onError(reasons: IntArray?, value: Long) {
@@ -354,28 +387,38 @@ constructor(
                         exception = RuntimeException("Recognition failed"),
                         context = mapOf("reasons" to (reasons?.joinToString() ?: "?"))
                     )
-                    mainHandler.post { onChunkFailed() }
+                    val myGeneration = generation
+                    mainHandler.post { onChunkFailed(myGeneration) }
                 }
             })
         }
     }
 
-    private fun onRecognized(text: String?, languageCode: String?, myGeneration: Int) {
+    private fun onRecognized(
+        text: String?,
+        languageCode: String?,
+        words: List<String>?,
+        wordConfidences: FloatArray?,
+        myGeneration: Int
+    ) {
         if (myGeneration != generation) return
         if (_state.value == State.IDLE) return
         chunksInFlight = (chunksInFlight - 1).coerceAtLeast(0)
+        val samples = inFlightSamples.pollFirst()
         val cleaned = text?.trim().orEmpty()
         if (cleaned.isNotEmpty() && cleaned != Recognizer.UNDEFINED_TEXT) {
-            listener?.onResult(cleaned, languageCode)
+            listener?.onResult(VoiceTranscript(cleaned, languageCode, words, wordConfidences, samples))
         } else if (!continuousActive) {
             listener?.onError()
         }
         maybeFinishAfterDecode()
     }
 
-    private fun onChunkFailed() {
+    private fun onChunkFailed(myGeneration: Int) {
+        if (myGeneration != generation) return
         if (_state.value == State.IDLE) return
         chunksInFlight = (chunksInFlight - 1).coerceAtLeast(0)
+        inFlightSamples.pollFirst()
         listener?.onError()
         maybeFinishAfterDecode()
     }
@@ -394,6 +437,7 @@ constructor(
         recognizerReady = false
         recognizerFailed = false
         pendingChunks.clear()
+        inFlightSamples.clear()
         chunksInFlight = 0
     }
 
@@ -409,6 +453,7 @@ constructor(
                 recorder?.cancel()
                 recorder = null
                 pendingChunks.clear()
+                inFlightSamples.clear()
                 chunksInFlight = 0
                 continuousActive = false
                 setState(State.IDLE)
@@ -416,6 +461,7 @@ constructor(
             }
             State.TRANSCRIBING -> {
                 pendingChunks.clear()
+                inFlightSamples.clear()
                 chunksInFlight = 0
                 continuousActive = false
                 setState(State.IDLE)

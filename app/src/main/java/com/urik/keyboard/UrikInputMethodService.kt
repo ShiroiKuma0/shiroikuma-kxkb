@@ -115,6 +115,7 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 
@@ -203,6 +204,21 @@ open class UrikInputMethodService :
 
     @Inject
     lateinit var voiceInputController: VoiceInputController
+
+    @Inject
+    lateinit var voiceCorpusRepository: com.urik.keyboard.data.VoiceCorpusRepository
+
+    @Inject
+    lateinit var userDictionaryRepository: com.urik.keyboard.data.UserDictionaryRepository
+
+    @Inject
+    lateinit var userWordBigramDao: com.urik.keyboard.data.database.UserWordBigramDao
+
+    /** Dictation review: suspect-word marking, tap-to-correct and the voice corpus. */
+    private lateinit var voiceReview: com.urik.keyboard.service.voice.VoiceReviewCoordinator
+
+    /** Serialises voice commits: each chunk is judged (suspending) before it commits, in speech order. */
+    private val voiceCommitMutex = kotlinx.coroutines.sync.Mutex()
 
     private lateinit var viewModel: KeyboardViewModel
     private lateinit var layoutManager: KeyboardLayoutManager
@@ -511,6 +527,22 @@ open class UrikInputMethodService :
 
             candidateBarController = CandidateBarController(viewProvider = { swipeKeyboardView })
 
+            voiceReview = com.urik.keyboard.service.voice.VoiceReviewCoordinator(
+                context = this,
+                corpus = voiceCorpusRepository,
+                userDictionary = userDictionaryRepository,
+                spellCheckManager = spellCheckManager,
+                outputBridge = outputBridge,
+                view = { swipeKeyboardView },
+                restoreBar = {
+                    if (inputState.displayBuffer.isEmpty()) {
+                        inputState.clearSuggestionDisplay()
+                        suggestionPipeline.showBigramPredictions()
+                    }
+                },
+                keepAllAudio = { currentSettings.voiceKeepAllAudio }
+            )
+
             imeStateCoordinator = ImeStateCoordinator(
                 outputBridge = outputBridge,
                 streamingScoringEngine = streamingScoringEngine,
@@ -530,10 +562,13 @@ open class UrikInputMethodService :
                     // the normal pipeline so the bar offers correction candidates. Casing candidates
                     // follow the tapped word's own surface (a capitalized word gets capitalized
                     // corrections), not the stale flags of the previously typed word.
-                    inputState.isCurrentWordAtSentenceStart =
-                        inputState.displayBuffer.firstOrNull()?.isUpperCase() == true
-                    inputState.isCurrentWordManualShifted = false
-                    suggestionPipeline.requestSuggestions(inputState.displayBuffer, InputMethod.TYPED)
+                    // A tap on a DICTATED word goes straight to the correction box (the review loop).
+                    if (!voiceReview.onWordRecomposed(inputState.composingRegionStart, inputState.displayBuffer)) {
+                        inputState.isCurrentWordAtSentenceStart =
+                            inputState.displayBuffer.firstOrNull()?.isUpperCase() == true
+                        inputState.isCurrentWordManualShifted = false
+                        suggestionPipeline.requestSuggestions(inputState.displayBuffer, InputMethod.TYPED)
+                    }
                 }
             )
 
@@ -1038,7 +1073,21 @@ open class UrikInputMethodService :
                     }
                 }
                 setOnEditWordCommitListener { edited ->
-                    serviceScope.launch { suggestionPipeline.commitEditedWord(edited, ::checkAutoCapitalization) }
+                    val coreStart = inputState.composingRegionStart
+                    val core = inputState.displayBuffer
+                    serviceScope.launch {
+                        suggestionPipeline.commitEditedWord(edited, ::checkAutoCapitalization)
+                        voiceReview.onEditCommitted(coreStart, core, edited)
+                    }
+                }
+                setOnEditWordExtendListener { direction -> voiceReview.extendCorrection(direction) }
+                setOnVoiceReviewActionListener { action ->
+                    when (action) {
+                        com.urik.keyboard.ui.keyboard.components.VoiceReviewAction.Accept -> voiceReview.accept()
+                        com.urik.keyboard.ui.keyboard.components.VoiceReviewAction.Discard -> voiceReview.discard()
+                        is com.urik.keyboard.ui.keyboard.components.VoiceReviewAction.Word ->
+                            voiceReview.onStripWordTapped(action.fieldPosition)
+                    }
                 }
                 setOnEmojiSelectedListener { selectedEmoji ->
                     handleEmojiSelected(selectedEmoji)
@@ -1440,10 +1489,18 @@ open class UrikInputMethodService :
             openVoiceSettings()
             return
         }
-        if (!voiceInputController.isModelInstalled()) {
-            KxkbToast.show(this, getString(R.string.voice_model_missing), android.widget.Toast.LENGTH_LONG)
-            openVoiceSettings()
-            return
+        when (voiceInputController.modelStatus()) {
+            com.urik.keyboard.service.voice.VoiceModelStore.Status.INSTALLED -> Unit
+            com.urik.keyboard.service.voice.VoiceModelStore.Status.MISSING -> {
+                KxkbToast.show(this, getString(R.string.voice_model_missing), android.widget.Toast.LENGTH_LONG)
+                openVoiceSettings()
+                return
+            }
+            com.urik.keyboard.service.voice.VoiceModelStore.Status.UNREADABLE -> {
+                KxkbToast.show(this, getString(R.string.voice_model_unreadable), android.widget.Toast.LENGTH_LONG)
+                openVoiceSettings()
+                return
+            }
         }
         when (voiceInputController.state.value) {
             VoiceInputController.State.IDLE -> {
@@ -1452,12 +1509,56 @@ open class UrikInputMethodService :
                 // commits nothing, so rapid mic presses left the flag stuck and the candidate bar
                 // suppressed until the next real keystroke.
                 outputBridge.coordinateStateClear()
+                // A new dictation accepts the previous one (its suspect words you let stand are confirmed).
+                voiceReview.accept()
                 candidateBarController.clearSuggestions()
+                prepareVocabularyBias()
                 voiceInputController.startListening(currentSettings, voiceListener)
             }
             VoiceInputController.State.LISTENING,
             VoiceInputController.State.DICTATING -> voiceInputController.finishListening()
             VoiceInputController.State.TRANSCRIBING -> Unit
+        }
+    }
+
+    /**
+     * Bias this dictation's decoder towards your own words of the dictation language — the user dictionary,
+     * every correction you made and every dictated word you confirmed. Built off the main thread while you
+     * start speaking (the model loads meanwhile anyway); slider 0 = off.
+     */
+    private fun prepareVocabularyBias() {
+        voiceInputController.setVocabularyBias(null)
+        val boost = currentSettings.voiceVocabularyBoost
+        val lang = voiceInputController.resolveLanguage(currentSettings).substringBefore("-")
+        if (boost <= 0 || lang == "auto") return
+        serviceScope.launch(kotlinx.coroutines.Dispatchers.Default) {
+            try {
+                val dir = com.urik.keyboard.service.voice.VoiceModelStore.modelDir(this@UrikInputMethodService)
+                    ?: return@launch
+                val tokenizer = com.urik.keyboard.service.voice.WhisperTokenizer
+                    .load(java.io.File(dir, "Whisper_detokenizer.onnx")) ?: return@launch
+                val words = userDictionaryRepository.matchesFor(lang)
+                    .filter { it.kind == com.urik.keyboard.data.database.UserDictionaryKind.WORD }
+                    .map { it.value } + voiceCorpusRepository.vocabulary(lang)
+                // Your typing: the words you most often type after each word (pairs seen at least twice).
+                val followers = try {
+                    userWordBigramDao.getTopBigrams(lang, VOICE_BIGRAM_LIMIT)
+                        .filter { it.frequency >= 2 }
+                        .groupBy({ it.wordANormalized }, { it.wordBNormalized })
+                } catch (_: Exception) {
+                    emptyMap()
+                }
+                if (words.isEmpty() && followers.isEmpty()) return@launch
+                val bias = com.urik.keyboard.service.voice.VocabularyBias.build(tokenizer, words, boost / 10f, followers)
+                withContext(kotlinx.coroutines.Dispatchers.Main) { voiceInputController.setVocabularyBias(bias) }
+            } catch (e: Exception) {
+                ErrorLogger.logException(
+                    component = "UrikInputMethodService",
+                    severity = ErrorLogger.Severity.LOW,
+                    exception = e,
+                    context = mapOf("operation" to "prepareVocabularyBias")
+                )
+            }
         }
     }
 
@@ -1474,7 +1575,8 @@ open class UrikInputMethodService :
             )
         }
 
-        override fun onResult(text: String, languageCode: String?) = commitVoiceResult(text, languageCode)
+        override fun onResult(transcript: com.urik.keyboard.service.voice.VoiceTranscript) =
+            commitVoiceResult(transcript)
 
         override fun onError() {
             // A background IME's toast is suppressed on API 31+ — report in the candidate line instead.
@@ -1497,16 +1599,56 @@ open class UrikInputMethodService :
      * when the cursor follows non-whitespace, a trailing space after — except Japanese, which is
      * committed bare (same rule as the kana-kanji candidate commit).
      */
-    private fun commitVoiceResult(text: String, languageCode: String?) {
+    private fun commitVoiceResult(transcript: com.urik.keyboard.service.voice.VoiceTranscript) {
         serviceScope.launch {
-            val lang = languageCode?.takeIf { it != "??" }
-                ?: voiceInputController.resolveLanguage(currentSettings)
-            val noSpaces = lang == "ja"
-            suggestionPipeline.coordinateSpecialAction {
-                val before = outputBridge.safeGetTextBeforeCursor(1)
-                val prefix = if (!noSpaces && before.isNotEmpty() && !before.last().isWhitespace()) " " else ""
-                val suffix = if (noSpaces) "" else " "
-                outputBridge.commitText(prefix + text + suffix, 1)
+            voiceCommitMutex.withLock {
+                val lang = transcript.languageCode?.takeIf { it != "??" && it != "auto" }
+                    ?: voiceInputController.resolveLanguage(currentSettings).takeIf { it != "auto" }
+                    ?: languageManager.currentLayoutLanguage.value.substringBefore("-")
+                // Spoken punctuation first, so the review, the confidences and the corpus see the final text; then
+                // the Czech clause commas Whisper leaves out.
+                val spoken = if (currentSettings.voiceSpokenPunctuation) {
+                    com.urik.keyboard.service.voice.SpokenPunctuation.apply(transcript.text, lang)
+                } else {
+                    transcript.text
+                }
+                val text = if (currentSettings.voiceCzechCommas && lang == "cs") {
+                    com.urik.keyboard.service.voice.CzechCommas.apply(spoken)
+                } else {
+                    spoken
+                }
+                if (text.isBlank()) return@withLock
+                val final = com.urik.keyboard.service.voice.VoiceTranscript(
+                    text,
+                    transcript.languageCode,
+                    transcript.rawWords,
+                    transcript.rawConfidences,
+                    transcript.samples
+                )
+                val noSpaces = lang == "ja"
+                val reviewing = currentSettings.voiceReview && !inputState.isUrlOrEmailField
+                val prepared =
+                    if (reviewing) voiceReview.prepare(final, lang, currentSettings.voiceUncertaintyPercent / 100f) else null
+                val glued = com.urik.keyboard.service.voice.SpokenPunctuation.startsGlued(text)
+                suggestionPipeline.coordinateSpecialAction {
+                    // A chunk opening with a spoken mark ("čárka, a pak…") attaches to the text before it: the
+                    // previous chunk's trailing space goes.
+                    if (glued && outputBridge.safeGetTextBeforeCursor(1) == " ") outputBridge.deleteSurroundingText(1, 0)
+                    val before = outputBridge.safeGetTextBeforeCursor(1)
+                    val prefix =
+                        if (!noSpaces && !glued && before.isNotEmpty() && !before.last().isWhitespace()) " " else ""
+                    val suffix = if (noSpaces || com.urik.keyboard.service.voice.SpokenPunctuation.endsGlued(text)) "" else " "
+                    if (prepared == null) {
+                        outputBridge.commitText(prefix + text + suffix, 1)
+                    } else {
+                        val start = outputBridge.safeGetCursorPosition() + prefix.length
+                        outputBridge.commitText(
+                            voiceReview.buildCommitText(prepared, prefix, suffix, currentSettings.voiceUnderline),
+                            1
+                        )
+                        voiceReview.recordCommit(prepared, start)
+                    }
+                }
             }
         }
     }
@@ -1691,6 +1833,7 @@ open class UrikInputMethodService :
                         layoutManager.updateNumberHints(newSettings.showNumberHints)
                         layoutManager.updatePressHighlight(newSettings.keyPressHighlightEnabled)
                         layoutManager.updateKeyPreview(newSettings.keyPreviewEnabled)
+                        swipeKeyboardView?.setEmojiButtonEnabled(newSettings.showEmojiButton)
 
                         if (layoutChanged) {
                             repository.cleanup()
@@ -2398,6 +2541,7 @@ open class UrikInputMethodService :
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         // A field change invalidates whatever word the edit overlay was correcting.
         if (!restarting) swipeKeyboardView?.hideEditWordOverlay()
+        voiceReview.onFieldShown()
         inputState.pendingWordSeparator = false
         layoutManager.updateLongPressDuration(currentSettings.longPressDuration)
         layoutManager.updateLongPressPunctuationMode(currentSettings.longPressPunctuationMode)
@@ -2415,6 +2559,7 @@ open class UrikInputMethodService :
         layoutManager.updateNumberHints(currentSettings.showNumberHints)
         layoutManager.updatePressHighlight(currentSettings.keyPressHighlightEnabled)
         layoutManager.updateKeyPreview(currentSettings.keyPreviewEnabled)
+        swipeKeyboardView?.setEmojiButtonEnabled(currentSettings.showEmojiButton)
 
         if (serviceJob.isCancelled) {
             serviceJob = SupervisorJob()
@@ -3171,6 +3316,9 @@ open class UrikInputMethodService :
         // Never record with the keyboard hidden; an in-flight transcription result is dropped too.
         voiceInputController.cancel()
 
+        // The dictation review waits for ✓ / the mic: re-read its field while still connected, keep it on disk.
+        voiceReview.onKeyboardHidden()
+
         healDatabaseStandInIfUnlocked()
 
         // Don't leave the expandable candidates pane open across a field/keyboard dismissal.
@@ -3240,6 +3388,10 @@ open class UrikInputMethodService :
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
         resetCycle()
+
+        // The dictation under review belongs to its field: only ✓ or the next mic press commits it — leaving,
+        // switching apps or hiding the keyboard does not; back in the field, its strip returns.
+        voiceReview.onFieldStarted("${attribute?.packageName}|${attribute?.fieldId}")
 
         if (::layoutManager.isInitialized) {
             layoutManager.stopAcceleratedBackspace()
@@ -3752,6 +3904,7 @@ open class UrikInputMethodService :
             candidatesEnd
         )
         onUpdateSelectionHandler.handle(newSelStart, newSelEnd, candidatesStart, candidatesEnd)
+        voiceReview.onSelectionChanged()
     }
 
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
@@ -3911,6 +4064,7 @@ open class UrikInputMethodService :
         wordFrequencyRepository.clearCache()
         autofillCoordinator.cleanup()
         voiceInputController.shutdown()
+        if (::voiceReview.isInitialized) voiceReview.shutdown()
 
         serviceJob.cancel()
 
@@ -3944,6 +4098,9 @@ open class UrikInputMethodService :
 
         /** How long the flipped voice language stays flashed in the suggestion strip. */
         const val VOICE_FLASH_MS = 1500L
+
+        /** How many of your most frequent word pairs bias a dictation (per language). */
+        const val VOICE_BIGRAM_LIMIT = 5000
         const val LOOK_SEED_PREFS = "kxkb_look_seed"
         const val LOOK_SEED_LAST_GEO = "last_geo"
         const val LOOK_SEED_KNOBS_PREFIX = "knobs_"

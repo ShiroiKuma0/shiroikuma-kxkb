@@ -334,6 +334,24 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
         }
     }
 
+    /** The 😊 emoji button in the suggestion bar (a global setting, surfaced in Rows → Suggestion bar). Default OFF. */
+    val showEmojiButton: StateFlow<Boolean> =
+        settingsRepository.settings
+            .map { it.showEmojiButton }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
+                initialValue = false
+            )
+
+    fun updateShowEmojiButton(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository
+                .updateShowEmojiButton(enabled)
+                .onFailure { _events.emit(SettingsEvent.Error.KeyboardUiUpdateFailed) }
+        }
+    }
+
     fun updateKeyPreviewEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository

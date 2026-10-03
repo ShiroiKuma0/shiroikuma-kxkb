@@ -20,10 +20,26 @@ object VoiceModelStore {
         "Whisper_detokenizer.onnx"
     )
 
+    enum class Status {
+        INSTALLED,
+        MISSING,
+
+        /**
+         * All six files are there but the keyboard may not open them: they were copied in by someone else
+         * (adb / a restore tool runs as the shell user and leaves `rw-rw----` files owned by shell), and the
+         * engine then fails to load the instant the mic is pressed. Importing the zip again fixes it.
+         */
+        UNREADABLE
+    }
+
     fun modelDir(context: Context): File? = context.getExternalFilesDir(null)
 
-    fun isInstalled(context: Context): Boolean {
-        val dir = modelDir(context) ?: return false
-        return REQUIRED_FILES.all { File(dir, it).let { f -> f.isFile && f.length() > 0 } }
+    fun status(context: Context): Status {
+        val dir = modelDir(context) ?: return Status.MISSING
+        val files = REQUIRED_FILES.map { File(dir, it) }
+        if (!files.all { it.isFile && it.length() > 0 }) return Status.MISSING
+        return if (files.all { it.canRead() }) Status.INSTALLED else Status.UNREADABLE
     }
+
+    fun isInstalled(context: Context): Boolean = status(context) == Status.INSTALLED
 }

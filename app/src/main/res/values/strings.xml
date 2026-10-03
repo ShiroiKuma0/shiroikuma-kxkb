@@ -420,6 +420,9 @@
     <string name="keyboard_ui_section_cluster">Cluster keys</string>
     <string name="keyboard_ui_item_left_char_pos">Left character position</string>
     <string name="keyboard_ui_item_right_char_pos">Right character position</string>
+    <string name="keyboard_ui_emoji_button">Emoji button</string>
+    <string name="keyboard_ui_emoji_button_on">The 😊 button sits at the right end of the suggestion bar</string>
+    <string name="keyboard_ui_emoji_button_off">Hidden — open emoji from a layout\'s emoji key</string>
     <string name="keyboard_ui_section_suggestion">Suggestion bar</string>
     <string name="keyboard_ui_custom_suggestions">Custom suggestions</string>
     <string name="keyboard_ui_custom_suggestions_summary">Your own words, phrases or symbols — shown when nothing is predicted and added after live suggestions</string>
@@ -724,6 +727,9 @@
     <!-- Edit-word overlay -->
     <string name="edit_word_chip_description">Edit word</string>
     <string name="edit_word_commit_description">Commit edited word</string>
+    <string name="edit_word_revert_description">Put the recognised word back</string>
+    <string name="edit_word_extend_left">Include the previous word</string>
+    <string name="edit_word_extend_right">Include the next word</string>
     <string name="edit_word_cancel_description">Cancel editing</string>
     <string name="edit_word_remove_description">Remove from prediction</string>
 
@@ -820,6 +826,7 @@
     <string name="backup_part_next_word">Next-word predictions (word pairs from your typing)</string>
     <string name="backup_part_blacklist">Blocked words (words you told it to forget)</string>
     <string name="backup_part_per_app">Per-app layout memory (which keyboard each app opens)</string>
+    <string name="backup_part_voice_corpus">Voice corrections (recordings of your dictation, with what you corrected)</string>
     <string name="backup_part_line">%1$s: %2$d</string>
 
     <!-- Tips -->
@@ -893,6 +900,7 @@
     <string name="voice_error">Voice recognition failed</string>
     <string name="voice_need_mic_permission">Voice input needs the microphone permission</string>
     <string name="voice_model_missing">Voice model not installed — opening Voice input settings</string>
+    <string name="voice_model_unreadable">Voice model files cannot be read by the keyboard — import the model again (opening Voice input settings)</string>
     <string name="voice_language_flipped">Voice language: %1$s</string>
 
     <!-- Voice input settings page -->
@@ -901,6 +909,7 @@
     <string name="voice_settings_intro">Offline speech-to-text with OpenAI\'s Whisper model, running entirely on this phone. The keyboard deliberately has NO internet permission — nothing you type or say can ever leave the device — which also means it cannot download the speech model itself. The three steps below work around that: your browser fetches the model, this page imports it from disk, and Android\'s microphone permission lets the mic key record.</string>
     <string name="voice_status_model_ok">✓ Model installed (%1$d MB)</string>
     <string name="voice_status_model_missing">✗ Model not installed</string>
+    <string name="voice_status_model_unreadable">✗ Model files are present but the keyboard may not read them (they were copied in by adb or another app) — import the model zip again (step 2) to fix it</string>
     <string name="voice_status_mic_ok">✓ Microphone permission granted</string>
     <string name="voice_status_mic_missing">✗ Microphone permission not granted</string>
     <string name="voice_step1_title">1 · Download the model</string>
@@ -930,6 +939,35 @@
     <string name="voice_opt_session_end_value">%1$d s</string>
     <string name="voice_opt_beeps">Dictation beeps</string>
     <string name="voice_opt_beeps_desc">One beep when a pause commits the sentence — keep talking; three beeps when the dictation session ends.</string>
+    <string name="voice_opt_review">Review dictated words</string>
+    <string name="voice_opt_review_desc">After a dictation, the suggestion strip shows every dictated word: the ones the recogniser was unsure of in red, words not in the dictionary in orange, words replaced automatically by a correction you made before in blue (tap one to change it, or ↺ to put the recognised word back). Tap a word — on the strip or in the text — to correct it; ◂ and ▸ in the correction box take in the neighbouring words when several should be one. ✓ (or the next dictation) accepts the words you left as they are; ✕ closes the strip without learning anything. Leaving the field does not accept — the strip comes back with it. Corrections and accepted words are kept with their recording on this device, so the same word is not marked again.</string>
+    <string name="voice_opt_underline">Underline uncertain words in the text</string>
+    <string name="voice_opt_underline_desc">Also underline the marked words in the text field itself. Works in most apps; some (Compose-based) show no underline.</string>
+    <string name="voice_opt_uncertainty">Uncertainty threshold</string>
+    <string name="voice_opt_uncertainty_value">Words the recogniser is less than %1$d %% sure of are marked red</string>
+    <string name="voice_opt_vocabulary_boost">Boost for your own words</string>
+    <string name="voice_opt_vocabulary_boost_off">Off</string>
+    <string name="voice_opt_vocabulary_boost_value">Strength %1$.1f</string>
+    <string name="voice_opt_vocabulary_boost_desc">While a word is being recognised, the recogniser leans towards completing it as one of your own words — your user dictionary, every correction you made and every dictated word you confirmed — so a name it once misheard comes out the way you write it. It also leans, more gently, towards the words you usually type next. Stronger values decide more close calls your way; too strong can pull in your words where you said something else.</string>
+    <string name="voice_opt_czech_commas">Czech commas</string>
+    <string name="voice_opt_czech_commas_desc">In Czech dictation, put in the comma before a subordinate clause that the recogniser leaves out — before že, aby, protože, když, který, ve kterém, jak… Never after a joining word (a že, i když) and never before „jak“ in a comparison (tak jak, stejně jak).</string>
+    <string name="voice_opt_spoken_punctuation">Spoken punctuation</string>
+    <string name="voice_opt_spoken_punctuation_desc">Say the mark and it is typed: čárka, tečka, otazník, vykřičník, dvojtečka, středník, pomlčka, spojovník, tři tečky, uvozovky, nový řádek, nový odstavec (English: comma, period, question mark, new line…; Russian: запятая, точка, вопросительный знак…). Say „doslova“ (English “literal”, Russian „буквально“) before one to get the word instead: „doslova tečka“ types “tečka”.</string>
+    <string name="voice_opt_keep_all_audio">Keep all dictation audio</string>
+    <string name="voice_opt_keep_all_audio_desc">Also keep the recording of a dictation you accepted with nothing to correct — every kept sentence is a recording with its checked text, material for improving recognition later. Takes about 2 MB per minute of speech.</string>
+    <string name="voice_corpus_open">Voice corrections…</string>
+    <string name="voice_corpus_title">Voice corrections</string>
+    <string name="voice_corpus_summary">%1$d dictations kept · %2$.1f MB of recordings</string>
+    <string name="voice_corpus_intro">Each dictation you corrected or accepted with marked words, kept with its recording on this device. Blue lines are what it taught: “heard → corrected” replaces that recognition from now on, “✓ word” means it is never marked again. Deleting a dictation forgets what it taught.</string>
+    <string name="voice_corpus_heard">Heard: %1$s</string>
+    <string name="voice_corpus_play">▶ Play</string>
+    <string name="voice_corpus_stop">■ Stop</string>
+    <string name="voice_corpus_delete">Delete</string>
+    <string name="voice_corpus_delete_confirm">Delete this dictation, its recording and what it taught?\n\n%1$s</string>
+    <string name="voice_corpus_delete_all">Delete all</string>
+    <string name="voice_corpus_delete_all_confirm">Delete every kept dictation, all recordings and every correction rule learned from them? This cannot be undone.</string>
+    <string name="voice_review_accept">Accept the dictated words</string>
+    <string name="voice_review_discard">Close the review without accepting</string>
     <string name="voice_opt_autodetect">Auto-detect language</string>
     <string name="voice_opt_autodetect_desc">Let Whisper identify the spoken language by itself. Off: dictation is transcribed in the keyboard\'s current language — switching the keyboard language switches dictation too.</string>
     <string name="voice_opt_translate">Translate to English</string>

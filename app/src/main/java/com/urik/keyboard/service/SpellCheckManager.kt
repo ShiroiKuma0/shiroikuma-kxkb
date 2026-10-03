@@ -429,6 +429,29 @@ constructor(
         return false
     }
 
+    /**
+     * Whether [word] is a known word of exactly [languageCode] — learned words, the dictionary, a valid clitic
+     * form, or a proper noun — regardless of which languages the keyboard is typing in: dictation can run in
+     * the flipped language. The voice-marking judge's dictionary test (the user dictionary is checked by the
+     * caller, which holds the repository).
+     */
+    suspend fun isKnownWord(word: String, languageCode: String): Boolean = withContext(Dispatchers.Default) {
+        try {
+            if (!isValidInput(word) || !ensureInitialized()) return@withContext false
+            val lang = languageCode.substringBefore("-")
+            val normalized = word.lowercase(Locale.forLanguageTag(lang)).trim()
+            isWordInDictionary(normalized, lang) || properCasing(normalized, lang) != null
+        } catch (e: Exception) {
+            ErrorLogger.logException(
+                component = "SpellCheckManager",
+                severity = ErrorLogger.Severity.LOW,
+                exception = e,
+                context = mapOf("operation" to "isKnownWord")
+            )
+            false
+        }
+    }
+
     /** Uses single batch query to WordLearningEngine for learned words. */
     suspend fun areWordsInDictionary(words: List<String>): Map<String, Boolean> = withContext(Dispatchers.Default) {
         if (words.isEmpty()) {

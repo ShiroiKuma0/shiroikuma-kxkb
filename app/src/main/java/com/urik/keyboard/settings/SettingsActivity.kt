@@ -101,6 +101,7 @@ class SettingsActivity : AppCompatActivity() {
                 is LearnedWordsFragment -> getString(R.string.learned_words_title)
                 is ExportImportFragment -> getString(R.string.export_import_title)
                 is com.urik.keyboard.settings.voice.VoiceSettingsFragment -> getString(R.string.voice_settings_title)
+                is com.urik.keyboard.settings.voice.VoiceCorpusFragment -> getString(R.string.voice_corpus_title)
                 else -> getString(R.string.settings_title)
             }
         supportActionBar?.title = title

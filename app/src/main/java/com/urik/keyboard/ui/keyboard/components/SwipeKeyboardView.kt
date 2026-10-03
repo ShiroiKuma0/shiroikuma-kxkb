@@ -126,6 +126,9 @@ constructor(
 
     private var emojiButton: TextView? = null
 
+    /** The 😊 button is a setting (default off) — [setEmojiButtonEnabled]. */
+    private var emojiButtonEnabled = false
+
     private var isSwipeActive = false
     private var hasTouchStart = false
     private val touchStartPoint = PointF()
@@ -157,6 +160,13 @@ constructor(
     private var editChipWord: String? = null
     private var editChipWordProvider: (() -> String?)? = null
     private var onEditWordCommitListener: ((String) -> Unit)? = null
+
+    /** The dictation review strip's content; null = no review (the bar behaves as always). */
+    private var voiceReview: VoiceReview? = null
+    private var onVoiceReviewActionListener: ((VoiceReviewAction) -> Unit)? = null
+
+    /** ◂ / ▸ in the edit-word overlay: pull the neighbouring dictated word in (-1 / +1). */
+    private var onEditWordExtendListener: ((Int) -> Unit)? = null
 
     private var emojiPickerContainer: LinearLayout? = null
     private var isShowingEmojiPicker = false
@@ -334,26 +344,30 @@ constructor(
                 LayoutParams.MATCH_PARENT
             )
         )
-        // The grip keeps owning the corner (long-press there = resize, ✎ chip or not), but a quick TAP
-        // is forwarded to the edit chip beneath it; while the edit overlay is open the grip yields
-        // entirely — the overlay's ✕/🗑 buttons live exactly under it.
+        // The grip keeps owning the corner (long-press there = resize), but a quick TAP is forwarded to
+        // whatever tappable thing of the suggestion bar lies beneath it — the ✎ chip, the dictation
+        // review's ✕ or first word, a candidate. (Forwarding only to ✎ swallowed every other leftmost
+        // control.) While the edit overlay is open the grip yields entirely — its ✕/🗑 live under it.
         resizeOverlay.gripExclusion = { _, _ -> isEditWordOverlayVisible }
         resizeOverlay.onGripTap = { x, y ->
-            if (!isDestroyed && isTouchOnEditChip(x, y)) {
-                keyboardLayoutManager?.triggerHapticFeedback()
-                editChipWord?.let { showEditWordOverlay(it) }
-            }
+            if (!isDestroyed) suggestionBar?.let { bar -> clickableUnder(bar, x, y)?.performClick() }
         }
     }
 
-    private fun isTouchOnEditChip(x: Float, y: Float): Boolean {
-        val chip = editChipView ?: return false
-        if (!chip.isShown || chip.parent == null) return false
-        chip.getLocationInWindow(cachedLocationArray)
+    /** The deepest shown, clickable view of [root] containing ([x], [y]) in this view's coordinates. */
+    private fun clickableUnder(root: View, x: Float, y: Float): View? {
+        if (!root.isShown) return null
+        root.getLocationInWindow(cachedLocationArray)
         getLocationInWindow(cachedParentLocationArray)
         val left = cachedLocationArray[0] - cachedParentLocationArray[0]
         val top = cachedLocationArray[1] - cachedParentLocationArray[1]
-        return x >= left && x < left + chip.width && y >= top && y < top + chip.height
+        if (x < left || x >= left + root.width || y < top || y >= top + root.height) return null
+        if (root is ViewGroup) {
+            for (i in root.childCount - 1 downTo 0) {
+                clickableUnder(root.getChildAt(i), x, y)?.let { return it }
+            }
+        }
+        return root.takeIf { it.hasOnClickListeners() }
     }
 
     override fun onAttachedToWindow() {
@@ -1302,6 +1316,19 @@ constructor(
                 bar.addView(getOrCreateEditChip())
             }
 
+            // After a dictation the bar is the review strip — until a word starts composing (typing, or a
+            // tap into ordinary text), which brings the candidates back.
+            val review = voiceReview
+            if (chipWord == null && review != null) {
+                populateVoiceReview(bar, review)
+                expandButton?.let { (it.parent as? ViewGroup)?.removeView(it) }
+                emojiBtn?.let { btn ->
+                    (btn.parent as? ViewGroup)?.removeView(btn)
+                    bar.addView(btn)
+                }
+                return@let
+            }
+
             if (suggestions.isNotEmpty()) {
                 populateSuggestions(bar, suggestions)
             } else {
@@ -1346,7 +1373,11 @@ constructor(
         // FUTO-style candidate line: lay candidates out at their natural width, left to right, showing as
         // many as fit in the bar (reserving room for the ▾ + emoji buttons at the right). Tab cycles these.
         val density = context.resources.displayMetrics.density
-        val emojiWidth = emojiButton?.let { it.measuredWidth.takeIf { w -> w > 0 } } ?: (44 * density).toInt()
+        val emojiWidth = if (!emojiButtonEnabled) {
+            0
+        } else {
+            emojiButton?.let { it.measuredWidth.takeIf { w -> w > 0 } } ?: (44 * density).toInt()
+        }
         val expandWidth = if (suggestionSelectionEnabled) (40 * density).toInt() else 0
         val editChipWidth = if (editChipView?.parent != null) (40 * density).toInt() else 0
         val barWidth = bar.width.takeIf { it > 0 } ?: context.resources.displayMetrics.widthPixels
@@ -1517,7 +1548,16 @@ constructor(
      * input focus from itself); the service routes key presses into it via [editWordInsert] /
      * [editWordBackspace], and a tap on the text moves the caret.
      */
-    fun showEditWordOverlay(word: String) {
+    /**
+     * [original] (a dictated word replaced automatically by an earlier correction) shows as a fixed
+     * "original →" before the editable word, with ↺ to put it back.
+     */
+    fun showEditWordOverlay(
+        word: String,
+        canExtendLeft: Boolean = false,
+        canExtendRight: Boolean = false,
+        original: String? = null
+    ) {
         if (isDestroyed || word.isEmpty()) return
         hideEditWordOverlay()
         flushInFlightGestureState()
@@ -1580,6 +1620,29 @@ constructor(
                 LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT)
             )
 
+            if (canExtendLeft) {
+                addView(
+                    overlayButton("◂", R.string.edit_word_extend_left, accent) { onEditWordExtendListener?.invoke(-1) },
+                    LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT)
+                )
+            }
+
+            if (original != null) {
+                addView(
+                    TextView(context).apply {
+                        text = "$original →"
+                        gravity = Gravity.CENTER_VERTICAL
+                        maxLines = 1
+                        setTextColor(textColor)
+                        alpha = 0.6f
+                        setTextSize(TypedValue.COMPLEX_UNIT_SP, textSize)
+                        typeface = suggestionTypeface()
+                        setPadding(pad, 0, 0, 0)
+                    },
+                    LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT)
+                )
+            }
+
             val textView = TextView(context).apply {
                 gravity = Gravity.CENTER_VERTICAL
                 setTextColor(textColor)
@@ -1600,6 +1663,27 @@ constructor(
                 textView,
                 LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
             )
+
+            if (canExtendRight) {
+                addView(
+                    overlayButton("▸", R.string.edit_word_extend_right, accent) { onEditWordExtendListener?.invoke(+1) },
+                    LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT)
+                )
+            }
+
+            if (original != null) {
+                addView(
+                    overlayButton("↺", R.string.edit_word_revert_description, accent) {
+                        // Put the recognised word back: committed like any correction, so the review records
+                        // that this recognition was right and stops replacing it.
+                        editWordBuffer.setLength(0)
+                        editWordBuffer.append(original)
+                        editWordCursor = original.length
+                        editWordCommit()
+                    },
+                    LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT)
+                )
+            }
 
             addView(
                 overlayButton("✓", R.string.edit_word_commit_description, accent) { editWordCommit() },
@@ -1727,6 +1811,95 @@ constructor(
     }
 
     /** The word the ✎ chip edits, or null to hide the chip; evaluated on each bar render. */
+    /**
+     * Show (or with null, remove) the dictation review strip: ✕ (close without learning) | every dictated
+     * word, the marked ones coloured | ✓ (accept — the words left standing are right).
+     */
+    fun setVoiceReview(review: VoiceReview?) {
+        if (isDestroyed) return
+        if (review == null && voiceReview == null) return
+        voiceReview = review
+        if (!isInitialized || isShowingAutofillSuggestions) return
+        updateSuggestionBarContent(emptyList())
+    }
+
+    /** Show or hide the 😊 emoji button at the right end of the suggestion bar. */
+    fun setEmojiButtonEnabled(enabled: Boolean) {
+        if (emojiButtonEnabled == enabled) return
+        emojiButtonEnabled = enabled
+        if (!isShowingAutofillSuggestions) emojiButton?.visibility = if (enabled) VISIBLE else GONE
+    }
+
+    fun setOnVoiceReviewActionListener(listener: (VoiceReviewAction) -> Unit) {
+        onVoiceReviewActionListener = listener
+    }
+
+    fun setOnEditWordExtendListener(listener: (Int) -> Unit) {
+        onEditWordExtendListener = listener
+    }
+
+    private fun populateVoiceReview(bar: LinearLayout, review: VoiceReview) {
+        val density = context.resources.displayMetrics.density
+        val textColor = adaptiveDimensions?.suggestionColor
+            ?: themeManager?.currentTheme?.value?.colors?.suggestionText
+            ?: android.graphics.Color.WHITE
+        val textSize = (suggestionTextSizeSp.takeIf { it > 0 } ?: 18f) * (adaptiveDimensions?.suggestionTextScale ?: 1f)
+        val tf = suggestionTypeface()
+        val pad = (10 * density).toInt()
+
+        fun chip(label: String, color: Int, description: String, action: VoiceReviewAction): TextView =
+            TextView(context).apply {
+                text = label
+                gravity = Gravity.CENTER
+                maxLines = 1
+                isSingleLine = true
+                typeface = tf
+                setTextColor(color)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, textSize)
+                setPadding(pad, 0, pad, 0)
+                contentDescription = description
+                setOnClickListener {
+                    if (isDestroyed) return@setOnClickListener
+                    keyboardLayoutManager?.triggerHapticFeedback()
+                    onVoiceReviewActionListener?.invoke(action)
+                }
+            }
+
+        val fixed = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT)
+        bar.addView(
+            chip("✕", textColor, context.getString(R.string.voice_review_discard), VoiceReviewAction.Discard),
+            LinearLayout.LayoutParams(fixed)
+        )
+
+        val row = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        for (word in review.words) {
+            val color = when (word.mark) {
+                VoiceReviewMark.LOW_CONFIDENCE -> VOICE_MARK_LOW
+                VoiceReviewMark.UNKNOWN_WORD -> VOICE_MARK_UNKNOWN
+                VoiceReviewMark.KNOWN_MISRECOGNITION -> VOICE_MARK_KNOWN
+                VoiceReviewMark.NONE -> textColor
+            }
+            val label = word.alternative?.let { "${word.label} → $it" } ?: word.label
+            row.addView(
+                chip(label, color, label, VoiceReviewAction.Word(word.fieldPosition)),
+                LinearLayout.LayoutParams(fixed)
+            )
+        }
+        val scroller = android.widget.HorizontalScrollView(context).apply {
+            isHorizontalScrollBarEnabled = false
+            isFillViewport = false
+            addView(row, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT))
+        }
+        bar.addView(scroller, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
+        bar.addView(
+            chip("✓", suggestionAccentColor(), context.getString(R.string.voice_review_accept), VoiceReviewAction.Accept),
+            LinearLayout.LayoutParams(fixed)
+        )
+    }
+
     fun setEditChipWordProvider(provider: () -> String?) {
         editChipWordProvider = provider
     }
@@ -1763,7 +1936,7 @@ constructor(
         if (isDestroyed) return
         isShowingAutofillSuggestions = false
         autofillIndicatorIcon?.visibility = GONE
-        emojiButton?.visibility = VISIBLE
+        emojiButton?.visibility = if (emojiButtonEnabled) VISIBLE else GONE
         hideCandidatesPane()
         updateSuggestionBarContent(emptyList())
         safeMappingPost()
@@ -1779,7 +1952,7 @@ constructor(
             if (views.isEmpty()) {
                 isShowingAutofillSuggestions = false
                 autofillIndicatorIcon?.visibility = GONE
-                emojiButton?.visibility = VISIBLE
+                emojiButton?.visibility = if (emojiButtonEnabled) VISIBLE else GONE
                 updateSuggestionBarContent(emptyList())
                 return
             }
@@ -2089,6 +2262,7 @@ constructor(
                             contentDescription = context.getString(R.string.action_emoji)
 
                             setOnClickListener(emojiButtonClickListener)
+                            visibility = if (emojiButtonEnabled) VISIBLE else GONE
 
                             layoutParams =
                                 LinearLayout
@@ -2771,6 +2945,11 @@ constructor(
     }
 
     companion object {
+        /** Review-strip mark colours: the recogniser was unsure / not a known word / you corrected it before. */
+        private const val VOICE_MARK_LOW = 0xFFFF6E6E.toInt()
+        private const val VOICE_MARK_UNKNOWN = 0xFFFFB74D.toInt()
+        private const val VOICE_MARK_KNOWN = 0xFF4FC3F7.toInt()
+
         private const val SEARCH_DEBOUNCE_MS = 300L
         private const val SPACE_MENU_OVERFLOW_DWELL_MS = 180L
         private const val MIN_LETTER_SPACING_CENTER = -0.02f

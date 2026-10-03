@@ -88,6 +88,7 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
     private lateinit var keyBorderColorPref: ColorSwatchPreference
     private lateinit var capsLockShiftColorPref: ColorSwatchPreference
     private lateinit var keyPreviewPref: SwitchPreferenceCompat
+    private lateinit var emojiButtonPref: SwitchPreferenceCompat
     private lateinit var hintTopColorPref: ColorSwatchPreference
     private lateinit var hintTopScalePref: SeekBarPreference
     private lateinit var hintTopFontPref: Preference
@@ -419,6 +420,16 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         compassFontPref = seekBar("kb_ui_compass_font", R.string.keyboard_ui_item_compass_font, min = 100, max = 400, sub = true)
         stripFontPref = seekBar("kb_ui_strip_font", R.string.keyboard_ui_item_strip_font, min = 100, max = 500, sub = true)
 
+        emojiButtonPref =
+            SwitchPreferenceCompat(context).apply {
+                key = "kb_ui_emoji_button"
+                isPersistent = false
+                layoutResource = R.layout.preference_item_kxkb_l2
+                title = resources.getString(R.string.keyboard_ui_emoji_button)
+                summaryOn = resources.getString(R.string.keyboard_ui_emoji_button_on)
+                summaryOff = resources.getString(R.string.keyboard_ui_emoji_button_off)
+            }
+
         // --- ROWS: the horizontal bands, top to bottom — suggestion bar, then the secondary char rows. ---
         val rowsCategory = sectionCategory("kb_ui_cat_rows", R.string.keyboard_ui_section_rows)
         // Suggestion bar (the top-most row).
@@ -509,6 +520,7 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         rowsCategory.addPreference(suggestionWeightPref)
         rowsCategory.addPreference(suggestionSizePref)
         rowsCategory.addPreference(suggestionColorPref)
+        rowsCategory.addPreference(emojiButtonPref)
         // Custom suggestions: a sub-category, with one editable row per active language.
         rowsCategory.addPreference(subHeader(R.string.keyboard_ui_custom_suggestions))
         customSuggestionPrefs.values.forEach { rowsCategory.addPreference(it) }
@@ -873,6 +885,10 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
             viewModel.updateKeyPreviewEnabled(newValue as Boolean)
             true
         }
+        emojiButtonPref.setOnPreferenceChangeListener { _, newValue ->
+            viewModel.updateShowEmojiButton(newValue as Boolean)
+            true
+        }
         hintPref.setOnPreferenceChangeListener { _, newValue ->
             viewModel.updateHintScale(newValue as Int)
             true
@@ -1110,6 +1126,11 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                 launch {
                     viewModel.keyPreviewEnabled.collect { enabled ->
                         if (keyPreviewPref.isChecked != enabled) keyPreviewPref.isChecked = enabled
+                    }
+                }
+                launch {
+                    viewModel.showEmojiButton.collect { enabled ->
+                        if (emojiButtonPref.isChecked != enabled) emojiButtonPref.isChecked = enabled
                     }
                 }
                 launch {

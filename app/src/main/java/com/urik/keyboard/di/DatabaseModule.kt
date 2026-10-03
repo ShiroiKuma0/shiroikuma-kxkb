@@ -17,6 +17,7 @@ import com.urik.keyboard.data.database.UserDictionaryDao
 import com.urik.keyboard.data.database.UserKanjiFrequencyDao
 import com.urik.keyboard.data.database.UserWordBigramDao
 import com.urik.keyboard.data.database.UserWordFrequencyDao
+import com.urik.keyboard.data.database.VoiceCorpusDao
 import com.urik.keyboard.utils.ErrorLogger
 import dagger.Module
 import dagger.Provides
@@ -299,4 +300,7 @@ object DatabaseModule {
     @Provides
     fun provideUserDictionaryDao(database: KeyboardDatabase): UserDictionaryDao =
         database.userDictionaryDao()
+
+    @Provides
+    fun provideVoiceCorpusDao(database: KeyboardDatabase): VoiceCorpusDao = database.voiceCorpusDao()
 }

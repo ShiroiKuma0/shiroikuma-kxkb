@@ -109,6 +109,8 @@ data class KeyboardSettings(
     val keyPressHighlightEnabled: Boolean = true,
     /** Magnified key-preview bubble above a pressed character key. Default ON. */
     val keyPreviewEnabled: Boolean = true,
+    /** The 😊 emoji button at the right end of the suggestion bar (the picker stays reachable via an emoji key). */
+    val showEmojiButton: Boolean = false,
     /**
      * Legacy single custom-suggestion row, newline-separated. Retained as English's value (and the migration
      * source) now that the row is per-language — see [customSuggestionsByLang]. Empty = English row off.
@@ -141,7 +143,21 @@ data class KeyboardSettings(
     val voiceContinuous: Boolean = true,
     val voiceSessionEndMs: Int = 2500,
     /** Dictation beeps: one when a pause commits the sentence, three when the session ends. */
-    val voiceBeeps: Boolean = true
+    val voiceBeeps: Boolean = true,
+    /** Dictation review: mark uncertain / unknown words, tap to correct, keep the corrections as a corpus. */
+    val voiceReview: Boolean = true,
+    /** Also underline the marked words in the text field (best effort — app-dependent). */
+    val voiceUnderline: Boolean = true,
+    /** Spoken punctuation: “čárka”, “tečka”, “nový řádek”… become marks; “doslova” keeps the next one a word. */
+    val voiceSpokenPunctuation: Boolean = true,
+    /** Review marks a word red below this recogniser confidence, in percent. */
+    val voiceUncertaintyPercent: Int = 15,
+    /** Keep the recording of every accepted dictation, not only those with a correction or a marked word. */
+    val voiceKeepAllAudio: Boolean = false,
+    /** Decoder boost for your own words (user dictionary, corrections, confirmed words), in tenths of a logit; 0 = off. */
+    val voiceVocabularyBoost: Int = 20,
+    /** Czech dictation: put in the clause commas Whisper leaves out (before že, aby, který…). */
+    val voiceCzechCommas: Boolean = true
 ) {
     /**
      * Whether word learning is enabled via [learnNewWords] flag.

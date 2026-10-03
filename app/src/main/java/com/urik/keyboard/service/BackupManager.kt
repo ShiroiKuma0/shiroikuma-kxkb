@@ -6,6 +6,7 @@ import com.urik.keyboard.data.BfuLayoutPrefs
 import com.urik.keyboard.data.CustomLayoutStore
 import com.urik.keyboard.data.LayoutEntry
 import com.urik.keyboard.data.LayoutRegistry
+import com.urik.keyboard.data.VoiceCorpusBackup
 import com.urik.keyboard.data.database.CustomKeyMapping
 import com.urik.keyboard.data.database.CustomKeyMappingDao
 import com.urik.keyboard.data.database.DatabaseAvailability
@@ -52,7 +53,9 @@ enum class BackupPart(val id: String, val fileName: String, val labelRes: Int, v
     // leaving them out, so this is the one part that starts unticked (here and on the automation wire).
     NEXT_WORD("next_word", "next_word.json", R.string.backup_part_next_word, defaultSelected = false),
     BLACKLIST("blacklist", "blacklist.json", R.string.backup_part_blacklist),
-    PER_APP("per_app", "per_app.json", R.string.backup_part_per_app);
+    PER_APP("per_app", "per_app.json", R.string.backup_part_per_app),
+    // The dictation recordings run to hundreds of MB — opt-in, like the next-word statistics.
+    VOICE_CORPUS("voice_corpus", "voice_corpus.json", R.string.backup_part_voice_corpus, defaultSelected = false);
 
     companion object {
         fun fromId(id: String): BackupPart? = entries.firstOrNull { it.id == id }
@@ -102,6 +105,15 @@ constructor(
     private var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 
     /**
+     * The voice-corpus part (rows + streamed recordings). Field-injected, so the hand-built engines — the
+     * set-aside recovery's source, the tests — need not provide it; without it the part reports as failed.
+     */
+    @Inject
+    lateinit var voiceCorpusBackup: VoiceCorpusBackup
+
+    private val corpusAvailable: Boolean get() = ::voiceCorpusBackup.isInitialized
+
+    /**
      * Write the selected [parts] to [out] as a backup ZIP. [appVersion] is recorded in the manifest.
      *
      * [onProgress] is invoked after each part is written, with `(done, total, part label)` — the headless
@@ -129,10 +141,17 @@ constructor(
                     if (part !in parts) continue
                     if (isCancelled?.invoke() == true) throw BackupCancelledException()
                     try {
-                        val (payload, count) = exportPart(part)
-                        zip.putNextEntry(ZipEntry(part.fileName))
-                        zip.write(payload.toString().toByteArray(Charsets.UTF_8))
-                        zip.closeEntry()
+                        val count = if (part == BackupPart.VOICE_CORPUS) {
+                            requireRealDatabase()
+                            check(corpusAvailable) { "voice corpus not wired" }
+                            voiceCorpusBackup.export(zip, part.fileName)
+                        } else {
+                            val (payload, n) = exportPart(part)
+                            zip.putNextEntry(ZipEntry(part.fileName))
+                            zip.write(payload.toString().toByteArray(Charsets.UTF_8))
+                            zip.closeEntry()
+                            n
+                        }
                         included.add(part.id)
                         lines.add(label(part, count))
                     } catch (e: Exception) {
@@ -187,7 +206,10 @@ constructor(
 
     /** Read a backup ZIP from [input] and apply the selected [parts] that it contains. */
     suspend fun import(parts: Set<BackupPart>, input: InputStream): BackupResult = withContext(ioDispatcher) {
-        val files = readZip(input)
+        // Recordings stream straight into the corpus as they are met (never read as text) — only when that
+        // part is selected and can actually be stored.
+        val takeClips = BackupPart.VOICE_CORPUS in parts && corpusAvailable && DatabaseAvailability.isReal
+        val files = readZip(input) { name, data -> if (takeClips) voiceCorpusBackup.importClip(name, data) }
         val lines = mutableListOf<String>()
         val errors = mutableListOf<String>()
         for (part in BackupPart.entries) {
@@ -348,6 +370,9 @@ constructor(
             JSONObject().put("words", JSONArray(words.toList())) to words.size
         }
 
+        // Streamed by the export loop itself (binary recordings), never through a JSON payload.
+        BackupPart.VOICE_CORPUS -> error("the voice corpus is written by export() directly")
+
         BackupPart.PER_APP -> {
             val raw = settingsRepository.exportRawBackupValues(
                 setOf(
@@ -490,6 +515,12 @@ constructor(
             words.size
         }
 
+        BackupPart.VOICE_CORPUS -> {
+            requireRealDatabase()
+            check(corpusAvailable) { "voice corpus not wired" }
+            voiceCorpusBackup.importRows(json)
+        }
+
         BackupPart.PER_APP -> {
             val raw = json.optJSONObject("raw").toStringMap()
             settingsRepository.importRawBackupValues(raw)
@@ -521,12 +552,22 @@ constructor(
         return buildMap { keys().forEach { k -> put(k, optString(k)) } }
     }
 
-    private fun readZip(input: InputStream): Map<String, String> {
+    /**
+     * The archive's text entries by name. Binary recordings under [VoiceCorpusBackup.CLIP_PREFIX] are never
+     * read into memory: they go to [onClip] as a stream (skipped when null).
+     */
+    private fun readZip(input: InputStream, onClip: ((String, InputStream) -> Unit)? = null): Map<String, String> {
         val out = mutableMapOf<String, String>()
         ZipInputStream(input).use { zip ->
             var entry: ZipEntry? = zip.nextEntry
             while (entry != null) {
-                if (!entry.isDirectory) out[entry.name] = zip.readBytes().toString(Charsets.UTF_8)
+                if (entry.isDirectory) {
+                    // nothing
+                } else if (entry.name.startsWith(VoiceCorpusBackup.CLIP_PREFIX)) {
+                    onClip?.invoke(entry.name, zip)
+                } else {
+                    out[entry.name] = zip.readBytes().toString(Charsets.UTF_8)
+                }
                 zip.closeEntry()
                 entry = zip.nextEntry
             }

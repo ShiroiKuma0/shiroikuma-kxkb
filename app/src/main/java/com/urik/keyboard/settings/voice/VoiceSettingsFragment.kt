@@ -123,7 +123,7 @@ class VoiceSettingsFragment : Fragment() {
                 root.addView(pillButton(getString(R.string.voice_grant_all_files)) { requestAllFilesAccess() })
             } else {
                 root.addView(pillButton(getString(R.string.voice_step2_button)) { pickModelZip() })
-                if (modelInstalled()) {
+                if (VoiceModelStore.status(requireContext()) != VoiceModelStore.Status.MISSING) {
                     root.addView(pillButton(getString(R.string.voice_remove_model)) { confirmRemoveModel() })
                 }
             }
@@ -187,6 +187,70 @@ class VoiceSettingsFragment : Fragment() {
             }
 
             root.addView(optionCheckbox(
+                getString(R.string.voice_opt_review),
+                getString(R.string.voice_opt_review_desc),
+                settings.voiceReview
+            ) { checked -> lifecycleScope.launch { settingsRepository.updateVoiceReview(checked); rebuild() } })
+
+            if (settings.voiceReview) {
+                root.addView(optionCheckbox(
+                    getString(R.string.voice_opt_underline),
+                    getString(R.string.voice_opt_underline_desc),
+                    settings.voiceUnderline
+                ) { checked -> lifecycleScope.launch { settingsRepository.updateVoiceUnderline(checked) } })
+
+                root.addView(sliderRow(
+                    getString(R.string.voice_opt_uncertainty),
+                    min = 5,
+                    max = 60,
+                    step = 5,
+                    current = settings.voiceUncertaintyPercent,
+                    format = { getString(R.string.voice_opt_uncertainty_value, it) }
+                ) { percent -> lifecycleScope.launch { settingsRepository.updateVoiceUncertaintyPercent(percent) } })
+
+                root.addView(optionCheckbox(
+                    getString(R.string.voice_opt_keep_all_audio),
+                    getString(R.string.voice_opt_keep_all_audio_desc),
+                    settings.voiceKeepAllAudio
+                ) { checked -> lifecycleScope.launch { settingsRepository.updateVoiceKeepAllAudio(checked) } })
+
+                root.addView(pillButton(getString(R.string.voice_corpus_open)) {
+                    parentFragmentManager.beginTransaction()
+                        .replace(R.id.settings_container, VoiceCorpusFragment())
+                        .addToBackStack(null)
+                        .commit()
+                })
+            }
+
+            root.addView(sliderRow(
+                getString(R.string.voice_opt_vocabulary_boost),
+                min = 0,
+                max = 50,
+                step = 5,
+                current = settings.voiceVocabularyBoost,
+                format = {
+                    if (it == 0) {
+                        getString(R.string.voice_opt_vocabulary_boost_off)
+                    } else {
+                        getString(R.string.voice_opt_vocabulary_boost_value, it / 10f)
+                    }
+                }
+            ) { tenths -> lifecycleScope.launch { settingsRepository.updateVoiceVocabularyBoost(tenths) } })
+            root.addView(caption(getString(R.string.voice_opt_vocabulary_boost_desc)))
+
+            root.addView(optionCheckbox(
+                getString(R.string.voice_opt_czech_commas),
+                getString(R.string.voice_opt_czech_commas_desc),
+                settings.voiceCzechCommas
+            ) { checked -> lifecycleScope.launch { settingsRepository.updateVoiceCzechCommas(checked) } })
+
+            root.addView(optionCheckbox(
+                getString(R.string.voice_opt_spoken_punctuation),
+                getString(R.string.voice_opt_spoken_punctuation_desc),
+                settings.voiceSpokenPunctuation
+            ) { checked -> lifecycleScope.launch { settingsRepository.updateVoiceSpokenPunctuation(checked) } })
+
+            root.addView(optionCheckbox(
                 getString(R.string.voice_opt_autodetect),
                 getString(R.string.voice_opt_autodetect_desc),
                 settings.voiceAutoDetect
@@ -215,13 +279,15 @@ class VoiceSettingsFragment : Fragment() {
             android.content.pm.PackageManager.PERMISSION_GRANTED
 
     private fun statusLine(): View {
-        val model = if (modelInstalled()) {
-            val mb = VoiceModelStore.REQUIRED_FILES.sumOf {
-                File(VoiceModelStore.modelDir(requireContext()), it).length()
-            } / (1024 * 1024)
-            getString(R.string.voice_status_model_ok, mb)
-        } else {
-            getString(R.string.voice_status_model_missing)
+        val model = when (VoiceModelStore.status(requireContext())) {
+            VoiceModelStore.Status.INSTALLED -> {
+                val mb = VoiceModelStore.REQUIRED_FILES.sumOf {
+                    File(VoiceModelStore.modelDir(requireContext()), it).length()
+                } / (1024 * 1024)
+                getString(R.string.voice_status_model_ok, mb)
+            }
+            VoiceModelStore.Status.UNREADABLE -> getString(R.string.voice_status_model_unreadable)
+            VoiceModelStore.Status.MISSING -> getString(R.string.voice_status_model_missing)
         }
         val mic = if (micGranted()) {
             getString(R.string.voice_status_mic_ok)
@@ -376,6 +442,10 @@ class VoiceSettingsFragment : Fragment() {
                 for ((name, entry) in wanted) {
                     if (cancelled.get()) throw InterruptedException()
                     val target = File(targetDir, name)
+                    // Written fresh, never over the old file: a copy left by adb / a restore tool belongs to the
+                    // shell user and cannot be opened for writing — but the directory is ours, so it can be
+                    // removed, and the new file is then the keyboard's own (readable by the engine).
+                    target.delete()
                     zf.getInputStream(entry).use { input ->
                         target.outputStream().use { output ->
                             val buffer = ByteArray(COPY_BUFFER_BYTES)

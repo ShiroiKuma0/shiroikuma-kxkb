@@ -150,6 +150,14 @@ constructor(
         /** Sub-second session-end silence (slider); the legacy SEC key migrates on read. */
         val VOICE_SESSION_END_MS = intPreferencesKey("voice_session_end_ms")
         val VOICE_BEEPS = booleanPreferencesKey("voice_beeps")
+        val VOICE_REVIEW = booleanPreferencesKey("voice_review")
+        val VOICE_UNDERLINE = booleanPreferencesKey("voice_underline")
+        val VOICE_SPOKEN_PUNCTUATION = booleanPreferencesKey("voice_spoken_punctuation")
+        val VOICE_UNCERTAINTY_PERCENT = intPreferencesKey("voice_uncertainty_percent")
+        val VOICE_KEEP_ALL_AUDIO = booleanPreferencesKey("voice_keep_all_audio")
+        val VOICE_VOCABULARY_BOOST = intPreferencesKey("voice_vocabulary_boost")
+        val VOICE_CZECH_COMMAS = booleanPreferencesKey("voice_czech_commas")
+        val SHOW_EMOJI_BUTTON = booleanPreferencesKey("show_emoji_button")
     }
 
     /** Falls back to system locale defaults on deserialization errors. */
@@ -306,6 +314,7 @@ constructor(
                     resetToLettersOnDismiss = preferences[PreferenceKeys.RESET_TO_LETTERS_ON_DISMISS] ?: true,
                     keyPressHighlightEnabled = preferences[PreferenceKeys.PRESS_HIGHLIGHT_ENABLED] ?: true,
                     keyPreviewEnabled = preferences[PreferenceKeys.KEY_PREVIEW_ENABLED] ?: true,
+                    showEmojiButton = preferences[PreferenceKeys.SHOW_EMOJI_BUTTON] ?: false,
                     customSuggestions =
                         preferences[PreferenceKeys.CUSTOM_SUGGESTIONS]?.takeIf { it.isNotBlank() }
                             ?: KeyboardSettings.DEFAULT_CUSTOM_SUGGESTIONS,
@@ -319,7 +328,14 @@ constructor(
                     voiceContinuous = preferences[PreferenceKeys.VOICE_CONTINUOUS] ?: true,
                     voiceSessionEndMs = preferences[PreferenceKeys.VOICE_SESSION_END_MS]
                         ?: preferences[PreferenceKeys.VOICE_SESSION_END_SEC]?.times(1000) ?: 2500,
-                    voiceBeeps = preferences[PreferenceKeys.VOICE_BEEPS] ?: true
+                    voiceBeeps = preferences[PreferenceKeys.VOICE_BEEPS] ?: true,
+                    voiceReview = preferences[PreferenceKeys.VOICE_REVIEW] ?: true,
+                    voiceUnderline = preferences[PreferenceKeys.VOICE_UNDERLINE] ?: true,
+                    voiceSpokenPunctuation = preferences[PreferenceKeys.VOICE_SPOKEN_PUNCTUATION] ?: true,
+                    voiceUncertaintyPercent = preferences[PreferenceKeys.VOICE_UNCERTAINTY_PERCENT] ?: 15,
+                    voiceKeepAllAudio = preferences[PreferenceKeys.VOICE_KEEP_ALL_AUDIO] ?: false,
+                    voiceVocabularyBoost = preferences[PreferenceKeys.VOICE_VOCABULARY_BOOST] ?: 20,
+                    voiceCzechCommas = preferences[PreferenceKeys.VOICE_CZECH_COMMAS] ?: true
                 ).validated()
             }.catch { e ->
                 ErrorLogger.logException(
@@ -1383,6 +1399,62 @@ constructor(
         Result.failure(e)
     }
 
+    suspend fun updateVoiceReview(enabled: Boolean): Result<Unit> = try {
+        dataStore.edit { it[PreferenceKeys.VOICE_REVIEW] = enabled }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    suspend fun updateVoiceSpokenPunctuation(enabled: Boolean): Result<Unit> = try {
+        dataStore.edit { it[PreferenceKeys.VOICE_SPOKEN_PUNCTUATION] = enabled }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    suspend fun updateVoiceUncertaintyPercent(percent: Int): Result<Unit> = try {
+        dataStore.edit { it[PreferenceKeys.VOICE_UNCERTAINTY_PERCENT] = percent.coerceIn(1, 90) }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    suspend fun updateVoiceKeepAllAudio(enabled: Boolean): Result<Unit> = try {
+        dataStore.edit { it[PreferenceKeys.VOICE_KEEP_ALL_AUDIO] = enabled }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    suspend fun updateVoiceVocabularyBoost(tenths: Int): Result<Unit> = try {
+        dataStore.edit { it[PreferenceKeys.VOICE_VOCABULARY_BOOST] = tenths.coerceIn(0, 50) }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    suspend fun updateVoiceCzechCommas(enabled: Boolean): Result<Unit> = try {
+        dataStore.edit { it[PreferenceKeys.VOICE_CZECH_COMMAS] = enabled }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    suspend fun updateShowEmojiButton(enabled: Boolean): Result<Unit> = try {
+        dataStore.edit { it[PreferenceKeys.SHOW_EMOJI_BUTTON] = enabled }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    suspend fun updateVoiceUnderline(enabled: Boolean): Result<Unit> = try {
+        dataStore.edit { it[PreferenceKeys.VOICE_UNDERLINE] = enabled }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
     /**
      * Irreversible. Clears all supported languages atomically within a single transaction.
      */
@@ -1569,7 +1641,8 @@ constructor(
             PreferenceKeys.SHOW_NUMBER_HINTS,
             PreferenceKeys.RESET_TO_LETTERS_ON_DISMISS,
             PreferenceKeys.PRESS_HIGHLIGHT_ENABLED,
-            PreferenceKeys.KEY_PREVIEW_ENABLED
+            PreferenceKeys.KEY_PREVIEW_ENABLED,
+            PreferenceKeys.SHOW_EMOJI_BUTTON
         )
 
         internal val intExportKeys: List<Preferences.Key<Int>> = listOf(
