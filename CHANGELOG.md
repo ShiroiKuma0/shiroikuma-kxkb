@@ -4,7 +4,89 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+324 — current
+## 0.23.1+335 — current
+
+Built on Urik `0.23.1-beta`. One subject: **dictation that learns from you, on the phone** — every
+dictated word can be checked and corrected, every correction is kept with its recording, and the
+recogniser is steered towards how you write.
+
+### 🔍 Review every dictation
+
+- **Suspect words are marked** before the text is committed. The engine now reports a confidence per
+  word (its lowest token probability). Red means the recogniser was unsure, below a slideable
+  threshold (default 15 %). Orange means the word is not in the dictation language’s dictionary,
+  your learned words or your user dictionary. Numbers and Japanese are never marked.
+- **The suggestion strip lists every dictated word**, marked ones coloured, with **✕** (close without
+  learning) on the left and **✓** (accept) on the right. Accepting stores every suspect word you left
+  standing as confirmed, and it is never marked again.
+- **Only ✓ or the next mic press accepts.** Switching apps, hiding the keyboard or sending does not;
+  the review waits for its field and comes back with it. It is **kept on disk**, so a keyboard
+  process killed meanwhile does not lose it.
+- **Tap any dictated word** — on the strip or in the text — and the correction box opens on it.
+  **◂ / ▸** in the box pull the neighbouring dictated words in, so several misheard words become one
+  correction („lukou i ostupu“ → one word).
+- **Corrections typed by hand count too.** Backspace over a dictated word and retype it, and the
+  change is found when you accept — word for word, or several words into one. Deleting or appending
+  text is not mistaken for a correction.
+- Marked words are also **underlined in the text field** where the app honours it (switchable).
+
+### 🔁 Corrections apply themselves
+
+- **A recognition you corrected once is replaced automatically from then on** — single words and
+  merged runs alike, up to six words. On the strip it shows as the new word, in blue.
+- Tapping a blue word opens the box as „houské → housky ↺ ✓“: edit the replacement, or **↺** to put
+  the recognised text back. That records the recognition as right and stops the rule.
+
+### 🎧 The voice corpus
+
+- Each correction and confirmation is stored **with the recording of its sentence** (16 kHz WAV in
+  the keyboard’s private storage), plus the recognised and the reviewed text. That is a personal
+  training set for later.
+- **Voice corrections page** (Voice input settings): every kept dictation with its date, language,
+  length, text and what it taught; **▶ play**, **delete** (what it taught is forgotten with it),
+  **delete all**.
+- **Backup category “Voice corrections”**, opt-in. The recordings are streamed into and out of the
+  archive, never read into memory; import merges without duplicating.
+- **Keep all dictation audio** (off by default) also keeps sentences you accepted without corrections.
+- Database schema 10 adds `voice_utterance` and `voice_word_event`. New tables only, migration tested
+  against a real version-9 file.
+
+### 🎯 The recogniser leans your way
+
+- **Your vocabulary** — the user dictionary, every correction and every confirmed dictated word. Once
+  Whisper starts one of these words, the tokens that continue it are boosted (shallow fusion in the
+  greedy decoder). A word’s first token never is, so ordinary speech is not pulled towards the list.
+- **Your typing** — your 5 000 most frequent word pairs. While Whisper writes a word you usually
+  follow with certain words, their first token gets a quarter-strength nudge, and the continuation
+  full strength once started. Nothing is predicted after a sentence end.
+- The tokenizer is **read from your installed model** (the detokenizer’s `id_vocab`), so nothing
+  extra is shipped. One slider, “Boost for your own words” (default 2.0, 0 = off).
+
+### ✍️ Punctuation
+
+- **Spoken punctuation**: *čárka, tečka, otazník, vykřičník, dvojtečka, středník, pomlčka,
+  spojovník, tři tečky, uvozovky, nový řádek, nový odstavec* (English and Russian equivalents too).
+  - Whisper’s own commas around a spoken mark are removed.
+  - Accents the recogniser gets wrong still count („čarka“).
+  - **„doslova“** (*literal*, *буквально*) before a mark word types the word itself.
+  - Only the base form triggers, so „dej tam čárku“ stays a sentence.
+- **Czech commas**: the comma before a subordinate clause that Whisper-small leaves out — že, aby,
+  protože, když, který, ve kterém, jak… Never after a joining word („a že“, „i když“), never before
+  a comparing „jak“ („tak jak“).
+
+### 🩹 Fixes and smaller changes
+
+- **Unreadable model files are reported** instead of “Voice recognition failed”. Files copied in by
+  adb or a restore tool belong to the shell user and can’t be opened by the keyboard. Re-importing
+  the model now replaces them with files the keyboard owns.
+- The **😊 emoji button** in the suggestion bar is a setting (kxkb UI → Rows → Suggestion bar),
+  **off by default**. The emoji picker stays reachable through a layout’s emoji key.
+- A quick tap under the **resize grip** in the bar’s top-left corner now reaches whatever control
+  lies beneath it — the first candidate, the review strip’s ✕ — not only the ✎ chip.
+- Engine (`whisperIMEplus`, branch `kxkb`): per-word confidences and a `LogitBias` hook in the
+  greedy decoder.
+
+## 0.23.1+324
 
 Built on Urik `0.23.1-beta`. One release, one subject: **the word database is never deleted by
 code again** — and, found underneath, **it was never really encrypted either**. Three builds

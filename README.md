@@ -15,7 +15,7 @@ candidate line.
 Installs **side-by-side** with the official Urik and with any other keyboard (package
 `shiroikuma.kxkb`).
 
-**📥 Latest release: [`0.23.1+324`](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases)
+**📥 Latest release: [`0.23.1+335`](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases)
 
 </div>
 
@@ -50,6 +50,25 @@ walks the one-time setup: your browser downloads the model, the page imports it,
 - **Dictation follows the keyboard language**; **long-press the mic** to quick-flip to the pair's
   other language (Czech ⇄ English and friends), announced right in the candidate line.
 - The model loads on first press (overlapping your speaking) and unloads after a minute idle.
+
+---
+
+## 🧠 Dictation that learns from you — privately
+
+Every dictated sentence is **reviewed in the suggestion strip**: all its words, with the ones the
+recogniser was unsure of in red, words not in your dictionary in orange. **Tap any word** — on the
+strip or in the text — and the correction box opens on it; **◂ / ▸** pull neighbouring words in when
+several misheard words should be one. Fix a word by ordinary typing and that counts too. **✓** (or
+the next dictation) accepts the rest.
+
+- **A correction you made once is applied automatically from then on** — shown blue, one tap
+  away from **↺** if it was wrong this time.
+- **Every correction is kept with the recording of its sentence** in a private voice corpus on the
+  phone: listen, delete, back it up — material for fine-tuning a personal model later.
+- **The recogniser leans towards your words** — your dictionary, your corrections, the words you
+  usually type next — using the model's own token table.
+- **Spoken punctuation** (*čárka, tečka, otazník, nový řádek…*; *“doslova tečka”* for the word) and
+  the **Czech clause commas** Whisper leaves out.
 
 ---
 
