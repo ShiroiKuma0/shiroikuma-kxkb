@@ -4,7 +4,30 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+335 — current
+## 0.23.1+337 — current
+
+Built on Urik `0.23.1-beta`.
+
+### 💾 Voice corrections in every default backup
+
+- The **Voice corrections** backup category now starts selected: the dictation recordings and what you
+  corrected in them, the training material that can’t be recreated. That applies on the Export/import
+  page and on the automation contract alike. `LIST_CATEGORIES` reports it `on`, and an export with no
+  item list includes it, so the sister-app backup batch carries it without any change on its side.
+- The next-word statistics are now the only category off by default. The recordings add roughly 2 MB
+  per minute of kept speech, streamed into the archive, never held in memory.
+
+### 🔑 Autofill chips show up in the suggestion bar
+
+- Inline autofill suggestions (passwords, logins) **no longer render as nothing**. A chip is a surface
+  drawn by the autofill service, and inside the bar’s scroll view it was measured to zero width, so it
+  stayed blank while the rest of the bar drew normally. It is now laid out at exactly the pixel size the
+  framework reports for it.
+- Chips are **requested at the real suggestion-bar height**, which is resizable here, instead of a
+  hard-coded 40 dp. Each one is inflated within its own presentation spec, so an action chip’s narrow
+  icon spec can no longer make the inflate fail and lose the chip.
+
+## 0.23.1+335
 
 Built on Urik `0.23.1-beta`. One subject: **dictation that learns from you, on the phone** — every
 dictated word can be checked and corrected, every correction is kept with its recording, and the
