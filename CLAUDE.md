@@ -584,7 +584,53 @@ the resize grip reaches any bar control beneath it. Suite 2 079 green.
 the remote view's exact pixel size (an `InlineContentView` measured UNSPECIFIED inside the bar's scroll view
 resolved to zero and drew nothing) and requested at the real, resizable bar height (`InlineChipSizing`).
 
-**Released `0.23.1+338`** (2026-10-04; tagged `0.23.1+338` — `+337`'s autofill diagnostics removed; APK attached, on the fork's GitHub; default
+**Shipped since `+338`** (the `+343` line): **walk capture** — the whole sentence-collecting loop built
+with 白い熊 自由作業盤 to one wire contract both sides implement (`docs/sister-app-contract-kxkb-gengoshima.md`,
+kept identical in both repos; 自由作業盤 records with its 物理鍵 grabber, screen off, a vol-down press per
+sentence). **Clips in** (`voice_capture_offer` on `AutomationProvider`, logic in `automation/VoiceCaptureOffer.kt`):
+≤10 per call, each a `ParcelFileDescriptor` (no `dup()` — nothing outlives the call), copied into
+`filesDir/voice_capture/` INSIDE the call and verified before the index names it (canonical 16 kHz mono
+PCM16 WAV via a RIFF chunk walk, declared `byteLength`, sha256, 0.2–30 s), written `<uuid>.wav.part` and
+renamed only when whole — **`OK:<uuid>` means written AND fsynced**, never "accepted for processing", because
+it is the other side's permission to delete its only copy (the +322 empty-backup lesson applied to someone
+else's data); per-uuid refusals ride in a `rejected` extra (§5 of the doc, our amendment) so one bad clip in
+a batch of ten cannot cost the other nine their acknowledgement, and a uuid already held is answered INSIDE
+`OK:` (`seen.json` outlives the sentence, so a re-offer is answered rather than imported twice) — a
+`duplicate` refusal would have made them offer it for ever. **Decoding at home**, never on the walk
+(battery, EMUI freezing a busy process, the 60 s model unload between sentences): `VoiceInputController`
+gained a batch lane — `beginBatch`/`transcribeSamples`/`endBatch`, resolving the engine callback through its
+own token before the mic path's bookkeeping, with the unload held off for the run and mutual exclusion
+against the microphone in both directions. **The review page** (`settings/voice/VoiceCaptureFragment.kt`):
+one `VoiceSessionLedger` per sentence at `fieldStart = 0` (the field machinery — `verify`'s LCS re-location
+— is never called; it compares EXACT tokens, so a punctuation-only edit would drop the word), a progress
+dialog that names the step (the model load is seconds and looked frozen), play, tap-a-word corrections with
+◂/▸ and ↺, a whole-sentence editor for punctuation Whisper put mid-utterance (re-derives the row; the
+confidences re-align on word CORES so a changed comma keeps them), a row that says "No speech recognised
+(tried n×)" instead of looking untouched, Close that ends the settings task outright, and Send/Send-all.
+**The marks are the dictation strip's own** — `VoiceJudging.markOf` is now the single rule both renderers
+read (the strip folds CORRECTED into NONE) — and `VoiceJudging` also holds the judging lifted out of
+`VoiceReviewCoordinator.prepare` so the two reviews cannot drift. **Keeping teaches what a dictation
+teaches**: the same `recordCorrection`/`recordAcceptance`, `keepAll` on (a walk sentence is deliberate
+training material), and the clip MOVES into the corpus via the new `VoiceSessionLedger.Entry.clipPath`
+instead of a PCM16→float→PCM16 re-encode. **Sentences out** (`gengoshima_intake` on
+`shiroikuma.jiyusagyoban.automation`): `data/VoiceHandoffOutbox.kt` queues them in
+`filesDir/voice_handoff/`, `automation/GengoshimaHandoff.kt` pushes batches of 50 and drops ONLY the uuids
+they name (a refusal, an app that is not installed and a phone that answered nothing all leave the queue
+intact), with `gengoshima_pull`/`gengoshima_ack` mirroring the bookkeeping on our door as the fallback
+(§6a: `items` there is a JSON array of uuid STRINGS, and a uuid we never queued is IGNORED rather than
+remembered as sent, or a sentence later kept under it would be refused for ever). **One exported way in**:
+`settings/WalkCaptureEntryActivity.kt`, an action-only trampoline (`shiroikuma.kxkb.action.OPEN_WALK_CAPTURE`,
+`Theme.NoDisplay`, `noHistory`, `taskAffinity=""`, adds its own `CLEAR_TOP`) that reads NOTHING from the
+intent and can open exactly one page — chosen over an `activity-alias` because an alias would let any caller
+name any page through `open_page`; `SettingsActivity` stays `exported=false` and gained `PAGE_WALK_CAPTURE`.
+Plus **the four voice-review mark colours are settable** (白い熊, 2026-10-04 — they are red-green
+colour-blind and want colours SETTABLE rather than redesigned, defaults untouched): nullable style look
+knobs `voiceMark{Unsure,Unknown,Replaced,Corrected}Color` (`vmu/vmk/vmr/vmc`) through
+`KeyboardLookKnobs`→`AdaptiveDimensions`→the kxkb UI page's Rows → Suggestion bar, with
+`ui/keyboard/components/VoiceReviewColors` as the one place the defaults live and both renderers falling
+back to it. Suite 2 141 green.
+
+**Released `0.23.1+343`** (2026-10-04; tagged `0.23.1+343` — walk capture end to end; APK attached, on the fork's GitHub; default
 branch `custom`; README badge + `CHANGELOG.md` track it). **Release tags carry NO `v` prefix** (白い熊,
 2026-09-05): the first fork release was the bare `0.23.1+72`, the `v` crept in at `+147`, and the 30 tags
 from `+147` to `+316` were renamed to bare — their GitHub releases were MOVED onto the new tags
@@ -596,7 +642,7 @@ by it — so recreating 30 tags at once sorted them all above the genuinely newe
 older tag object. `publishedAt` is untouched and the `releases/latest` API stayed correct, but the page
 looked wrong until `0.23.1+320`'s tag was force-recreated so its object was the newest again. Retag oldest
 first, or re-cut the newest tag last. Recent fork releases:
-`+313`, `+316`, `+320`, `+321`, `+324`, `+335`, `+337`, `+338` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`, `+211`, `+213`,
+`+313`, `+316`, `+320`, `+321`, `+324`, `+335`, `+337`, `+338`, `+343` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`, `+211`, `+213`,
 `+214`, `+215`, `+217`, `+222`, `+230`, `+250`, `+287`, `+292`, `+295`, `+296`, `+298`, `+299`, `+300`,
 `+301`, `+302`, `+304`, `+305`, `+306`, `+309`, `+312`). Remaining M5 tail (low priority): number/arrow
 rows on the look page, quick-period flick. Full architecture + milestone sequence in `docs/PLAN.md`.
