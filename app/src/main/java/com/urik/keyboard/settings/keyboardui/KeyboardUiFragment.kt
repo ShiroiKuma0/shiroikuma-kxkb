@@ -110,6 +110,10 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
     private lateinit var suggestionWeightPref: SeekBarPreference
     private lateinit var suggestionSizePref: SeekBarPreference
     private lateinit var suggestionColorPref: ColorSwatchPreference
+    private lateinit var voiceUnsurePref: ColorSwatchPreference
+    private lateinit var voiceUnknownPref: ColorSwatchPreference
+    private lateinit var voiceReplacedPref: ColorSwatchPreference
+    private lateinit var voiceCorrectedPref: ColorSwatchPreference
     // Custom-suggestion rows are per-language (built into customSuggestionPrefs at onCreatePreferences).
     // Library screen look (app-wide, not per-geometry).
     private lateinit var libSepColorPref: ColorSwatchPreference
@@ -439,6 +443,11 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         suggestionWeightPref = seekBar("kb_ui_sug_weight", R.string.keyboard_ui_item_weight, min = 100, max = 900, sub = true)
         suggestionSizePref = seekBar("kb_ui_sug_size", R.string.keyboard_ui_item_size, min = 50, max = 400, sub = true)
         suggestionColorPref = colorPref("kb_ui_sug_col", R.string.keyboard_ui_item_colour, sub = true)
+        voiceUnsurePref = colorPref("kb_ui_voice_unsure", R.string.keyboard_ui_item_voice_unsure, sub = true)
+        voiceUnknownPref = colorPref("kb_ui_voice_unknown", R.string.keyboard_ui_item_voice_unknown, sub = true)
+        voiceReplacedPref = colorPref("kb_ui_voice_replaced", R.string.keyboard_ui_item_voice_replaced, sub = true)
+        voiceCorrectedPref =
+            colorPref("kb_ui_voice_corrected", R.string.keyboard_ui_item_voice_corrected, sub = true)
         buildCustomSuggestionLangPrefs(context)
         hintTopColorPref = colorPref("kb_ui_hint_top_col", R.string.keyboard_ui_item_colour, sub = true)
         hintTopScalePref = seekBar("kb_ui_hint_top_size", R.string.keyboard_ui_item_size, min = 50, max = 400, sub = true)
@@ -520,6 +529,11 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         rowsCategory.addPreference(suggestionWeightPref)
         rowsCategory.addPreference(suggestionSizePref)
         rowsCategory.addPreference(suggestionColorPref)
+        // The four voice-review marks: the dictation strip's chips and the walk-capture page's words.
+        rowsCategory.addPreference(voiceUnsurePref)
+        rowsCategory.addPreference(voiceUnknownPref)
+        rowsCategory.addPreference(voiceReplacedPref)
+        rowsCategory.addPreference(voiceCorrectedPref)
         rowsCategory.addPreference(emojiButtonPref)
         // Custom suggestions: a sub-category, with one editable row per active language.
         rowsCategory.addPreference(subHeader(R.string.keyboard_ui_custom_suggestions))
@@ -1005,6 +1019,30 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
             viewModel.updateSuggestionSize(newValue as Int)
             true
         }
+        voiceUnsurePref.setOnPreferenceClickListener {
+            ColorPicker.show(requireContext(), viewModel.uiState.value.voiceMarkUnsureColor) {
+                viewModel.updateVoiceMarkUnsureColor(it)
+            }
+            true
+        }
+        voiceUnknownPref.setOnPreferenceClickListener {
+            ColorPicker.show(requireContext(), viewModel.uiState.value.voiceMarkUnknownColor) {
+                viewModel.updateVoiceMarkUnknownColor(it)
+            }
+            true
+        }
+        voiceReplacedPref.setOnPreferenceClickListener {
+            ColorPicker.show(requireContext(), viewModel.uiState.value.voiceMarkReplacedColor) {
+                viewModel.updateVoiceMarkReplacedColor(it)
+            }
+            true
+        }
+        voiceCorrectedPref.setOnPreferenceClickListener {
+            ColorPicker.show(requireContext(), viewModel.uiState.value.voiceMarkCorrectedColor) {
+                viewModel.updateVoiceMarkCorrectedColor(it)
+            }
+            true
+        }
         suggestionColorPref.setOnPreferenceClickListener {
             ColorPicker.show(requireContext(), viewModel.uiState.value.suggestionColor) { viewModel.updateSuggestionColor(it) }
             true
@@ -1110,6 +1148,14 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                         suggestionSizePref.value = state.suggestionSizePct
                         suggestionColorPref.summary = hex(state.suggestionColor)
                         suggestionColorPref.color = state.suggestionColor
+                        voiceUnsurePref.summary = hex(state.voiceMarkUnsureColor)
+                        voiceUnsurePref.color = state.voiceMarkUnsureColor
+                        voiceUnknownPref.summary = hex(state.voiceMarkUnknownColor)
+                        voiceUnknownPref.color = state.voiceMarkUnknownColor
+                        voiceReplacedPref.summary = hex(state.voiceMarkReplacedColor)
+                        voiceReplacedPref.color = state.voiceMarkReplacedColor
+                        voiceCorrectedPref.summary = hex(state.voiceMarkCorrectedColor)
+                        voiceCorrectedPref.color = state.voiceMarkCorrectedColor
                     }
                 }
                 launch {

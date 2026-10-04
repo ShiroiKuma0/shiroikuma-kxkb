@@ -100,6 +100,13 @@ data class KeyboardLookKnobs(
     val suggestionWeight: Int? = null,
     val suggestionTextScale: Float? = null,
     val suggestionColor: Int? = null,
+    // --- Voice-review word marks (the dictation strip's chips and the walk-capture page's words).
+    //     Semantic colours rather than decoration, and settable because they must read well to the one
+    //     pair of eyes that uses them (白い熊, 2026-10-04). null = the built-in default. ---
+    val voiceMarkUnsureColor: Int? = null,
+    val voiceMarkUnknownColor: Int? = null,
+    val voiceMarkReplacedColor: Int? = null,
+    val voiceMarkCorrectedColor: Int? = null,
     // --- Floating-keyboard panel rect (used only in FLOATING display mode; persisted per geometry).
     //     x/y are fractions [0..1] of the free travel (left/top edge .. right/bottom edge) so the rect
     //     survives density/orientation reasonably; width is a fraction [0..1] of screen width; height is
@@ -166,7 +173,11 @@ data class KeyboardLookKnobs(
         suggestionFont = suggestionFont ?: base.suggestionFont,
         suggestionWeight = suggestionWeight ?: base.suggestionWeight,
         suggestionTextScale = suggestionTextScale ?: base.suggestionTextScale,
-        suggestionColor = suggestionColor ?: base.suggestionColor
+        suggestionColor = suggestionColor ?: base.suggestionColor,
+        voiceMarkUnsureColor = voiceMarkUnsureColor ?: base.voiceMarkUnsureColor,
+        voiceMarkUnknownColor = voiceMarkUnknownColor ?: base.voiceMarkUnknownColor,
+        voiceMarkReplacedColor = voiceMarkReplacedColor ?: base.voiceMarkReplacedColor,
+        voiceMarkCorrectedColor = voiceMarkCorrectedColor ?: base.voiceMarkCorrectedColor
     )
 
     /** Returns a new set where [o]'s set (non-null) fields win and this set fills the gaps. */
@@ -217,6 +228,10 @@ data class KeyboardLookKnobs(
         suggestionWeight = o.suggestionWeight ?: suggestionWeight,
         suggestionTextScale = o.suggestionTextScale ?: suggestionTextScale,
         suggestionColor = o.suggestionColor ?: suggestionColor,
+        voiceMarkUnsureColor = o.voiceMarkUnsureColor ?: voiceMarkUnsureColor,
+        voiceMarkUnknownColor = o.voiceMarkUnknownColor ?: voiceMarkUnknownColor,
+        voiceMarkReplacedColor = o.voiceMarkReplacedColor ?: voiceMarkReplacedColor,
+        voiceMarkCorrectedColor = o.voiceMarkCorrectedColor ?: voiceMarkCorrectedColor,
         floatXFraction = o.floatXFraction ?: floatXFraction,
         floatYFraction = o.floatYFraction ?: floatYFraction,
         floatWidthFraction = o.floatWidthFraction ?: floatWidthFraction,
@@ -280,6 +295,10 @@ data class KeyboardLookKnobs(
         suggestionWeight = suggestionWeight.takeIf { it != old.suggestionWeight },
         suggestionTextScale = suggestionTextScale.takeIf { it != old.suggestionTextScale },
         suggestionColor = suggestionColor.takeIf { it != old.suggestionColor },
+        voiceMarkUnsureColor = voiceMarkUnsureColor.takeIf { it != old.voiceMarkUnsureColor },
+        voiceMarkUnknownColor = voiceMarkUnknownColor.takeIf { it != old.voiceMarkUnknownColor },
+        voiceMarkReplacedColor = voiceMarkReplacedColor.takeIf { it != old.voiceMarkReplacedColor },
+        voiceMarkCorrectedColor = voiceMarkCorrectedColor.takeIf { it != old.voiceMarkCorrectedColor },
         floatXFraction = floatXFraction.takeIf { it != old.floatXFraction },
         floatYFraction = floatYFraction.takeIf { it != old.floatYFraction },
         floatWidthFraction = floatWidthFraction.takeIf { it != old.floatWidthFraction },
@@ -314,7 +333,11 @@ data class KeyboardLookKnobs(
         suggestionBgColor = suggestionBgColor,
         suggestionFont = suggestionFont,
         suggestionWeight = suggestionWeight,
-        suggestionColor = suggestionColor
+        suggestionColor = suggestionColor,
+        voiceMarkUnsureColor = voiceMarkUnsureColor,
+        voiceMarkUnknownColor = voiceMarkUnknownColor,
+        voiceMarkReplacedColor = voiceMarkReplacedColor,
+        voiceMarkCorrectedColor = voiceMarkCorrectedColor
     )
 
     /**
@@ -402,6 +425,10 @@ data class KeyboardLookKnobs(
         suggestionWeight?.let { add("sbw=$it") }
         suggestionTextScale?.let { add("sbs=$it") }
         suggestionColor?.let { add("sbc=$it") }
+        voiceMarkUnsureColor?.let { add("vmu=$it") }
+        voiceMarkUnknownColor?.let { add("vmk=$it") }
+        voiceMarkReplacedColor?.let { add("vmr=$it") }
+        voiceMarkCorrectedColor?.let { add("vmc=$it") }
         floatXFraction?.let { add("flx=$it") }
         floatYFraction?.let { add("fly=$it") }
         floatWidthFraction?.let { add("flw=$it") }
@@ -488,6 +515,10 @@ data class KeyboardLookKnobs(
             var sbw: Int? = null
             var sbs: Float? = null
             var sbc: Int? = null
+            var vmu: Int? = null
+            var vmk: Int? = null
+            var vmr: Int? = null
+            var vmc: Int? = null
             var hc: Int? = null
             var hf: String? = null
             var hw: Int? = null
@@ -548,6 +579,10 @@ data class KeyboardLookKnobs(
                     "sbw" -> sbw = value.toIntOrNull()
                     "sbs" -> sbs = value.toFloatOrNull()
                     "sbc" -> sbc = value.toIntOrNull()
+                    "vmu" -> vmu = value.toIntOrNull()
+                    "vmk" -> vmk = value.toIntOrNull()
+                    "vmr" -> vmr = value.toIntOrNull()
+                    "vmc" -> vmc = value.toIntOrNull()
                     "hc" -> hc = value.toIntOrNull()
                     "hf" -> hf = value
                     "hw" -> hw = value.toIntOrNull()
@@ -575,6 +610,8 @@ data class KeyboardLookKnobs(
                 clusterLeftOffsetDp = cll, clusterRightOffsetDp = clr,
                 suggestionBarHeightScale = sbh, suggestionBgColor = sbg, suggestionFont = sbf,
                 suggestionWeight = sbw, suggestionTextScale = sbs, suggestionColor = sbc,
+                voiceMarkUnsureColor = vmu, voiceMarkUnknownColor = vmk,
+                voiceMarkReplacedColor = vmr, voiceMarkCorrectedColor = vmc,
                 floatXFraction = flx, floatYFraction = fly,
                 floatWidthFraction = flw, floatHeightScale = flh,
                 displayMode = dm

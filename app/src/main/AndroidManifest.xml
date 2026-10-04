@@ -46,6 +46,22 @@
             </intent-filter>
         </activity>
 
+        <!-- The one exported entry into the walk-capture review: a 自由作業盤 task opens that page in a
+             single tap. It takes no extras and can open nothing else, so it needs no caller check — and the
+             sentences themselves never cross it. -->
+        <activity
+            android:name=".settings.WalkCaptureEntryActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.NoDisplay">
+            <intent-filter>
+                <action android:name="shiroikuma.kxkb.action.OPEN_WALK_CAPTURE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
         <activity
             android:name=".settings.SettingsActivity"
             android:exported="false"

@@ -1878,9 +1878,13 @@ constructor(
         }
         for (word in review.words) {
             val color = when (word.mark) {
-                VoiceReviewMark.LOW_CONFIDENCE -> VOICE_MARK_LOW
-                VoiceReviewMark.UNKNOWN_WORD -> VOICE_MARK_UNKNOWN
-                VoiceReviewMark.KNOWN_MISRECOGNITION -> VOICE_MARK_KNOWN
+                // Settable per keyboard in the kxkb UI page (Rows → Suggestion bar); null = the default.
+                VoiceReviewMark.LOW_CONFIDENCE ->
+                    adaptiveDimensions?.voiceMarkUnsureColor ?: VoiceReviewColors.UNSURE
+                VoiceReviewMark.UNKNOWN_WORD ->
+                    adaptiveDimensions?.voiceMarkUnknownColor ?: VoiceReviewColors.UNKNOWN
+                VoiceReviewMark.KNOWN_MISRECOGNITION ->
+                    adaptiveDimensions?.voiceMarkReplacedColor ?: VoiceReviewColors.REPLACED
                 VoiceReviewMark.NONE -> textColor
             }
             val label = word.alternative?.let { "${word.label} → $it" } ?: word.label
@@ -2960,11 +2964,6 @@ constructor(
     }
 
     companion object {
-        /** Review-strip mark colours: the recogniser was unsure / not a known word / you corrected it before. */
-        private const val VOICE_MARK_LOW = 0xFFFF6E6E.toInt()
-        private const val VOICE_MARK_UNKNOWN = 0xFFFFB74D.toInt()
-        private const val VOICE_MARK_KNOWN = 0xFF4FC3F7.toInt()
-
         private const val SEARCH_DEBOUNCE_MS = 300L
         private const val SPACE_MENU_OVERFLOW_DWELL_MS = 180L
         private const val MIN_LETTER_SPACING_CENTER = -0.02f

@@ -256,18 +256,47 @@ constructor(
     private suspend fun ensureUtteranceSaved(entry: VoiceSessionLedger.Entry, finalText: String) {
         if (entry.utteranceId in savedUtterances) return
         val samples = entry.samples
-        val clip = samples?.takeIf { it.isNotEmpty() }?.let { writeClip(entry.utteranceId, it) }
+        // A sentence that arrived as a file — a walk capture — MOVES its recording in. The clip is already
+        // byte-for-byte the format [writeClip] produces, and a PCM16 → float → PCM16 round trip would shave
+        // a bit off every sample for nothing.
+        val adopted = entry.clipPath?.let { adoptClip(entry.utteranceId, File(it)) }
+        val clip = adopted ?: samples?.takeIf { it.isNotEmpty() }?.let { writeClip(entry.utteranceId, it) }
         dao.insertUtterance(
             id = entry.utteranceId,
             languageTag = entry.language.substringBefore("-"),
             recognizedText = entry.recognizedText,
             finalText = finalText,
             clipFile = clip,
-            sampleCount = samples?.size ?: 0,
+            sampleCount = samples?.size ?: sampleCountOf(clip),
             createdAt = System.currentTimeMillis()
         )
         savedUtterances.add(entry.utteranceId)
     }
+
+    /** Move an existing WAV into `filesDir/voice_corpus/` as this utterance's clip; null if it cannot. */
+    private fun adoptClip(id: String, source: File): String? = try {
+        if (!source.isFile) {
+            null
+        } else {
+            val dir = File(context.filesDir, CORPUS_DIR).apply { mkdirs() }
+            val target = File(dir, "$id.wav")
+            if (source.renameTo(target)) {
+                target.name
+            } else {
+                source.copyTo(target, overwrite = true)
+                source.delete()
+                target.name
+            }
+        }
+    } catch (e: Exception) {
+        log("adoptClip", e)
+        null
+    }
+
+    /** 16-bit mono samples in a clip of ours, from its size (the header is the canonical 44 bytes). */
+    private fun sampleCountOf(clip: String?): Int = clipFile(clip)
+        ?.let { ((it.length() - WAV_HEADER_BYTES) / 2).coerceAtLeast(0L).toInt() }
+        ?: 0
 
     /** 16 kHz mono 16-bit PCM WAV under `filesDir/voice_corpus/`; returns the file name, or null on failure. */
     private fun writeClip(id: String, samples: FloatArray): String? = try {

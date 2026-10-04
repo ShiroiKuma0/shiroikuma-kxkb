@@ -16,9 +16,13 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.ArrayDeque
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.resume
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 
 /**
  * Orchestrates the Whisper voice-input flow: mic key → [VoiceRecorder] → ONNX [Recognizer] (the
@@ -119,7 +123,9 @@ constructor(
 
     /** Start recording. No-op unless idle. */
     fun startListening(settings: KeyboardSettings, listener: Listener) {
-        if (_state.value != State.IDLE) return
+        // One engine, one serial queue: a mic press during a walk-capture decode would interleave two
+        // sentences in the same callback, so the mic waits for the page rather than racing it.
+        if (_state.value != State.IDLE || batchPending != null) return
         mainHandler.removeCallbacks(unloadRunnable)
         this.listener = listener
         requestedLanguage = resolveLanguage(settings)
@@ -171,6 +177,8 @@ constructor(
     /** IME service teardown: stop everything and free the model's native memory immediately. */
     fun shutdown() {
         cancel()
+        resolveBatch(null)
+        batchDepth = 0
         mainHandler.removeCallbacks(unloadRunnable)
         unloadRecognizer()
     }
@@ -301,6 +309,106 @@ constructor(
         }
     }
 
+    // ---- batch decode: the walk-capture inbox ----------------------------------------------------------
+
+    /** Open decode runs: while any is open the idle unload is held off, so a page of clips loads once. */
+    private var batchDepth = 0
+
+    /** The decode in flight, if any: bumped on every resolve so a late or cancelled answer cannot land. */
+    private var batchToken = 0
+    private var batchPending: ((VoiceTranscript?) -> Unit)? = null
+    private var batchSamples: FloatArray? = null
+
+    /** Submitted before the engine finished loading — handed over by [flushQueuedBatch]. */
+    private var batchQueued: Pair<FloatArray, String>? = null
+
+    private val batchTimeout = Runnable { resolveBatch(null) }
+
+    /** True while the microphone or a batch decode holds the engine. */
+    val busy: Boolean get() = _state.value != State.IDLE || batchPending != null
+
+    /**
+     * Whether the engine is loaded and can decode now. The first decode of a run includes loading hundreds
+     * of megabytes of ONNX, which is seconds of apparent silence — the walk-capture page watches this so it
+     * can say "loading the speech model" instead of looking stuck.
+     */
+    val engineReady: Boolean get() = recognizerReady
+
+    /** The engine could not be loaded at all (a missing or unreadable model set). */
+    val engineFailed: Boolean get() = recognizerFailed
+
+    /**
+     * Open a decode run: load the engine and hold the 60 s idle unload off until [endBatch], so twenty
+     * captured sentences do not reload hundreds of megabytes of ONNX between them.
+     */
+    fun beginBatch() {
+        batchDepth++
+        mainHandler.removeCallbacks(unloadRunnable)
+        ensureRecognizer()
+    }
+
+    /** Close a decode run: the engine goes back to unloading itself after the idle minute. */
+    fun endBatch() {
+        batchDepth = (batchDepth - 1).coerceAtLeast(0)
+        if (batchDepth == 0 && _state.value == State.IDLE) {
+            mainHandler.postDelayed(unloadRunnable, UNLOAD_AFTER_IDLE_MS)
+        }
+    }
+
+    /**
+     * Decode audio we already hold — [samples] is 16 kHz mono float, peak-normalised, exactly what the
+     * recorder produces — as [language]. Null when the engine is unavailable, the microphone has it, or the
+     * decode came back empty. No recorder, no [Listener], no state change: the mic state machine's
+     * watchdogs are about a live recording and have nothing to say about a file.
+     */
+    suspend fun transcribeSamples(samples: FloatArray, language: String): VoiceTranscript? =
+        withContext(Dispatchers.Main) {
+            if (samples.isEmpty() || _state.value != State.IDLE || batchPending != null) {
+                return@withContext null
+            }
+            ensureRecognizer()
+            if (recognizerFailed) return@withContext null
+            suspendCancellableCoroutine { continuation ->
+                val token = ++batchToken
+                batchSamples = samples
+                batchPending = { transcript -> if (continuation.isActive) continuation.resume(transcript) }
+                // A decode that never answers must not hang the page: the engine's own queue is serial and a
+                // 28 s clip is seconds of work, so minutes without an answer is a wedge.
+                mainHandler.postDelayed(batchTimeout, BATCH_TIMEOUT_MS)
+                continuation.invokeOnCancellation {
+                    mainHandler.post { if (token == batchToken) resolveBatch(null) }
+                }
+                if (recognizerReady) submitBatch(samples, language) else batchQueued = samples to language
+            }
+        }
+
+    private fun submitBatch(samples: FloatArray, language: String) {
+        val engine = recognizer
+        if (engine == null) {
+            resolveBatch(null)
+            return
+        }
+        engine.recognize(samples, BEAM_SIZE, language, Recognizer.ACTION_TRANSCRIBE)
+    }
+
+    private fun flushQueuedBatch() {
+        val queued = batchQueued ?: return
+        batchQueued = null
+        submitBatch(queued.first, queued.second)
+    }
+
+    /** Hand [transcript] to a waiting decode; false when there was none (the mic path owns the result). */
+    private fun resolveBatch(transcript: VoiceTranscript?): Boolean {
+        val resolve = batchPending ?: return false
+        batchPending = null
+        batchQueued = null
+        batchSamples = null
+        batchToken++
+        mainHandler.removeCallbacks(batchTimeout)
+        resolve(transcript)
+        return true
+    }
+
     // ---- shared ----------------------------------------------------------------------------------------
 
     private fun recognize(samples: FloatArray) {
@@ -327,6 +435,7 @@ constructor(
                     mainHandler.post {
                         recognizerReady = true
                         if (_state.value != State.IDLE) flushPendingChunks()
+                        flushQueuedBatch()
                     }
                 }
 
@@ -340,6 +449,7 @@ constructor(
                     mainHandler.post {
                         recognizerFailed = true
                         recognizer = null
+                        resolveBatch(null)
                         pendingChunks.clear()
                         inFlightSamples.clear()
                         chunksInFlight = 0
@@ -401,12 +511,22 @@ constructor(
         wordConfidences: FloatArray?,
         myGeneration: Int
     ) {
+        val cleaned = text?.trim().orEmpty()
+        val usable = cleaned.isNotEmpty() && cleaned != Recognizer.UNDEFINED_TEXT
+        // A batch decode carries no generation and no state — it is a file, not a recording — so it is
+        // answered here, before the microphone path's own bookkeeping.
+        if (batchPending != null) {
+            val batch = batchSamples
+            resolveBatch(
+                if (usable) VoiceTranscript(cleaned, languageCode, words, wordConfidences, batch) else null
+            )
+            return
+        }
         if (myGeneration != generation) return
         if (_state.value == State.IDLE) return
         chunksInFlight = (chunksInFlight - 1).coerceAtLeast(0)
         val samples = inFlightSamples.pollFirst()
-        val cleaned = text?.trim().orEmpty()
-        if (cleaned.isNotEmpty() && cleaned != Recognizer.UNDEFINED_TEXT) {
+        if (usable) {
             listener?.onResult(VoiceTranscript(cleaned, languageCode, words, wordConfidences, samples))
         } else if (!continuousActive) {
             listener?.onError()
@@ -415,6 +535,7 @@ constructor(
     }
 
     private fun onChunkFailed(myGeneration: Int) {
+        if (resolveBatch(null)) return
         if (myGeneration != generation) return
         if (_state.value == State.IDLE) return
         chunksInFlight = (chunksInFlight - 1).coerceAtLeast(0)
@@ -432,6 +553,7 @@ constructor(
 
     private fun unloadRecognizer() {
         if (_state.value != State.IDLE) return
+        if (batchDepth > 0 || batchPending != null) return
         recognizer?.destroy()
         recognizer = null
         recognizerReady = false
@@ -496,6 +618,9 @@ constructor(
         private const val LISTENING_TIMEOUT_MS = 40_000L
         private const val DICTATING_TIMEOUT_MS = 6 * 60_000L
         private const val TRANSCRIBING_TIMEOUT_MS = 45_000L
+
+        /** A file decode that has not answered in two minutes is wedged, not slow. */
+        private const val BATCH_TIMEOUT_MS = 120_000L
         private const val BEEP_SAMPLE_RATE = 22050
         private const val BEEP_HZ = 1000
         private const val BEEP_MS = 80

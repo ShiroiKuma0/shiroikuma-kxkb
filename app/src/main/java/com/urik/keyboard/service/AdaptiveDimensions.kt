@@ -67,7 +67,12 @@ data class AdaptiveDimensions(
     val suggestionFont: String? = null,
     val suggestionWeight: Int? = null,
     val suggestionTextScale: Float = 1f,
-    val suggestionColor: Int? = null
+    val suggestionColor: Int? = null,
+    // Voice-review word marks; null = the built-in default (see VoiceReviewColors).
+    val voiceMarkUnsureColor: Int? = null,
+    val voiceMarkUnknownColor: Int? = null,
+    val voiceMarkReplacedColor: Int? = null,
+    val voiceMarkCorrectedColor: Int? = null
 ) {
     companion object {
         private const val BASE_KEY_HEIGHT_DP = 40f

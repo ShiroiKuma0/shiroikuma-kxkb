@@ -8,7 +8,6 @@ import android.text.Spanned
 import android.text.style.SuggestionSpan
 import com.urik.keyboard.data.UserDictionaryRepository
 import com.urik.keyboard.data.VoiceCorpusRepository
-import com.urik.keyboard.data.database.UserDictionaryKind
 import com.urik.keyboard.service.OutputBridge
 import com.urik.keyboard.service.SpellCheckManager
 import com.urik.keyboard.ui.keyboard.components.SwipeKeyboardView
@@ -85,72 +84,27 @@ class VoiceReviewCoordinator(
     val hasDictation: Boolean get() = !ledger.isEmpty
 
     /**
-     * Judge [transcript]'s words in [language] (off the main thread inside); a word under [threshold]
-     * recogniser confidence is marked uncertain. Never throws.
+     * Judge [input]'s words in [language] (off the main thread inside); a word under [threshold] recogniser
+     * confidence is marked uncertain. The rules themselves live in [VoiceJudging], shared with the
+     * walk-capture review page. Never throws.
      */
     suspend fun prepare(input: VoiceTranscript, language: String, threshold: Float): Prepared {
-        try {
-            corpus.ensureLoaded(language)
-        } catch (e: Exception) {
-            log("prepare-load", e)
-        }
-        // Runs of words you once corrected into one ("lukou i ostupu" → one word) are replaced first, the same
-        // way as single words below; the result is one word, shown blue, ↺ puts the run back.
-        val (phrased, phraseOriginals) = replacePhrases(input.text) { key ->
-            (corpus.knowledge(language, key) as? VoiceKnowledge.Misrecognized)?.correction
-        }
-        val transcript = if (phraseOriginals.isEmpty()) {
-            input
-        } else {
-            VoiceTranscript(phrased, input.languageCode, input.rawWords, input.rawConfidences, input.samples)
-        }
-        val words = VoiceTranscript.splitWords(transcript.text)
-        val confidences = transcript.wordConfidences()
-        val judgements = try {
-            val userWords = userDictionary.matchesFor(language.substringBefore("-"))
-                .filter { it.kind == UserDictionaryKind.WORD }
-                .map { it.value.lowercase() }
-                .toHashSet()
-            VoiceWordJudge(threshold).judge(
-                words = words,
-                confidences = confidences,
-                language = language,
-                knowledge = { core -> corpus.knowledge(language, core) },
-                isKnownWord = { core ->
-                    core.lowercase() in userWords || spellCheckManager.isKnownWord(core, language)
-                }
-            )
-        } catch (e: Exception) {
-            log("prepare", e)
-            words.map { VoiceJudgement(null) }
-        }
-        // A recognition you corrected before is replaced by your correction right away (shown blue on the
-        // strip; ↺ in the correction box puts the recognised word back).
-        val originals = phraseOriginals.toMutableMap()
-        val text = StringBuilder(transcript.text)
-        val ranges = wordRanges(transcript.text)
-        for (index in ranges.indices.reversed()) {
-            if (index in originals) continue
-            val judgement = judgements.getOrNull(index) ?: continue
-            val replacement = judgement.alternative ?: continue
-            if (judgement.reason != SuspectReason.KNOWN_MISRECOGNITION) continue
-            val (start, end) = ranges[index]
-            val token = transcript.text.substring(start, end)
-            val coreStart = start + VoiceWordJudge.coreStartIn(token)
-            val coreEnd = coreStart + VoiceWordJudge.coreOf(token).length
-            if (coreEnd <= coreStart) continue
-            text.replace(coreStart, coreEnd, replacement)
-            originals[index] = token
-        }
-        if (originals.isEmpty()) return Prepared(transcript, language, confidences, judgements)
-        val replaced = VoiceTranscript(
-            text.toString(),
-            transcript.languageCode,
-            transcript.rawWords,
-            transcript.rawConfidences,
-            transcript.samples
+        val judged = VoiceJudging.judge(
+            input = input,
+            language = language,
+            threshold = threshold,
+            corpus = corpus,
+            userDictionary = userDictionary,
+            spellCheckManager = spellCheckManager,
+            onError = { operation, e -> log(operation, e) }
         )
-        return Prepared(replaced, language, confidences, judgements, originals)
+        return Prepared(
+            judged.transcript,
+            judged.language,
+            judged.confidences,
+            judged.judgements,
+            judged.originals
+        )
     }
 
     /**
@@ -254,12 +208,7 @@ class VoiceReviewCoordinator(
             val core = VoiceWordJudge.coreOf(word.current).ifEmpty { word.current }
             VoiceReviewWord(
                 label = core,
-                mark = when {
-                    word.autoReplaced -> VoiceReviewMark.KNOWN_MISRECOGNITION
-                    word.corrected -> VoiceReviewMark.NONE
-                    word.judgement.reason == SuspectReason.KNOWN_MISRECOGNITION -> VoiceReviewMark.NONE
-                    else -> markOf(word.judgement.reason)
-                },
+                mark = markOf(word),
                 fieldPosition = word.start + VoiceWordJudge.coreStartIn(word.current)
             )
         }
@@ -274,11 +223,15 @@ class VoiceReviewCoordinator(
         restoreBar()
     }
 
-    private fun markOf(reason: SuspectReason?): VoiceReviewMark = when (reason) {
-        SuspectReason.LOW_CONFIDENCE -> VoiceReviewMark.LOW_CONFIDENCE
-        SuspectReason.UNKNOWN_WORD -> VoiceReviewMark.UNKNOWN_WORD
-        SuspectReason.KNOWN_MISRECOGNITION -> VoiceReviewMark.KNOWN_MISRECOGNITION
-        null -> VoiceReviewMark.NONE
+    /**
+     * The strip's chip for one word: [VoiceJudging.markOf]'s verdict, with "you corrected it" folded into
+     * NONE — in a field the correction is already visible in the text itself.
+     */
+    private fun markOf(word: VoiceSessionLedger.Word): VoiceReviewMark = when (VoiceJudging.markOf(word)) {
+        VoiceJudging.WordMark.LOW_CONFIDENCE -> VoiceReviewMark.LOW_CONFIDENCE
+        VoiceJudging.WordMark.UNKNOWN_WORD -> VoiceReviewMark.UNKNOWN_WORD
+        VoiceJudging.WordMark.REPLACED -> VoiceReviewMark.KNOWN_MISRECOGNITION
+        VoiceJudging.WordMark.CORRECTED, VoiceJudging.WordMark.NONE -> VoiceReviewMark.NONE
     }
 
     // ---- correcting -----------------------------------------------------------------------------------

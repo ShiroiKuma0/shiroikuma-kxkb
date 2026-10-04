@@ -6,6 +6,7 @@ import com.urik.keyboard.model.KeyboardDisplayMode
 import com.urik.keyboard.service.GeometryBucket
 import com.urik.keyboard.service.KeyboardLookKnobs
 import com.urik.keyboard.service.LibraryLook
+import com.urik.keyboard.ui.keyboard.components.VoiceReviewColors
 import com.urik.keyboard.settings.SettingsEvent
 import com.urik.keyboard.settings.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -317,6 +318,14 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
 
     fun updateSuggestionColor(c: Int) = persist(current.copy(suggestionColor = c))
 
+    fun updateVoiceMarkUnsureColor(c: Int) = persist(current.copy(voiceMarkUnsureColor = c))
+
+    fun updateVoiceMarkUnknownColor(c: Int) = persist(current.copy(voiceMarkUnknownColor = c))
+
+    fun updateVoiceMarkReplacedColor(c: Int) = persist(current.copy(voiceMarkReplacedColor = c))
+
+    fun updateVoiceMarkCorrectedColor(c: Int) = persist(current.copy(voiceMarkCorrectedColor = c))
+
     fun updateCustomSuggestions(raw: String) {
         viewModelScope.launch {
             settingsRepository
@@ -455,7 +464,11 @@ constructor(private val settingsRepository: SettingsRepository) : ViewModel() {
         suggestionFont = suggestionFont ?: "",
         suggestionWeight = suggestionWeight ?: 400,
         suggestionSizePct = ((suggestionTextScale ?: 1f) * 100).toInt(),
-        suggestionColor = suggestionColor ?: DEFAULT_KEY_TEXT
+        suggestionColor = suggestionColor ?: DEFAULT_KEY_TEXT,
+        voiceMarkUnsureColor = voiceMarkUnsureColor ?: VoiceReviewColors.UNSURE,
+        voiceMarkUnknownColor = voiceMarkUnknownColor ?: VoiceReviewColors.UNKNOWN,
+        voiceMarkReplacedColor = voiceMarkReplacedColor ?: VoiceReviewColors.REPLACED,
+        voiceMarkCorrectedColor = voiceMarkCorrectedColor ?: VoiceReviewColors.CORRECTED
     )
 
     companion object {
@@ -519,7 +532,11 @@ data class KeyboardUiUiState(
     val suggestionFont: String = "",
     val suggestionWeight: Int = 400,
     val suggestionSizePct: Int = 100,
-    val suggestionColor: Int = 0xFFFFFF00.toInt()
+    val suggestionColor: Int = 0xFFFFFF00.toInt(),
+    val voiceMarkUnsureColor: Int = VoiceReviewColors.UNSURE,
+    val voiceMarkUnknownColor: Int = VoiceReviewColors.UNKNOWN,
+    val voiceMarkReplacedColor: Int = VoiceReviewColors.REPLACED,
+    val voiceMarkCorrectedColor: Int = VoiceReviewColors.CORRECTED
 )
 
 data class LibraryUiState(

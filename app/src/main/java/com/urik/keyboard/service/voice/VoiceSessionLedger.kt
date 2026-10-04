@@ -52,7 +52,13 @@ class VoiceSessionLedger {
         val language: String,
         val recognizedText: String,
         val words: List<Word>,
-        val samples: FloatArray?
+        val samples: FloatArray?,
+        /**
+         * A recording that already exists as a file — a walk-capture clip, in the 16 kHz mono PCM16 WAV the
+         * corpus itself writes. Set instead of [samples] so accepting the sentence MOVES the file into the
+         * corpus rather than re-encoding it. Dictation leaves this null and keeps its samples.
+         */
+        val clipPath: String? = null
     ) {
         /**
          * Corrections you made by TYPING over this dictation's words (no correction box) — found by the last
@@ -97,7 +103,8 @@ class VoiceSessionLedger {
         confidences: List<Float?>,
         judgements: List<VoiceJudgement>,
         samples: FloatArray?,
-        originals: Map<Int, String> = emptyMap()
+        originals: Map<Int, String> = emptyMap(),
+        clipPath: String? = null
     ): Entry {
         val words = mutableListOf<Word>()
         var i = 0
@@ -121,7 +128,7 @@ class VoiceSessionLedger {
                 ).apply { autoReplaced = index in originals }
             )
         }
-        val entry = Entry(utteranceId, language, committedText, words, samples)
+        val entry = Entry(utteranceId, language, committedText, words, samples, clipPath)
         entries.add(entry)
         return entry
     }

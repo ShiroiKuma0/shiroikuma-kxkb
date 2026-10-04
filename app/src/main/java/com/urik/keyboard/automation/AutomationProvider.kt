@@ -7,6 +7,8 @@ import android.database.Cursor
 import android.net.Uri
 import android.os.Bundle
 import android.os.ParcelFileDescriptor
+import com.urik.keyboard.data.VoiceCaptureStore
+import com.urik.keyboard.data.VoiceHandoffOutbox
 import com.urik.keyboard.service.BackupManager
 import com.urik.keyboard.service.BackupPart
 import com.urik.keyboard.utils.isUserUnlocked
@@ -80,7 +82,14 @@ class AutomationProvider : ContentProvider() {
 
         // Cancel is answerable while locked; everything else reads or writes credential-protected stores.
         if (method != METHOD_CANCEL && !ctx.isUserUnlocked) {
-            return fail("ERROR:device locked (before first unlock)")
+            // The walk-capture offer has the contract's own shorter word for it, which tells 自由作業盤 to keep
+            // its clips and offer them again rather than to treat the refusal as permanent.
+            val why = if (method == METHOD_VOICE_CAPTURE_OFFER) {
+                "ERROR:locked"
+            } else {
+                "ERROR:device locked (before first unlock)"
+            }
+            return fail(why)
         }
 
         return when (method) {
@@ -91,6 +100,9 @@ class AutomationProvider : ContentProvider() {
                 AutomationJobs.cancel(extras?.getString(KEY_JOB_ID))
                 ok("OK:cancelled")
             }
+            METHOD_VOICE_CAPTURE_OFFER -> voiceCaptureOffer(ctx, extras)
+            METHOD_GENGOSHIMA_PULL -> gengoshimaPull(ctx, extras)
+            METHOD_GENGOSHIMA_ACK -> gengoshimaAck(ctx, extras)
             else -> fail("ERROR:unknown method: $method")
         }
     }
@@ -119,7 +131,42 @@ class AutomationProvider : ContentProvider() {
             // to have been launched once before a restore lands.
             .put("requires_launch_first", false)
             .put("contains", JSONArray(parts.map { ctx.getString(it.labelRes) }))
+        // The walk-capture budget, so 自由作業盤 can see how much audio this phone will still take instead of
+        // discovering the ceiling as an `ERROR:budget` after a walk it cannot hand over.
+        val capture = VoiceCaptureStore(ctx)
+        if (capture.usable) {
+            header
+                .put("capture_budget_bytes", capture.budgetBytes())
+                .put("capture_used_bytes", capture.usedBytes())
+        }
         return "OK:$header"
+    }
+
+    /**
+     * The clips of a walk (contract §1): up to [VoiceCaptureOffer.MAX_ITEMS] of them, each as a
+     * `ParcelFileDescriptor` named by its item's `fd` field, copied into the capture inbox HERE, inside the
+     * call, because the answer `OK:<uuid>` is the other side's permission to delete its only copy.
+     *
+     * Unlike [start] the descriptors are not duplicated: nothing outlives this method, so each is wrapped
+     * once and closed on the way out — a descriptor we still held would be a file 自由作業盤 could not delete.
+     */
+    private fun voiceCaptureOffer(ctx: Context, extras: Bundle?): Bundle {
+        val streams = mutableListOf<java.io.InputStream>()
+        return try {
+            val answer = VoiceCaptureOffer(VoiceCaptureStore(ctx)).apply(extras?.getString(KEY_ITEMS)) { key ->
+                @Suppress("DEPRECATION")
+                val descriptor = extras?.getParcelable<ParcelFileDescriptor>(key)
+                descriptor?.let { ParcelFileDescriptor.AutoCloseInputStream(it).also(streams::add) }
+            }
+            Bundle().apply {
+                putString(KEY_RESULT, answer.result)
+                answer.rejected?.let { putString(KEY_REJECTED, it) }
+            }
+        } catch (e: Exception) {
+            fail("ERROR:${e.javaClass.simpleName}")
+        } finally {
+            for (stream in streams) runCatching { stream.close() }
+        }
     }
 
     /**
@@ -148,6 +195,25 @@ class AutomationProvider : ContentProvider() {
         return ok("OK:$jobId")
     }
 
+    /**
+     * The hand-over queue read from the outside (contract §2's fallback): the reviewed sentences waiting for
+     * 言語島, as the same `items` array the push would have sent. Reading changes nothing — a sentence leaves
+     * the queue only when [METHOD_GENGOSHIMA_ACK] says it is stored on the other side.
+     */
+    private fun gengoshimaPull(ctx: Context, extras: Bundle?): Bundle {
+        val limit = extras?.getInt(KEY_LIMIT, GengoshimaHandoff.MAX_ITEMS) ?: GengoshimaHandoff.MAX_ITEMS
+        val items = GengoshimaHandoff(VoiceHandoffOutbox(ctx)).pullItems(limit)
+        val count = runCatching { org.json.JSONArray(items).length() }.getOrDefault(0)
+        return Bundle().apply {
+            putString(KEY_RESULT, "OK:$count")
+            putString(KEY_ITEMS, items)
+        }
+    }
+
+    /** 自由作業盤 stored these uuids: they leave the queue, and the answer names the ones that actually did. */
+    private fun gengoshimaAck(ctx: Context, extras: Bundle?): Bundle =
+        ok(GengoshimaHandoff(VoiceHandoffOutbox(ctx)).ack(extras?.getString(KEY_ITEMS)))
+
     private fun ok(result: String) = Bundle().apply { putString(KEY_RESULT, result) }
 
     private fun fail(why: String) = Bundle().apply { putString(KEY_RESULT, why) }
@@ -174,6 +240,17 @@ class AutomationProvider : ContentProvider() {
         const val METHOD_IMPORT = "import"
         const val METHOD_CANCEL = "cancel"
 
+        /** Walk capture, contract §1: 自由作業盤 offers the clips it recorded with the 物理鍵 key grabber. */
+        const val METHOD_VOICE_CAPTURE_OFFER = "voice_capture_offer"
+
+        /**
+         * Contract §2's fallback direction: 自由作業盤 reads the reviewed sentences waiting for 言語島 and
+         * acknowledges what it stored. Normal operation is the push the other way — these exist so a
+         * refused push cannot strand a walk.
+         */
+        const val METHOD_GENGOSHIMA_PULL = "gengoshima_pull"
+        const val METHOD_GENGOSHIMA_ACK = "gengoshima_ack"
+
         const val KEY_RESULT = "result"
         const val KEY_FD = "fd"
         const val KEY_TOKEN = "token"
@@ -182,6 +259,16 @@ class AutomationProvider : ContentProvider() {
         const val KEY_REPLY_ACTION = "reply_action"
         const val KEY_REPLY_PACKAGE = "reply_package"
         const val KEY_PROGRESS_ACTION = "progress_action"
+
+        /**
+         * The per-uuid refusals of a capture offer ("uuid:reason,…"), beside the `OK:` list in the same
+         * reply: a batch of ten where one clip fails its checksum can say so without throwing away the
+         * acknowledgement of the nine that are already on disk.
+         */
+        const val KEY_REJECTED = "rejected"
+
+        /** How many hand-over items one pull may take (optional; the §2 cap otherwise). */
+        const val KEY_LIMIT = "limit"
 
         /**
          * This app's archive format — [BackupManager.FORMAT_VERSION], stated here as the number the contract

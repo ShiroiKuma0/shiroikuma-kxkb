@@ -222,6 +222,16 @@ class VoiceSettingsFragment : Fragment() {
                 })
             }
 
+            // Walk capture: the clips 自由作業盤 recorded outside, waiting to be transcribed and reviewed.
+            // Independent of the review switch above — a walk is reviewed here whatever dictation does.
+            val waiting = com.urik.keyboard.data.VoiceCaptureStore(requireContext()).entries().size
+            root.addView(pillButton(getString(R.string.voice_capture_open, waiting)) {
+                parentFragmentManager.beginTransaction()
+                    .replace(R.id.settings_container, VoiceCaptureFragment())
+                    .addToBackStack(null)
+                    .commit()
+            })
+
             root.addView(sliderRow(
                 getString(R.string.voice_opt_vocabulary_boost),
                 min = 0,

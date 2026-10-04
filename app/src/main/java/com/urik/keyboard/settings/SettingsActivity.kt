@@ -59,6 +59,7 @@ class SettingsActivity : AppCompatActivity() {
                     PAGE_USER_DICTIONARY -> UserDictionaryFragment()
                     PAGE_VOICE -> com.urik.keyboard.settings.voice.VoiceSettingsFragment()
                     PAGE_LEARNED_WORDS -> LearnedWordsFragment()
+                    PAGE_WALK_CAPTURE -> com.urik.keyboard.settings.voice.VoiceCaptureFragment()
                     else -> null
                 }
             if (page != null) {
@@ -102,6 +103,7 @@ class SettingsActivity : AppCompatActivity() {
                 is ExportImportFragment -> getString(R.string.export_import_title)
                 is com.urik.keyboard.settings.voice.VoiceSettingsFragment -> getString(R.string.voice_settings_title)
                 is com.urik.keyboard.settings.voice.VoiceCorpusFragment -> getString(R.string.voice_corpus_title)
+                is com.urik.keyboard.settings.voice.VoiceCaptureFragment -> getString(R.string.voice_capture_title)
                 else -> getString(R.string.settings_title)
             }
         supportActionBar?.title = title
@@ -142,6 +144,9 @@ class SettingsActivity : AppCompatActivity() {
         const val PAGE_USER_DICTIONARY = "user_dictionary"
         const val PAGE_VOICE = "voice"
         const val PAGE_LEARNED_WORDS = "learned_words"
+
+        /** The walk-capture review — also what the exported [WalkCaptureEntryActivity] opens. */
+        const val PAGE_WALK_CAPTURE = "walk_capture"
 
         fun createIntent(context: Context): Intent = Intent(context, SettingsActivity::class.java)
 
