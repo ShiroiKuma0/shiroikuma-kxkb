@@ -4,7 +4,61 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+338 — current
+## 0.23.1+343 — current
+
+Built on Urik `0.23.1-beta`.
+
+### 🚶 Walk capture — sentences spoken outside, reviewed at home
+
+The whole feature, built with [白い熊 自由作業盤](https://github.com/ShiroiKuma0/shiroikuma-jiyusagyoban)
+to one wire contract both sides implement (`docs/sister-app-contract-kxkb-gengoshima.md`, kept
+identical in both repos). 自由作業盤 records the clips with its physical-key grabber — screen off,
+phone in a pocket, a key press per sentence — and this keyboard decodes, reviews and hands the
+finished sentences back for its 言語島 collection.
+
+- **The clip door** (`voice_capture_offer` on the automation provider): up to ten recordings per
+  call, each as a file descriptor, copied into app-private storage **inside the call** and verified
+  before it counts — canonical 16 kHz mono PCM16 WAV, the declared byte length, an SHA-256 and a
+  0.2–30 s duration. `OK:<uuid>` therefore means *written and fsynced here*, never "accepted for
+  processing", because it is the other side's permission to delete its only copy of a recording.
+- **A partial answer**: per-uuid refusals ride beside the acknowledgement, so one clip with a bad
+  checksum in a batch of ten cannot cost the other nine theirs. A clip already held is answered as
+  taken — the uuid is remembered past the sentence's own life, so a re-offer is answered rather than
+  imported twice.
+- **Decoding happens at home, not on the walk** — battery, OEM power management and a model that
+  unloads between sentences all argue against transcribing outside. The decode reuses the dictation
+  engine, its vocabulary bias and its watchdogs, with the idle unload held off for the run and mutual
+  exclusion against the microphone.
+- **The Walk capture review page**: transcribe everything behind a **progress dialog that names the
+  step** (loading the model is seconds of native work and used to look frozen), play any recording,
+  tap a word to correct it with **◂ / ▸** merging a run into one correction and **↺** restoring what
+  was heard, **edit the whole sentence** where the recogniser put a period mid-utterance, delete what
+  is not worth keeping, and send. A clip nothing was recognised in says so on its row instead of
+  looking untouched.
+- **The word marks are the dictation strip's own**, from one shared rule so the two can never drift,
+  plus one the page adds: a colour for a word you corrected here.
+- **Sending teaches what a dictation teaches** — the same correction and confirmation calls, and the
+  recording **moves** into the private voice corpus rather than being re-encoded from samples.
+- **The hand-over** (`gengoshima_intake`): sentences queue in app-private storage and go out in
+  batches of fifty, leaving the queue only for the uuids 自由作業盤 names as stored — so a refusal, an
+  app that is not installed and a phone that answered nothing all leave the queue intact and retry
+  later. `gengoshima_pull` / `gengoshima_ack` mirror the same bookkeeping on this app's own door as
+  the fallback a refused push would need.
+- **One exported way in**: an action-only trampoline (`shiroikuma.kxkb.action.OPEN_WALK_CAPTURE`)
+  that reads nothing from the intent and can open exactly one page, so a sister-app task reaches the
+  review in a single tap while the settings activity itself stays unexported.
+- **Close** on the review page closes the keyboard's UI outright, not one page of a settings tree
+  nobody walked down.
+
+### 🎨 Settable voice-review mark colours
+
+- The four review marks — **unsure · unknown word · replaced earlier · corrected here** — are now
+  colour rows in the 白い熊 kxkb UI page under **Rows → Suggestion bar**, with long-press ↺ to inherit
+  like every other colour there. They are style knobs, so "apply to all keyboards" fans a choice to
+  every keyboard, and the dictation strip and the Walk capture page always show the same four.
+  Defaults unchanged.
+
+## 0.23.1+338
 
 Built on Urik `0.23.1-beta`.
 

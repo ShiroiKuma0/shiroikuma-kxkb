@@ -9,13 +9,13 @@
 A true-**FLOSS** fork of [Urik](https://github.com/urikdev/Urik) (GPL-3.0) with **major additions**:
 fully offline Whisper voice input, cluster-word prediction in any language, a per-geometry
 look-and-theme system, live on-keyboard resizing, an instant spacebar switcher, a curated
-multi-layout roster (QWERTY/QWERTZ/ЯВЕРТЫ + cluster and compass layouts), and a FUTO-style
-candidate line.
+multi-layout roster (QWERTY/QWERTZ/ЯВЕРТЫ + cluster and compass layouts), a FUTO-style
+candidate line, and walk capture — sentences spoken outside with the screen off, reviewed at home.
 
 Installs **side-by-side** with the official Urik and with any other keyboard (package
 `shiroikuma.kxkb`).
 
-**📥 Latest release: [`0.23.1+338`](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases)
+**📥 Latest release: [`0.23.1+343`](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases)
 
 </div>
 
@@ -69,6 +69,27 @@ the next dictation) accepts the rest.
   usually type next — using the model's own token table.
 - **Spoken punctuation** (*čárka, tečka, otazník, nový řádek…*; *“doslova tečka”* for the word) and
   the **Czech clause commas** Whisper leaves out.
+
+---
+
+## 🚶 Walk capture — talk outside, review at home
+
+Collect spoken sentences on a walk **with the screen off and the phone in your pocket**: a physical-key
+press marks each sentence, and nothing is transcribed out there — the recordings simply pile up.
+
+At home the **Walk capture** page decodes them all behind a progress dialog, with everything the
+keyboard has learned since behind the decode, and each sentence arrives with the **same marked words
+as a dictation**: unsure in red, unknown in orange, replaced-by-an-earlier-correction in blue, and the
+ones you fix here in green — four colours you can set yourself. Play the recording, tap a word to
+correct it, **edit the punctuation** where the recogniser ended a sentence mid-breath, then send.
+
+- **A sentence you keep teaches exactly what a dictation teaches** — the same corrections, the same
+  confirmations, and its recording moves into the private voice corpus rather than being re-encoded.
+- **Nothing is lost and nothing is filed twice**: the recordings arrive through a verified door
+  (checksum, format and length checked before they are taken in), and a reviewed sentence leaves the
+  queue only once the other side says it holds it.
+- Built for the [白い熊 自由作業盤](https://github.com/ShiroiKuma0/shiroikuma-jiyusagyoban) sentence
+  workflow, which records the clips and files the finished sentences.
 
 ---
 
