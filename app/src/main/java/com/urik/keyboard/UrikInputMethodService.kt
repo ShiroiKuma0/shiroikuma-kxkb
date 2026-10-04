@@ -4012,8 +4012,6 @@ open class UrikInputMethodService :
                 .build()
         )
 
-        android.util.Log.d(AUTOFILL_TAG, "request: specs=${specs.size} height=$minChipHeight..$barHeight")
-
         return InlineSuggestionsRequest
             .Builder(specs)
             .setMaxSuggestionCount(MAX_PASSWORD_INLINE_SUGGESTIONS + 1)
@@ -4035,8 +4033,6 @@ open class UrikInputMethodService :
     @Suppress("NewApi")
     override fun onInlineSuggestionsResponse(response: InlineSuggestionsResponse): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return false
-        val count = response.inlineSuggestions.size
-        android.util.Log.d(AUTOFILL_TAG, "response: $count suggestions, viewReady=${swipeKeyboardView != null}")
         return autofillCoordinator.onInlineSuggestionsResponse(response, swipeKeyboardView != null)
     }
 
@@ -4059,7 +4055,6 @@ open class UrikInputMethodService :
                     val view = inflateSuggestionView(suggestion, inlineChipSize(suggestion, chipHeight))
                     if (view != null) views.add(view)
                 }
-                android.util.Log.d(AUTOFILL_TAG, "inflated ${views.size} of ${suggestions.size} chips")
                 if (views.isNotEmpty()) {
                     candidateBarController.updateInlineAutofillSuggestions(views, true)
                 }
@@ -4084,15 +4079,12 @@ open class UrikInputMethodService :
     private suspend fun inflateSuggestionView(suggestion: InlineSuggestion, size: Size): View? = try {
         suspendCancellableCoroutine { continuation ->
             suggestion.inflate(this@UrikInputMethodService, size, mainExecutor) { view ->
-                val lp = view?.layoutParams
-                android.util.Log.d(AUTOFILL_TAG, "inflated chip lp=${lp?.width}x${lp?.height}")
                 if (continuation.isActive) {
                     continuation.resume(view)
                 }
             }
         }
     } catch (e: Exception) {
-        android.util.Log.w(AUTOFILL_TAG, "inflate failed: $e")
         ErrorLogger.logException(
             component = "UrikInputMethodService",
             severity = ErrorLogger.Severity.LOW,
@@ -4141,9 +4133,6 @@ open class UrikInputMethodService :
     }
 
     private companion object {
-        /** Logcat tag for the inline-autofill path — raise with: setprop log.tag.KxkbAutofill VERBOSE */
-        const val AUTOFILL_TAG = "KxkbAutofill"
-
         const val DOUBLE_SHIFT_THRESHOLD_MS = 400L
         // Gap between the hide and the re-show of the "reshow" action — long enough for the hide to register
         // before the show, so the framework treats it as a fresh show (and re-pins the window height).

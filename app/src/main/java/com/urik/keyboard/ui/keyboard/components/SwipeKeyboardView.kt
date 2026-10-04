@@ -2040,15 +2040,6 @@ constructor(
                 .alpha(1f)
                 .setDuration(150)
                 .start()
-
-            bar.post {
-                views.forEachIndexed { index, chip ->
-                    android.util.Log.d(
-                        AUTOFILL_TAG,
-                        "chip[$index] ${chip.javaClass.simpleName} laid out ${chip.width}x${chip.height}"
-                    )
-                }
-            }
         }
     }
 
@@ -2969,9 +2960,6 @@ constructor(
     }
 
     companion object {
-        /** Logcat tag for the inline-autofill path — raise with: setprop log.tag.KxkbAutofill VERBOSE */
-        private const val AUTOFILL_TAG = "KxkbAutofill"
-
         /** Review-strip mark colours: the recogniser was unsure / not a known word / you corrected it before. */
         private const val VOICE_MARK_LOW = 0xFFFF6E6E.toInt()
         private const val VOICE_MARK_UNKNOWN = 0xFFFFB74D.toInt()
