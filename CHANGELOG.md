@@ -4,7 +4,15 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+337 — current
+## 0.23.1+338 — current
+
+Built on Urik `0.23.1-beta`.
+
+- The inline-autofill path no longer writes diagnostic lines to the system log: the request, response,
+  inflate-count and chip-size messages left in by `+337` are removed, with their `KxkbAutofill` tag. A
+  failed chip inflate is still recorded in the keyboard’s own error log. No change in behaviour.
+
+## 0.23.1+337
 
 Built on Urik `0.23.1-beta`.
 
