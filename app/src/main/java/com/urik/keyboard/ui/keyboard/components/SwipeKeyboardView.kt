@@ -31,6 +31,7 @@ import com.urik.keyboard.model.KeyboardLayout
 import com.urik.keyboard.model.KeyboardState
 import com.urik.keyboard.service.AdaptiveDimensions
 import com.urik.keyboard.service.EmojiSearchManager
+import com.urik.keyboard.service.InlineChipSizing
 import com.urik.keyboard.service.LanguageManager
 import com.urik.keyboard.service.SpellCheckManager
 import com.urik.keyboard.service.WordLearningEngine
@@ -1971,11 +1972,25 @@ constructor(
 
             for (i in views.indices) {
                 val view = views[i]
+                // An autofill chip is an InlineContentView: a SurfaceView filled by the autofill
+                // service's own process, and it does NOT override onMeasure. Inside a
+                // HorizontalScrollView children are measured UNSPECIFIED, where View.onMeasure resolves
+                // WRAP_CONTENT to the suggested minimum — ZERO — so the chip drew nothing at all while
+                // the rest of the bar rendered fine. The framework sets the view's layout params to the
+                // actual pixel size of the remote content at inflate time: carry exactly that over.
+                val remoteParams = view.layoutParams
                 val layoutParams =
-                    LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.WRAP_CONTENT,
-                        LinearLayout.LayoutParams.MATCH_PARENT
-                    )
+                    LinearLayout
+                        .LayoutParams(
+                            InlineChipSizing.layoutExtent(
+                                remoteParams?.width,
+                                LinearLayout.LayoutParams.WRAP_CONTENT
+                            ),
+                            InlineChipSizing.layoutExtent(
+                                remoteParams?.height,
+                                LinearLayout.LayoutParams.MATCH_PARENT
+                            )
+                        ).apply { gravity = Gravity.CENTER_VERTICAL }
 
                 (view.parent as? ViewGroup)?.removeView(view)
                 scrollContent.addView(view, layoutParams)
@@ -2025,6 +2040,15 @@ constructor(
                 .alpha(1f)
                 .setDuration(150)
                 .start()
+
+            bar.post {
+                views.forEachIndexed { index, chip ->
+                    android.util.Log.d(
+                        AUTOFILL_TAG,
+                        "chip[$index] ${chip.javaClass.simpleName} laid out ${chip.width}x${chip.height}"
+                    )
+                }
+            }
         }
     }
 
@@ -2945,6 +2969,9 @@ constructor(
     }
 
     companion object {
+        /** Logcat tag for the inline-autofill path — raise with: setprop log.tag.KxkbAutofill VERBOSE */
+        private const val AUTOFILL_TAG = "KxkbAutofill"
+
         /** Review-strip mark colours: the recogniser was unsure / not a known word / you corrected it before. */
         private const val VOICE_MARK_LOW = 0xFFFF6E6E.toInt()
         private const val VOICE_MARK_UNKNOWN = 0xFFFFB74D.toInt()

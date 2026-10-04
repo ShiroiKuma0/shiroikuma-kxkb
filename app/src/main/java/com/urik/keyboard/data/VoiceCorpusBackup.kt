@@ -13,7 +13,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * The voice corpus as a backup part: the rows as one JSON entry, and every recording as its own binary
+ * The voice corpus as a backup part (in every default backup — the automation contract included): the rows as one JSON entry, and every recording as its own binary
  * entry under [CLIP_PREFIX] — streamed file to archive and back, never held in memory (a corpus runs to
  * hundreds of MB).
  *

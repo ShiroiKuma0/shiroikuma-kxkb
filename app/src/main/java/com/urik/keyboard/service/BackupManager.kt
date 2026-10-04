@@ -54,8 +54,9 @@ enum class BackupPart(val id: String, val fileName: String, val labelRes: Int, v
     NEXT_WORD("next_word", "next_word.json", R.string.backup_part_next_word, defaultSelected = false),
     BLACKLIST("blacklist", "blacklist.json", R.string.backup_part_blacklist),
     PER_APP("per_app", "per_app.json", R.string.backup_part_per_app),
-    // The dictation recordings run to hundreds of MB — opt-in, like the next-word statistics.
-    VOICE_CORPUS("voice_corpus", "voice_corpus.json", R.string.backup_part_voice_corpus, defaultSelected = false);
+    // The dictation recordings and what you corrected in them — selected by default (白い熊, 2026-10-04): the
+    // corpus is irreplaceable training material, so a default backup must carry it, however large.
+    VOICE_CORPUS("voice_corpus", "voice_corpus.json", R.string.backup_part_voice_corpus);
 
     companion object {
         fun fromId(id: String): BackupPart? = entries.firstOrNull { it.id == id }

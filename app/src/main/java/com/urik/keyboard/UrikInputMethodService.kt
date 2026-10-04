@@ -48,6 +48,7 @@ import com.urik.keyboard.model.KeyboardState
 import com.urik.keyboard.service.AdaptiveDimensions
 import com.urik.keyboard.service.AutoCorrectionEngine
 import com.urik.keyboard.service.GeometryBucket
+import com.urik.keyboard.service.InlineChipSizing
 import com.urik.keyboard.service.geometryKey
 import com.urik.keyboard.service.AutofillStateCoordinator
 import com.urik.keyboard.service.AutofillStateTracker
@@ -3982,10 +3983,17 @@ open class UrikInputMethodService :
         stylesBuilder.addStyle(style)
         val stylesBundle = stylesBuilder.build()
 
+        // A chip is rendered by the autofill service into a remote surface at EXACTLY the size we ask
+        // for when inflating it, and that size must lie inside the spec or inflate() throws and the chip
+        // is lost. So the range has to contain the REAL suggestion-bar height — the bar is resizable
+        // here, and the hard-coded 40 dp left every chip sized against a strip that is not ours.
+        val barHeight = inlineChipHeightPx()
+        val minChipHeight = (24 * density).toInt().coerceAtMost(barHeight)
+
         val specs = mutableListOf<InlinePresentationSpec>()
         repeat(MAX_PASSWORD_INLINE_SUGGESTIONS) {
-            val minSize = Size((80 * density).toInt(), (40 * density).toInt())
-            val maxSize = Size((400 * density).toInt(), (40 * density).toInt())
+            val minSize = Size((80 * density).toInt(), minChipHeight)
+            val maxSize = Size((400 * density).toInt(), barHeight)
 
             val spec =
                 InlinePresentationSpec
@@ -3995,8 +4003,8 @@ open class UrikInputMethodService :
             specs.add(spec)
         }
 
-        val iconMinSize = Size((32 * density).toInt(), (32 * density).toInt())
-        val iconMaxSize = Size((48 * density).toInt(), (40 * density).toInt())
+        val iconMinSize = Size((32 * density).toInt(), minChipHeight)
+        val iconMaxSize = Size((48 * density).toInt(), barHeight)
         specs.add(
             InlinePresentationSpec
                 .Builder(iconMinSize, iconMaxSize)
@@ -4004,45 +4012,87 @@ open class UrikInputMethodService :
                 .build()
         )
 
+        android.util.Log.d(AUTOFILL_TAG, "request: specs=${specs.size} height=$minChipHeight..$barHeight")
+
         return InlineSuggestionsRequest
             .Builder(specs)
             .setMaxSuggestionCount(MAX_PASSWORD_INLINE_SUGGESTIONS + 1)
             .build()
     }
 
-    @Suppress("NewApi")
-    override fun onInlineSuggestionsResponse(response: InlineSuggestionsResponse): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return false
-        return autofillCoordinator.onInlineSuggestionsResponse(response, swipeKeyboardView != null)
+    /**
+     * The pixel height one inline-autofill chip is rendered at: the live suggestion-bar height, the same
+     * value the bar itself is laid out to, so a chip fills the strip instead of floating inside it.
+     */
+    private fun inlineChipHeightPx(): Int {
+        val barHeight =
+            keyboardModeManager.currentMode.value.adaptiveDimensions
+                ?.let { withLookKnobs(it).suggestionBarHeightPx }
+                ?: 0
+        return if (barHeight > 0) barHeight else resources.getDimensionPixelSize(R.dimen.minimum_touch_target)
     }
 
     @Suppress("NewApi")
-    private fun inflateAndDisplaySuggestions(suggestions: List<InlineSuggestion>) {
-        val density = resources.displayMetrics.density
-        val size = Size((150 * density).toInt(), (40 * density).toInt())
+    override fun onInlineSuggestionsResponse(response: InlineSuggestionsResponse): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return false
+        val count = response.inlineSuggestions.size
+        android.util.Log.d(AUTOFILL_TAG, "response: $count suggestions, viewReady=${swipeKeyboardView != null}")
+        return autofillCoordinator.onInlineSuggestionsResponse(response, swipeKeyboardView != null)
+    }
 
-        serviceScope.launch(Dispatchers.Main) {
-            val views = mutableListOf<View>()
-            for (suggestion in suggestions.take(MAX_PASSWORD_INLINE_SUGGESTIONS)) {
-                val view = inflateSuggestionView(suggestion, size)
-                if (view != null) views.add(view)
+    /** The inflate pass in flight, so a second response for the same field cannot race the first. */
+    private var inlineInflateJob: Job? = null
+
+    @Suppress("NewApi")
+    private fun inflateAndDisplaySuggestions(suggestions: List<InlineSuggestion>) {
+        val chipHeight = inlineChipHeightPx()
+
+        // The framework can hand us the same field's response twice within ~100 ms. Two inflate passes
+        // racing means the slower one wins and replaces the newer chips with its own, and tearing the
+        // first batch out of the bar mid-inflate destroys surfaces that are still being filled — so the
+        // newest response cancels the one in flight.
+        inlineInflateJob?.cancel()
+        inlineInflateJob =
+            serviceScope.launch(Dispatchers.Main) {
+                val views = mutableListOf<View>()
+                for (suggestion in suggestions.take(MAX_PASSWORD_INLINE_SUGGESTIONS)) {
+                    val view = inflateSuggestionView(suggestion, inlineChipSize(suggestion, chipHeight))
+                    if (view != null) views.add(view)
+                }
+                android.util.Log.d(AUTOFILL_TAG, "inflated ${views.size} of ${suggestions.size} chips")
+                if (views.isNotEmpty()) {
+                    candidateBarController.updateInlineAutofillSuggestions(views, true)
+                }
             }
-            if (views.isNotEmpty()) {
-                candidateBarController.updateInlineAutofillSuggestions(views, true)
-            }
-        }
+    }
+
+    /**
+     * The size one suggestion is inflated at. The width is WRAP_CONTENT: the renderer then measures the
+     * chip against its own content (clamped into its spec) and the framework reports the result back as
+     * the view's layout params — the only size a surface-backed chip can be laid out at. The height is
+     * the bar height clamped into the spec THIS suggestion was matched with: an action chip carries the
+     * narrow icon spec, and a size outside the spec makes inflate() throw.
+     */
+    @Suppress("NewApi")
+    private fun inlineChipSize(suggestion: InlineSuggestion, chipHeight: Int): Size {
+        val spec = suggestion.info.inlinePresentationSpec
+        val height = InlineChipSizing.inflateHeight(chipHeight, spec.minSize.height, spec.maxSize.height)
+        return Size(ViewGroup.LayoutParams.WRAP_CONTENT, height)
     }
 
     @Suppress("NewApi")
     private suspend fun inflateSuggestionView(suggestion: InlineSuggestion, size: Size): View? = try {
         suspendCancellableCoroutine { continuation ->
             suggestion.inflate(this@UrikInputMethodService, size, mainExecutor) { view ->
+                val lp = view?.layoutParams
+                android.util.Log.d(AUTOFILL_TAG, "inflated chip lp=${lp?.width}x${lp?.height}")
                 if (continuation.isActive) {
                     continuation.resume(view)
                 }
             }
         }
     } catch (e: Exception) {
+        android.util.Log.w(AUTOFILL_TAG, "inflate failed: $e")
         ErrorLogger.logException(
             component = "UrikInputMethodService",
             severity = ErrorLogger.Severity.LOW,
@@ -4091,6 +4141,9 @@ open class UrikInputMethodService :
     }
 
     private companion object {
+        /** Logcat tag for the inline-autofill path — raise with: setprop log.tag.KxkbAutofill VERBOSE */
+        const val AUTOFILL_TAG = "KxkbAutofill"
+
         const val DOUBLE_SHIFT_THRESHOLD_MS = 400L
         // Gap between the hide and the re-show of the "reshow" action — long enough for the hide to register
         // before the show, so the framework treats it as a fresh show (and re-pins the window height).

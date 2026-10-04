@@ -91,7 +91,7 @@ class VoiceCorpusBackupTest {
     }
 
     @Test
-    fun `the corpus part is opt-in`() {
-        assertTrue(!BackupPart.VOICE_CORPUS.defaultSelected)
+    fun `the corpus part is in a default backup`() {
+        assertTrue(BackupPart.VOICE_CORPUS.defaultSelected)
     }
 }
