@@ -630,7 +630,32 @@ knobs `voiceMark{Unsure,Unknown,Replaced,Corrected}Color` (`vmu/vmk/vmr/vmc`) th
 `ui/keyboard/components/VoiceReviewColors` as the one place the defaults live and both renderers falling
 back to it. Suite 2 141 green.
 
-**Released `0.23.1+343`** (2026-10-04; tagged `0.23.1+343` — walk capture end to end; APK attached, on the fork's GitHub; default
+**Shipped since `+343`** (the `+347` line): **the candidate bar's ▾ expand button, and the candidate
+row itself, at any system font size** — the ▾ (the only way into the long-tail pane) was usually
+absent; the fit loop measured each candidate with `sp * density` while the chip draws through
+`setTextSize(COMPLEX_UNIT_SP, …)`, i.e. **`scaledDensity`**, so at the 150 % system text size this
+phone runs (scaledDensity 3.50 vs density 2.33) every candidate measured a THIRD narrower than it
+drew, the bar admitted more chips than fit, the row overflowed, the weighted spacer collapsed to 0
+and the ▾ — the last child — was laid out starting exactly at the bar's right edge and clipped
+(on device: bar 2010 px, arrow at 2010..2074, 64 px, yellow, `visibility=0`, clickable, off-screen);
+short candidate sets didn't overflow, which is why it came and went. `SwipeKeyboardView.spToPx`
+converts sp exactly as `setTextSize` does and both measure-paint sites use it — this was never
+only about the arrow, ANY font scale > 100 % over-filled the row on every board and lost the
+rightmost candidate too. Plus `reservedBarButtonWidth` (the ✎/▾/emoji buttons are measured, not
+given a flat 40 dp — their glyph scales with the suggestion-text-size knob; the constant stays as a
+floor) + the bar's own horizontal padding subtracted, and the ▾ decoupled from
+`suggestionSelectionEnabled` (that flag reaches the view asynchronously and
+`setSuggestionSelectionEnabled` only re-applies the HIGHLIGHT, never re-rendering the bar, so a
+render preceding the flag carried no arrow until the next rebuild; the pane is board-agnostic, so
+the arrow now shows wherever there are candidates — the no-prediction custom-toolbar rows included).
+**The diagnosis took three wrong fixes** (`+344` width reserve, `+345` the flag) before a temporary
+`Log.e("kxkb-bar", …)` build (`+346`) printed the arrow's real bounds — EMUI suppresses INFO/DEBUG
+from app processes but `Log.e` survives, and `uiautomator dump` on this device omits the IME window
+entirely, so in-app logging is the only way to see the keyboard's own view tree.
+`SuggestionBarExpandArrowTest` pins it (the font-scale test was verified to FAIL against the old
+measurement). Suite 2 146 green.
+
+**Released `0.23.1+347`** (2026-10-05; tagged `0.23.1+347` — the clipped expand arrow; APK attached, on the fork's GitHub; default
 branch `custom`; README badge + `CHANGELOG.md` track it). **Release tags carry NO `v` prefix** (白い熊,
 2026-09-05): the first fork release was the bare `0.23.1+72`, the `v` crept in at `+147`, and the 30 tags
 from `+147` to `+316` were renamed to bare — their GitHub releases were MOVED onto the new tags
@@ -642,7 +667,7 @@ by it — so recreating 30 tags at once sorted them all above the genuinely newe
 older tag object. `publishedAt` is untouched and the `releases/latest` API stayed correct, but the page
 looked wrong until `0.23.1+320`'s tag was force-recreated so its object was the newest again. Retag oldest
 first, or re-cut the newest tag last. Recent fork releases:
-`+313`, `+316`, `+320`, `+321`, `+324`, `+335`, `+337`, `+338`, `+343` (earlier: `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`, `+211`, `+213`,
+`+316`, `+320`, `+321`, `+324`, `+335`, `+337`, `+338`, `+343`, `+347` (earlier: `+313`, `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`, `+211`, `+213`,
 `+214`, `+215`, `+217`, `+222`, `+230`, `+250`, `+287`, `+292`, `+295`, `+296`, `+298`, `+299`, `+300`,
 `+301`, `+302`, `+304`, `+305`, `+306`, `+309`, `+312`). Remaining M5 tail (low priority): number/arrow
 rows on the look page, quick-period flick. Full architecture + milestone sequence in `docs/PLAN.md`.
