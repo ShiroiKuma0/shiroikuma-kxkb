@@ -4,7 +4,41 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+343 — current
+## 0.23.1+347 — current
+
+Built on Urik `0.23.1-beta`.
+
+### ▾ The candidate bar’s expand arrow, and the candidate row itself, at any system font size
+
+The suggestion bar’s **▾ expand button** — the only way into the long-tail candidate pane — was
+missing far more often than not, so the candidates beyond the ones the bar happened to show were
+simply unreachable.
+
+- **Root cause: the candidate row was measured in the wrong units.** The fit loop that decides how
+  many candidates fit measured each one with `sp × density`, while the chip that draws it is a
+  `TextView` set through `setTextSize(COMPLEX_UNIT_SP, …)` — which converts through
+  **`scaledDensity`**, the system font-size setting. At a 150 % text size every candidate measured a
+  **third narrower than it drew**, so the bar admitted more chips than fit. The row overflowed, the
+  weighted spacer collapsed to zero width, and the ▾ — the row’s last child — was laid out starting
+  exactly at the bar’s right edge and clipped away: on device, a 2010 px bar with the arrow at
+  2010–2074, 64 px wide, yellow, visible and clickable, and entirely off-screen. Short candidate sets
+  did not overflow, which is why it came and went.
+- **This was never only about the arrow.** Any system font scale above 100 % over-filled the
+  candidate row on every board, pushing the rightmost candidate off the edge as well. Sizes now
+  convert exactly as `setTextSize` does, so the fit loop and the renderer agree on how wide a word is.
+- **The bar’s right-hand buttons are measured, not guessed.** The ✎ edit chip, the ▾ and the emoji
+  button each had a flat 40 dp reserved for them, but their glyph and padding scale with the
+  suggestion-text-size knob, so the reserve under-counted them on a large-text look; the constant
+  stays only as a floor. The bar’s own horizontal padding is now subtracted from the available width
+  too.
+- **The ▾ no longer depends on cluster-selection mode.** That flag reaches the keyboard view
+  asynchronously and changing it only re-applies the candidate highlight — it never re-renders the
+  bar — so a render that preceded the flag carried no arrow until the next keyboard rebuild. The
+  expand pane is board-agnostic anyway (it re-queries for a typed word and falls back to the pending
+  row), so the arrow now appears wherever there are candidates at all, including the no-prediction
+  boards with the custom toolbar row.
+
+## 0.23.1+343
 
 Built on Urik `0.23.1-beta`.
 
