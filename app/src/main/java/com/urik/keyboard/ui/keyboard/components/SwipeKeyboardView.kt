@@ -1330,8 +1330,19 @@ constructor(
                 return@let
             }
 
+            // The ▾ is created HERE, before the candidates are laid out, so populateSuggestions can
+            // reserve its REAL width instead of a guess. It stays unattached until the addView below.
+            //
+            // It is no longer gated on suggestionSelectionEnabled. That flag is published to the view
+            // asynchronously (onClusterBands at keyboard build, the layout-language collector) and
+            // setSuggestionSelectionEnabled only re-applies the HIGHLIGHT — it never re-renders the bar —
+            // so a render that preceded the flag would carry no arrow until the next rebuild. The pane is
+            // board-agnostic anyway (expandedClusterCandidates re-queries for a typed word and falls back
+            // to the pending row), so the arrow belongs wherever there are candidates at all.
+            val expandBtn = if (suggestions.isNotEmpty()) getOrCreateExpandButton() else null
+
             if (suggestions.isNotEmpty()) {
-                populateSuggestions(bar, suggestions)
+                populateSuggestions(bar, suggestions, expandBtn)
             } else {
                 val spacer =
                     View(context).apply {
@@ -1341,9 +1352,9 @@ constructor(
             }
 
             // The ▾ expand button (open the many-candidates pane) sits just left of the emoji button,
-            // only in cluster typing when there are candidates to expand to.
-            if (suggestionSelectionEnabled && suggestions.isNotEmpty()) {
-                bar.addView(getOrCreateExpandButton())
+            // whenever there are candidates to expand to.
+            if (expandBtn != null) {
+                bar.addView(expandBtn)
             } else {
                 expandButton?.let { (it.parent as? ViewGroup)?.removeView(it) }
             }
@@ -1357,6 +1368,19 @@ constructor(
         }
     }
 
+    /**
+     * A size in sp as the px a TextView will actually render it at — i.e. through the user's system font
+     * scale, exactly as `setTextSize(COMPLEX_UNIT_SP, …)` does it.
+     *
+     * The candidate fit loop used to measure with `sp * density`, which silently ignores that scale. At a
+     * 150 % system font size every candidate measured a third narrower than it drew, so the bar admitted
+     * more chips than fit: the row overflowed, the weighted spacer collapsed to zero, and the ▾ expand
+     * button — the last child — was laid out just past the bar's right edge and clipped away (observed on
+     * device: bar 2010 px wide, ▾ at 2010..2074). The long-tail pane was then unreachable.
+     */
+    private fun spToPx(sp: Float): Float =
+        TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, sp, context.resources.displayMetrics)
+
     private fun cacheSuggestionMetrics() {
         val density = context.resources.displayMetrics.density
         suggestionTextSizeSp = calculateResponsiveSuggestionTextSize()
@@ -1365,23 +1389,23 @@ constructor(
         suggestionMaxPadding = (suggestionTextSizeSp * density * 1.2f).toInt()
         suggestionMinPadding = (4 * density).toInt()
         suggestionVerticalPadding = (suggestionTextSizeSp * density * 0.65f).toInt()
-        suggestionMeasurePaint.textSize = suggestionTextSizeSp * density
+        suggestionMeasurePaint.textSize = spToPx(suggestionTextSizeSp)
         suggestionMeasurePaint.typeface = android.graphics.Typeface.DEFAULT
         suggestionMeasurePaint.letterSpacing = 0f
     }
 
-    private fun populateSuggestions(bar: LinearLayout, suggestions: List<String>) {
+    private fun populateSuggestions(bar: LinearLayout, suggestions: List<String>, expandBtn: View?) {
         // FUTO-style candidate line: lay candidates out at their natural width, left to right, showing as
-        // many as fit in the bar (reserving room for the ▾ + emoji buttons at the right). Tab cycles these.
+        // many as fit in the bar (reserving room for the ✎ chip and the ▾ + emoji buttons). Tab cycles these.
         val density = context.resources.displayMetrics.density
-        val emojiWidth = if (!emojiButtonEnabled) {
-            0
-        } else {
-            emojiButton?.let { it.measuredWidth.takeIf { w -> w > 0 } } ?: (44 * density).toInt()
-        }
-        val expandWidth = if (suggestionSelectionEnabled) (40 * density).toInt() else 0
-        val editChipWidth = if (editChipView?.parent != null) (40 * density).toInt() else 0
-        val barWidth = bar.width.takeIf { it > 0 } ?: context.resources.displayMetrics.widthPixels
+        val emojiWidth = if (!emojiButtonEnabled) 0 else reservedBarButtonWidth(emojiButton, (44 * density).toInt())
+        val expandWidth = reservedBarButtonWidth(expandBtn, (40 * density).toInt())
+        val editChipWidth = editChipView
+            ?.takeIf { it.parent != null }
+            ?.let { reservedBarButtonWidth(it, (40 * density).toInt()) }
+            ?: 0
+        val barWidth = (bar.width.takeIf { it > 0 } ?: context.resources.displayMetrics.widthPixels) -
+            bar.paddingLeft - bar.paddingRight
         val available = (barWidth - emojiWidth - expandWidth - editChipWidth - (16 * density).toInt())
             .coerceAtLeast((100 * density).toInt())
 
@@ -1394,7 +1418,7 @@ constructor(
         val isRtl = currentLayout?.isRTL == true
 
         suggestionMeasurePaint.letterSpacing = 0f
-        suggestionMeasurePaint.textSize = suggestionTextSizeSp * suggestionScale * density
+        suggestionMeasurePaint.textSize = spToPx(suggestionTextSizeSp * suggestionScale)
         suggestionMeasurePaint.typeface = tf
 
         var used = 0
@@ -1447,6 +1471,24 @@ constructor(
             layoutParams = LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, 1f)
         })
         applySuggestionHighlights()
+    }
+
+    /**
+     * The width a trailing bar button (✎ / ▾ / emoji) will REALLY take. They are WRAP_CONTENT TextViews
+     * whose glyph and padding scale with the suggestion-text-size knob, so the old flat 40 dp reserve
+     * under-counted them on a large-text look and the row was budgeted too generously. Measure, never
+     * guess; the old constant stays only as a floor.
+     *
+     * (This alone did not cause the vanishing ▾ — see [spToPx] for that — but an under-counted reserve
+     * is the same class of defect and makes the row overflow that much easier.)
+     */
+    private fun reservedBarButtonWidth(view: View?, fallbackPx: Int): Int {
+        if (view == null || view.visibility == GONE) return 0
+        val unspecified = MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+        view.measure(unspecified, unspecified)
+        val lp = view.layoutParams as? ViewGroup.MarginLayoutParams
+        val margins = (lp?.marginStart ?: 0) + (lp?.marginEnd ?: 0)
+        return (view.measuredWidth + margins).coerceAtLeast(fallbackPx)
     }
 
     private data class SuggestionFit(
