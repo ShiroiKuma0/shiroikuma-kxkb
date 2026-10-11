@@ -15,7 +15,7 @@ candidate line, and walk capture — sentences spoken outside with the screen of
 Installs **side-by-side** with the official Urik and with any other keyboard (package
 `shiroikuma.kxkb`).
 
-**📥 Latest release: [`0.23.1+347`](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases)
+**📥 Latest release: [`0.23.1+348`](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases)
 
 </div>
 
@@ -195,6 +195,10 @@ database with thirty-two zero bytes; this fork re-encrypts it with a real passph
 - **Punctuation auto-spacing** — `word ` + `.` becomes `word. ` (eat the space, attach the mark,
   re-space) for `.` `,` `:` `;` `!` `?`.
 - The spacebar shows the **current language’s native name** (English, 日本語, GNU, …).
+- **Japanese conversion ranks nouns ahead of verb inflections** — the bundled reading table is
+  flattened from Mozc, which files every conjugated form as its own entry carrying the verb’s cost,
+  so すもう used to offer 住もう (“let’s live”) before 相撲. The paradigms are re-derived from the
+  table and the inflections demoted, while dictionary forms and real nouns keep their rank.
 - **App interface language** setting, independent of the phone locale.
 
 ---

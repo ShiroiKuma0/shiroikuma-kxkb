@@ -4,7 +4,69 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+347 — current
+## 0.23.1+348 — current
+
+Built on Urik `0.23.1-beta`.
+
+### 住 Japanese conversion ranks nouns ahead of verb inflections
+
+Typing すもう offered **住もう** — the volitional of 住む, “let’s live” — as the first candidate, with
+相撲 second. The cause is in the dictionary asset, not in the converter.
+
+- **Mozc stores every conjugated form as its own entry, carrying the verb’s cost.** The bundled
+  `ja_readings.txt` is flattened from Mozc, and in Mozc that number is only ever a word cost inside a
+  Viterbi search over a whole sentence, where the part-of-speech connection matrix is what stops a
+  bare volitional from winning a one-word conversion. Flattened into a per-reading frequency list,
+  that correction is gone and the inflections of common verbs bury genuine nouns. The 住 family
+  proves it: 住す 17595, 住し 17120, 住すれ 16768, 住もう 16606 — every one of them above 住宅 16384
+  and 住民 15922. It was systematic across the ～もう and ～ろう readings, and the same defect gave
+  えん the fragment 得ん before 円, ふもう 踏もう before 不毛, and じゅうし the bare サ変 fragment
+  住し before 重視.
+- **The paradigms are re-derived from the table itself**, since the export carries no
+  part-of-speech ids. A reading and its surface share their okurigana, so a stem is an entry with its
+  trailing kana cut, and a paradigm is confirmed by its **sibling slots**: 住/す is a む-row godan verb
+  because 住ま, 住む, 住め, 住も and 住ん are all present. No terminal form is required — Mozc’s export
+  omits it for compounds like 会いにいく — but an **anchor** is: the 未然形 or 意志形, the two slots a
+  noun stem never has. Without that anchor, 白う + 白い + 白っ look like a verb “白う”, and anything
+  ending in a godan kana reads as one (the first prototype demoted the adjectives 暗い and 欲しい).
+- **Nothing a word could be is demoted.** Dictionary forms (読む, 食べる, 白い, 欲しい, 住する), the
+  productively nominalisable bare 連用形 and 仮定形 (読み, 残し, 話し, 晴れ, 届け — the す-row 連用形
+  and 音便形 are both し, so this protection is global), the bare ichidan stems, and the adjective
+  nominalisations 〜さ / 〜み / 〜げ all keep their rank. A サ変 verb’s 〜し does not: 住し is a
+  fragment, not a word, so the protection is withheld wherever stem + する is attested.
+- **Orthographic variants follow their sibling.** Mozc spells one inflection several ways (曲がっ /
+  曲っ, 見積もっ / 見積っ) and the rarer spelling’s paradigm is too sparse to attest, so demoting only
+  the common form would simply hand the lead to the worse spelling. A surface that shares a kana tail
+  with its reading follows the demotion; a kanji-final surface — 相撲, 調子, 円 — shares no tail and is
+  never touched.
+- **A hand-curated pair of lists** (`tools/demoted_manual/ja.demote` and `ja.keep`) carries what the
+  structure cannot reach, and nearly every one of them is a Mozc **reading** error rather than a gap
+  in the logic: 高そう is the 〜そう form of 高い / たかい but is filed under こうそう, where nothing
+  links it to the adjective; 轢こう is filed under びこう, though the verb is 轢く / ひく; the カ変
+  forms of 来る change reading per slot, so no sibling set ever assembles. The keep list holds the
+  over-demotions — 向こう has lexicalised into a noun, 良く and 対し are far commoner than the 翌 and
+  太子 that would replace them, and いえよう / うえん / なめん have nothing but corpus junk (家用, う炎,
+  な面) to promote.
+- **The penalty is graded, not absolute.** The bundled band is 14000–20000, so subtracting 2000 — a
+  third of it — puts an inflection behind a noun of comparable standing while a very common
+  inflection still beats a rare homophone: 知ろう keeps its lead over the name 四郎. Pushing every
+  inflection below the whole band instead starts offering 亜子 for あこ and 以遠 for いえん.
+- **Upstream’s `ja_readings.txt` is untouched.** The demotions ship as their own asset beside it,
+  loaded like the existing removal and casing lists, folded into the stored frequency once while the
+  index is built and then dropped — so the lookup path consults nothing new, the evidence stays
+  auditable, and an upstream dictionary refresh merges cleanly.
+- **Learning and registration are unchanged**: selecting a demoted form still climbs from its demoted
+  base, and ＋登録 still puts a registered surface straight at the top.
+
+Measured on the real assets, 309 readings change their first candidate by exact reading and 1810 as
+actually shown, since the converter looks up by prefix — most of the difference is mid-typing states,
+and they improve too (うけ offered 受けよ, now 受け; まな offered 学ぼ, now 学ぶ; ぶか offered 深かっ,
+now 深い). すもう → 相撲, ふもう → 不毛, えん → 円, しろう → 知ろう with 白う out of the top four,
+こうそう → 構想 ahead of 高そう. Not fixed: じゅうし now leads with the prefix completion 住職 and 重視
+is fourth — 住し fell from first, but the ranking of long prefix completions is a separate matter and
+untouched here.
+
+## 0.23.1+347
 
 Built on Urik `0.23.1-beta`.
 
