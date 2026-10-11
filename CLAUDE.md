@@ -655,8 +655,47 @@ entirely, so in-app logging is the only way to see the keyboard's own view tree.
 `SuggestionBarExpandArrowTest` pins it (the font-scale test was verified to FAIL against the old
 measurement). Suite 2 146 green.
 
-**Released `0.23.1+347`** (2026-10-05; tagged `0.23.1+347` — the clipped expand arrow; APK attached, on the fork's GitHub; default
-branch `custom`; README badge + `CHANGELOG.md` track it). **Release tags carry NO `v` prefix** (白い熊,
+**Shipped since `+347`** (the `+348` line): **Japanese conversion ranks nouns ahead of verb
+inflections** — すもう offered the volitional 住もう before 相撲, and the cause is the ASSET: `ja_readings.txt`
+is flattened from Mozc, which stores every conjugated form as its own entry carrying the VERB's cost, a
+number Mozc itself only ever uses as a word cost inside a Viterbi search where the POS connection matrix
+stops a bare volitional winning a one-word conversion; flattened to a per-reading unigram list that
+correction is gone and inflections of common verbs bury nouns (住す 17595, 住し 17120, 住すれ 16768,
+住もう 16606, all above 住宅 16384 and 住民 15922; also えん 得ん before 円, ふもう 踏もう before 不毛,
+じゅうし the bare サ変 fragment 住し before 重視). `tools/demote_ja_conjugations.py` re-derives the
+paradigms FROM THE TABLE (the export has no POS ids): reading and surface share their okurigana, so a stem
+is an entry with its trailing kana cut and a paradigm is confirmed by its SIBLING SLOTS (住/す is む-row
+godan because 住ま/住む/住め/住も/住ん are all present) — no terminal form required (Mozc omits it for
+compounds like 会いにいく) but an ANCHOR is, the 未然形 or 意志形, the two slots a noun stem never has:
+without it 白う+白い+白っ look like a verb "白う" and the detector PROTECTS 白う, and anything ending in a
+godan kana reads as a verb (the first prototype demoted the adjectives 暗い and 欲しい). Protected:
+dictionary forms (読む, 白い, 欲しい, 住する), the nominalisable bare 連用形/仮定形 (読み, 残し, 話し,
+晴れ, 届け — the す-row 連用形 and 音便形 are both し, so global), ichidan bare stems, adjective
+〜さ/〜み/〜げ; a サ変 verb's 〜し is NOT (住し is a fragment — protection withheld where stem + する is
+attested). Orthographic variants FOLLOW their sibling (曲がっ/曲っ, 見積もっ/見積っ — the rarer spelling's
+paradigm is too sparse to attest, so demoting only the common one hands it the lead), while a kanji-final
+surface (相撲, 調子, 円) shares no kana tail and is never touched. `tools/demoted_manual/ja.demote` +
+`ja.keep` carry what the structure cannot reach — nearly all Mozc READING errors (高そう filed under
+こうそう where nothing links it to 高い/たかい, 轢こう under びこう though the verb is 轢く/ひく, the
+カ変 forms of 来る whose reading changes per slot) and the over-demotions (向こう lexicalised, 良く/対し
+far commoner than 翌/太子, いえよう/うえん/なめん with only 家用/う炎/な面 to promote).
+`KanaKanjiConverter.INFLECTION_PENALTY = 2000` is **graded on purpose** — the band is 14000–20000, so a
+third of it puts an inflection behind a noun of comparable standing while a very common one still beats a
+rare homophone (知ろう 17916 keeps its lead over the name 四郎 15810); measured at 3000, below the whole
+band, it starts offering 亜子 for あこ and 以遠 for いえん. Upstream's `ja_readings.txt` is UNTOUCHED:
+`dictionaries/ja.demoted` (22 649 pairs) loads beside it like `.removed`/`.cased`, is folded into the
+stored frequency while the index builds and then dropped, so the lookup path consults nothing new and an
+upstream dict refresh merges cleanly; learning still climbs from the demoted base and ＋登録 still
+overrides. **Measure reorderings BOTH ways** — `getCandidates` does a PREFIX `subMap`, so the exact-reading
+figure (309 readings change their first candidate) understates what is shown (1810), most of the difference
+mid-typing states that also improve (うけ 受けよ→受け, まな 学ぼ→学ぶ, ぶか 深かっ→深い); `--report` prints
+both. Known residue: じゅうし now leads with the prefix completion 住職 with 重視 fourth (住し fell from
+first) — the prefix-completion ranking is a separate matter, untouched. `JapaneseInflectionDemotionTest`
+runs against the REAL bundled assets and was verified to FAIL (7 of 15) with the penalty forced to 0.
+Suite 2 161 green.
+
+**Released `0.23.1+348`** (2026-10-11; tagged `0.23.1+348` — the Japanese inflected-form demotion; APK attached, on the fork's
+GitHub; default branch `custom`; README badge + `CHANGELOG.md` track it). **Release tags carry NO `v` prefix** (白い熊,
 2026-09-05): the first fork release was the bare `0.23.1+72`, the `v` crept in at `+147`, and the 30 tags
 from `+147` to `+316` were renamed to bare — their GitHub releases were MOVED onto the new tags
 (`gh release edit --tag`), never deleted and re-cut, so every APK asset, release note and **publication**
@@ -667,7 +706,7 @@ by it — so recreating 30 tags at once sorted them all above the genuinely newe
 older tag object. `publishedAt` is untouched and the `releases/latest` API stayed correct, but the page
 looked wrong until `0.23.1+320`'s tag was force-recreated so its object was the newest again. Retag oldest
 first, or re-cut the newest tag last. Recent fork releases:
-`+316`, `+320`, `+321`, `+324`, `+335`, `+337`, `+338`, `+343`, `+347` (earlier: `+313`, `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`, `+211`, `+213`,
+`+316`, `+320`, `+321`, `+324`, `+335`, `+337`, `+338`, `+343`, `+347`, `+348` (earlier: `+313`, `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`, `+211`, `+213`,
 `+214`, `+215`, `+217`, `+222`, `+230`, `+250`, `+287`, `+292`, `+295`, `+296`, `+298`, `+299`, `+300`,
 `+301`, `+302`, `+304`, `+305`, `+306`, `+309`, `+312`). Remaining M5 tail (low priority): number/arrow
 rows on the look page, quick-period flick. Full architecture + milestone sequence in `docs/PLAN.md`.
