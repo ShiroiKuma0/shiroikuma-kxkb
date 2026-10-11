@@ -144,5 +144,22 @@ branch `custom`. Earlier fork releases: `+72`, `+147`, `+156`.
   spelling collides with one (`teda`→Teda, `mlíko`→Mlíko, `todle`, `budem`, `vidim`, `páč`); a cs list
   needs a curated subset — place names / nationality nouns / holidays by hunspell flag class (`Z`/`ZQ`
   Praha·Evropa·Anglie, `PD`/`PIV` Angličan·Čech), first names only with a colloquial exclude list.
+- **Japanese inflected-form demotion** — `ja_readings.txt` is flattened from Mozc, which stores every
+  conjugated form of a verb as its own entry carrying the verb's cost. Mozc's own converter only ever uses
+  that cost inside a Viterbi search over the whole sentence, where the POS connection matrix keeps a bare
+  volitional from winning a one-word conversion; flattened to a per-reading unigram table that correction is
+  gone, so inflections bury nouns (すもう offered 住もう 16606 before 相撲 15222; えん offered 得ん before 円;
+  じゅうし offered the bare サ変 fragment 住し before 重視). `tools/demote_ja_conjugations.py` re-derives the
+  paradigms **from the table itself** — reading and surface share their okurigana, so a stem is an entry with
+  its trailing kana cut, and a paradigm is confirmed by its sibling slots, anchored on the 未然形/意志形 (the
+  slots a noun stem never has; without that anchor 白う+白い+白っ look like a verb "白う"). Dictionary forms,
+  the nominalisable bare 連用形/仮定形 (読み, 残し, 晴れ) and adjective 〜さ/〜み/〜げ are protected; a サ変
+  verb's 〜し is not (住し), and orthographic variants follow their sibling (曲がっ/曲っ). Output
+  `dictionaries/ja.demoted` (~22 600 pairs) + `tools/demoted_manual/ja.demote` / `ja.keep` for what the
+  structure cannot reach — nearly all Mozc READING errors (高そう filed under こうそう, 轢こう under びこう)
+  and the irregular カ変 forms. `KanaKanjiConverter.INFLECTION_PENALTY` (2000, a third of the 14000–20000
+  band) is **graded on purpose**: a noun of comparable standing wins, but a very common inflection still
+  beats a rare homophone (知ろう keeps its lead over the name 四郎). Pushing inflections below the whole band
+  instead starts offering 亜子 for あこ and 以遠 for いえん.
 - The `cluster-prediction-testing` skill + a Multiling-layout conversion skill (ports of futokxkb's).
 - Per feature: read the relevant futokxkb skill/section first; reuse Urik pieces; never copy FUTO/AOSP source.

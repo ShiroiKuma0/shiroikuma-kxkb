@@ -225,9 +225,25 @@ class KanaKanjiConverter @Inject constructor(
         }
     }
 
+    /**
+     * The generated inflected-form list `dictionaries/ja.demoted` (one `reading<TAB>surface` per line,
+     * see `tools/demote_ja_conjugations.py`), as the `"$reading\t$surface"` keys [loadIndex] matches on.
+     * Absent file = no demotions, i.e. exactly upstream's ranking.
+     */
+    private fun loadDemotions(): Set<String> = try {
+        context.assets.open("dictionaries/ja.demoted").bufferedReader().useLines { lines ->
+            lines.map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("#") }.toHashSet()
+        }
+    } catch (_: Exception) {
+        emptySet()
+    }
+
     private suspend fun loadIndex(): TreeMap<String, MutableList<ConversionCandidate>> {
         val result = TreeMap<String, MutableList<ConversionCandidate>>()
         try {
+            // Held only for the duration of the build, then dropped with the local — the penalty is
+            // folded into the stored frequency, so nothing is consulted again on the lookup path.
+            val demoted = loadDemotions()
             context.assets.open("dictionaries/ja_readings.txt").bufferedReader().use { reader ->
                 for (line in reader.lineSequence()) {
                     currentCoroutineContext().ensureActive()
@@ -238,8 +254,10 @@ class KanaKanjiConverter @Inject constructor(
                         val surface = parts[1]
                         val freq = parts[2].toLongOrNull()
                         if (freq != null) {
+                            val penalty =
+                                if ("$reading\t$surface" in demoted) INFLECTION_PENALTY else 0L
                             result.getOrPut(reading) { mutableListOf() }
-                                .add(ConversionCandidate(surface, reading, freq, "dictionary"))
+                                .add(ConversionCandidate(surface, reading, freq - penalty, "dictionary"))
                         }
                     }
                 }
@@ -265,6 +283,22 @@ class KanaKanjiConverter @Inject constructor(
         // (BUG A — was 500, which let a single selection dominate.)
         const val USER_FREQ_MULTIPLIER = 25L
         const val BASE_USER_FREQUENCY = 1L
+
+        // Subtracted from a bundled frequency when the pair is listed in `dictionaries/ja.demoted` — an
+        // INFLECTED form of a verb or adjective (住もう, the volitional of 住む; 住し, a bare サ変 fragment).
+        // Mozc stores every conjugated form as its own entry carrying the verb's cost, and its own converter
+        // only ever uses that cost inside a Viterbi search over the whole sentence, where the POS connection
+        // matrix is what keeps a bare volitional from winning a one-word conversion. Flattened into this
+        // per-reading unigram table that correction is gone, so the inflections of common verbs bury genuine
+        // nouns (すもう offered 住もう 16606 ahead of 相撲 15222; えん offered 得ん ahead of 円).
+        //
+        // The penalty is GRADED, not absolute: the bundled band is 14000-20000, so 2000 (a third of it) puts
+        // an inflection behind a noun of comparable standing while a very common one still beats a rare
+        // homophone (知ろう 17916 keeps its lead over the name 四郎 15810). Pushing every inflection below the
+        // whole band instead starts promoting obscure names — measured at 3000 it offers 亜子 for あこ and
+        // 以遠 for いえん. Selecting a demoted candidate still learns it: USER_FREQ_MULTIPLIER climbs from the
+        // demoted base, and ＋登録 overrides it outright.
+        const val INFLECTION_PENALTY = 2_000L
 
         // An EXPLICITLY registered entry (the ＋登録 flow) is seeded with a large stored amount so that, even for
         // a brand-new surface with no dictionary frequency, REGISTER_BOOST * USER_FREQ_MULTIPLIER (= 25 000) out-

@@ -1,0 +1,30 @@
+# Inflected forms the heuristic in tools/demote_ja_conjugations.py cannot reach, merged into
+# ja.demoted on every regeneration. Format: reading<TAB>surface (the same key the converter uses).
+#
+# Nearly all of these are Mozc READING errors rather than gaps in the paradigm logic. The detector
+# links a form to its paradigm through the stem it shares with its own reading, so a form filed
+# under the WRONG reading has no siblings to be recognised by: 高そう is the 〜そう form of the
+# adjective 高い (たかい), but Mozc files it under こうそう, where the stem is (こう, 高) and
+# nothing connects it to 高い/たかい. Same for 轢こう under びこう (the verb is 轢く/ひく).
+#
+# Each line names what should lead the reading instead.
+
+# --- Mozc reading errors: adjective 〜そう filed under the kanji's ON reading
+こうそう	高そう	# 構想 / 高層 / 抗争 — 高そう belongs under たかそう
+じゅうそう	重そう	# 重曹 / 十三 — 重そう belongs under おもそう
+けいそう	軽そう	# 計装 / 珪藻 — 軽そう belongs under かるそう
+
+# --- Mozc reading error: verb volitional filed under a voiced reading
+びこう	轢こう	# 備考 / 尾行 / 鼻腔 — the verb is 轢く (ひく)
+
+# --- カ変 (来る): an irregular paradigm whose reading changes with the slot (こ/き/く), so the
+#     sibling-slot detector cannot assemble it. The fragments below are never standalone words.
+こよう	来よう	# 雇用
+きたそ	来たそ
+きたし	来たし
+きたせ	来たせ
+きたら	来たら
+きたっ	来たっ
+
+# --- verbs absent from the table entirely, so their forms have no paradigm to be found in
+そこう	措こう	# 素行 — 措く itself is not in ja_readings.txt

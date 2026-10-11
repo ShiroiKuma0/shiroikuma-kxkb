@@ -1,0 +1,22 @@
+# Inflected forms that must KEEP their dictionary rank, subtracted from ja.demoted on every
+# regeneration. Format: reading<TAB>surface.
+#
+# The heuristic is right that these are inflections; demoting them is still wrong, for one of two
+# reasons. Either the form has lexicalised into a word of its own (向こう is a noun, "the other
+# side", not a reading of 向く), or it is so much commoner than anything else under its reading
+# that the promotion is a downgrade — including the rows whose only rival is corpus junk.
+#
+# Each line names what WOULD lead the reading if the form were demoted.
+
+# --- lexicalised: no longer felt as an inflection
+むこう	向こう	# would promote 無効
+
+# --- far commoner than the rival
+よく	良く	# would promote 翌, which is a bound prefix, not a word
+たいし	対し	# would promote 太子
+まとう	待とう	# would promote 纏う
+
+# --- the only rival is corpus junk
+いえよう	言えよう	# would promote 家用
+うえん	植えん	# would promote う炎
+なめん	舐めん	# would promote な面
