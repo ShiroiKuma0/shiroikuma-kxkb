@@ -4,7 +4,43 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+348 — current
+## 0.23.1+349 — current
+
+Built on Urik `0.23.1-beta`.
+
+### 🚶 A walk sentence is decoded in the language it was spoken in
+
+A walk is mostly spoken in English and sometimes in Czech, and nothing could say so: every clip
+arrived declaring `en` — the recorder’s default, never a verdict — and was decoded as English
+whatever had been said into it.
+
+- **A language pill on every sentence.** It shows both halves of the pair, “English ⇄ čeština”, with
+  the current one bold and bright and the other dim, so scrolling the page shows at a glance which
+  sentences are Czech; a tap switches it. Bold as well as bright on purpose — a brightness difference
+  alone is a poor thing to hang the meaning of a row on.
+- **Two pills mark the whole walk at once**, sitting above “Transcribe all” in the order the work
+  actually happens: mark the walk, then decode it. One index write for all of it rather than one per
+  sentence.
+- **One field already decided everything**, which is why the change is a small one: a captured
+  sentence’s language chooses the Whisper decode language, the dictionary its marked words are judged
+  against, whether the Czech clause commas run over it, what the voice corpus learns from it, and the
+  language it is handed on with. Setting the pill sets all five.
+- **Switching discards that sentence’s transcription.** A transcription belongs to the language it
+  was made in, and a Czech sentence read as English is not a sentence to correct but one to decode
+  again: the row goes back to “Not transcribed yet” and the next “Transcribe all” picks it up. The
+  page asks first whenever a transcription would be dropped — once for one sentence, once for a
+  batch, naming how many are affected. Corrections already saved stay (they went into the corpus the
+  moment they were saved), the “no speech recognised” count resets with the decode so a clip that
+  came back silent in the wrong language is not still accused of silence, and the recording itself is
+  untouched, which is all a re-decode needs.
+- **The sentence carries its language onward.** The sister-app hand-over field has been on the wire
+  from the start and only ever held `en`; it now holds `en` or `cs` and is authoritative — the verdict
+  made in the review, and the language the audio was really decoded in, not the recorder’s guess. A
+  code neither side agreed on is normalised where it enters, so the far side never sees a third value
+  and never has to guess which language to translate from. The agreement itself is written down in
+  `docs/sister-app-contract-kxkb-gengoshima.md` §7, kept identical in both repositories.
+
+## 0.23.1+348
 
 Built on Urik `0.23.1-beta`.
 

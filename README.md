@@ -15,7 +15,7 @@ candidate line, and walk capture — sentences spoken outside with the screen of
 Installs **side-by-side** with the official Urik and with any other keyboard (package
 `shiroikuma.kxkb`).
 
-**📥 Latest release: [`0.23.1+348`](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases)
+**📥 Latest release: [`0.23.1+349`](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases)
 
 </div>
 
@@ -83,6 +83,10 @@ as a dictation**: unsure in red, unknown in orange, replaced-by-an-earlier-corre
 ones you fix here in green — four colours you can set yourself. Play the recording, tap a word to
 correct it, **edit the punctuation** where the recogniser ended a sentence mid-breath, then send.
 
+- **Each sentence is decoded in the language it was spoken in** — a pill on every row flips between
+  English and čeština, and two pills mark a whole walk at once. That choice is what Whisper decodes
+  with, what the marked words are judged against, and what the sentence is handed on with, so a walk
+  spoken in two languages comes out right in both.
 - **A sentence you keep teaches exactly what a dictation teaches** — the same corrections, the same
   confirmations, and its recording moves into the private voice corpus rather than being re-encoded.
 - **Nothing is lost and nothing is filed twice**: the recordings arrive through a verified door
