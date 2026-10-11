@@ -205,3 +205,34 @@ under that uuid. An unparseable payload is `ERROR:items`. Saying the same ack tw
 
 **Still open:** a token. Both sides default `automation_require_token` to false, so neither asks for one;
 if 自由作業盤 ever turns it on, the push has nowhere to read a token from and would need one — say so first.
+
+## 7. Amendment — the sentence's language is decided in the review (both sides, 2026-10-11)
+
+§1 says `en` is "a default, not a verdict; kxkb may re-decode in another language", and §2's item object has
+carried a `language` field from the start. Until now it was always `en`, because nothing could change it.
+kxkb's Walk capture page now can: every captured sentence carries a language pill (English ⇄ čeština) and
+the page has a "mark all" for a whole walk, and the language a sentence is set to is the language its clip
+is decoded in — the Whisper decode, the word marks, the Czech clause commas, and what the voice corpus
+learns from the sentence.
+
+So §2's `language`:
+
+- is present on every item and holds exactly `en` or `cs`;
+- is **authoritative** — 白い熊's verdict in the review, and the language the audio was really decoded in,
+  not the recorder's guess;
+- is normalised before it can be sent: an unknown or blank code on an offered clip becomes `en`, which the
+  review can then change. 言語島 never sees a third value.
+
+For 言語島 that makes the inbox a mixed-language queue: the row's language must be stored and shown, the
+island proposal must be told which language the sentence is in, a `cs` row translates cs→ja, and its
+source-side voice is a Czech voice.
+
+§1 is unchanged. A 自由作業盤 that wants to mark a whole walk at record time may send `"cs"` in the offer —
+kxkb honours it as the sentence's starting language — but nothing requires it, and the review has the last
+word either way. §2 still carries no audio: the clip belongs to kxkb's voice corpus once its uuid came back
+in `OK:`, and a 言語島 that needs the recording itself would need a new section here, agreed first.
+
+Switching a sentence's language DISCARDS its decode: a transcription belongs to the language it was made
+in, and a Czech sentence read as English is not a sentence to correct but one to decode again. The page
+asks before dropping one. Corrections already saved stay — they went into the voice corpus the moment they
+were saved — and the recording is untouched, which is all a re-decode needs.

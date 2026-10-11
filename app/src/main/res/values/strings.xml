@@ -963,7 +963,7 @@
     <string name="voice_capture_title">Walk capture</string>
     <string name="voice_capture_open">Walk capture (%1$d)</string>
     <string name="voice_capture_summary">%1$d sentences waiting · %2$.1f MB of %3$.0f MB</string>
-    <string name="voice_capture_intro">Sentences spoken on a walk with the screen off, recorded by 白い熊 自由作業盤 and handed over here as audio. Nothing was transcribed outside: “Transcribe all” decodes them now, with everything the keyboard has learned since behind it. Tap any word to correct it — the correction is kept the moment you save it, exactly as in dictation. “Send to 白い熊 自由作業盤” confirms the words left standing, moves the recording into the voice corpus and hands the sentence back for 言語島.</string>
+    <string name="voice_capture_intro">Sentences spoken on a walk with the screen off, recorded by 白い熊 自由作業盤 and handed over here as audio. Nothing was transcribed outside: “Transcribe all” decodes them now, with everything the keyboard has learned since behind it. Each sentence is decoded in the language its pill shows — English unless you set it to čeština, one sentence at a time or the whole walk at once — and that language travels with the sentence to 言語島 as the language to translate from. Tap any word to correct it — the correction is kept the moment you save it, exactly as in dictation. “Send to 白い熊 自由作業盤” confirms the words left standing, moves the recording into the voice corpus and hands the sentence back for 言語島.</string>
     <string name="voice_capture_empty">Nothing captured yet.</string>
     <string name="voice_capture_transcribe_all">Transcribe all</string>
     <string name="voice_capture_decoding">Transcribing %1$d of %2$d…</string>
@@ -1002,6 +1002,12 @@
     <string name="voice_capture_handoff_state">%1$d waiting to send · %2$d sent</string>
     <string name="voice_capture_handoff_failed">白い熊 自由作業盤 did not take them: %1$s</string>
     <string name="voice_capture_handoff_none">nothing was stored</string>
+    <string name="voice_capture_lang_all">Mark all as %1$s</string>
+    <string name="voice_capture_lang_title">Transcription language</string>
+    <string name="voice_capture_lang_again">Transcribe again</string>
+    <string name="voice_capture_lang_confirm_one">Decode this sentence as %1$s? What was transcribed in the other language is dropped, and the recording is transcribed again on the next “Transcribe all”. Corrections you have already saved are kept — they were learned the moment you saved them.</string>
+    <string name="voice_capture_lang_confirm_many">Mark %1$d of the sentences as %2$s? %3$d of them are transcribed already; those transcriptions are dropped and the recordings transcribed again on the next “Transcribe all”.</string>
+    <string name="voice_capture_lang_marked">Marked %1$d as %2$s</string>
     <string name="voice_capture_no_store">The word store is unavailable right now, so nothing can be kept — reopen the keyboard once and try again.</string>
     <string name="voice_corpus_title">Voice corrections</string>
     <string name="voice_corpus_summary">%1$d dictations kept · %2$.1f MB of recordings</string>

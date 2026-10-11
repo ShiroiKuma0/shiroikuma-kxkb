@@ -1670,13 +1670,8 @@ open class UrikInputMethodService :
         }
     }
 
-    private fun voiceLanguageDisplayName(code: String): String = when (code) {
-        "en" -> "English"
-        "cs" -> "čeština"
-        "ru" -> "русский"
-        "ja" -> "日本語"
-        else -> code
-    }
+    private fun voiceLanguageDisplayName(code: String): String =
+        com.urik.keyboard.service.voice.VoiceLanguages.displayName(code)
 
     /** The guided setup page: model download/import + mic permission + options. */
     private fun openVoiceSettings() {

@@ -2,6 +2,7 @@ package com.urik.keyboard.settings.voice
 
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.Typeface
 import android.media.MediaPlayer
 import android.os.Bundle
 import android.text.SpannableStringBuilder
@@ -9,6 +10,7 @@ import android.text.Spanned
 import android.text.method.LinkMovementMethod
 import android.text.style.ClickableSpan
 import android.text.style.ForegroundColorSpan
+import android.text.style.StyleSpan
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -35,6 +37,7 @@ import com.urik.keyboard.service.voice.CzechCommas
 import com.urik.keyboard.service.voice.SpokenPunctuation
 import com.urik.keyboard.service.voice.VoiceInputController
 import com.urik.keyboard.service.voice.VoiceJudging
+import com.urik.keyboard.service.voice.VoiceLanguages
 import com.urik.keyboard.service.voice.VoiceModelStore
 import com.urik.keyboard.service.voice.VoiceSessionLedger
 import com.urik.keyboard.service.voice.VoiceTranscript
@@ -229,6 +232,7 @@ class VoiceCaptureFragment : Fragment() {
         )
         root.addView(text(getString(R.string.voice_capture_intro), 13f, dim).apply { setPadding(0, dp(6), 0, 0) })
         root.addView(legend())
+        if (rows.isNotEmpty()) root.addView(markAllRow())
         if (rows.any { !it.entry.transcribed }) {
             root.addView(pill(getString(R.string.voice_capture_transcribe_all)) { transcribeAll() })
         }
@@ -296,7 +300,7 @@ class VoiceCaptureFragment : Fragment() {
         val entry = row.entry
         addView(
             text(
-                "${stamp.format(Date(entry.capturedAt))} · ${entry.language} · " +
+                "${stamp.format(Date(entry.capturedAt))} · " +
                     String.format(Locale.ROOT, "%.1f s", entry.durationMs / 1000.0),
                 12f,
                 dim
@@ -347,6 +351,7 @@ class VoiceCaptureFragment : Fragment() {
             LinearLayout(requireContext()).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.START
+                addView(languagePill(row))
                 if (store.clipFile(row.entry) != null) {
                     lateinit var play: Button
                     play = pill(getString(R.string.voice_corpus_play)) { togglePlay(row, play) }
@@ -476,6 +481,114 @@ class VoiceCaptureFragment : Fragment() {
             )
         }
         return sb
+    }
+
+    // ---- the transcription language --------------------------------------------------------------------
+
+    /**
+     * The language this sentence is decoded as, as a pill that shows BOTH halves of the pair with the
+     * current one lit and bold: the whole page then reads at a glance as which sentences are Czech, and a
+     * tap is the switch. Bold as well as bright on purpose — a brightness difference alone is a poor thing
+     * to hang the meaning of a row on.
+     */
+    private fun languagePill(row: Row): Button {
+        val current = VoiceLanguages.captureOrDefault(row.entry.language)
+        val label = SpannableStringBuilder()
+        for (code in VoiceLanguages.CAPTURE_PAIR) {
+            if (label.isNotEmpty()) label.append(" ⇄ ")
+            val start = label.length
+            label.append(VoiceLanguages.displayName(code))
+            val mark: Any =
+                if (code == current) StyleSpan(Typeface.BOLD) else ForegroundColorSpan(dim)
+            label.setSpan(mark, start, label.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+        return pill(label) { flipLanguage(row) }
+    }
+
+    /**
+     * Switch one sentence to the other language. A sentence already decoded loses that decode — it was made
+     * in the other language — so this asks first; an undecoded one has nothing to lose and switches at once.
+     */
+    private fun flipLanguage(row: Row) {
+        val target = VoiceLanguages.otherOfPair(row.entry.language)
+        if (!row.entry.transcribed) {
+            applyLanguage(row.entry.uuid, target)
+            return
+        }
+        AlertDialog.Builder(requireContext(), R.style.Theme_Urik_Dialog)
+            .setTitle(R.string.voice_capture_lang_title)
+            .setMessage(
+                getString(R.string.voice_capture_lang_confirm_one, VoiceLanguages.displayName(target))
+            )
+            .setPositiveButton(R.string.voice_capture_lang_again) { _, _ ->
+                applyLanguage(row.entry.uuid, target)
+            }
+            .setNegativeButton(R.string.export_import_cancel, null)
+            .show()
+    }
+
+    private fun applyLanguage(uuid: String, target: String) {
+        stopPlaying()
+        lifecycleScope.launch {
+            withContext(Dispatchers.IO) { store.setLanguage(uuid, target) }
+            rebuild()
+        }
+    }
+
+    /** The whole walk in one gesture: usually every sentence of it was spoken in the same language. */
+    private fun markAllRow(): View = LinearLayout(requireContext()).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.START
+        for (code in VoiceLanguages.CAPTURE_PAIR) {
+            addView(
+                pill(getString(R.string.voice_capture_lang_all, VoiceLanguages.displayName(code))) {
+                    markAll(code)
+                }
+            )
+        }
+    }
+
+    private fun markAll(target: String) {
+        val changing = rows.count { VoiceLanguages.captureOrDefault(it.entry.language) != target }
+        if (changing == 0) return
+        val losing = rows.count {
+            VoiceLanguages.captureOrDefault(it.entry.language) != target && it.entry.transcribed
+        }
+        if (losing == 0) {
+            applyLanguageToAll(target)
+            return
+        }
+        AlertDialog.Builder(requireContext(), R.style.Theme_Urik_Dialog)
+            .setTitle(R.string.voice_capture_lang_title)
+            .setMessage(
+                getString(
+                    R.string.voice_capture_lang_confirm_many,
+                    changing,
+                    VoiceLanguages.displayName(target),
+                    losing
+                )
+            )
+            .setPositiveButton(R.string.voice_capture_lang_again) { _, _ -> applyLanguageToAll(target) }
+            .setNegativeButton(R.string.export_import_cancel, null)
+            .show()
+    }
+
+    private fun applyLanguageToAll(target: String) {
+        stopPlaying()
+        lifecycleScope.launch {
+            val changed = withContext(Dispatchers.IO) { store.setLanguageForAll(target) }
+            if (changed > 0) {
+                KxkbToast.show(
+                    requireContext(),
+                    getString(
+                        R.string.voice_capture_lang_marked,
+                        changed,
+                        VoiceLanguages.displayName(target)
+                    )
+                )
+            }
+            rebuild()
+        }
     }
 
     // ---- correcting ------------------------------------------------------------------------------------
@@ -865,7 +978,7 @@ class VoiceCaptureFragment : Fragment() {
         setTextSize(TypedValue.COMPLEX_UNIT_SP, sizeSp)
     }
 
-    private fun pill(label: String, onClick: () -> Unit): Button = Button(requireContext()).apply {
+    private fun pill(label: CharSequence, onClick: () -> Unit): Button = Button(requireContext()).apply {
         text = label
         setTextColor(yellow)
         isAllCaps = false

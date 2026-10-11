@@ -1,6 +1,7 @@
 package com.urik.keyboard.data
 
 import android.content.Context
+import com.urik.keyboard.service.voice.VoiceLanguages
 import com.urik.keyboard.utils.ErrorLogger
 import com.urik.keyboard.utils.isUserUnlocked
 import java.io.File
@@ -145,7 +146,9 @@ class VoiceCaptureStore(private val context: Context) {
                     capturedAt = if (capturedAt > 0) capturedAt else System.currentTimeMillis(),
                     // Our own count from the bytes is the duration; the offered field is a cross-check only.
                     durationMs = wavDurationMs(clip) ?: durationMs,
-                    language = language.ifBlank { "en" },
+                    // en or cs and nothing else: this field decides the decode AND, through the
+                    // contract, 言語島's translation direction and voice (§7).
+                    language = VoiceLanguages.captureOrDefault(language),
                     byteLength = clip.length(),
                     sha256 = sha256.lowercase()
                 )
@@ -194,6 +197,49 @@ class VoiceCaptureStore(private val context: Context) {
                 e.recognized, text, e.rawWords, e.rawConfidences, e.attempts
             )
         }
+    }
+
+    /**
+     * Set the language this sentence is to be decoded as (contract §7 — `en` or `cs`, normalised here, so
+     * nothing but the agreed pair can ever be stored or sent on). False when nothing changed.
+     */
+    fun setLanguage(uuid: String, language: String): Boolean {
+        if (!usable) return false
+        val wanted = VoiceLanguages.captureOrDefault(language)
+        val entries = readIndex()
+        if (entries.none { it.uuid == uuid && it.language != wanted }) return false
+        writeIndex(entries.map { if (it.uuid == uuid) relanguaged(it, wanted) else it })
+        return true
+    }
+
+    /**
+     * The same for the whole inbox — a walk spoken in one language is marked in one gesture, and in one
+     * index write rather than one per sentence. Returns how many sentences changed.
+     */
+    fun setLanguageForAll(language: String): Int {
+        if (!usable) return 0
+        val wanted = VoiceLanguages.captureOrDefault(language)
+        val entries = readIndex()
+        val changing = entries.count { it.language != wanted }
+        if (changing == 0) return 0
+        writeIndex(entries.map { relanguaged(it, wanted) })
+        return changing
+    }
+
+    /**
+     * [entry] as [wanted], and therefore NOT transcribed any more: a decode belongs to the language it was
+     * made in, and a Czech sentence read as English is not a sentence to correct but one to decode again.
+     * The failed-attempt count goes with it, so a clip that came back silent in the wrong language is not
+     * still accused of silence. Corrections already made are untouched — they were written to the corpus
+     * the moment they were saved, which is what makes them evidence rather than screen state.
+     */
+    private fun relanguaged(entry: Entry, wanted: String): Entry {
+        if (entry.language == wanted) return entry
+        return Entry(
+            entry.uuid, entry.clip, entry.capturedAt, entry.durationMs, wanted, entry.byteLength,
+            entry.sha256,
+            recognized = null, text = null, rawWords = null, rawConfidences = null, attempts = 0
+        )
     }
 
     /**

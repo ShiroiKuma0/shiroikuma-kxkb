@@ -186,11 +186,78 @@ class VoiceCaptureStoreTest {
         assertNotNull(store.clipFile(store.entries().single()))
     }
 
-    private fun offer(uuid: String, wav: ByteArray): VoiceCaptureStore.Import = store.import(
+    @Test
+    fun `an offered language outside the agreed pair becomes the default`() {
+        // The field decides a decode AND, on the far side of the contract, a translation direction and a
+        // voice — so a code neither side agreed on is normalised where it enters, never carried onward.
+        offer("odd", wav(seconds = 1.0, peak = 8000), language = "ja")
+        assertEquals("en", store.entries().single().language)
+    }
+
+    @Test
+    fun `an offered Czech clip arrives marked as Czech`() {
+        offer("cz", wav(seconds = 1.0, peak = 8000), language = "cs")
+        assertEquals("cs", store.entries().single().language)
+    }
+
+    @Test
+    fun `switching the language drops the decode, so the clip is decoded again`() {
+        offer("one", wav(seconds = 1.0, peak = 8000))
+        store.saveTranscript("one", "Lucky was", "Lucky was", listOf("Lucky", "was"), listOf(0.9f, 0.3f))
+        store.countFailedAttempt("one")
+
+        assertTrue(store.setLanguage("one", "cs"))
+
+        val entry = VoiceCaptureStore(context).entries().single()
+        assertEquals("cs", entry.language)
+        assertFalse(entry.transcribed)
+        assertNull(entry.text)
+        assertNull(entry.recognized)
+        assertNull(entry.rawWords)
+        // A clip that came back silent in the wrong language is not still accused of silence.
+        assertEquals(0, entry.attempts)
+        // The recording itself is untouched — it is the one thing a re-decode needs.
+        assertNotNull(store.clipFile(entry))
+    }
+
+    @Test
+    fun `setting the language it already has changes nothing`() {
+        offer("same", wav(seconds = 1.0, peak = 8000))
+        store.saveTranscript("same", "Heard this", "Heard this", null, null)
+
+        assertFalse(store.setLanguage("same", "en"))
+        // An unknown code normalises to en, which this sentence already is: still nothing to do.
+        assertFalse(store.setLanguage("same", "de"))
+        assertTrue(store.entries().single().transcribed)
+    }
+
+    @Test
+    fun `marking the whole walk changes every sentence that was not already in that language`() {
+        offer("a", wav(seconds = 1.0, peak = 8000))
+        offer("b", wav(seconds = 1.0, peak = 8000))
+        offer("c", wav(seconds = 1.0, peak = 8000), language = "cs")
+        store.saveTranscript("a", "One", "One", null, null)
+
+        assertEquals(2, store.setLanguageForAll("cs"))
+
+        val entries = VoiceCaptureStore(context).entries()
+        assertEquals(3, entries.size)
+        assertTrue(entries.all { it.language == "cs" })
+        assertTrue(entries.none { it.transcribed })
+        // Idempotent: a second tap on the same pill has nothing left to do.
+        assertEquals(0, store.setLanguageForAll("cs"))
+    }
+
+    @Test
+    fun `a language set on a sentence that is not here is no-one's business`() {
+        assertFalse(store.setLanguage("missing", "cs"))
+    }
+
+    private fun offer(uuid: String, wav: ByteArray, language: String = "en"): VoiceCaptureStore.Import = store.import(
         uuid = uuid,
         capturedAt = 1_700_000_000_000L,
         durationMs = 0,
-        language = "en",
+        language = language,
         declaredBytes = wav.size.toLong(),
         sha256 = sha(wav),
         source = ByteArrayInputStream(wav)

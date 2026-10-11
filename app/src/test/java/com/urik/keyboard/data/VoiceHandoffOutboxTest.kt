@@ -25,8 +25,8 @@ class VoiceHandoffOutboxTest {
         File(context.filesDir, VoiceHandoffOutbox.DIR).deleteRecursively()
     }
 
-    private fun item(uuid: String, text: String = "A sentence.", capturedAt: Long = 1L) =
-        VoiceHandoffOutbox.Item(uuid, text, "a sentence", "en", capturedAt, 99L)
+    private fun item(uuid: String, text: String = "A sentence.", capturedAt: Long = 1L, language: String = "en") =
+        VoiceHandoffOutbox.Item(uuid, text, "a sentence", language, capturedAt, 99L)
 
     @Test
     fun `sentences wait in the order they were spoken`() {
@@ -88,6 +88,17 @@ class VoiceHandoffOutboxTest {
         assertEquals("a sentence", json.getString("recognized"))
         assertEquals("en", json.getString("language"))
         assertEquals(1L, json.getLong("capturedAt"))
+    }
+
+    @Test
+    fun `a Czech sentence reaches the wire as Czech`() {
+        // The language 白い熊 set in the review is what 言語島 translates from (contract §7), so it has to
+        // survive the queue, a reload and the item JSON unchanged.
+        outbox.add(item("cz", text = "Šel jsem k řece.", language = "cs"))
+
+        val queued = VoiceHandoffOutbox(context).pending().single()
+        assertEquals("cs", queued.language)
+        assertEquals("cs", queued.toJson().getString("language"))
     }
 
     @Test
