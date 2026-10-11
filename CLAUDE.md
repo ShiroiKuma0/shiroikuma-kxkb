@@ -694,7 +694,30 @@ first) — the prefix-completion ranking is a separate matter, untouched. `Japan
 runs against the REAL bundled assets and was verified to FAIL (7 of 15) with the penalty forced to 0.
 Suite 2 161 green.
 
-**Released `0.23.1+348`** (2026-10-11; tagged `0.23.1+348` — the Japanese inflected-form demotion; APK attached, on the fork's
+**Shipped since `+348`** (the `+349` line): **a walk sentence is decoded in the language it was
+spoken in** — every clip arrived declaring `en` (the recorder's default, never a verdict) and was
+decoded as English whatever had been said into it, so a Czech walk was unusable; the Walk capture
+page now carries a language pill per sentence ("English ⇄ čeština", current half bold + bright, the
+other dim — bold as well as bright, since brightness alone is a thin thread to hang a row's meaning
+on) plus two "mark all" pills above "Transcribe all", in the order the work happens. ONE field
+already decided everything (`VoiceCaptureStore.Entry.language` → the Whisper decode language, the
+dictionary the word marks are judged against, whether `CzechCommas` runs, what the corpus learns,
+and the `language` handed to 言語島), so the change is `setLanguage`/`setLanguageForAll` (one index
+write for a whole walk) + the controls; `service/voice/VoiceLanguages.kt` is now the one place the
+pair and the language names live (the mic key's long-press flash reads them from there). Switching
+DISCARDS that sentence's decode — a transcription belongs to the language it was made in — with a
+confirm whenever one would be dropped (per sentence, or per batch naming the count); saved
+corrections stay (they went to the corpus when saved), the failed-attempt count resets with the
+decode, the clip is untouched. **Contract §7** (`docs/sister-app-contract-kxkb-gengoshima.md`, the
+same text handed to the 自由作業盤 chat for its identical copy): §2's `language` has been on the wire
+from the start and only ever held `en`; it now holds `en` or `cs`, is on every item, and is
+AUTHORITATIVE — the review's verdict and the language the audio was really decoded in — with an
+unagreed code normalised where it ENTERS, so 言語島 never sees a third value. §1 unchanged, no audio
+either way. 言語島's half (per-row language, cs→ja, a Czech source voice, the `li::lang::cs` tag,
+settable on 未分類/the islands editor/文入力) is 自由作業盤's own work, decided there with 白い熊.
+Suite 2 168 green.
+
+**Released `0.23.1+349`** (2026-10-11; tagged `0.23.1+349` — the walk-capture transcription language; APK attached, on the fork's
 GitHub; default branch `custom`; README badge + `CHANGELOG.md` track it). **Release tags carry NO `v` prefix** (白い熊,
 2026-09-05): the first fork release was the bare `0.23.1+72`, the `v` crept in at `+147`, and the 30 tags
 from `+147` to `+316` were renamed to bare — their GitHub releases were MOVED onto the new tags
@@ -706,7 +729,7 @@ by it — so recreating 30 tags at once sorted them all above the genuinely newe
 older tag object. `publishedAt` is untouched and the `releases/latest` API stayed correct, but the page
 looked wrong until `0.23.1+320`'s tag was force-recreated so its object was the newest again. Retag oldest
 first, or re-cut the newest tag last. Recent fork releases:
-`+316`, `+320`, `+321`, `+324`, `+335`, `+337`, `+338`, `+343`, `+347`, `+348` (earlier: `+313`, `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`, `+211`, `+213`,
+`+316`, `+320`, `+321`, `+324`, `+335`, `+337`, `+338`, `+343`, `+347`, `+348`, `+349` (earlier: `+313`, `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`, `+211`, `+213`,
 `+214`, `+215`, `+217`, `+222`, `+230`, `+250`, `+287`, `+292`, `+295`, `+296`, `+298`, `+299`, `+300`,
 `+301`, `+302`, `+304`, `+305`, `+306`, `+309`, `+312`). Remaining M5 tail (low priority): number/arrow
 rows on the look page, quick-period flick. Full architecture + milestone sequence in `docs/PLAN.md`.
