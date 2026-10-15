@@ -717,7 +717,26 @@ either way. 言語島's half (per-row language, cs→ja, a Czech source voice, t
 settable on 未分類/the islands editor/文入力) is 自由作業盤's own work, decided there with 白い熊.
 Suite 2 168 green.
 
-**Released `0.23.1+349`** (2026-10-11; tagged `0.23.1+349` — the walk-capture transcription language; APK attached, on the fork's
+**Shipped since `+349`** (the `+350` line): **a walk sentence's recording is followed across its two
+homes** — a per-word correction is stored the moment it is saved, and storing it MOVES the clip out of
+`filesDir/voice_capture/` into `filesDir/voice_corpus/` as `<utteranceId>.wav` (= the capture uuid) while
+the inbox row stays until the sentence is sent, so the review page — which looked only in the inbox — lost
+the Play pill on the first correction and, silently with it, the ability to TRANSCRIBE that sentence again
+(`readSamples` null → counted as another silent attempt) and to SWITCH ITS LANGUAGE (which discards the
+decode by design, expecting a re-decode that had no audio left to run on: permanently undecodable, only
+deletable); one resolver now serves every clip site — `VoiceCaptureFragment.clipOf` =
+`store.clipFile(entry) ?: corpus.clipOf(uuid)` — with `VoiceCorpusRepository.clipOf` naming the adopted
+clip after the utterance and a `VoiceCaptureStore.readSamples(File)` overload for the decode (the existing
+one resolves through the inbox directory); **deleting a walk sentence is undoable** — the walk is over and
+the recording cannot be made again, so a confirmed delete no longer reaches the store: the row collapses in
+place to what it held, struck through, with `↺ Undo` beside it, and the removal commits in `onDestroyView`
+— but only when the page is REALLY going (`isRemoving || activity.isFinishing`), because the settings
+activity is recreated on every fold/rotation and that must not end the undo window (the pending uuids ride
+in the instance state and the stubs come back); a killed process simply leaves the sentence standing, and a
+waiting row is skipped by "Transcribe all", left out of the waiting count and the "mark all" tallies, and
+never sent. `VoiceCaptureClipTest` runs the move end to end against a real Room corpus. Suite 2 172 green.
+
+**Released `0.23.1+350`** (2026-10-15; tagged `0.23.1+350` — the walk clip followed across its two homes + undoable delete; APK attached, on the fork's
 GitHub; default branch `custom`; README badge + `CHANGELOG.md` track it). **Release tags carry NO `v` prefix** (白い熊,
 2026-09-05): the first fork release was the bare `0.23.1+72`, the `v` crept in at `+147`, and the 30 tags
 from `+147` to `+316` were renamed to bare — their GitHub releases were MOVED onto the new tags
@@ -729,7 +748,7 @@ by it — so recreating 30 tags at once sorted them all above the genuinely newe
 older tag object. `publishedAt` is untouched and the `releases/latest` API stayed correct, but the page
 looked wrong until `0.23.1+320`'s tag was force-recreated so its object was the newest again. Retag oldest
 first, or re-cut the newest tag last. Recent fork releases:
-`+316`, `+320`, `+321`, `+324`, `+335`, `+337`, `+338`, `+343`, `+347`, `+348`, `+349` (earlier: `+313`, `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`, `+211`, `+213`,
+`+316`, `+320`, `+321`, `+324`, `+335`, `+337`, `+338`, `+343`, `+347`, `+348`, `+349`, `+350` (earlier: `+313`, `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`, `+211`, `+213`,
 `+214`, `+215`, `+217`, `+222`, `+230`, `+250`, `+287`, `+292`, `+295`, `+296`, `+298`, `+299`, `+300`,
 `+301`, `+302`, `+304`, `+305`, `+306`, `+309`, `+312`). Remaining M5 tail (low priority): number/arrow
 rows on the look page, quick-period flick. Full architecture + milestone sequence in `docs/PLAN.md`.
