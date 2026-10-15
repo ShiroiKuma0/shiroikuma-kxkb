@@ -195,6 +195,12 @@ constructor(
     fun clipFile(name: String?): File? = name?.let { File(File(context.filesDir, CORPUS_DIR), it) }?.takeIf { it.isFile }
 
     /**
+     * The recording kept for [utteranceId], named the way [adoptClip] and [writeClip] name it. The
+     * walk-capture review resolves a clip here once a correction has moved it out of the capture inbox.
+     */
+    fun clipOf(utteranceId: String): File? = clipFile("$utteranceId.wav")
+
+    /**
      * Delete one kept dictation — its recording, its row and its word evidence. What it taught (a confirmed
      * word, a correction rule) is forgotten too: the language's knowledge is rebuilt from what remains.
      */

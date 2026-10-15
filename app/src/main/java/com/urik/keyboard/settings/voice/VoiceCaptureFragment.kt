@@ -10,6 +10,7 @@ import android.text.Spanned
 import android.text.method.LinkMovementMethod
 import android.text.style.ClickableSpan
 import android.text.style.ForegroundColorSpan
+import android.text.style.StrikethroughSpan
 import android.text.style.StyleSpan
 import android.util.TypedValue
 import android.view.Gravity
@@ -47,6 +48,7 @@ import com.urik.keyboard.settings.SettingsRepository
 import com.urik.keyboard.ui.keyboard.components.VoiceReviewColors
 import com.urik.keyboard.utils.KxkbToast
 import dagger.hilt.android.AndroidEntryPoint
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -86,7 +88,9 @@ class VoiceCaptureFragment : Fragment() {
     private class Row(
         val entry: VoiceCaptureStore.Entry,
         val ledger: VoiceSessionLedger?,
-        val sentence: VoiceSessionLedger.Entry?
+        val sentence: VoiceSessionLedger.Entry?,
+        /** Deleted on this page, not yet in the store: it shows its Undo instead of its sentence. */
+        val dropped: Boolean = false
     )
 
     private lateinit var store: VoiceCaptureStore
@@ -97,6 +101,15 @@ class VoiceCaptureFragment : Fragment() {
     private var playingButton: Button? = null
     private var working = false
     private val rows = mutableListOf<Row>()
+
+    /**
+     * Sentences deleted on this page but not yet in the store. Deleting a walk sentence throws away a
+     * recording that cannot be made again — the walk is over — so the tap does not reach the store: the row
+     * collapses to what it held, struck through, with the way back beside it, and the removal is committed
+     * when the page goes. A mis-tap costs nothing, and the worst a killed process can do is leave a
+     * sentence standing.
+     */
+    private val pendingDrops = linkedSetOf<String>()
 
     // The transcription run's progress dialog — the load alone is seconds, which read as "stuck" before.
     private var progressDialog: AlertDialog? = null
@@ -121,6 +134,7 @@ class VoiceCaptureFragment : Fragment() {
     private val stamp = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.ROOT)
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
+        savedInstanceState?.getStringArrayList(STATE_DROPS)?.let { pendingDrops.addAll(it) }
         store = VoiceCaptureStore(requireContext())
         outbox = VoiceHandoffOutbox(requireContext())
         handoff = GengoshimaHandoff(outbox)
@@ -146,7 +160,16 @@ class VoiceCaptureFragment : Fragment() {
         stopPlaying()
     }
 
+    /** A fold or a rotation rebuilds this page; the deletions waiting on it must survive that. */
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putStringArrayList(STATE_DROPS, ArrayList(pendingDrops))
+    }
+
     override fun onDestroyView() {
+        // Only when the page is really going. A recreation — 白い熊 unfolds the phone mid-review — is not
+        // the end of the undo window: the uuids ride along in the instance state and the stubs come back.
+        if (isRemoving || requireActivity().isFinishing) commitDrops()
         super.onDestroyView()
         dismissProgress()
     }
@@ -163,7 +186,15 @@ class VoiceCaptureFragment : Fragment() {
                 store.entries()
             }
             rows.clear()
-            for (entry in entries) rows.add(rowFor(entry, threshold))
+            for (entry in entries) {
+                // A dropped row is never judged: it is on its way out, and the work would be thrown away.
+                val row = if (entry.uuid in pendingDrops) {
+                    Row(entry, null, null, dropped = true)
+                } else {
+                    rowFor(entry, threshold)
+                }
+                rows.add(row)
+            }
             render()
         }
     }
@@ -211,7 +242,7 @@ class VoiceCaptureFragment : Fragment() {
             judgements = judged.judgements,
             samples = null,
             originals = judged.originals,
-            clipPath = store.clipFile(entry)?.absolutePath
+            clipPath = clipOf(entry)?.absolutePath
         )
         return Row(entry, ledger, sentence)
     }
@@ -221,8 +252,9 @@ class VoiceCaptureFragment : Fragment() {
         root.addView(text(getString(R.string.voice_capture_title), 22f, yellow))
         val used = store.usedBytes() / (1024.0 * 1024.0)
         val budget = store.budgetBytes() / (1024.0 * 1024.0)
+        val waitingRows = rows.count { !it.dropped }
         root.addView(
-            text(getString(R.string.voice_capture_summary, rows.size, used, budget), 13f, dim)
+            text(getString(R.string.voice_capture_summary, waitingRows, used, budget), 13f, dim)
                 .apply { setPadding(0, dp(6), 0, 0) }
         )
         val waiting = outbox.pendingCount()
@@ -233,7 +265,7 @@ class VoiceCaptureFragment : Fragment() {
         root.addView(text(getString(R.string.voice_capture_intro), 13f, dim).apply { setPadding(0, dp(6), 0, 0) })
         root.addView(legend())
         if (rows.isNotEmpty()) root.addView(markAllRow())
-        if (rows.any { !it.entry.transcribed }) {
+        if (rows.any { !it.dropped && !it.entry.transcribed }) {
             root.addView(pill(getString(R.string.voice_capture_transcribe_all)) { transcribeAll() })
         }
         if (rows.isEmpty()) {
@@ -306,7 +338,9 @@ class VoiceCaptureFragment : Fragment() {
                 dim
             )
         )
-        if (row.sentence == null) {
+        if (row.dropped) {
+            addView(droppedBody(row))
+        } else if (row.sentence == null) {
             val label = if (entry.attempts > 0) {
                 getString(R.string.voice_capture_nothing, entry.attempts)
             } else {
@@ -341,18 +375,40 @@ class VoiceCaptureFragment : Fragment() {
         )
     }
 
+    /** What a deleted sentence leaves behind until the page goes: what it held, struck through. */
+    private fun droppedBody(row: Row): View = TextView(requireContext()).apply {
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+        setTextColor(dim)
+        setPadding(0, dp(2), 0, 0)
+        val held = row.entry.text ?: getString(R.string.voice_capture_not_decoded)
+        text = SpannableStringBuilder(held).apply {
+            setSpan(StrikethroughSpan(), 0, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+    }
+
     /**
      * Two lines rather than one: "Send to 白い熊 自由作業盤" is a long label by design, and a single row of
      * pills would run off the edge of a folded screen.
      */
     private fun buttonRow(row: Row): View = LinearLayout(requireContext()).apply {
         orientation = LinearLayout.VERTICAL
+        if (row.dropped) {
+            addView(
+                LinearLayout(requireContext()).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    addView(pill(getString(R.string.voice_capture_undo)) { undoDrop(row) })
+                    addView(text(getString(R.string.voice_capture_dropped), 12f, dim))
+                }
+            )
+            return@apply
+        }
         addView(
             LinearLayout(requireContext()).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.START
                 addView(languagePill(row))
-                if (store.clipFile(row.entry) != null) {
+                if (clipOf(row.entry) != null) {
                     lateinit var play: Button
                     play = pill(getString(R.string.voice_corpus_play)) { togglePlay(row, play) }
                     addView(play)
@@ -549,10 +605,12 @@ class VoiceCaptureFragment : Fragment() {
     }
 
     private fun markAll(target: String) {
-        val changing = rows.count { VoiceLanguages.captureOrDefault(it.entry.language) != target }
+        val changing = rows.count {
+            !it.dropped && VoiceLanguages.captureOrDefault(it.entry.language) != target
+        }
         if (changing == 0) return
         val losing = rows.count {
-            VoiceLanguages.captureOrDefault(it.entry.language) != target && it.entry.transcribed
+            !it.dropped && VoiceLanguages.captureOrDefault(it.entry.language) != target && it.entry.transcribed
         }
         if (losing == 0) {
             applyLanguageToAll(target)
@@ -779,11 +837,28 @@ class VoiceCaptureFragment : Fragment() {
             .setMessage(getString(R.string.voice_capture_drop_confirm))
             .setPositiveButton(R.string.voice_corpus_delete) { _, _ ->
                 stopPlaying()
-                store.remove(row.entry.uuid)
+                pendingDrops.add(row.entry.uuid)
                 rebuild()
             }
             .setNegativeButton(R.string.export_import_cancel, null)
             .show()
+    }
+
+    private fun undoDrop(row: Row) {
+        pendingDrops.remove(row.entry.uuid)
+        rebuild()
+    }
+
+    /**
+     * Make the deferred deletions real. The undo window IS the page, so this runs as the page goes — and
+     * synchronously, because by then there is no lifecycle scope left to launch anything in. A sentence
+     * sent in the meantime is already out of the store, and [VoiceCaptureStore.remove] shrugs that off.
+     */
+    private fun commitDrops() {
+        if (pendingDrops.isEmpty()) return
+        val uuids = pendingDrops.toList()
+        pendingDrops.clear()
+        for (uuid in uuids) store.remove(uuid)
     }
 
     private fun closeSettings() {
@@ -805,7 +880,9 @@ class VoiceCaptureFragment : Fragment() {
         stopRequested = false
         lifecycleScope.launch {
             val settings = settingsRepository.settings.first()
-            val pending = withContext(Dispatchers.IO) { store.entries().filter { !it.transcribed } }
+            val pending = withContext(Dispatchers.IO) {
+                store.entries().filter { !it.transcribed && it.uuid !in pendingDrops }
+            }
             var decoded = 0
             var silent = 0
             showProgress(pending.size)
@@ -823,7 +900,7 @@ class VoiceCaptureFragment : Fragment() {
                         total = pending.size,
                         step = getString(R.string.voice_capture_progress_item, index + 1, pending.size)
                     )
-                    val samples = withContext(Dispatchers.IO) { store.readSamples(entry) }
+                    val samples = withContext(Dispatchers.IO) { clipOf(entry)?.let { store.readSamples(it) } }
                     val transcript = samples?.let { voiceInput.transcribeSamples(it, entry.language) }
                     val text = transcript?.let { punctuated(it.text, entry.language, settings) }
                     if (text.isNullOrBlank()) {
@@ -937,13 +1014,27 @@ class VoiceCaptureFragment : Fragment() {
         return commas.replace(WHITESPACE, " ").trim()
     }
 
+    // ---- the recording ---------------------------------------------------------------------------------
+
+    /**
+     * This sentence's recording, wherever it now lies. A per-word correction is stored the moment it is
+     * saved, and storing it MOVES the clip out of the inbox and into the voice corpus
+     * ([VoiceCorpusRepository.recordCorrection] → `adoptClip`) while the inbox row stays here until the
+     * sentence is sent — so a corrected row must follow its audio across rather than behave as though it
+     * had none. Reading only the inbox cost the Play pill on the first correction, and with it the ability
+     * to decode the sentence again after a language switch. The corpus names an adopted clip after the
+     * utterance, which here IS the capture uuid.
+     */
+    private fun clipOf(entry: VoiceCaptureStore.Entry): File? =
+        store.clipFile(entry) ?: corpus.clipOf(entry.uuid)
+
     // ---- playback --------------------------------------------------------------------------------------
 
     private fun togglePlay(row: Row, button: Button) {
         val wasThis = playingButton === button
         stopPlaying()
         if (wasThis) return
-        val clip = store.clipFile(row.entry) ?: return
+        val clip = clipOf(row.entry) ?: return
         try {
             player = MediaPlayer().apply {
                 setDataSource(clip.absolutePath)
@@ -1007,6 +1098,9 @@ class VoiceCaptureFragment : Fragment() {
 
     private companion object {
         private val WHITESPACE = Regex("\\s+")
+
+        /** The sentences deleted but not yet committed, across a recreation of the page. */
+        private const val STATE_DROPS = "pending_drops"
 
         /** How long the page waits for the model set to load before giving up on a run. */
         private const val ENGINE_WAIT_MS = 120_000L

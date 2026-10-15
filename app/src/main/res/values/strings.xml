@@ -998,6 +998,8 @@
     <string name="voice_capture_extend_left">◂</string>
     <string name="voice_capture_extend_right">▸</string>
     <string name="voice_capture_drop_confirm">Delete this sentence and its recording? Nothing is learned from it.</string>
+    <string name="voice_capture_dropped">Deleted when you leave this page.</string>
+    <string name="voice_capture_undo">↺ Undo</string>
     <string name="voice_capture_no_model">Import the speech model on the Voice input page first.</string>
     <string name="voice_capture_handoff_state">%1$d waiting to send · %2$d sent</string>
     <string name="voice_capture_handoff_failed">白い熊 自由作業盤 did not take them: %1$s</string>

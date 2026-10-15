@@ -276,8 +276,15 @@ class VoiceCaptureStore(private val context: Context) {
      * [com.urik.keyboard.service.voice.VoiceRecorder] applies to the microphone, so a captured sentence
      * reaches the engine exactly as a dictated one does (the confidence threshold is calibrated on it).
      */
-    fun readSamples(entry: Entry): FloatArray? {
-        val clip = clipFile(entry) ?: return null
+    fun readSamples(entry: Entry): FloatArray? = readSamples(clipFile(entry) ?: return null)
+
+    /**
+     * The same conversion for a clip given by path. A sentence whose words were corrected has already
+     * handed its recording to the voice corpus, so the file is no longer in this store's directory — the
+     * caller resolves it there and passes it in rather than losing the ability to decode it again.
+     */
+    fun readSamples(clip: File): FloatArray? {
+        if (!clip.isFile) return null
         return try {
             val bytes = clip.readBytes()
             val data = dataRange(bytes) ?: return null
