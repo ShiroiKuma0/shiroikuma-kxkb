@@ -4,7 +4,44 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+349 — current
+## 0.23.1+350 — current
+
+Built on Urik `0.23.1-beta`.
+
+### 🎧 A walk sentence’s recording is followed, not lost
+
+Correcting one word on the Walk capture page made that sentence’s **Play** button disappear. The
+recording was never lost — it had moved. Saving a correction stores the evidence at once, and
+storing it hands the clip to the voice corpus, while the sentence’s own row stays in the capture
+inbox until it is sent. The page looked only in the inbox, so a corrected sentence behaved as
+though it had no audio at all.
+
+- **Play comes back**, because every place that wants the audio now resolves both homes — the
+  capture inbox first, then the corpus under the sentence’s own id.
+- **A corrected sentence can be transcribed again.** The decode read the audio through the same
+  single-home lookup, so it found nothing and counted the sentence as one more silent attempt.
+- **…and its language can still be switched.** Switching discards the transcription by design,
+  expecting a fresh decode to follow. After a correction there was no audio left to decode from, so
+  the sentence became permanently undecodable and could only be deleted. Both halves of that are now
+  covered by tests that run against a real corpus.
+
+### ↺ Deleting a walk sentence can be undone
+
+A walk recording cannot be made again — the walk is over — so a confirmed delete no longer reaches
+the store at once.
+
+- **The row stays, as its own undo.** It collapses in place to the sentence it held, struck through,
+  with “↺ Undo” and “Deleted when you leave this page.” beside it. Undo brings the sentence back
+  whole: its transcription, its word marks, its language pill.
+- **The deletion is committed when the page goes**, and only then. Unfolding the phone mid-review
+  rebuilds the page, and that is not the end of the undo window: the pending deletions ride along
+  and the rows come back as they were.
+- **The worst that can happen is a sentence left standing.** A process killed with deletions pending
+  simply does not perform them, which is the right way round for audio that cannot be recovered.
+- **A waiting row is out of the way** meanwhile: skipped by “Transcribe all”, left out of the
+  waiting count and the “mark all” tallies, and never sent.
+
+## 0.23.1+349
 
 Built on Urik `0.23.1-beta`.
 
