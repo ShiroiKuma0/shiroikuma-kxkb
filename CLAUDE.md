@@ -736,7 +736,40 @@ in the instance state and the stubs come back); a killed process simply leaves t
 waiting row is skipped by "Transcribe all", left out of the waiting count and the "mark all" tallies, and
 never sent. `VoiceCaptureClipTest` runs the move end to end against a real Room corpus. Suite 2 172 green.
 
-**Released `0.23.1+350`** (2026-10-15; tagged `0.23.1+350` — the walk clip followed across its two homes + undoable delete; APK attached, on the fork's
+**Shipped since `+350`** (the `+354` line): **a walk sentence 白い熊 has settled is never rewritten** —
+the Walk capture page re-judges every row after every save and judged each as a FRESH decode, so a
+correction saved in sentence #10 fanned out as a rewrite rule over the nine approved before it, and #10
+could not be corrected at all because the whole-sentence Edit box recorded no evidence of its own and the
+rule re-applied on the very next rebuild; `VoiceCaptureStore.Entry.edited` is now persisted (set by
+`saveText`, by a hand-typed `saveTranscript`, cleared with the decode by `setLanguage`, and INFERRED on
+first read for a pre-flag row whose `text != recognized`, so an inbox reviewed by an older build freezes as
+it stands) and `rowFor` passes `replace = !entry.edited` into `VoiceJudging.judge`, whose new `replace`
+flag derives the marks and hands the text back untouched; **the judge's three per-word lists now describe
+the words that STAND** — it replaced known misrecognitions in a `StringBuilder` while returning the
+confidences/judgements/originals of the words that stood BEFORE, so any replacement that was not exactly
+one word (`jsemtady` → `jsem tady`) shifted every later word onto the wrong recognition, confidence and
+mark, and the dictation path hangs its underlines and `SuggestionSpan` originals on the same indices; one
+forward pass rebuilds all three against the new text with the recognised token riding on the FIRST word a
+replacement reads as, and `judge` gained a pure entry point (`knowledge`, `isKnownWord` instead of three
+repositories) which is what made `VoiceJudgingTest` possible at all. Plus **per-sentence Transcribe / Copy
+/ Share**: Transcribe decodes that one clip (on a row that already reads something it says "Transcribe
+again" and confirms first — "Transcribe all" still skips every row with text), Copy puts the current text
+on the clipboard, Share hands it on as `text/plain` and never the recording; the row's controls moved into
+the existing `FlowLayout` so six pills wrap instead of running off a folded screen at a 150 % font scale,
+with Send still on a line of its own. And **leaving the review returns to 言語島's board** (contract
+§8/§8a, agreed with the 自由作業盤 chat): the board **finishes itself** when a tile hands its task over
+(`GengoshimaBoardActivity`), so there is nothing behind the review to reveal — in no task, in no recents —
+and it is `exported="false"`, so 自由作業盤 added a door of its own
+(`shiroikuma.jiyusagyoban.action.OPEN_GENGOSHIMA_BOARD`, the mirror of our `WalkCaptureEntryActivity`)
+which the review fires package-pinned and resolve-checked on Back, the toolbar arrow and Close whenever it
+was opened through our door; a caller may name a 自由作業盤 task instead in the door's one optional
+`return_task` extra (run through that app's own exported `TaskRunActivity`), an explicit task wins, the
+board is the default, and with neither the page closes as before. The `+352` attempt —
+`getLaunchIntentForPackage` — was wrong twice: the board lives in its own `.gengoshimaboard` task, not
+`MainActivity`'s (白い熊 landed on the Variables page), and the board was gone regardless. Suite 2 188
+green.
+
+**Released `0.23.1+354`** (2026-10-18; tagged `0.23.1+354` — a settled walk sentence is never rewritten, per-sentence Transcribe/Copy/Share, and the way back to 言語島's board; APK attached, on the fork's
 GitHub; default branch `custom`; README badge + `CHANGELOG.md` track it). **Release tags carry NO `v` prefix** (白い熊,
 2026-09-05): the first fork release was the bare `0.23.1+72`, the `v` crept in at `+147`, and the 30 tags
 from `+147` to `+316` were renamed to bare — their GitHub releases were MOVED onto the new tags
@@ -748,7 +781,7 @@ by it — so recreating 30 tags at once sorted them all above the genuinely newe
 older tag object. `publishedAt` is untouched and the `releases/latest` API stayed correct, but the page
 looked wrong until `0.23.1+320`'s tag was force-recreated so its object was the newest again. Retag oldest
 first, or re-cut the newest tag last. Recent fork releases:
-`+316`, `+320`, `+321`, `+324`, `+335`, `+337`, `+338`, `+343`, `+347`, `+348`, `+349`, `+350` (earlier: `+313`, `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`, `+211`, `+213`,
+`+316`, `+320`, `+321`, `+324`, `+335`, `+337`, `+338`, `+343`, `+347`, `+348`, `+349`, `+350`, `+354` (earlier: `+313`, `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`, `+211`, `+213`,
 `+214`, `+215`, `+217`, `+222`, `+230`, `+250`, `+287`, `+292`, `+295`, `+296`, `+298`, `+299`, `+300`,
 `+301`, `+302`, `+304`, `+305`, `+306`, `+309`, `+312`). Remaining M5 tail (low priority): number/arrow
 rows on the look page, quick-period flick. Full architecture + milestone sequence in `docs/PLAN.md`.
