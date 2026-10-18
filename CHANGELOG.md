@@ -4,7 +4,66 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+350 — current
+## 0.23.1+354 — current
+
+Built on Urik `0.23.1-beta`.
+
+### ✅ A sentence you have settled stays settled
+
+Correcting a word in the tenth sentence of a walk rewrote most of the nine before it, and the tenth
+could no longer be corrected at all. The Walk capture page re-judges every row after every save, and
+it judged each one as a **fresh decode** — which replaces the recognitions you have corrected before,
+because that is precisely what correcting them is for. Nothing told the judge that a sentence had
+already been through your hands.
+
+- **Every hand edit now marks its sentence**, and a marked sentence is judged for its colours alone:
+  the text is handed back exactly as you left it. A word corrected in the box, a whole sentence typed
+  over, a sentence typed onto a clip the engine heard nothing in — all three.
+- **The whole-sentence Edit box is authoritative at last.** It recorded nothing of its own before, so
+  an auto-replacement rule simply re-applied on the next rebuild and undid what you had just typed.
+- **Sentences already corrected are marked on first read**, so an inbox reviewed by an older build
+  freezes exactly as it stands instead of being rewritten once more.
+- Switching a sentence's language clears the mark with the decode — a new decode is a new decode.
+
+### 🎯 The judge's word-by-word bookkeeping describes the words that are there
+
+A stored correction need not be one word for one word: “jsemtady” → “jsem tady” makes the sentence a
+word longer. The replacement pass handed back the confidences, the marks and the recognitions of the
+words that stood **before** it ran, so everything after a replacement of any other length was read
+against the wrong word — the wrong colour, the wrong confidence, the wrong “Heard:”. The same
+indices carry the dictation path's underlines, so that was quietly wrong too. The pass is now a
+single forward walk that rebuilds all three against the words that now stand, with what was heard
+riding on the first word a replacement reads as — the blue one, the one ↺ puts back.
+
+### 🎛 Transcribe, Copy and Share, per sentence
+
+- **Transcribe** decodes that one recording, without putting the whole walk through the engine again
+  — for a sentence that came back wrong, or one the keyboard has learned something since. On a
+  sentence that already reads something the pill says **Transcribe again** and asks first, since the
+  text may be one you corrected or typed by hand. “Transcribe all” is unchanged and still skips every
+  sentence that has text.
+- **Copy** puts the sentence, as it now reads, on the clipboard.
+- **Share** hands it to another app as plain text — never the recording, which belongs to the voice
+  corpus.
+- The row's controls **wrap** now instead of running off the edge of a folded screen: there are six
+  of them, the language pill is as wide as two, and a large system font size made that worse.
+  “Send to 白い熊 自由作業盤” keeps a line of its own, being the one that cannot be taken back.
+
+### ↩ Back returns to 言語島's board
+
+Opening the review from the 言語島 board's 「録音確認」 tile and pressing Back left you anywhere but
+the board. The board **finishes itself** the moment a tile hands its task over, so by the time the
+review appears there is nothing left behind it — in no task, in no recents list — and an activity
+that no longer exists cannot be revealed by any amount of stack juggling. It has to be opened again,
+and only 自由作業盤 can open it.
+
+Agreed with 自由作業盤 as §8/§8a of the shared contract: that app now has a door of its own to the
+board, the mirror of this keyboard's walk-capture door, and the review knocks on it — pinned to that
+one app, and only when it answers — on Back, on the toolbar arrow and on Close. A caller may name a
+自由作業盤 task to run instead; an explicit task wins, the board is the default, and when there is
+neither the page simply closes as it always did.
+
+## 0.23.1+350
 
 Built on Urik `0.23.1-beta`.
 
