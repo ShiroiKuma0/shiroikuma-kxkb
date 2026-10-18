@@ -1,5 +1,9 @@
 package com.urik.keyboard.settings.voice
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
@@ -44,7 +48,9 @@ import com.urik.keyboard.service.voice.VoiceSessionLedger
 import com.urik.keyboard.service.voice.VoiceTranscript
 import com.urik.keyboard.service.voice.VoiceWordJudge
 import com.urik.keyboard.settings.KeyboardSettings
+import com.urik.keyboard.settings.SettingsActivity
 import com.urik.keyboard.settings.SettingsRepository
+import com.urik.keyboard.ui.keyboard.components.FlowLayout
 import com.urik.keyboard.ui.keyboard.components.VoiceReviewColors
 import com.urik.keyboard.utils.KxkbToast
 import dagger.hilt.android.AndroidEntryPoint
@@ -214,6 +220,12 @@ class VoiceCaptureFragment : Fragment() {
      * A decoded sentence gets a one-sentence ledger: the words, their marks and their offsets inside the
      * sentence itself (`fieldStart = 0`). The dictation ledger's field machinery — the longest-common-
      * subsequence re-location of words in a live field — has nothing to re-locate here, and is never called.
+     *
+     * The page is rebuilt after every save, and judging a FRESH decode rewrites the recognitions you have
+     * corrected before — which is the point of correcting them. A sentence you have already settled
+     * ([VoiceCaptureStore.Entry.edited]) is judged for its marks alone: a correction made in sentence #10
+     * may never reach back into the nine sentences you approved before it, nor undo itself in the one it
+     * was made in.
      */
     private suspend fun rowFor(entry: VoiceCaptureStore.Entry, threshold: Float): Row {
         val text = entry.text ?: return Row(entry, null, null)
@@ -230,7 +242,8 @@ class VoiceCaptureFragment : Fragment() {
             threshold = threshold,
             corpus = corpus,
             userDictionary = userDictionary,
-            spellCheckManager = spellCheckManager
+            spellCheckManager = spellCheckManager,
+            replace = !entry.edited
         )
         val ledger = VoiceSessionLedger()
         val sentence = ledger.add(
@@ -387,8 +400,12 @@ class VoiceCaptureFragment : Fragment() {
     }
 
     /**
-     * Two lines rather than one: "Send to 白い熊 自由作業盤" is a long label by design, and a single row of
-     * pills would run off the edge of a folded screen.
+     * The row's own controls, in a flow that WRAPS. A fixed row ran off the edge of a folded screen with
+     * four pills on it, and there are six here now — the language pill alone is as wide as two — so the
+     * line breaks where the screen ends instead, and unfolding the phone simply fits more on a line.
+     *
+     * "Send to 白い熊 自由作業盤" keeps a line of its own beneath them, as before: it is the one that cannot
+     * be taken back, and it should not drift under a thumb aimed at Share.
      */
     private fun buttonRow(row: Row): View = LinearLayout(requireContext()).apply {
         orientation = LinearLayout.VERTICAL
@@ -404,16 +421,26 @@ class VoiceCaptureFragment : Fragment() {
             return@apply
         }
         addView(
-            LinearLayout(requireContext()).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.START
+            FlowLayout(requireContext()).apply {
+                // The pills carry their own margins for a LinearLayout, which a flow ignores; these are
+                // the same two gaps, in the one place the flow reads them.
+                horizontalSpacing = dp(10)
+                verticalSpacing = dp(8)
+                setPadding(0, dp(8), 0, 0)
                 addView(languagePill(row))
+                // Both of these need the recording itself, and a corrected sentence's clip has moved into
+                // the voice corpus — which is exactly what [clipOf] follows.
                 if (clipOf(row.entry) != null) {
                     lateinit var play: Button
                     play = pill(getString(R.string.voice_corpus_play)) { togglePlay(row, play) }
                     addView(play)
+                    addView(pill(transcribeLabel(row)) { transcribeOne(row) })
                 }
                 addView(pill(getString(R.string.voice_capture_edit)) { editSentence(row) })
+                if (textOf(row) != null) {
+                    addView(pill(getString(R.string.voice_capture_copy)) { copySentence(row) })
+                    addView(pill(getString(R.string.voice_capture_share)) { shareSentence(row) })
+                }
                 addView(pill(getString(R.string.voice_corpus_delete)) { confirmDrop(row) })
             }
         )
@@ -425,6 +452,47 @@ class VoiceCaptureFragment : Fragment() {
                     addView(pill(getString(R.string.voice_capture_send_one)) { sendOneAndPush(row) })
                 }
             )
+        }
+    }
+
+    /**
+     * The sentence as it now reads — what Copy and Share hand on. The ledger's text when the row is
+     * decoded (so a correction made here travels with it), the stored text otherwise, and null when there
+     * is nothing to hand on at all.
+     */
+    private fun textOf(row: Row): String? = (row.sentence?.currentText() ?: row.entry.text)?.takeIf { it.isNotBlank() }
+
+    /**
+     * The sentence on the clipboard. The review page is where a walk sentence is finished, but not always
+     * where it is wanted: this is the way one of them reaches a note, a message or a search without going
+     * through 言語島 at all.
+     */
+    private fun copySentence(row: Row) {
+        val text = textOf(row) ?: return
+        val clipboard = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+        if (clipboard == null) {
+            KxkbToast.show(requireContext(), getString(R.string.voice_capture_share_failed))
+            return
+        }
+        clipboard.setPrimaryClip(ClipData.newPlainText(getString(R.string.voice_capture_title), text))
+        KxkbToast.show(requireContext(), getString(R.string.voice_capture_copied))
+    }
+
+    /**
+     * The same sentence handed to another app. Plain `text/plain` and nothing else: the recording stays
+     * here — it is the keyboard's training material and belongs to the voice corpus, not to whatever app
+     * the chooser lands on.
+     */
+    private fun shareSentence(row: Row) {
+        val text = textOf(row) ?: return
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, text)
+        }
+        runCatching {
+            startActivity(Intent.createChooser(send, getString(R.string.voice_capture_share_title)))
+        }.onFailure {
+            KxkbToast.show(requireContext(), getString(R.string.voice_capture_share_failed))
         }
     }
 
@@ -489,7 +557,8 @@ class VoiceCaptureFragment : Fragment() {
                 recognized = text,
                 text = text,
                 rawWords = null,
-                rawConfidences = null
+                rawConfidences = null,
+                edited = true
             )
         }
         rebuild()
@@ -864,13 +933,56 @@ class VoiceCaptureFragment : Fragment() {
     private fun closeSettings() {
         stopPlaying()
         val activity = requireActivity()
-        // Opened straight from 自由作業盤 or the space menu: close the whole settings task, not one page of it.
+        // Opened from 自由作業盤's dashboard: leaving the review means going back to it, which is what Back
+        // and the toolbar arrow do too — the three ways out of this page must not land in three places.
+        if (activity is SettingsActivity && activity.returnToCaller()) return
+        // Opened from the space menu: close the whole settings task, not one page of it.
         runCatching { activity.finishAffinity() }.onFailure { activity.finish() }
     }
 
     // ---- decoding --------------------------------------------------------------------------------------
 
-    private fun transcribeAll() {
+    /** Every sentence that has not been decoded yet, in one run of the engine. */
+    private fun transcribeAll() = transcribe(null)
+
+    /** What this row's Transcribe pill says: a first decode, or a second one over a decode that stands. */
+    private fun transcribeLabel(row: Row): String = getString(
+        if (row.entry.transcribed) {
+            R.string.voice_capture_transcribe_again
+        } else {
+            R.string.voice_capture_transcribe_one
+        }
+    )
+
+    /**
+     * Decode THIS recording, and only it. A sentence that came back wrong — the wrong language caught late,
+     * a word the keyboard has learned since, a decode that simply failed — is worth another run on its own,
+     * without putting every other sentence of the walk through the engine again.
+     *
+     * A decode that already stands is overwritten, so this asks first: the text may be one 白い熊 corrected
+     * or typed by hand, and that is not something a stray tap may throw away. What was learned from those
+     * corrections is untouched either way — it went to the corpus when it was saved.
+     */
+    private fun transcribeOne(row: Row) {
+        if (!row.entry.transcribed) {
+            transcribe(setOf(row.entry.uuid))
+            return
+        }
+        AlertDialog.Builder(requireContext(), R.style.Theme_Urik_Dialog)
+            .setTitle(R.string.voice_capture_transcribe_again)
+            .setMessage(R.string.voice_capture_transcribe_again_confirm)
+            .setPositiveButton(R.string.voice_capture_transcribe_again) { _, _ ->
+                transcribe(setOf(row.entry.uuid))
+            }
+            .setNegativeButton(R.string.export_import_cancel, null)
+            .show()
+    }
+
+    /**
+     * One run of the engine over [only] (by uuid), or — [only] null — over every sentence still waiting for
+     * a first decode. A sentence deleted on this page is never decoded: it is on its way out.
+     */
+    private fun transcribe(only: Set<String>?) {
         if (working) return
         if (VoiceModelStore.status(requireContext()) != VoiceModelStore.Status.INSTALLED) {
             KxkbToast.show(requireContext(), getString(R.string.voice_capture_no_model))
@@ -878,13 +990,20 @@ class VoiceCaptureFragment : Fragment() {
         }
         working = true
         stopRequested = false
+        stopPlaying()
         lifecycleScope.launch {
             val settings = settingsRepository.settings.first()
             val pending = withContext(Dispatchers.IO) {
-                store.entries().filter { !it.transcribed && it.uuid !in pendingDrops }
+                store.entries().filter {
+                    it.uuid !in pendingDrops && if (only == null) !it.transcribed else it.uuid in only
+                }
             }
             var decoded = 0
             var silent = 0
+            if (pending.isEmpty()) {
+                working = false
+                return@launch
+            }
             showProgress(pending.size)
             // One run for the whole page: the engine loads once instead of per sentence.
             voiceInput.beginBatch()

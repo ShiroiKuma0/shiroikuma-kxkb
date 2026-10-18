@@ -190,4 +190,32 @@ class GengoshimaHandoffTest {
         assertEquals("ERROR:items", handoff.ack("not json"))
         assertEquals("ERROR:items", handoff.ack(null))
     }
+
+    // ---- §8 / §8a: the way back out of the review ------------------------------------------------------
+
+    @Test
+    fun `a named task is run through 自由作業盤's own run-a-task door`() {
+        val back = GengoshimaHandoff.returnIntent("言語島 -- [227]", throughOurDoor = true)!!
+
+        assertEquals(GengoshimaHandoff.PACKAGE, back.component?.packageName)
+        assertEquals(GengoshimaHandoff.TASK_RUNNER, back.component?.className)
+        assertEquals("言語島 -- [227]", back.getStringExtra(GengoshimaHandoff.EXTRA_TASK_NAME))
+        // The run log should say where the run came from, not merely that something ran.
+        assertEquals(GengoshimaHandoff.TASK_SOURCE, back.getStringExtra(GengoshimaHandoff.EXTRA_TASK_SOURCE))
+    }
+
+    @Test
+    fun `with no task named, the review returns to the board's own door`() {
+        val back = GengoshimaHandoff.returnIntent(null, throughOurDoor = true)!!
+
+        assertEquals("shiroikuma.jiyusagyoban.action.OPEN_GENGOSHIMA_BOARD", back.action)
+        // Pinned: an action this broad must never be offered to the phone at large.
+        assertEquals(GengoshimaHandoff.PACKAGE, back.`package`)
+    }
+
+    @Test
+    fun `a review nothing of 自由作業盤's opened has nowhere to return to`() {
+        // The space-slide menu's own entry to the page: Back closes it, and never opens another app.
+        assertNull(GengoshimaHandoff.returnIntent(null, throughOurDoor = false))
+    }
 }

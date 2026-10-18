@@ -150,6 +150,73 @@ class VoiceCaptureStoreTest {
     }
 
     @Test
+    fun `a sentence settled by hand says so, so nothing rewrites it again`() {
+        offer("settled", wav(seconds = 1.0, peak = 8000))
+        store.saveTranscript("settled", "I walk to the river", "I walk to the river", null, null)
+        // A fresh decode is nobody's verdict yet: your earlier corrections still apply to it.
+        assertFalse(store.entries().single().edited)
+
+        store.saveText("settled", "I walked to the river")
+
+        assertTrue(VoiceCaptureStore(context).entries().single().edited)
+    }
+
+    @Test
+    fun `a sentence typed onto a clip nothing was heard in is settled too`() {
+        offer("silent", wav(seconds = 1.0, peak = 8000))
+        store.saveTranscript("silent", "Typed by hand", "Typed by hand", null, null, edited = true)
+
+        assertTrue(VoiceCaptureStore(context).entries().single().edited)
+    }
+
+    @Test
+    fun `an index written before the flag existed reads its own history`() {
+        offer("old", wav(seconds = 1.0, peak = 8000))
+        store.saveTranscript("old", "I walk to the river", "I walked to the river", null, null)
+        // Strip the flag, as a row written by an earlier build has it: the text already differs from the
+        // decode, which is exactly what the flag would have said about it.
+        val index = File(dir, "index.json")
+        index.writeText(index.readText().replace(Regex("\"edited\":(true|false)"), "\"wasEdited\":\$1"))
+
+        assertTrue(VoiceCaptureStore(context).entries().single().edited)
+    }
+
+    @Test
+    fun `switching the language clears the hand-settled mark with the decode`() {
+        offer("flip", wav(seconds = 1.0, peak = 8000))
+        store.saveTranscript("flip", "I walk", "I walk", null, null)
+        store.saveText("flip", "I walked")
+        assertTrue(store.entries().single().edited)
+
+        store.setLanguage("flip", "cs")
+
+        val entry = VoiceCaptureStore(context).entries().single()
+        assertFalse(entry.edited)
+        assertFalse(entry.transcribed)
+    }
+
+    @Test
+    fun `transcribing a sentence again replaces what stood there, hand edits included`() {
+        // The per-sentence Transcribe pill on a row that already reads something: the new decode is a
+        // decode like any other, so the text, the recognition and the hand-settled mark all come from it.
+        // Nothing is learned or unlearned by this — the corrections went to the corpus when they were
+        // saved — and the sentence must be open to auto-replacement again, which `edited` would forbid.
+        offer("again", wav(seconds = 1.0, peak = 8000))
+        store.saveTranscript("again", "I walk", "I walk", listOf("I", "walk"), listOf(0.9f, 0.2f))
+        store.saveText("again", "I walked by hand")
+        assertTrue(store.entries().single().edited)
+
+        store.saveTranscript("again", "I walked", "I walked", listOf("I", "walked"), listOf(0.9f, 0.8f))
+
+        val entry = VoiceCaptureStore(context).entries().single()
+        assertEquals("I walked", entry.text)
+        assertEquals("I walked", entry.recognized)
+        assertEquals(listOf(0.9f, 0.8f), entry.rawConfidences)
+        assertFalse(entry.edited)
+        assertNotNull(store.clipFile(entry))
+    }
+
+    @Test
     fun `a decode that found nothing is counted, so the row can say so`() {
         offer("silence", wav(seconds = 0.5, peak = 8000))
         assertEquals(0, store.entries().single().attempts)

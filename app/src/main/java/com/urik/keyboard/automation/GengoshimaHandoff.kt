@@ -1,6 +1,7 @@
 package com.urik.keyboard.automation
 
 import android.content.ContentResolver
+import android.content.Intent
 import android.os.Bundle
 import com.urik.keyboard.data.VoiceCaptureStore
 import com.urik.keyboard.data.VoiceHandoffOutbox
@@ -99,9 +100,58 @@ class GengoshimaHandoff(private val outbox: VoiceHandoffOutbox) {
     }
 
     companion object {
+        /**
+         * 自由作業盤 itself. Its door is named after it, and so is the screen the walk-capture review
+         * returns to when that app's dashboard opened it.
+         */
+        const val PACKAGE = "shiroikuma.jiyusagyoban"
+
         /** 自由作業盤's data door and the one method on it we are allowed to call. */
-        const val AUTHORITY = "shiroikuma.jiyusagyoban.automation"
+        const val AUTHORITY = "$PACKAGE.automation"
         const val METHOD_INTAKE = "gengoshima_intake"
+
+        /**
+         * 自由作業盤's exported run-a-task trampoline, and the two extras it reads (contract §8).
+         *
+         * It exists so a third-party launcher's shortcut can run a task; the review borrows it to run
+         * the task that opens the 言語島 board again on the way out. Nothing is granted by using it —
+         * it is exported to everyone, and the task's NAME comes from the caller that opened the review.
+         */
+        const val TASK_RUNNER = "com.opentasker.widget.TaskRunActivity"
+        const val EXTRA_TASK_NAME = "com.opentasker.widget.TASK_NAME"
+        const val EXTRA_TASK_SOURCE = "com.opentasker.widget.SOURCE"
+
+        /** What the run shows up as in 自由作業盤's own run log. */
+        const val TASK_SOURCE = "白い熊 kxkb"
+
+        /**
+         * 自由作業盤's door to the 言語島 board (contract §8a) — the mirror of our own walk-capture door:
+         * action-only, exported, reading nothing, opening exactly one screen.
+         */
+        const val ACTION_BOARD = "$PACKAGE.action.OPEN_GENGOSHIMA_BOARD"
+
+        /**
+         * Where leaving the walk-capture review goes (contract §8 / §8a), in the order the two sides
+         * agreed: the task the caller named, else — when the review was opened through our door at all —
+         * the board's own door, else nowhere, and the review simply closes.
+         *
+         * An explicit task wins because a caller that bothered to name one meant it; the board is the
+         * default because that is where 白い熊 came from whenever nothing says otherwise. Both are pinned
+         * to 自由作業盤, so neither can ever reach another app.
+         */
+        fun returnIntent(task: String?, throughOurDoor: Boolean): Intent? = when {
+            task != null ->
+                Intent()
+                    .setClassName(PACKAGE, TASK_RUNNER)
+                    .putExtra(EXTRA_TASK_NAME, task)
+                    .putExtra(EXTRA_TASK_SOURCE, TASK_SOURCE)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            throughOurDoor ->
+                Intent(ACTION_BOARD)
+                    .setPackage(PACKAGE)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            else -> null
+        }
 
         /** The §2 batch cap. */
         const val MAX_ITEMS = 50

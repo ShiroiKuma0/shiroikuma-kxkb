@@ -2,9 +2,12 @@ package com.urik.keyboard.settings
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.view.MenuItem
 import android.view.View
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -13,6 +16,7 @@ import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import com.google.android.material.appbar.MaterialToolbar
 import com.urik.keyboard.R
+import com.urik.keyboard.automation.GengoshimaHandoff
 import com.urik.keyboard.settings.appearance.AppearanceFragment
 import com.urik.keyboard.settings.autocorrection.AutoCorrectionFragment
 import com.urik.keyboard.settings.eximport.ExportImportFragment
@@ -33,10 +37,26 @@ import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class SettingsActivity : AppCompatActivity() {
+    /**
+     * The 自由作業盤 task to run on the way out instead of merely finishing — set only when that app's
+     * board put 白い熊 here ([WalkCaptureEntryActivity]). This activity is not exported, so nothing but
+     * our own trampoline can write it.
+     */
+    private var returnTask: String? = null
+
+    /**
+     * Whether 自由作業盤's door opened this at all. On its own that is already a way back — the 言語島
+     * board's own door (contract §8a) — so the review returns there when no task was named.
+     */
+    private var throughTheDoor = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
+        returnTask = intent.getStringExtra(EXTRA_RETURN_TASK)
+        throughTheDoor = intent.getBooleanExtra(EXTRA_THROUGH_THE_DOOR, false)
+        if (returnTask != null || throughTheDoor) installReturnOnBack()
 
         val toolbar = findViewById<MaterialToolbar>(R.id.settings_toolbar)
         setSupportActionBar(toolbar)
@@ -127,7 +147,7 @@ class SettingsActivity : AppCompatActivity() {
         android.R.id.home -> {
             if (supportFragmentManager.backStackEntryCount > 0) {
                 supportFragmentManager.popBackStack()
-            } else {
+            } else if (!returnToCaller()) {
                 finish()
             }
             true
@@ -135,8 +155,67 @@ class SettingsActivity : AppCompatActivity() {
         else -> super.onOptionsItemSelected(item)
     }
 
+    /**
+     * The system Back, answered the way the toolbar arrow is. Registered ONLY when there is somewhere to
+     * return to, so the ordinary settings keep the framework's own handling untouched; and because this
+     * callback is added after the FragmentManager's, it is asked first and must pop the page stack itself.
+     */
+    private fun installReturnOnBack() {
+        onBackPressedDispatcher.addCallback(
+            this,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    if (supportFragmentManager.backStackEntryCount > 0) {
+                        supportFragmentManager.popBackStack()
+                    } else if (!returnToCaller()) {
+                        finish()
+                    }
+                }
+            }
+        )
+    }
+
+    /**
+     * Put 白い熊 back on 自由作業盤's 言語島 board (contract §8 / §8a).
+     *
+     * The board cannot simply be revealed again: it finishes itself the moment one of its tiles hands its
+     * task over, so by the time this review is on screen the board is gone. It has to be opened, and
+     * [GengoshimaHandoff.returnIntent] picks the way — the task the caller named, run through 自由作業盤's
+     * own run-a-task trampoline, or that app's door to the board.
+     *
+     * Resolve-checked, and pinned to 自由作業盤 either way: an older 自由作業盤 without the door answers
+     * nothing, and then this says false and the review closes exactly as it does for the space menu.
+     */
+    fun returnToCaller(): Boolean {
+        val back = GengoshimaHandoff.returnIntent(returnTask, throughTheDoor) ?: return false
+        if (!resolves(back)) return false
+        return runCatching {
+            startActivity(back)
+            finish()
+            true
+        }.getOrDefault(false)
+    }
+
+    /** Whether anything on this phone answers [intent] — asked before it is fired, never after. */
+    private fun resolves(intent: Intent): Boolean = runCatching {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            packageManager.resolveActivity(intent, PackageManager.ResolveInfoFlags.of(0L))
+        } else {
+            @Suppress("DEPRECATION")
+            packageManager.resolveActivity(intent, 0)
+        }
+    }.getOrNull() != null
+
     companion object {
         const val EXTRA_OPEN_PAGE = "open_page"
+
+        /**
+         * The 自由作業盤 task Back, the toolbar arrow and Close run on the way out, and whether that
+         * app's door opened this page at all. Written by [WalkCaptureEntryActivity] alone — this
+         * activity is not exported.
+         */
+        const val EXTRA_RETURN_TASK = "return_task"
+        const val EXTRA_THROUGH_THE_DOOR = "through_the_door"
         const val PAGE_KEYBOARD_UI = "keyboard_ui"
         const val PAGE_LANGUAGES = "languages"
         const val PAGE_LIBRARY = "library"

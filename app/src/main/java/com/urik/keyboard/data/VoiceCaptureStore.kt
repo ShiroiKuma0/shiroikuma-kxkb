@@ -50,7 +50,14 @@ class VoiceCaptureStore(private val context: Context) {
         val rawWords: List<String>? = null,
         val rawConfidences: List<Float>? = null,
         /** Decode attempts that came back with nothing — a clip of silence says so instead of staying mute. */
-        val attempts: Int = 0
+        val attempts: Int = 0,
+        /**
+         * [text] is what YOU settled it reads as — a word corrected in the box, or the whole sentence
+         * typed over — and not merely what the decode produced. Nothing may rewrite such a sentence
+         * afterwards: your corrections are evidence for the next DECODE, never a licence to edit a
+         * sentence you already approved (see `VoiceJudging.judge`'s `replace`).
+         */
+        val edited: Boolean = false
     ) {
         val transcribed: Boolean get() = text != null
     }
@@ -163,18 +170,23 @@ class VoiceCaptureStore(private val context: Context) {
         }
     }
 
-    /** Store a fresh decode for [uuid] (its text starts out as what was recognised). */
+    /**
+     * Store a fresh decode for [uuid] (its text starts out as what was recognised). [edited] is for the one
+     * caller that writes a "decode" by hand — the sentence typed onto a clip the engine heard nothing in —
+     * which is as settled as any correction and must not be rewritten either.
+     */
     fun saveTranscript(
         uuid: String,
         recognized: String,
         text: String,
         rawWords: List<String>?,
-        rawConfidences: List<Float>?
+        rawConfidences: List<Float>?,
+        edited: Boolean = false
     ) {
         update(uuid) { e ->
             Entry(
                 e.uuid, e.clip, e.capturedAt, e.durationMs, e.language, e.byteLength, e.sha256,
-                recognized, text, rawWords, rawConfidences, e.attempts
+                recognized, text, rawWords, rawConfidences, e.attempts, edited
             )
         }
     }
@@ -184,17 +196,20 @@ class VoiceCaptureStore(private val context: Context) {
         update(uuid) { e ->
             Entry(
                 e.uuid, e.clip, e.capturedAt, e.durationMs, e.language, e.byteLength, e.sha256,
-                e.recognized, e.text, e.rawWords, e.rawConfidences, e.attempts + 1
+                e.recognized, e.text, e.rawWords, e.rawConfidences, e.attempts + 1, e.edited
             )
         }
     }
 
-    /** Store the sentence as it reads after a correction (the recognition and its confidences stand). */
+    /**
+     * Store the sentence as it reads after a correction (the recognition and its confidences stand), and
+     * mark it [Entry.edited]: from here on it is what YOU say it says.
+     */
     fun saveText(uuid: String, text: String) {
         update(uuid) { e ->
             Entry(
                 e.uuid, e.clip, e.capturedAt, e.durationMs, e.language, e.byteLength, e.sha256,
-                e.recognized, text, e.rawWords, e.rawConfidences, e.attempts
+                e.recognized, text, e.rawWords, e.rawConfidences, e.attempts, edited = true
             )
         }
     }
@@ -238,7 +253,8 @@ class VoiceCaptureStore(private val context: Context) {
         return Entry(
             entry.uuid, entry.clip, entry.capturedAt, entry.durationMs, wanted, entry.byteLength,
             entry.sha256,
-            recognized = null, text = null, rawWords = null, rawConfidences = null, attempts = 0
+            recognized = null, text = null, rawWords = null, rawConfidences = null, attempts = 0,
+            edited = false
         )
     }
 
@@ -400,6 +416,8 @@ class VoiceCaptureStore(private val context: Context) {
         val rawConfidences = o.optJSONArray("rawConfidences")?.let { arr ->
             (0 until arr.length()).map { i -> arr.optDouble(i).toFloat() }
         }
+        val recognized = if (o.isNull("recognized")) null else o.optString("recognized")
+        val text = if (o.isNull("text")) null else o.optString("text")
         return Entry(
             uuid = uuid,
             clip = o.optString("clip", "$uuid.wav"),
@@ -408,11 +426,14 @@ class VoiceCaptureStore(private val context: Context) {
             language = o.optString("language", "en"),
             byteLength = o.optLong("byteLength"),
             sha256 = o.optString("sha256"),
-            recognized = if (o.isNull("recognized")) null else o.optString("recognized"),
-            text = if (o.isNull("text")) null else o.optString("text"),
+            recognized = recognized,
+            text = text,
             rawWords = rawWords,
             rawConfidences = rawConfidences,
-            attempts = o.optInt("attempts")
+            attempts = o.optInt("attempts"),
+            // Written before the flag existed: a sentence whose text already differs from the decode was
+            // settled by hand, which is exactly what the flag would have said about it.
+            edited = o.optBoolean("edited", text != null && text != recognized)
         )
     }
 
@@ -434,6 +455,7 @@ class VoiceCaptureStore(private val context: Context) {
                         .put("recognized", e.recognized ?: JSONObject.NULL)
                         .put("text", e.text ?: JSONObject.NULL)
                         .put("attempts", e.attempts)
+                        .put("edited", e.edited)
                         .put("rawWords", e.rawWords?.let { JSONArray(it) } ?: JSONObject.NULL)
                         .put(
                             "rawConfidences",
