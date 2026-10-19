@@ -769,7 +769,34 @@ board is the default, and with neither the page closes as before. The `+352` att
 `MainActivity`'s (白い熊 landed on the Variables page), and the board was gone regardless. Suite 2 188
 green.
 
-**Released `0.23.1+354`** (2026-10-18; tagged `0.23.1+354` — a settled walk sentence is never rewritten, per-sentence Transcribe/Copy/Share, and the way back to 言語島's board; APK attached, on the fork's
+**Shipped since `+354`** (the `+355` line): **a hand edit of a walk sentence costs only the words it
+changed** — editing the whole sentence took the colour marks off every word in it, the untouched ones
+included, because two of the four are EVENTS and were never written down anywhere: the word an earlier
+correction replaced when the sentence was decoded (blue, ↺ puts the recognition back) and the word
+corrected here by hand (green). The review page rebuilds every row from the store after each save and
+each fold of the phone, so blue died on `+354`'s own rule (a settled row is judged with
+`replace = false`, and a row that is never rewritten produces no `originals`) and green never outlived
+even the save of the correction that earned it (`Word.corrected` lives only in the live ledger); the
+other two are DERIVED and were always right — the stored confidences are re-aligned onto the words that
+now stand, and "not a word of this language" is re-asked of the dictionary every time.
+`service/voice/VoiceSettledWords.kt` now holds `{index, heard, state}` per settled word,
+`VoiceCaptureStore.Entry.settled` persists it in the inbox index beside the text (a fresh decode and
+`setLanguage` clear it, a failed attempt keeps it), and `rowFor` restores it through
+`VoiceSessionLedger.add`'s new `correctedAt` set — so a restored replacement gets its ↺ pill and its
+"Heard:" line back, a restored correction is green rather than blue, and `recordAcceptance` records the
+"replacement you let stand" evidence for settled sentences again. A hand edit carries them onto the new
+text by the same core matching the confidences use (`VoiceTranscript.alignByCore`, extracted out of
+`alignConfidences` so the two cannot drift), so only a word really changed loses its mark; `of()` indexes
+against `currentText()` counting intact words only, so a run of words pulled into one correction leaves
+the words after it where they now are; and `commitCorrection` saves the ledger's own state with the text
+it describes, so a correction survives the rebuild its own save triggers. **The rule:** screen state the
+page cannot re-derive has to be persisted, because every row is rebuilt from the store — the lesson
+`VoicePendingStore` already embodies, having persisted exactly these per-word flags for the dictation
+review all along. Rows edited by an older build have nothing stored and cannot get their blue or green
+back. Suite 2 195 green (`VoiceSettledWordsTest` runs the page's own sequence — judge, ledger, read the
+marks, carry, judge and rebuild — and was verified to fail 3 of 5 against the old behaviour).
+
+**Released `0.23.1+355`** (2026-10-19; tagged `0.23.1+355` — a hand edit of a walk sentence costs only the words it changed; APK attached, on the fork's
 GitHub; default branch `custom`; README badge + `CHANGELOG.md` track it). **Release tags carry NO `v` prefix** (白い熊,
 2026-09-05): the first fork release was the bare `0.23.1+72`, the `v` crept in at `+147`, and the 30 tags
 from `+147` to `+316` were renamed to bare — their GitHub releases were MOVED onto the new tags
@@ -781,7 +808,7 @@ by it — so recreating 30 tags at once sorted them all above the genuinely newe
 older tag object. `publishedAt` is untouched and the `releases/latest` API stayed correct, but the page
 looked wrong until `0.23.1+320`'s tag was force-recreated so its object was the newest again. Retag oldest
 first, or re-cut the newest tag last. Recent fork releases:
-`+316`, `+320`, `+321`, `+324`, `+335`, `+337`, `+338`, `+343`, `+347`, `+348`, `+349`, `+350`, `+354` (earlier: `+313`, `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`, `+211`, `+213`,
+`+316`, `+320`, `+321`, `+324`, `+335`, `+337`, `+338`, `+343`, `+347`, `+348`, `+349`, `+350`, `+354`, `+355` (earlier: `+313`, `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`, `+211`, `+213`,
 `+214`, `+215`, `+217`, `+222`, `+230`, `+250`, `+287`, `+292`, `+295`, `+296`, `+298`, `+299`, `+300`,
 `+301`, `+302`, `+304`, `+305`, `+306`, `+309`, `+312`). Remaining M5 tail (low priority): number/arrow
 rows on the look page, quick-period flick. Full architecture + milestone sequence in `docs/PLAN.md`.
