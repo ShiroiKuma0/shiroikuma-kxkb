@@ -94,6 +94,13 @@ class VoiceSessionLedger {
     /**
      * Record a chunk committed as [committedText] starting at absolute offset [fieldStart]. [confidences]
      * and [judgements] are per whitespace word of the text.
+     *
+     * [correctedAt] puts the [Word.corrected] flag back on words you had already corrected by hand — the
+     * walk-capture page rebuilds its ledger from the store after every save, where dictation's ledger
+     * simply lives on in memory and sets the flag itself (see
+     * [com.urik.keyboard.service.voice.VoiceSettledWords]). Such a word is corrected, never
+     * [Word.autoReplaced]: its [Word.recognized] comes from [originals] all the same, so ↺ still has the
+     * recognition to put back.
      */
     fun add(
         utteranceId: String,
@@ -104,6 +111,7 @@ class VoiceSessionLedger {
         judgements: List<VoiceJudgement>,
         samples: FloatArray?,
         originals: Map<Int, String> = emptyMap(),
+        correctedAt: Set<Int> = emptySet(),
         clipPath: String? = null
     ): Entry {
         val words = mutableListOf<Word>()
@@ -125,7 +133,9 @@ class VoiceSessionLedger {
                     judgement = judgements.getOrNull(index) ?: VoiceJudgement(null),
                     current = token,
                     start = fieldStart + start
-                ).apply { autoReplaced = index in originals }
+                ).apply {
+                    if (index in correctedAt) corrected = true else autoReplaced = index in originals
+                }
             )
         }
         val entry = Entry(utteranceId, language, committedText, words, samples, clipPath)

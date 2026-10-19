@@ -2,6 +2,7 @@ package com.urik.keyboard.data
 
 import android.content.Context
 import com.urik.keyboard.service.voice.VoiceLanguages
+import com.urik.keyboard.service.voice.VoiceSettledWords
 import com.urik.keyboard.utils.ErrorLogger
 import com.urik.keyboard.utils.isUserUnlocked
 import java.io.File
@@ -57,7 +58,14 @@ class VoiceCaptureStore(private val context: Context) {
          * afterwards: your corrections are evidence for the next DECODE, never a licence to edit a
          * sentence you already approved (see `VoiceJudging.judge`'s `replace`).
          */
-        val edited: Boolean = false
+        val edited: Boolean = false,
+        /**
+         * What you have settled about the individual words of [text] — the word an earlier correction
+         * replaced, the word you corrected here. Derived marks (the recogniser's doubt, a word the
+         * dictionary does not know) are not here: those are worked out again from [rawConfidences] and
+         * the dictionary every time the row is built. See [VoiceSettledWords].
+         */
+        val settled: List<VoiceSettledWords.Settled>? = null
     ) {
         val transcribed: Boolean get() = text != null
     }
@@ -186,7 +194,7 @@ class VoiceCaptureStore(private val context: Context) {
         update(uuid) { e ->
             Entry(
                 e.uuid, e.clip, e.capturedAt, e.durationMs, e.language, e.byteLength, e.sha256,
-                recognized, text, rawWords, rawConfidences, e.attempts, edited
+                recognized, text, rawWords, rawConfidences, e.attempts, edited, settled = null
             )
         }
     }
@@ -196,7 +204,7 @@ class VoiceCaptureStore(private val context: Context) {
         update(uuid) { e ->
             Entry(
                 e.uuid, e.clip, e.capturedAt, e.durationMs, e.language, e.byteLength, e.sha256,
-                e.recognized, e.text, e.rawWords, e.rawConfidences, e.attempts + 1, e.edited
+                e.recognized, e.text, e.rawWords, e.rawConfidences, e.attempts + 1, e.edited, e.settled
             )
         }
     }
@@ -204,12 +212,17 @@ class VoiceCaptureStore(private val context: Context) {
     /**
      * Store the sentence as it reads after a correction (the recognition and its confidences stand), and
      * mark it [Entry.edited]: from here on it is what YOU say it says.
+     *
+     * [settled] goes with it in the same write, because it describes THIS text: the words of it you had
+     * corrected, and the words an earlier correction replaced. The caller carries them across the edit
+     * ([VoiceSettledWords.carry]) so a word it did not touch keeps its mark.
      */
-    fun saveText(uuid: String, text: String) {
+    fun saveText(uuid: String, text: String, settled: List<VoiceSettledWords.Settled> = emptyList()) {
         update(uuid) { e ->
             Entry(
                 e.uuid, e.clip, e.capturedAt, e.durationMs, e.language, e.byteLength, e.sha256,
-                e.recognized, text, e.rawWords, e.rawConfidences, e.attempts, edited = true
+                e.recognized, text, e.rawWords, e.rawConfidences, e.attempts, edited = true,
+                settled = settled.ifEmpty { null }
             )
         }
     }
@@ -254,7 +267,7 @@ class VoiceCaptureStore(private val context: Context) {
             entry.uuid, entry.clip, entry.capturedAt, entry.durationMs, wanted, entry.byteLength,
             entry.sha256,
             recognized = null, text = null, rawWords = null, rawConfidences = null, attempts = 0,
-            edited = false
+            edited = false, settled = null
         )
     }
 
@@ -433,8 +446,50 @@ class VoiceCaptureStore(private val context: Context) {
             attempts = o.optInt("attempts"),
             // Written before the flag existed: a sentence whose text already differs from the decode was
             // settled by hand, which is exactly what the flag would have said about it.
-            edited = o.optBoolean("edited", text != null && text != recognized)
+            edited = o.optBoolean("edited", text != null && text != recognized),
+            settled = settledFrom(o.optJSONArray("settled"))
         )
+    }
+
+    /**
+     * The settled words as stored: one small object per word, by the index of the word in the text they
+     * were written with. An unknown state is dropped rather than guessed — a mark nobody can explain is
+     * worse than no mark.
+     */
+    private fun settledFrom(arr: JSONArray?): List<VoiceSettledWords.Settled>? {
+        if (arr == null) return null
+        val out = (0 until arr.length()).mapNotNull { i ->
+            val o = arr.optJSONObject(i) ?: return@mapNotNull null
+            val index = o.optInt("i", -1).takeIf { it >= 0 } ?: return@mapNotNull null
+            val heard = o.optString("heard").takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+            val state = when (o.optString("state")) {
+                "replaced" -> VoiceSettledWords.State.REPLACED
+                "corrected" -> VoiceSettledWords.State.CORRECTED
+                else -> return@mapNotNull null
+            }
+            VoiceSettledWords.Settled(index, heard, state)
+        }
+        return out.ifEmpty { null }
+    }
+
+    private fun settledTo(settled: List<VoiceSettledWords.Settled>?): Any {
+        if (settled.isNullOrEmpty()) return JSONObject.NULL
+        val arr = JSONArray()
+        for (word in settled) {
+            arr.put(
+                JSONObject()
+                    .put("i", word.index)
+                    .put("heard", word.heard)
+                    .put(
+                        "state",
+                        when (word.state) {
+                            VoiceSettledWords.State.REPLACED -> "replaced"
+                            VoiceSettledWords.State.CORRECTED -> "corrected"
+                        }
+                    )
+            )
+        }
+        return arr
     }
 
     private fun writeIndex(entries: List<Entry>) {
@@ -456,6 +511,7 @@ class VoiceCaptureStore(private val context: Context) {
                         .put("text", e.text ?: JSONObject.NULL)
                         .put("attempts", e.attempts)
                         .put("edited", e.edited)
+                        .put("settled", settledTo(e.settled))
                         .put("rawWords", e.rawWords?.let { JSONArray(it) } ?: JSONObject.NULL)
                         .put(
                             "rawConfidences",

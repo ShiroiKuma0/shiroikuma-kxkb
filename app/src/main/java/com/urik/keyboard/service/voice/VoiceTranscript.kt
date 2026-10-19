@@ -33,22 +33,33 @@ class VoiceTranscript(
          */
         fun alignConfidences(words: List<String>, raw: List<String>?, confidences: FloatArray?): List<Float?> {
             if (raw == null || confidences == null || raw.size != confidences.size) return words.map { null }
+            return alignByCore(words, raw).map { j -> j?.let { confidences[it] } }
+        }
+
+        /**
+         * The matching itself: for each word of [words], the index in [against] it is the same word as, or
+         * null where it has none. "The same word" is the case-folded core, so punctuation moved or a
+         * capital gained still matches — which is what lets one hand edit of a sentence cost only the
+         * words it really changed ([com.urik.keyboard.service.voice.VoiceSettledWords] carries the word
+         * marks across the same way these confidences travel).
+         */
+        fun alignByCore(words: List<String>, against: List<String>): List<Int?> {
             fun key(w: String) = VoiceWordJudge.coreOf(w).lowercase()
             val a = words.map(::key)
-            val b = raw.map(::key)
+            val b = against.map(::key)
             val lcs = Array(a.size + 1) { IntArray(b.size + 1) }
             for (i in a.indices.reversed()) {
                 for (j in b.indices.reversed()) {
                     lcs[i][j] = if (a[i] == b[j]) lcs[i + 1][j + 1] + 1 else maxOf(lcs[i + 1][j], lcs[i][j + 1])
                 }
             }
-            val result = MutableList<Float?>(words.size) { null }
+            val result = MutableList<Int?>(words.size) { null }
             var i = 0
             var j = 0
             while (i < a.size && j < b.size) {
                 when {
                     a[i] == b[j] -> {
-                        result[i] = confidences[j]
+                        result[i] = j
                         i++
                         j++
                     }

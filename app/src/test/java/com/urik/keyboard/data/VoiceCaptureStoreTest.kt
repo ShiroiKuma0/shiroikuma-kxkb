@@ -2,6 +2,7 @@ package com.urik.keyboard.data
 
 import androidx.test.core.app.ApplicationProvider
 import com.urik.keyboard.markUserUnlocked
+import com.urik.keyboard.service.voice.VoiceSettledWords
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.nio.ByteBuffer
@@ -214,6 +215,36 @@ class VoiceCaptureStoreTest {
         assertEquals(listOf(0.9f, 0.8f), entry.rawConfidences)
         assertFalse(entry.edited)
         assertNotNull(store.clipFile(entry))
+    }
+
+    @Test
+    fun `what was settled about the single words survives a reload, and a new decode clears it`() {
+        // The review page rebuilds every row from this index — after each save and each fold of the phone
+        // — so the marks it cannot re-derive (a word you corrected, a word an earlier correction replaced)
+        // live here beside the text, or editing one comma takes the colour off the whole sentence.
+        offer("marks", wav(seconds = 1.0, peak = 8000))
+        store.saveTranscript("marks", "I walk to the river", "I walk to the river", null, null)
+        store.saveText(
+            "marks",
+            "I walked to the river",
+            listOf(
+                VoiceSettledWords.Settled(1, "walk", VoiceSettledWords.State.CORRECTED),
+                VoiceSettledWords.Settled(4, "rivver", VoiceSettledWords.State.REPLACED)
+            )
+        )
+
+        val reloaded = VoiceCaptureStore(context).entries().single()
+        assertEquals(
+            listOf(
+                VoiceSettledWords.Settled(1, "walk", VoiceSettledWords.State.CORRECTED),
+                VoiceSettledWords.Settled(4, "rivver", VoiceSettledWords.State.REPLACED)
+            ),
+            reloaded.settled
+        )
+
+        // A fresh decode is a fresh sentence: nothing is settled about its words yet.
+        store.saveTranscript("marks", "I walked", "I walked", null, null)
+        assertNull(VoiceCaptureStore(context).entries().single().settled)
     }
 
     @Test

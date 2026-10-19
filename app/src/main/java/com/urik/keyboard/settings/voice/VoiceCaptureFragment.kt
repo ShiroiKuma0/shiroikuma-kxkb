@@ -45,6 +45,7 @@ import com.urik.keyboard.service.voice.VoiceJudging
 import com.urik.keyboard.service.voice.VoiceLanguages
 import com.urik.keyboard.service.voice.VoiceModelStore
 import com.urik.keyboard.service.voice.VoiceSessionLedger
+import com.urik.keyboard.service.voice.VoiceSettledWords
 import com.urik.keyboard.service.voice.VoiceTranscript
 import com.urik.keyboard.service.voice.VoiceWordJudge
 import com.urik.keyboard.settings.KeyboardSettings
@@ -226,6 +227,12 @@ class VoiceCaptureFragment : Fragment() {
      * ([VoiceCaptureStore.Entry.edited]) is judged for its marks alone: a correction made in sentence #10
      * may never reach back into the nine sentences you approved before it, nor undo itself in the one it
      * was made in.
+     *
+     * Judging alone, though, cannot know what YOU did to the individual words — which one you corrected,
+     * which one an earlier correction replaced — so those two marks come back from the store
+     * ([VoiceSettledWords]) instead of being re-derived. Without them a settled sentence lost its blue and
+     * its green on every save and every fold of the phone, whole words at a time, including the words the
+     * edit never touched.
      */
     private suspend fun rowFor(entry: VoiceCaptureStore.Entry, threshold: Float): Row {
         val text = entry.text ?: return Row(entry, null, null)
@@ -245,6 +252,7 @@ class VoiceCaptureFragment : Fragment() {
             spellCheckManager = spellCheckManager,
             replace = !entry.edited
         )
+        val settled = entry.settled.orEmpty()
         val ledger = VoiceSessionLedger()
         val sentence = ledger.add(
             utteranceId = entry.uuid,
@@ -254,7 +262,10 @@ class VoiceCaptureFragment : Fragment() {
             confidences = judged.confidences,
             judgements = judged.judgements,
             samples = null,
-            originals = judged.originals,
+            // The decode's own replacements for a fresh row; for a settled one, what YOU settled — the two
+            // never both carry a word, since storing the settled words is what makes a row settled.
+            originals = judged.originals + VoiceSettledWords.originals(settled),
+            correctedAt = VoiceSettledWords.correctedAt(settled),
             clipPath = clipOf(entry)?.absolutePath
         )
         return Row(entry, ledger, sentence)
@@ -502,10 +513,12 @@ class VoiceCaptureFragment : Fragment() {
      * sentence mid-utterance ("…the river. The water was cold.") is exactly this case, and only a comma in
      * place of that period fixes it.
      *
-     * A hand edit re-derives the row from the new text: the marks and confidences are judged again (the
-     * confidences re-align onto the new words by their cores, so a changed comma keeps them), and the
-     * recognition stays on file as the "Heard:" line. It teaches the keyboard nothing by itself — a word you
-     * want remembered is better corrected by tapping it, which stores the pair — and the box says so.
+     * A hand edit re-derives the row from the new text, and it costs only the words it really changed: the
+     * confidences re-align onto the new words by their cores, so a changed comma keeps them, and the two
+     * marks that are events rather than judgements — a word you corrected, a word an earlier correction
+     * replaced — are carried across the same way ([VoiceSettledWords.carry]). The recognition stays on file
+     * as the "Heard:" line. It teaches the keyboard nothing by itself — a word you want remembered is
+     * better corrected by tapping it, which stores the pair — and the box says so.
      *
      * It also works on a clip nothing was recognised in: the typed text becomes the sentence, so a recording
      * the engine mangles is still usable rather than only deletable.
@@ -547,8 +560,15 @@ class VoiceCaptureFragment : Fragment() {
         val text = edited.replace(WHITESPACE, " ").trim()
         if (text.isEmpty()) return
         val entry = row.entry
+        val sentence = row.sentence
         if (entry.transcribed) {
-            store.saveText(entry.uuid, text)
+            // The words you did not change keep what they were marked as; the ones you did keep nothing.
+            val settled = if (sentence == null) {
+                emptyList()
+            } else {
+                VoiceSettledWords.carry(sentence.currentText(), text, VoiceSettledWords.of(sentence))
+            }
+            store.saveText(entry.uuid, text, settled)
         } else {
             // Nothing was recognised here: the typed text becomes both the sentence and its "recognition",
             // with no word confidences to align — there was no decode to take them from.
@@ -801,7 +821,9 @@ class VoiceCaptureFragment : Fragment() {
         // Stored at once, like the dictation box: a correction is evidence whether or not the sentence is
         // ever sent — and this is what makes the same recognition replace itself next time.
         corpus.recordCorrection(applied.entry, applied.word, applied.recognized, trimmed)
-        store.saveText(row.entry.uuid, sentence.currentText())
+        // With the text, what now stands about its words: this correction, and every mark the sentence
+        // already carried. The page is rebuilt from the store immediately after.
+        store.saveText(row.entry.uuid, sentence.currentText(), VoiceSettledWords.of(sentence))
         rebuild()
     }
 
