@@ -4,7 +4,39 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+354 — current
+## 0.23.1+355 — current
+
+Built on Urik `0.23.1-beta`.
+
+### 🎨 Editing a walk sentence costs only the words you changed
+
+Fixing one comma in the whole-sentence Edit box took the colours off every word in the sentence, the
+ones you never touched included — and with the blue went the ↺ that puts the original recognition
+back.
+
+Two of the four marks are **events** rather than judgements, and nothing can work them out again:
+the word an earlier correction of yours replaced when the sentence was decoded (blue), and the word
+you corrected here by hand (green). The review page rebuilds every row from the store after each
+save and after each fold of the phone, and neither mark was ever written down — so both were gone
+the moment anything about the sentence was saved, the green not even surviving the save of the
+correction that earned it. The other two were always right and still are: the recogniser's own doubt
+rides on the stored confidences, re-aligned onto whatever the sentence now reads as, and “not a word
+of this language” is a question the dictionary answers afresh every time.
+
+- **What you have settled about the single words now travels with the sentence** — in the inbox,
+  beside the text, so it outlives a save, a fold of the phone, and the keyboard's process being
+  killed overnight.
+- **An edit carries the marks word by word**, by the same notion of “the same word” the confidences
+  already use: the word's core, case folded. A comma moved or a capital gained is not a change; a
+  word you really replaced keeps nothing, and every word around it keeps what it had.
+- **A restored replacement is whole again** — its ↺ pill and its “Heard:” line come back with it,
+  and a replacement you leave standing is once more recorded as evidence that it was right.
+- A fresh decode, and a language switch, clear it all: a new recognition has settled nothing yet.
+
+Sentences you edited with an earlier build carry nothing stored, so their blue and green cannot come
+back — they were never written down.
+
+## 0.23.1+354
 
 Built on Urik `0.23.1-beta`.
 
