@@ -15,7 +15,7 @@ candidate line, and walk capture — sentences spoken outside with the screen of
 Installs **side-by-side** with the official Urik and with any other keyboard (package
 `shiroikuma.kxkb`).
 
-**📥 Latest release: [`0.23.1+355`](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases)
+**📥 Latest release: [`0.23.1+361`](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-kxkb/releases)
 
 </div>
 
@@ -89,6 +89,11 @@ correct it, **edit the punctuation** where the recogniser ended a sentence mid-b
   spoken in two languages comes out right in both.
 - **A sentence you keep teaches exactly what a dictation teaches** — the same corrections, the same
   confirmations, and its recording moves into the private voice corpus rather than being re-encoded.
+- **A recording that is not one sentence is kept too** — save it as an **Opus OGG** into a directory you
+  choose, named by when it was spoken and never written over, and **cut it into sentences** at its own
+  pauses. An hour recorded by accident is an hour you can still use.
+- **The buttons under a row are yours to arrange** — hold one and drag it, and the order you set is the
+  order under every sentence on the page.
 - **Nothing is lost and nothing is filed twice**: the recordings arrive through a verified door
   (checksum, format and length checked before they are taken in), and a reviewed sentence leaves the
   queue only once the other side says it holds it.

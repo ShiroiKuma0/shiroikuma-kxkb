@@ -4,7 +4,90 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+355 — current
+## 0.23.1+361 — current
+
+Built on Urik `0.23.1-beta`.
+
+### 🎧 A walk recording that is not one sentence is still worth keeping
+
+The screen-off recorder marks a sentence with a press of a physical key — and a walk where that press
+is missed, or held, or where the recorder is stopped mid-breath, produced a recording that was no
+sentence at all. It could only be deleted, and the walk cannot be walked again.
+
+- **Save as OGG** — the recording is written as an Opus OGG into a directory you pick once, named by
+  when it was spoken. It goes down as a `.part` and is renamed only when the encoder has finished, and
+  an existing name is never written over: neither the recording nor anything else in that directory
+  can be made a second time.
+- **Cut into sentences** — the recording is split at its own pauses into the sentences the walk was
+  meant to produce, each arriving in the inbox as a row of its own.
+- Each is offered **once**, what has been done is on the row, and the recording itself goes only when
+  both have been. Keeping the audio is offered on **every** row that still has its recording, not only
+  a long one — what makes audio worth keeping is what was said into it.
+
+### 👆 The buttons under a sentence are yours to arrange
+
+Hold any pill under a row and drag it; the row re-arranges under your finger, and where you drop it
+is where it sits **under every line on the page**. The order covers all nine controls and each row
+renders the ones it has in that sequence, so an order set on a long recording reads the same way on a
+sentence. **Save as OGG now comes after Delete.**
+
+- Only the pill you dragged moves. A long recording shows four of the nine, and reading its new order
+  as the whole order would let it decide where Copy and Share sit on every sentence — from a line they
+  never appear on.
+- The order is a preference, so it **rides in your backup** and restores onto another phone.
+- “Send to 白い熊 自由作業盤” keeps the line of its own it was given, being the one action that cannot be
+  taken back.
+- In the directory browser, **“Use this directory” is now the button at the bottom right of Cancel** —
+  the decision belongs where a dialog's decisions are, not at the top of a list of places to go.
+
+### ⌨ The cluster bar predicts from what you actually type
+
+A word's own typing count now earns it a rung above dictionary frequency, so this phone's vocabulary
+leads the row that the bundled corpus used to.
+
+- **The strongly preferred forms outrank every count.** On the en 3+2 board, two taps on `(io` and
+  `mwk` ARE “I'm” and three on `(io` `btn` `sh)` ARE “it's” — whatever else the bands allow. The
+  apostrophe sits on no band, so those taps spell the bare “im” and “ith” and the contraction has to
+  come from the curated table; it was ranked below a word you have typed, so “implement” and “other”
+  took the row. The preferred forms are now a rung of their own, above the user dictionary included:
+  they are not predictions to be outvoted by a count.
+- **A tapped apostrophe finds the real contraction.** With the apostrophe actually typed, the
+  possessive synthesized over every head those taps allow ranked “in's” — from the far commoner
+  “in” — ahead of “it's”. The table now matches a contraction both ways, so the real one leads and
+  the possessive sits under it, where it is still offered on purpose.
+- **Right arrow lets the word go as it stands.** At the end of the text the caret has nowhere to move,
+  no selection change arrives, and the word stayed highlighted — so the next Space committed a
+  candidate instead of typing a space. The released word is not learned and not counted as typed: the
+  arrow says “leave this alone”, while long-press Space stays the gesture that keeps a word.
+
+### 🇨🇿 Č is typeable on a shifted Czech cluster board
+
+Two faults, either of which alone lost the capital. Arming a dead key ran the same “spend the shift”
+step a typed letter does, before it had noticed the key was arming anything — so a flick onto ˇ
+dropped the board to lowercase and the base letter arrived as “c”. And pressing Shift to get the
+capital back **discarded the háček**: Shift chooses the case of the letter the mark is waiting for, so
+it cannot be the thing that throws the mark away. Arming now spends nothing, the composed letter
+spends the shift exactly as any letter does, and Shift and caps lock leave an armed mark alone — while
+space, Enter, backspace and a layer switch still end it.
+
+### 📝 The next sentence is capitalised in every app
+
+After writing a sentence-ending mark the keyboard asked the field what stood before the cursor —
+inside the batch edit it had just written through. An editor that buffers its edits until the batch
+closes, which is every Compose text field, answers that with the text as it stood **before** the
+commit: the mark and its space were invisible, and in those apps no capital was ever armed. In a
+classic text field the same read is accurate, which is why it worked everywhere else. The four sites
+that write punctuation now report the text they wrote, which they know without asking. A suppressed
+trailing space still means no capital, so the Czech ordinal “10. května” is untouched.
+
+### 🗂 It is a directory, not a folder
+
+The app says “directory” now — in the Library's git archive and its browser, on the Export/import
+page, in the voice model import, and in the two button labels whose resource names carried the word
+as well. A directory is what the filesystem calls it and what every tool calls it. The emoji search
+keywords are left alone, where “folder” is the word you type to find 📁.
+
+## 0.23.1+355
 
 Built on Urik `0.23.1-beta`.
 
