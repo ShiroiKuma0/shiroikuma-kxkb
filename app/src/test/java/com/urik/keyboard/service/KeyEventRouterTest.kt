@@ -171,4 +171,90 @@ class KeyEventRouterTest {
         router.route(KeyboardKey.Character("h", KeyboardKey.KeyType.LETTER))
         verify(mockHandler).onLetterInput(eq("H"), eq(false), eq(false))
     }
+
+    // ---- Czech dead keys: the mark waits for a letter, and the letter's CASE is not its business ----
+
+    private fun caron() = KeyboardKey.Character("ˇ", KeyboardKey.KeyType.LETTER)
+
+    private fun letter(value: String, face: String): KeyboardKey.Character {
+        val key = KeyboardKey.Character(value, KeyboardKey.KeyType.LETTER)
+        whenever(mockViewModel.getCharacterForInput(key)).thenReturn(face)
+        return key
+    }
+
+    @Test
+    fun `arming a diacritic does not spend the shift, so a shifted board types the capital`() {
+        // 白い熊, 2026-10-20: this is the whole "Č" complaint. The flick onto ˇ used to run
+        // clearShiftAfterCharacter, the board dropped to lowercase, and the base letter arrived as "c".
+        whenever(mockViewModel.state).thenReturn(MutableStateFlow(KeyboardState(isShiftPressed = true)))
+        whenever(mockViewModel.getCharacterForInput(caron())).thenReturn("ˇ")
+
+        router.route(caron())
+
+        verify(mockViewModel, never()).clearShiftAfterCharacter(any())
+        verify(mockHandler, never()).onNonLetterInput(any())
+
+        router.route(letter("c", "C"))
+
+        verify(mockHandler).onLetterInput(eq("Č"), any(), any())
+        // The composed letter spends it, exactly as an ordinary letter would.
+        verify(mockViewModel).clearShiftAfterCharacter(any())
+    }
+
+    @Test
+    fun `pressing Shift after a diacritic keeps the mark armed`() {
+        // The other half of it: Shift chooses the CASE of the letter the mark is waiting for, so it cannot
+        // be the thing that throws the mark away.
+        whenever(mockViewModel.getCharacterForInput(caron())).thenReturn("ˇ")
+        router.route(caron())
+
+        router.route(KeyboardKey.Action(KeyboardKey.ActionType.SHIFT))
+        router.route(letter("c", "C"))
+
+        verify(mockHandler).onLetterInput(eq("Č"), any(), any())
+    }
+
+    @Test
+    fun `caps lock after a diacritic keeps the mark armed`() {
+        whenever(mockViewModel.getCharacterForInput(caron())).thenReturn("ˇ")
+        router.route(caron())
+
+        router.route(KeyboardKey.Action(KeyboardKey.ActionType.CAPS_LOCK))
+        router.route(letter("c", "C"))
+
+        verify(mockHandler).onLetterInput(eq("Č"), any(), any())
+    }
+
+    @Test
+    fun `an unshifted diacritic still composes the lowercase letter`() {
+        whenever(mockViewModel.getCharacterForInput(caron())).thenReturn("ˇ")
+        router.route(caron())
+
+        router.route(letter("c", "c"))
+
+        verify(mockHandler).onLetterInput(eq("č"), any(), any())
+    }
+
+    @Test
+    fun `Space ends a pending diacritic`() {
+        whenever(mockViewModel.getCharacterForInput(caron())).thenReturn("ˇ")
+        router.route(caron())
+
+        router.route(KeyboardKey.Action(KeyboardKey.ActionType.SPACE))
+        router.route(letter("c", "c"))
+
+        verify(mockHandler).onLetterInput(eq("c"), any(), any())
+        verify(mockHandler, never()).onLetterInput(eq("č"), any(), any())
+    }
+
+    @Test
+    fun `a base with no precomposed form emits the mark and then itself`() {
+        whenever(mockViewModel.getCharacterForInput(caron())).thenReturn("ˇ")
+        router.route(caron())
+
+        router.route(letter("q", "q"))
+
+        verify(mockHandler).onNonLetterInput("ˇ")
+        verify(mockHandler).onLetterInput(eq("q"), any(), any())
+    }
 }

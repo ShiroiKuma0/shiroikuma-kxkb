@@ -64,26 +64,33 @@ constructor() {
                         shiftState.isShiftPressed &&
                         !shiftState.isAutoShift &&
                         !shiftState.isCapsLockOn
-                viewModel?.clearShiftAfterCharacter(key)
 
                 // Dead keys (Czech ´ ˇ ¨ ˚ ¯): an armed diacritic composes with this base letter (ˇ+c → č,
                 // ´+E → É); a diacritic character arms a new dead key instead of being emitted. If the base
                 // has no precomposed form, emit the spacing diacritic and then the base normally.
+                //
+                // ARMING SPENDS NOTHING (白い熊, 2026-10-20): the diacritic is not the letter being typed, so
+                // it must not consume the shift. Clearing it here dropped a shifted cs board to lowercase the
+                // moment the ˇ was flicked, the base letter then arrived lowercase, and pressing Shift again
+                // to get the capital threw the pending mark away (Action keys clear it) — so "Č" could not be
+                // typed at all. The COMPOSED letter spends the shift, like every other letter.
                 val pending = pendingDeadKey
+                val arming = DeadKeys.combiningFor(char)
                 if (pending != null) {
                     pendingDeadKey = null
-                    val composed = DeadKeys.compose(char, pending)
+                    val composed = if (arming == null) DeadKeys.compose(char, pending) else null
                     if (composed != null) {
+                        viewModel?.clearShiftAfterCharacter(key)
                         handler?.onLetterInput(composed, wasAutoShifted, wasManualShifted)
                         return
                     }
                     handler?.onNonLetterInput(DeadKeys.spacingFor(pending))
                 }
-                val arming = DeadKeys.combiningFor(char)
                 if (arming != null) {
                     pendingDeadKey = arming
                     return
                 }
+                viewModel?.clearShiftAfterCharacter(key)
 
                 if (key.type == KeyboardKey.KeyType.LETTER) {
                     handler?.onLetterInput(char, wasAutoShifted, wasManualShifted)
@@ -92,7 +99,12 @@ constructor() {
                 }
             }
             is KeyboardKey.Action -> {
-                pendingDeadKey = null
+                // Shift and caps lock choose the CASE of the letter the pending mark is waiting for, so they
+                // leave it armed (白い熊, 2026-10-20 — pressing Shift after ˇ used to lose the háček).
+                // Everything else — space, Enter, backspace, a layer or language switch — ends it.
+                if (key.action != KeyboardKey.ActionType.SHIFT && key.action != KeyboardKey.ActionType.CAPS_LOCK) {
+                    pendingDeadKey = null
+                }
                 routeAction(key)
             }
             KeyboardKey.Spacer -> {}
