@@ -644,10 +644,15 @@ constructor(
         try {
             val seenWords = mutableSetOf<String>()
             val allSuggestions = mutableListOf<SpellingSuggestion>()
-            // The user's own dictionary first — it outranks everything (see queryUserDictionarySuggestions).
+            // The strongly preferred forms first: what the taps MEAN, outranking every count below them.
+            allSuggestions += queryPreferredFormSuggestions(normalizedWord, languageCode, seenWords)
+            // Then the user's own dictionary — it outranks everything else (see queryUserDictionarySuggestions).
             allSuggestions += queryUserDictionarySuggestions(normalizedWord, languageCode, seenWords)
             // Then your own TYPED words on cluster layouts, frequency-ranked (cluster-only; see the method).
             allSuggestions += queryLearnedHeavySuggestions(normalizedWord, languageCode, seenWords)
+            // Then every OTHER word you have typed — the ones the dictionary already knew, which the learned
+            // store deliberately never holds. Same ranking, same prefix reach; see the method.
+            allSuggestions += queryTypedHistorySuggestions(normalizedWord, languageCode, seenWords)
             // Cluster prediction next so it owns the words it produces (highest, frequency-ranked).
             allSuggestions += queryClusterSuggestions(normalizedWord, languageCode, seenWords)
             allSuggestions += queryLearnedSuggestions(normalizedWord, languageCode, seenWords)
@@ -820,6 +825,9 @@ constructor(
     // not a cluster layout (cluster prediction off). Set by the service on each letters-layout build.
     @Volatile
     private var clusterBands: Map<Char, Set<Char>> = emptyMap()
+
+    /** Word → its band-matching form; see [foldedMatchKey]. Written from the per-language query coroutines. */
+    private val foldedKeys = java.util.concurrent.ConcurrentHashMap<String, String>()
 
     /** True while a cluster layout is active — the bar then carries a larger pool ([CLUSTER_BAR_POOL]). */
     val clusterActive: Boolean get() = clusterBands.isNotEmpty()
@@ -1008,11 +1016,6 @@ constructor(
     }
 
     /**
-     * Confidence for a user-dictionary candidate per 白い熊's ranking rule: used once → near the top (just
-     * under an exact dictionary hit at [EXACT_MATCH_CONFIDENCE]); used twice or more → above that ceiling so
-     * it lands as the #1 candidate, with higher frequency ranking higher within that top band.
-     */
-    /**
      * A stored single-letter learned surface is a sentence-start auto-cap artifact ("A" for Czech "a"),
      * never deliberate casing — fold it so it can't shadow the lowercase dictionary word and doesn't
      * display capitalized mid-sentence (sentence-start recasing still capitalizes it there).
@@ -1020,13 +1023,16 @@ constructor(
     private fun learnedSurface(word: String): String =
         if (word.length == 1) word.lowercase(getLocaleForLanguage()) else word
 
+    /**
+     * Confidence for a user-dictionary candidate per 白い熊's ranking rule (2026-10-20): a word YOU have
+     * typed or added leads, from the FIRST time — the ladder has one rung above
+     * [EXACT_MATCH_CONFIDENCE], not a probationary one below it, because a mistaken entry costs a single
+     * long-press (which forgets it rather than blocking the word; see [removeSuggestion]) while a word you
+     * really use cost a whole row of taps every time it sat second. Higher use ranks higher within the band.
+     */
     private fun userDictionaryConfidence(frequency: Int): Double =
-        if (frequency <= 1) {
-            USER_DICT_NEAR_TOP_CONFIDENCE
-        } else {
-            (USER_DICT_TOP_BASE_CONFIDENCE + minOf(frequency, USER_DICT_FREQ_CAP) * USER_DICT_FREQ_STEP)
-                .coerceAtMost(1.0)
-        }
+        (USER_DICT_TOP_BASE_CONFIDENCE + minOf(frequency, USER_DICT_FREQ_CAP) * USER_DICT_FREQ_STEP)
+            .coerceAtMost(1.0)
 
     /**
      * The user dictionary's Japanese reading→surface entries whose reading the current buffer is typing
@@ -1092,15 +1098,18 @@ constructor(
             val split = apostropheSplit(bufFolded, languageCode)?.takeIf { it.possessive }
             val matchBuffer = split?.head ?: bufFolded
             val result = mutableListOf<SpellingSuggestion>()
-            learned
+            val matched = learned.filter { (word, _) ->
+                matchesTypedBuffer(foldedMatchKey(word), matchBuffer, bands, exactLength = split != null)
+            }
+            if (matched.isEmpty()) return emptyList()
+            // ONE number ranks every candidate of yours, whatever store holds it: how often you have typed
+            // the word ([WordFrequencyRepository]). The learned store's own count is only the fallback — for
+            // a word whose history row has been pruned, or that was learned by a path recording no usage.
+            val history = historyCounts(matched.map { it.first }, languageCode)
+            matched
                 .asSequence()
-                .filter { (word, _) ->
-                    matchesTypedBuffer(
-                        wordNormalizer.stripDiacritics(word).lowercase(),
-                        matchBuffer,
-                        bands,
-                        exactLength = split != null
-                    )
+                .map { (word, learnedFrequency) ->
+                    word to (history[word]?.takeIf { it > 0 } ?: learnedFrequency)
                 }
                 .sortedByDescending { it.second }
                 .take(LEARNED_HEAVY_MAX_RESULTS)
@@ -1132,14 +1141,162 @@ constructor(
         }
     }
 
-    /** Heavy ranking for a typed word; mirrors [userDictionaryConfidence] a hair lower so a deliberate entry wins. */
+    /**
+     * Heavy ranking for a word you have typed, from the first time; mirrors [userDictionaryConfidence] a hair
+     * lower so a deliberate user-dictionary entry still wins a tie. [frequency] is the number this keyboard
+     * ranks every candidate of yours by: how often you have typed the word.
+     */
     private fun learnedHeavyConfidence(frequency: Int): Double =
-        if (frequency <= 1) {
-            LEARNED_HEAVY_NEAR_TOP_CONFIDENCE
-        } else {
-            (LEARNED_HEAVY_TOP_BASE_CONFIDENCE + minOf(frequency, USER_DICT_FREQ_CAP) * USER_DICT_FREQ_STEP)
-                .coerceAtMost(1.0)
+        (LEARNED_HEAVY_TOP_BASE_CONFIDENCE + minOf(frequency, USER_DICT_FREQ_CAP) * USER_DICT_FREQ_STEP)
+            .coerceAtMost(1.0)
+
+    /**
+     * Every word you have typed, offered from the first taps and ranked by how often you have typed it —
+     * whether the keyboard had to LEARN it or the bundled dictionary already knew it (白い熊, 2026-10-20: a
+     * word you type is a word you type; which store holds it is not something a typist should be able to
+     * feel). This is the half [queryLearnedHeavySuggestions] cannot reach: a dictionary word is deliberately
+     * never written to the learned store ([SuggestionPipeline.learnWordAndInvalidateCache] returns at its
+     * in-dictionary check), so until now your usage of it existed only as a counter that nothing predictive
+     * read — "recommend", typed a hundred times, could not be offered until the taps numbered exactly nine,
+     * because the only path that knew it was the DAWG walk and that walk emits words of the tapped length
+     * alone.
+     *
+     * Matched band-by-band and accent-folded through the same [matchesTypedBuffer] the learned path uses, so
+     * the reach is identical. Cluster-only, as the learned-heavy path is: on a flat board the typed word
+     * already leads the bar and elevating history to #1 there would over-trigger auto-replacement. The
+     * stored surface is lower-cased (that is how [WordFrequencyRepository] keys it), so it is offered with
+     * recasing left ON — the sentence-start capital and the proper-casing list dress it, and a deliberate
+     * casing you taught the keyboard ("FLOSS", "iPhone") was already claimed by the learned path above,
+     * which runs first and owns the surface.
+     */
+    private suspend fun queryTypedHistorySuggestions(
+        normalizedWord: String,
+        languageCode: String,
+        seenWords: MutableSet<String>
+    ): List<SpellingSuggestion> {
+        val bands = clusterBands
+        if (bands.isEmpty() || normalizedWord.isEmpty()) return emptyList()
+        return try {
+            val bufFolded = foldClusterBuffer(normalizedWord)
+            if (bufFolded.isEmpty()) return emptyList()
+            val history = wordFrequencyRepository.topWords(languageCode, TYPED_HISTORY_SCAN)
+            if (history.isEmpty()) return emptyList()
+            // As in the user dictionary and the learned store: a typed apostrophe matches the taps before it
+            // and re-attaches the possessive.
+            val split = apostropheSplit(bufFolded, languageCode)?.takeIf { it.possessive }
+            val matchBuffer = split?.head ?: bufFolded
+            val result = mutableListOf<SpellingSuggestion>()
+            // Every filter sits BEFORE the cap, so words already claimed above (a learned surface owns its
+            // own casing) or blocked cannot eat the slots. The sequence stays lazy, element by element, so
+            // each dedupe test sees what the words before it have just claimed; and
+            // [WordFrequencyRepository.topWords] arrives in count order, so the first matches to survive are
+            // the ones you type most.
+            history
+                .asSequence()
+                .filter { (word, _) ->
+                    matchesTypedBuffer(foldedMatchKey(word), matchBuffer, bands, exactLength = split != null)
+                }
+                .filter { (word, _) -> !isWordBlacklisted(word) }
+                .map { (word, count) ->
+                    (if (split == null) word else apostropheForm(word, split)) to count
+                }
+                .filter { (surface, _) -> surface.lowercase() !in seenWords }
+                .take(TYPED_HISTORY_MAX_RESULTS)
+                .forEach { (surface, count) ->
+                    seenWords.add(surface.lowercase())
+                    result.add(
+                        SpellingSuggestion(
+                            word = surface,
+                            confidence = learnedHeavyConfidence(count),
+                            ranking = 0,
+                            source = "history"
+                        )
+                    )
+                }
+            result
+        } catch (e: Exception) {
+            ErrorLogger.logException(
+                component = "SpellCheckManager",
+                severity = ErrorLogger.Severity.HIGH,
+                exception = e,
+                context = mapOf("operation" to "queryTypedHistorySuggestions")
+            )
+            emptyList()
         }
+    }
+
+    /**
+     * The accent-folded, lower-cased form a word is band-matched by. [WordNormalizer.stripDiacritics] runs a
+     * full NFD pass and builds a new string, and the history scan asks for up to [TYPED_HISTORY_SCAN] words
+     * on every keystroke — so the answer is remembered. The fold depends on nothing but the word (locale-
+     * independent lower-casing), so one memo serves every language; it is cleared wholesale if it ever grows
+     * past what a few languages' histories need.
+     */
+    private fun foldedMatchKey(word: String): String =
+        foldedKeys[word] ?: run {
+            if (foldedKeys.size > FOLD_MEMO_MAX) foldedKeys.clear()
+            val folded = wordNormalizer.stripDiacritics(word).lowercase()
+            foldedKeys[word] = folded
+            folded
+        }
+
+    /** How often you have typed each of [words] in [languageCode] — the one number candidates rank by. */
+    private suspend fun historyCounts(words: List<String>, languageCode: String): Map<String, Int> = try {
+        wordFrequencyRepository.getFrequencies(words.distinct(), languageCode)
+    } catch (e: Exception) {
+        ErrorLogger.logException(
+            component = "SpellCheckManager",
+            severity = ErrorLogger.Severity.LOW,
+            exception = e,
+            context = mapOf("operation" to "historyCounts")
+        )
+        emptyMap()
+    }
+
+    /**
+     * The forms 白い熊 means whatever else the bar has to offer (2026-10-20), ahead of every ladder below:
+     * two taps on the `(io` and `mwk` keys ARE "I'm", three on `(io` `btn` `sh)` ARE "it's".
+     *
+     * A curated contraction ([Contractions]) cannot come out of the dictionary walk — the apostrophe is on
+     * no band, so the walk's answers for those taps are the bare words ("im", "ith") and whatever else the
+     * bands allow. It used to be surfaced inside [queryClusterSuggestions] just above the dictionary
+     * candidates, which was enough until the typed-history ladder arrived: a dictionary word 白い熊 has
+     * typed scores from [learnedHeavyConfidence], far above anything ranked on dictionary frequency, so
+     * "implement" (two taps in) and "other" (three) buried "I'm" and "it's". Hence a rung of its own, above
+     * the user dictionary: these are not predictions to be outvoted by a count, they are what the taps mean.
+     *
+     * Running FIRST is also what fixes the order with a typed apostrophe: claiming the surface here keeps
+     * the history ladder from offering the same form again on the standing of a wrong head, which is how
+     * "in's" came to lead the "it's" the walk had really found.
+     *
+     * Cluster boards only, as everything band-matched is: on a flat board the buffer is the word itself and
+     * [Contractions.injectForWord] offers the contraction on that literal spelling.
+     */
+    private fun queryPreferredFormSuggestions(
+        normalizedWord: String,
+        languageCode: String,
+        seenWords: MutableSet<String>
+    ): List<SpellingSuggestion> {
+        if (languageCode != "en") return emptyList()
+        val bands = clusterBands
+        if (bands.isEmpty() || normalizedWord.isEmpty()) return emptyList()
+        val folded = foldClusterBuffer(normalizedWord)
+        if (folded.isEmpty()) return emptyList()
+        val allowedSets = folded.map { ch -> bands[ch] ?: setOf(ch) }
+        if (allowedSets.none { it.size > 1 }) return emptyList()
+        return Contractions.candidatesForBands(allowedSets).mapNotNull { (value, preserveCase) ->
+            val key = value.lowercase()
+            if (key in seenWords || isWordBlacklisted(value)) return@mapNotNull null
+            seenWords.add(key)
+            SpellingSuggestion(
+                word = value,
+                confidence = CONTRACTION_PREFERRED_CONFIDENCE,
+                ranking = 0,
+                source = "contraction",
+                preserveCase = preserveCase
+            )
+        }
+    }
 
     private suspend fun queryClusterSuggestions(
         normalizedWord: String,
@@ -1153,27 +1310,8 @@ constructor(
         if (allowedSets.none { it.size > 1 }) return emptyList()
         val dict = getUrikDictionary(languageCode) ?: return emptyList()
 
-        // Cluster contractions (Bug 1): the apostrophe form can't come from the DAWG (the "'" is never
-        // tapped) and the centre-letter buffer never spells the bare key, so surface any contraction whose
-        // bare key is consistent with the tap bands as a TOP-ranked candidate, ahead of the dict words.
-        val contractions =
-            if (languageCode == "en") {
-                Contractions.candidatesForBands(allowedSets).mapNotNull { (value, preserveCase) ->
-                    val key = value.lowercase()
-                    if (key in seenWords || isWordBlacklisted(value)) return@mapNotNull null
-                    seenWords.add(key)
-                    SpellingSuggestion(
-                        word = value,
-                        confidence = CONTRACTION_GUARANTEED_CONFIDENCE,
-                        ranking = 0,
-                        source = "contraction",
-                        preserveCase = preserveCase
-                    )
-                }
-            } else {
-                emptyList()
-            }
-
+        // The curated contractions that used to be surfaced here now lead the whole bar from
+        // [queryPreferredFormSuggestions], which runs before every frequency ladder.
         val pooled = dict.clusterCandidates(allowedSets, CLUSTER_BAR_POOL)
         // The centre-letter word itself must never be pool-truncated: the letters actually TAPPED
         // form a real word more often than its corpus rank suggests ("hit" on en, Czech "dít" via
@@ -1192,20 +1330,7 @@ constructor(
         // frequency and ignored how often YOU type a word. Frequencies are keyed by the layout language (the
         // same tag recordWordUsage now writes under), so they actually match. An apostrophe form is ranked by
         // its HEAD word, so "notes'" inherits everything "notes" had earned and the bar order never jumps.
-        val userFreqs = try {
-            wordFrequencyRepository.getFrequencies(
-                (attested + synthesized).map { it.rankWord }.distinct(),
-                languageCode
-            )
-        } catch (e: Exception) {
-            ErrorLogger.logException(
-                component = "SpellCheckManager",
-                severity = ErrorLogger.Severity.LOW,
-                exception = e,
-                context = mapOf("operation" to "queryClusterSuggestions_userFreq")
-            )
-            emptyMap()
-        }
+        val userFreqs = historyCounts((attested + synthesized).map { it.rankWord }, languageCode)
         fun score(candidate: ClusterCandidate): Double {
             val freqScore = ln(candidate.frequency.toDouble() + 1.0) / ln(MAX_DICT_FREQUENCY)
             val base = (0.55 + 0.44 * freqScore).coerceIn(0.0, 0.99)
@@ -1227,7 +1352,7 @@ constructor(
             val confidence = score(candidate)
             emit(candidate, if (floor == null) confidence else minOf(confidence, floor - SYNTHESIZED_GAP))
         }
-        return contractions + attestedSuggestions + synthesizedSuggestions
+        return attestedSuggestions + synthesizedSuggestions
     }
 
     /**
@@ -1450,6 +1575,24 @@ constructor(
             languageManager.effectiveDictionaryLanguages.value
         }
 
+    /**
+     * The language being TYPED, not the primary one. Your learned words and your typing history are written
+     * under it ([SuggestionPipeline.recordWordUsage]), so anything that reads or FORGETS them has to look
+     * there — the mismatch that made the Russian board take the English primary's dash (`+316`) and the
+     * Czech board capitalise "i" (`+321`).
+     */
+    private fun getLayoutLanguage(): String = try {
+        languageManager.currentLayoutLanguage.value.split("-").first()
+    } catch (e: Exception) {
+        ErrorLogger.logException(
+            component = "SpellCheckManager",
+            severity = ErrorLogger.Severity.LOW,
+            exception = e,
+            context = mapOf("operation" to "getLayoutLanguage")
+        )
+        getCurrentLanguage()
+    }
+
     private fun getCurrentLanguage(): String = try {
         val currentLanguage = languageManager.currentLanguage.value
         currentLanguage.split("-").first()
@@ -1516,11 +1659,32 @@ constructor(
     }
 
     /** Removes from WordLearningEngine and adds to blacklist in one operation. */
+    /**
+     * A long-press on a candidate, graded on purpose (白い熊, 2026-10-20): **"forget that I typed this" is
+     * not "this is not a word".** Now that a word typed once leads the bar
+     * ([learnedHeavyConfidence]), this is the gesture that corrects it — so it has to be cheap to use and
+     * must not destroy anything.
+     *
+     * So the first press takes away only what put the candidate there: the history row for the language
+     * being typed, and the learned entry if there is one. The word itself is untouched, and typing it again
+     * brings it back. Only a candidate with NO history behind it — one the bundled dictionary alone offers —
+     * is blacklisted, which is permanent, global across languages, and (because
+     * [SuggestionPipeline.learnWordAndInvalidateCache] returns at its in-dictionary check before reaching
+     * [removeFromBlacklist]) unreachable by re-typing a dictionary word. Pressing twice therefore escalates:
+     * the first press forgets your history of the word, the second blocks it.
+     */
     suspend fun removeSuggestion(word: String): Result<Boolean> = withContext(ioDispatcher) {
         return@withContext try {
-            val result = wordLearningEngine.removeWord(word)
-            blacklistSuggestion(word)
-            result
+            val layoutLanguage = getLayoutLanguage()
+            val forgotten = wordFrequencyRepository.forget(word, layoutLanguage)
+            val unlearned = wordLearningEngine.removeWord(word).getOrDefault(false)
+            if (forgotten || unlearned) {
+                // The cached suggestion lists still carry it; the word stays a word.
+                suggestionCache.invalidateAll()
+            } else {
+                blacklistSuggestion(word)
+            }
+            Result.success(true)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -1929,19 +2093,33 @@ constructor(
         const val EXACT_MATCH_CONFIDENCE = 0.999
         const val CONTRACTION_GUARANTEED_CONFIDENCE = 0.995
 
+        /**
+         * A strongly preferred form ([queryPreferredFormSuggestions]) is a decision, not a probability:
+         * deliberately ABOVE 1.0, which every ladder here tops out at, so no count can outrank it. The
+         * flat-board injection ([Contractions.forWord]) has always used `Double.MAX_VALUE` for the same
+         * reason; this one stays a readable step above the ceiling so the bar's order remains legible.
+         */
+        const val CONTRACTION_PREFERRED_CONFIDENCE = 1.05
+
         // User-dictionary ranking (queryUserDictionarySuggestions): freq 1 sits just under an exact dict hit;
         // freq ≥ 2 sits ABOVE the exact-match ceiling so the user's own word is the #1 candidate, ordered by
         // frequency within that top band (base + step·min(freq,cap), capped at 1.0 → never runs away).
-        const val USER_DICT_NEAR_TOP_CONFIDENCE = 0.97
         const val USER_DICT_TOP_BASE_CONFIDENCE = 0.9995
         const val USER_DICT_FREQ_STEP = 0.00001
         const val USER_DICT_FREQ_CAP = 50
 
         // Typed-word (learned) heavy ranking on cluster layouts — same shape as the user-dictionary band,
         // a hair lower so a deliberately added entry wins a tie at equal frequency.
-        const val LEARNED_HEAVY_NEAR_TOP_CONFIDENCE = 0.96
         const val LEARNED_HEAVY_TOP_BASE_CONFIDENCE = 0.9994
         const val LEARNED_HEAVY_MAX_RESULTS = 8
+
+        // How many of your most-typed words in the current language are band-matched per keystroke. The
+        // table itself is capped at 10 000 rows per MAX_FREQUENCY_ROWS and read once per process (the flush
+        // carries it forward), so this is an in-memory scan of a few thousand short strings — and a word
+        // outside your top 2 000 in one language is one you have typed a handful of times at most.
+        const val TYPED_HISTORY_SCAN = 2000
+        const val TYPED_HISTORY_MAX_RESULTS = 8
+        const val FOLD_MEMO_MAX = 8000
         const val CONTRACTION_DOMINANCE_RATIO = 20L
         const val USER_FREQ_CONTRACTION_WEIGHT = 300L
 

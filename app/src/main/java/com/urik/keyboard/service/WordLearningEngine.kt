@@ -611,7 +611,11 @@ class WordLearningEngine(
 
     /** Uses same mutex as learnWord to prevent race conditions. */
     suspend fun removeWord(word: String): Result<Boolean> = withContext(ioDispatcher) {
-        val currentLanguage = languageManager.currentLanguage.value
+        // Under the LAYOUT language, exactly as [learnWord] stores it. Reading the PRIMARY language here
+        // meant a long-press could not remove a word learned while typing a non-primary language at all: the
+        // delete matched no row, the candidate came straight back, and the only visible effect was the
+        // blacklisting that used to accompany it. (Same mismatch as `+316` and `+321`.)
+        val currentLanguage = languageManager.currentLayoutLanguage.value
 
         return@withContext try {
             val cleanWord = word.trim()

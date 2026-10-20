@@ -1450,6 +1450,7 @@ open class UrikInputMethodService :
             }
             "arrow_right" -> {
                 inputState.clearBigramPredictions()
+                releaseComposingWordAsTyped()
                 sendKeyEventWithMeta(KeyEvent.KEYCODE_DPAD_RIGHT, 0)
             }
             "undo" -> currentInputConnection?.performContextMenuAction(android.R.id.undo)
@@ -2929,6 +2930,28 @@ open class UrikInputMethodService :
             guard++
         }
         inputState.selectedCandidate = idx
+    }
+
+    /**
+     * Right arrow: let the word go, exactly as it stands (白い熊, 2026-10-20). The text in the field is kept
+     * — [OutputBridge.coordinateStateClear] ends the composing region rather than replacing it — and the
+     * candidate highlight goes with it, so the NEXT Space is a plain space instead of a commit of whatever
+     * led the bar. It is the way to type the exact letters shown.
+     *
+     * The arrow used to leave the word highlighted whenever the caret had nowhere to go: at the end of the
+     * text `KEYCODE_DPAD_RIGHT` moves nothing, no selection change arrives, and so nothing invalidated the
+     * composing state (a caret that really moves is handled by
+     * [OutputBridge.invalidateComposingStateOnCursorJump]). Releasing here makes the press mean the same
+     * thing in both places.
+     *
+     * The released word is NOT learned and NOT counted as typed: the arrow says "leave this alone", while
+     * long-press Space stays the gesture that says "this is a word, keep it". Japanese is left out —
+     * an arrow during kana conversion means something else there, and the kana would be frozen unconverted.
+     */
+    private fun releaseComposingWordAsTyped() {
+        if (suggestionPipeline.isJapaneseLayout) return
+        if (inputState.displayBuffer.isEmpty() && inputState.pendingSuggestions.isEmpty()) return
+        coordinateStateClear()
     }
 
     /**

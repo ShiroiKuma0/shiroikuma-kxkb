@@ -62,6 +62,13 @@ constructor(
     @Volatile
     private var topBigramsCache = ConcurrentHashMap<String, Map<String, LinkedHashSet<String>>>()
 
+    // The most-typed words per language, as the database holds them. Read on every keystroke by the
+    // typed-history predictor, so it is cached and refreshed only when a flush actually changes the table;
+    // words still waiting in [pendingFrequencyUpdates] are merged in at read time, never cached, so a word
+    // typed for the FIRST time is predictable immediately rather than after the write debounce.
+    @Volatile
+    private var topWordsCache = ConcurrentHashMap<String, List<Pair<String, Int>>>()
+
     private val writeScope = CoroutineScope(SupervisorJob() + ioDispatcher)
     private var frequencyFlushJob: Job? = null
     private var bigramFlushJob: Job? = null
@@ -77,6 +84,9 @@ constructor(
 
     private fun buildCacheKey(languageTag: String, normalizedWord: String): String = "${languageTag}_$normalizedWord"
 
+    /** Increments typed but not yet written out — part of your history the moment the word is committed. */
+    private fun pendingDelta(cacheKey: String): Int = pendingFrequencyUpdates[cacheKey]?.incrementCount ?: 0
+
     fun incrementFrequency(word: String, languageTag: String): Result<Unit> {
         if (word.isBlank()) {
             return Result.success(Unit)
@@ -85,8 +95,10 @@ constructor(
         val normalized = normalizeWord(word, languageTag)
         val cacheKey = buildCacheKey(languageTag, normalized)
 
-        val existing = frequencyCache.getIfPresent(cacheKey) ?: 0
-        frequencyCache.put(cacheKey, existing + 1)
+        // The cache holds the count as the DATABASE has it; increments ride in [pendingFrequencyUpdates]
+        // until the flush and are added by every read. Writing an optimistic count here used to OVERWRITE a
+        // real standing whenever the entry had been evicted — "typed fifty times" came back as "typed once",
+        // and the typed-history predictor ranks candidates by exactly this number.
 
         pendingFrequencyUpdates.merge(
             cacheKey,
@@ -135,6 +147,11 @@ constructor(
                     context = mapOf("operation" to "flushPendingFrequencyUpdates")
                 )
             }
+            // The stored counts just moved, so every cached count it touched is stale. The most-typed list
+            // is NOT dropped — it is moved by the same deltas, because reloading it is a 2 000-row query and
+            // the next thing to ask for it is a keystroke.
+            updates.keys.forEach { frequencyCache.invalidate(it) }
+            applyFlushedToTopWords(updates)
         }
         pruneIfNeeded()
     }
@@ -149,7 +166,7 @@ constructor(
             val cacheKey = buildCacheKey(languageTag, normalized)
 
             frequencyCache.getIfPresent(cacheKey)?.let {
-                return@withContext it
+                return@withContext it + pendingDelta(cacheKey)
             }
 
             val frequency =
@@ -159,7 +176,7 @@ constructor(
 
             frequencyCache.put(cacheKey, frequency)
 
-            return@withContext frequency
+            return@withContext frequency + pendingDelta(cacheKey)
         } catch (e: Exception) {
             ErrorLogger.logException(
                 component = "WordFrequencyRepository",
@@ -191,7 +208,7 @@ constructor(
                     val cacheKey = buildCacheKey(languageTag, normalized)
 
                     frequencyCache.getIfPresent(cacheKey)?.let { cached ->
-                        results[word] = cached
+                        results[word] = cached + pendingDelta(cacheKey)
                     } ?: run {
                         wordsToFetch.add(normalized)
                     }
@@ -213,7 +230,7 @@ constructor(
                         val cacheKey = buildCacheKey(languageTag, normalized)
 
                         frequencyCache.put(cacheKey, frequency)
-                        results[word] = frequency
+                        results[word] = frequency + pendingDelta(cacheKey)
                     }
                 }
 
@@ -229,6 +246,87 @@ constructor(
             }
         }
 
+    /**
+     * Your most-typed words in [languageTag], highest count first — the history the cluster bar predicts
+     * from. The stored list is read once and then carried forward by the flush; words still pending are
+     * merged in here, so a word committed a moment ago already predicts. A word that stands outside the
+     * stored top [limit] is counted from its pending increments alone until the list is next loaded, which
+     * only ever understates a word you rarely type.
+     */
+    suspend fun topWords(languageTag: String, limit: Int): List<Pair<String, Int>> = withContext(defaultDispatcher) {
+            try {
+                val stored =
+                    topWordsCache[languageTag] ?: withContext(ioDispatcher) {
+                        userWordFrequencyDao
+                            .getMostFrequentWords(languageTag, limit)
+                            .map { it.wordNormalized to it.frequency }
+                    }.also { topWordsCache[languageTag] = it }
+
+                val pending = pendingFrequencyUpdates.values.filter { it.languageTag == languageTag }
+                if (pending.isEmpty()) return@withContext stored
+
+                val merged = LinkedHashMap<String, Int>(stored.size + pending.size)
+                stored.forEach { (word, count) -> merged[word] = count }
+                pending.forEach { update ->
+                    merged[update.wordNormalized] = (merged[update.wordNormalized] ?: 0) + update.incrementCount
+                }
+                merged.map { it.key to it.value }.sortedByDescending { it.second }
+            } catch (e: Exception) {
+                ErrorLogger.logException(
+                    component = "WordFrequencyRepository",
+                    severity = ErrorLogger.Severity.LOW,
+                    exception = e,
+                    context = mapOf("operation" to "topWords")
+                )
+                emptyList()
+            }
+        }
+
+    /**
+     * Forget that [word] was ever typed in [languageTag] — what a long-press on a candidate does to a word
+     * that leads only because of your own history. Returns true when there was something to forget. The
+     * pending increments go FIRST: a word typed a moment ago is still waiting to be written, and the next
+     * flush would otherwise put the row straight back.
+     */
+    suspend fun forget(word: String, languageTag: String): Boolean = withContext(ioDispatcher) {
+        if (word.isBlank()) return@withContext false
+        try {
+            val normalized = normalizeWord(word, languageTag)
+            val cacheKey = buildCacheKey(languageTag, normalized)
+
+            val hadPending = pendingFrequencyUpdates.remove(cacheKey) != null
+            frequencyCache.invalidate(cacheKey)
+            topWordsCache[languageTag]?.let { cached ->
+                topWordsCache[languageTag] = cached.filterNot { it.first == normalized }
+            }
+
+            val deleted = userWordFrequencyDao.deleteForLanguage(languageTag, normalized)
+            hadPending || deleted > 0
+        } catch (e: Exception) {
+            ErrorLogger.logException(
+                component = "WordFrequencyRepository",
+                severity = ErrorLogger.Severity.HIGH,
+                exception = e,
+                context = mapOf("operation" to "forget")
+            )
+            false
+        }
+    }
+
+    /** Carry one flush's increments into the cached most-typed list, keeping it in step with the table. */
+    private fun applyFlushedToTopWords(updates: Map<String, PendingFrequencyUpdate>) {
+        if (topWordsCache.isEmpty()) return
+        updates.values.groupBy { it.languageTag }.forEach { (languageTag, written) ->
+            val cached = topWordsCache[languageTag] ?: return@forEach
+            val merged = LinkedHashMap<String, Int>(cached.size + written.size)
+            cached.forEach { (word, count) -> merged[word] = count }
+            written.forEach { update ->
+                merged[update.wordNormalized] = (merged[update.wordNormalized] ?: 0) + update.incrementCount
+            }
+            topWordsCache[languageTag] = merged.map { it.key to it.value }
+        }
+    }
+
     fun clearCache() {
         frequencyFlushJob?.cancel()
         bigramFlushJob?.cancel()
@@ -241,6 +339,7 @@ constructor(
         frequencyCache.invalidateAll()
         bigramCache.invalidateAll()
         topBigramsCache.clear()
+        topWordsCache.clear()
     }
 
     fun recordBigram(wordA: String, wordB: String, languageTag: String): Result<Unit> {

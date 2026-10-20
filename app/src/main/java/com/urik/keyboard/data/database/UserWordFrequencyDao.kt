@@ -76,6 +76,19 @@ interface UserWordFrequencyDao {
     @Query("DELETE FROM user_word_frequency WHERE word_normalized = :normalizedWord")
     suspend fun deleteByNormalizedWord(normalizedWord: String): Int
 
+    /**
+     * Forget one word in ONE language: the row is written under the language it was typed in, and a
+     * long-press on a candidate forgets it there only — the same word typed in another language keeps its
+     * own history. Returns the number of rows removed (0 = nothing of yours stood behind that candidate).
+     */
+    @Query(
+        """
+        DELETE FROM user_word_frequency
+        WHERE language_tag = :languageTag AND word_normalized = :normalizedWord
+        """
+    )
+    suspend fun deleteForLanguage(languageTag: String, normalizedWord: String): Int
+
     @Query("DELETE FROM user_word_frequency WHERE language_tag = :languageTag")
     suspend fun clearLanguage(languageTag: String): Int
 

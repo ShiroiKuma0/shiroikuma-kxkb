@@ -181,4 +181,45 @@ class ContractionsTest {
         )
         assertFalse(Contractions.possessiveFollowsBands(emptyList()))
     }
+
+    // --- candidatesForBands: the form itself, when the apostrophe was tapped ---
+
+    /** 白い熊's own en 3+2 board, the keys as they are labelled. */
+    private val io = setOf('(', 'i', 'o')
+    private val btn = setOf('b', 't', 'n')
+    private val shp = setOf('s', 'h', ')')
+    private val mwk = setOf('m', 'w', 'k')
+    private val apostrophe = setOf('\'')
+
+    @Test
+    fun `two taps on the io and mwk keys mean I'm`() {
+        assertTrue("I'm" in Contractions.candidatesForBands(listOf(io, mwk)).map { it.first })
+    }
+
+    @Test
+    fun `three taps on io btn and sh mean it's`() {
+        assertTrue("it's" in Contractions.candidatesForBands(listOf(io, btn, shp)).map { it.first })
+    }
+
+    @Test
+    fun `a tapped apostrophe matches the form itself`() {
+        // Four taps: i, t, ', s. The bare key "its" is three characters and cannot match the tap count, so
+        // without the second shape the real contraction was left to the dictionary walk alone and the
+        // possessive synthesized over every other head ("in's") outranked it (白い熊, 2026-10-20).
+        val values = Contractions.candidatesForBands(listOf(io, btn, apostrophe, shp)).map { it.first }
+        assertTrue("it's must be offered for the tapped apostrophe, got: $values", "it's" in values)
+    }
+
+    @Test
+    fun `the pronoun-I form keeps its capital when the apostrophe is tapped`() {
+        val matched = Contractions.candidatesForBands(listOf(io, apostrophe, mwk))
+        assertEquals(listOf("I'm" to true), matched.filter { it.first == "I'm" })
+    }
+
+    @Test
+    fun `a tapped apostrophe in the wrong place matches nothing`() {
+        // ' i t s — no contraction starts with the mark.
+        val values = Contractions.candidatesForBands(listOf(apostrophe, io, btn, shp)).map { it.first }
+        assertTrue("got: $values", values.isEmpty())
+    }
 }

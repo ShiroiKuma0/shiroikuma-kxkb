@@ -66,13 +66,20 @@ object Contractions {
     /**
      * Cluster-keyboard contractions: on a cluster layout the typed buffer is the tapped clusters' centre
      * letters, so the apostrophe-less key ("dont") is never in the buffer verbatim — but each tap is a
-     * BAND of possible letters. A contraction is offered when its bare key (which never contains the
-     * apostrophe, so its length equals the tap count) is CONSISTENT with the tap bands: one bare-key char
-     * per tap, each char inside that tap's allowed set. The apostrophe form ("don't") is then surfaced as a
-     * top cluster candidate (the "'" is never tapped, so it can't come from the cluster DAWG). See Bug 1.
+     * BAND of possible letters. A contraction is offered when a spelling of it is CONSISTENT with the tap
+     * bands: one character per tap, each inside that tap's allowed set.
+     *
+     * TWO spellings are tried, because there are two ways to tap the same contraction:
+     *  - the **bare key** ("its", "im"), when the apostrophe was not tapped at all — it is on no band, so
+     *    the cluster DAWG can only ever answer with the bare dictionary words;
+     *  - the **form itself** ("it's"), when the apostrophe WAS tapped: i, t, ', s — four taps, and the
+     *    apostrophe matches its own one-character band. Without this shape the walk's one real answer
+     *    competed on dictionary frequency with the possessive synthesized over every other head the taps
+     *    allow, so "in's" (from the much commoner "in") led the real "it's" (白い熊, 2026-10-20).
      *
      * [allowedSets] is the per-tap accent-folded lowercase character set from SpellCheckManager's cluster
-     * bands; bare keys here are already lowercase ASCII so they compare directly.
+     * bands; the spellings here are lowercase ASCII (plus the straight apostrophe the cluster buffer is
+     * canonicalised to), so they compare directly.
      *
      * Returns each matching contraction's apostrophe value paired with whether its case is preserved
      * verbatim (the pronoun-I forms), so the caller can build a SpellingSuggestion the casing path respects.
@@ -80,12 +87,15 @@ object Contractions {
     fun candidatesForBands(allowedSets: List<Set<Char>>): List<Pair<String, Boolean>> {
         if (allowedSets.isEmpty()) return emptyList()
         val result = mutableListOf<Pair<String, Boolean>>()
-        fun consider(key: String, value: String, preserveCase: Boolean) {
-            if (key.length != allowedSets.size) return
-            for (i in key.indices) {
-                if (key[i] !in allowedSets[i]) return
+        fun spellsOut(spelling: String): Boolean {
+            if (spelling.length != allowedSets.size) return false
+            for (i in spelling.indices) {
+                if (spelling[i] !in allowedSets[i]) return false
             }
-            result += value to preserveCase
+            return true
+        }
+        fun consider(key: String, value: String, preserveCase: Boolean) {
+            if (spellsOut(key) || spellsOut(value.lowercase())) result += value to preserveCase
         }
         for ((key, value) in PRONOUN_I) consider(key, value, preserveCase = true)
         for ((key, value) in GENERAL) consider(key, value, preserveCase = false)

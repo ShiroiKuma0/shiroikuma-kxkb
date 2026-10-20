@@ -415,6 +415,11 @@ class SuggestionPipeline(
             wordFrequencyRepository.incrementFrequency(word, currentLanguage)
             // Promote a matching user-dictionary entry so words/shortcuts/readings you reuse climb to #1.
             spellCheckManager.recordUserDictionaryUse(currentLanguage, word)
+            // Your history is what the bar ranks by, so every cached suggestion list is now stale. This is
+            // the ONLY invalidation an in-dictionary word gets — [learnWordAndInvalidateCache] returns at its
+            // in-dictionary check, before its own — and it is what lets a word typed once lead the row the
+            // very next time its first letters are tapped, instead of after the cache happens to evict.
+            spellCheckManager.invalidateWordCache(word)
 
             if (state.lastCommittedWord.isNotBlank()) {
                 wordFrequencyRepository.recordBigram(state.lastCommittedWord, word, currentLanguage)
