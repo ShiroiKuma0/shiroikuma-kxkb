@@ -8,9 +8,11 @@ import com.urik.keyboard.utils.isUserUnlocked
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
+import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.security.MessageDigest
+import java.util.UUID
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -38,7 +40,7 @@ class VoiceCaptureStore(private val context: Context) {
      * the confidences onto whatever the sentence reads as now, so the marks survive a correction and a
      * process death exactly as they do during dictation.
      */
-    class Entry(
+    data class Entry(
         val uuid: String,
         val clip: String,
         val capturedAt: Long,
@@ -65,9 +67,35 @@ class VoiceCaptureStore(private val context: Context) {
          * dictionary does not know) are not here: those are worked out again from [rawConfidences] and
          * the dictionary every time the row is built. See [VoiceSettledWords].
          */
-        val settled: List<VoiceSettledWords.Settled>? = null
+        val settled: List<VoiceSettledWords.Settled>? = null,
+        /**
+         * A sentence to decode, or a long recording to keep or cut up (contract §9). The press that
+         * starts a walk recording is also 白い熊's "record this for later", and what a long clip is FOR is
+         * decided here in the review — never by decoding it, which Whisper's 30 s window cannot do.
+         */
+        val kind: Kind = Kind.SENTENCE,
+        /** 自由作業盤 recovered this one from a kill mid-recording; it is otherwise ordinary. */
+        val salvaged: Boolean = false,
+        /** The long recording this sentence was cut out of, for as long as that recording is here. */
+        val parent: String? = null,
+        /** Where this long recording was written out as an OGG, once it has been. */
+        val ogg: String? = null,
+        /** How many sentences this long recording was cut into, 0 until it has been. */
+        val pieces: Int = 0
     ) {
         val transcribed: Boolean get() = text != null
+
+        val isLong: Boolean get() = kind == Kind.LONG
+    }
+
+    /** What an offered clip is. Absent on the wire means a sentence — the only kind there was before §9. */
+    enum class Kind(val tag: String) {
+        SENTENCE("sentence"),
+        LONG("long");
+
+        companion object {
+            fun of(tag: String?): Kind = entries.firstOrNull { it.tag == tag } ?: SENTENCE
+        }
     }
 
     /** Why an offered clip was refused — the closed set the door reports back per uuid. */
@@ -118,13 +146,15 @@ class VoiceCaptureStore(private val context: Context) {
         language: String,
         declaredBytes: Long,
         sha256: String,
+        kind: Kind = Kind.SENTENCE,
+        salvaged: Boolean = false,
         source: InputStream?
     ): Import {
         if (!usable) return Import.Refused(Reject.IO)
         if (!isSafeUuid(uuid)) return Import.Refused(Reject.FORMAT)
         if (contains(uuid)) return Import.Duplicate
         if (source == null) return Import.Refused(Reject.NO_FD)
-        if (declaredBytes !in MIN_FILE_BYTES..MAX_FILE_BYTES) return Import.Refused(Reject.LENGTH)
+        if (declaredBytes !in MIN_FILE_BYTES..maxBytesOf(kind)) return Import.Refused(Reject.LENGTH)
         dir.mkdirs()
         val part = File(dir, "$uuid$PART_SUFFIX")
         return try {
@@ -138,12 +168,12 @@ class VoiceCaptureStore(private val context: Context) {
                     digest.update(buffer, 0, read)
                     out.write(buffer, 0, read)
                     written += read
-                    if (written > MAX_FILE_BYTES) break
+                    if (written > maxBytesOf(kind)) break
                 }
                 out.flush()
                 out.fd.sync()
             }
-            val reason = verify(part, written, declaredBytes, digest.digest(), sha256)
+            val reason = verify(part, written, declaredBytes, digest.digest(), sha256, kind)
             if (reason != null) {
                 part.delete()
                 return Import.Refused(reason)
@@ -165,7 +195,9 @@ class VoiceCaptureStore(private val context: Context) {
                     // contract, 言語島's translation direction and voice (§7).
                     language = VoiceLanguages.captureOrDefault(language),
                     byteLength = clip.length(),
-                    sha256 = sha256.lowercase()
+                    sha256 = sha256.lowercase(),
+                    kind = kind,
+                    salvaged = salvaged
                 )
             )
             writeIndex(entries)
@@ -192,21 +224,20 @@ class VoiceCaptureStore(private val context: Context) {
         edited: Boolean = false
     ) {
         update(uuid) { e ->
-            Entry(
-                e.uuid, e.clip, e.capturedAt, e.durationMs, e.language, e.byteLength, e.sha256,
-                recognized, text, rawWords, rawConfidences, e.attempts, edited, settled = null
+            e.copy(
+                recognized = recognized,
+                text = text,
+                rawWords = rawWords,
+                rawConfidences = rawConfidences,
+                edited = edited,
+                settled = null
             )
         }
     }
 
     /** A decode produced nothing (a clip of silence, or an engine that gave up): count the attempt. */
     fun countFailedAttempt(uuid: String) {
-        update(uuid) { e ->
-            Entry(
-                e.uuid, e.clip, e.capturedAt, e.durationMs, e.language, e.byteLength, e.sha256,
-                e.recognized, e.text, e.rawWords, e.rawConfidences, e.attempts + 1, e.edited, e.settled
-            )
-        }
+        update(uuid) { e -> e.copy(attempts = e.attempts + 1) }
     }
 
     /**
@@ -218,13 +249,7 @@ class VoiceCaptureStore(private val context: Context) {
      * ([VoiceSettledWords.carry]) so a word it did not touch keeps its mark.
      */
     fun saveText(uuid: String, text: String, settled: List<VoiceSettledWords.Settled> = emptyList()) {
-        update(uuid) { e ->
-            Entry(
-                e.uuid, e.clip, e.capturedAt, e.durationMs, e.language, e.byteLength, e.sha256,
-                e.recognized, text, e.rawWords, e.rawConfidences, e.attempts, edited = true,
-                settled = settled.ifEmpty { null }
-            )
-        }
+        update(uuid) { e -> e.copy(text = text, edited = true, settled = settled.ifEmpty { null }) }
     }
 
     /**
@@ -263,13 +288,97 @@ class VoiceCaptureStore(private val context: Context) {
      */
     private fun relanguaged(entry: Entry, wanted: String): Entry {
         if (entry.language == wanted) return entry
-        return Entry(
-            entry.uuid, entry.clip, entry.capturedAt, entry.durationMs, wanted, entry.byteLength,
-            entry.sha256,
-            recognized = null, text = null, rawWords = null, rawConfidences = null, attempts = 0,
-            edited = false, settled = null
+        return entry.copy(
+            language = wanted,
+            recognized = null,
+            text = null,
+            rawWords = null,
+            rawConfidences = null,
+            attempts = 0,
+            edited = false,
+            settled = null
         )
     }
+
+    // ---- long recordings (contract §9) -----------------------------------------------------------------
+
+    /**
+     * Remember that this long recording has been written out as an OGG at [path]. The WAV stays: the OGG
+     * and the sentences are two different things to want from one recording, and doing one of them may not
+     * cost the other. The caller deletes the recording when the last thing wanted from it is done.
+     */
+    fun markOgg(uuid: String, path: String) = update(uuid) { e -> e.copy(ogg = path) }
+
+    /** The same for a recording cut into [pieces] sentences. */
+    fun markSplit(uuid: String, pieces: Int) = update(uuid) { e -> e.copy(pieces = pieces) }
+
+    /**
+     * One sentence cut out of the long recording [parent]: [pcm] (raw PCM16 at the agreed rate) written as
+     * a canonical WAV under a uuid of its own, and an index row that is an ORDINARY captured sentence — so
+     * it is decoded, reviewed and handed to 言語島 exactly as a sentence spoken into one press is, and §2
+     * needs to know nothing about any of this.
+     *
+     * [offsetMs] is where the piece began inside the recording, which is what makes its `capturedAt` the
+     * time it was really spoken. The checksum is empty: nobody declared these bytes to us, we cut them.
+     */
+    fun addPiece(parent: Entry, offsetMs: Long, pcm: ByteArray): String? {
+        if (!usable) return null
+        if (pcm.size < MIN_MS * BYTES_PER_MS) return null
+        val uuid = UUID.randomUUID().toString()
+        dir.mkdirs()
+        val part = File(dir, "$uuid$PART_SUFFIX")
+        return try {
+            FileOutputStream(part).use { out ->
+                out.write(wavHeader(pcm.size))
+                out.write(pcm)
+                out.flush()
+                out.fd.sync()
+            }
+            val clip = File(dir, "$uuid.wav")
+            if (!part.renameTo(clip)) {
+                part.delete()
+                return null
+            }
+            val entries = readIndex().toMutableList()
+            entries.add(
+                Entry(
+                    uuid = uuid,
+                    clip = clip.name,
+                    capturedAt = parent.capturedAt + offsetMs,
+                    durationMs = pcm.size.toLong() / BYTES_PER_MS,
+                    language = parent.language,
+                    byteLength = clip.length(),
+                    sha256 = "",
+                    parent = parent.uuid
+                )
+            )
+            writeIndex(entries)
+            uuid
+        } catch (e: Exception) {
+            part.delete()
+            log("addPiece", e)
+            null
+        }
+    }
+
+    /** The 44-byte canonical header for [dataBytes] of the agreed audio — the one the contract names. */
+    private fun wavHeader(dataBytes: Int): ByteArray =
+        ByteBuffer.allocate(44).order(ByteOrder.LITTLE_ENDIAN).apply {
+            put("RIFF".toByteArray(Charsets.US_ASCII)).putInt(36 + dataBytes)
+            put("WAVE".toByteArray(Charsets.US_ASCII))
+            put("fmt ".toByteArray(Charsets.US_ASCII)).putInt(16)
+            putShort(1).putShort(1).putInt(SAMPLE_RATE)
+            putInt(SAMPLE_RATE * 2).putShort(2).putShort(16)
+            put("data".toByteArray(Charsets.US_ASCII)).putInt(dataBytes)
+        }.array()
+
+    /**
+     * Where the audio of [clip] lies and how much of it there is, read from the header alone — what the
+     * splitter needs in order to walk a four-hour recording frame by frame without holding it in memory.
+     */
+    fun pcmOf(clip: File): Pcm? = readHeader(clip)?.let { Pcm(it.dataOffset, it.dataBytes) }
+
+    class Pcm(val offset: Long, val bytes: Long)
 
     /**
      * Drop a sentence from the inbox. [deleteClip] false hands the audio on instead (an accepted sentence
@@ -342,37 +451,84 @@ class VoiceCaptureStore(private val context: Context) {
         written: Long,
         declaredBytes: Long,
         digest: ByteArray,
-        declaredSha: String
+        declaredSha: String,
+        kind: Kind
     ): Reject? {
         if (written != declaredBytes) return Reject.LENGTH
         if (declaredSha.isNotBlank() && digest.toHex() != declaredSha.lowercase()) return Reject.SHA256
-        val bytes = try {
-            file.readBytes()
+        val header = try {
+            readHeader(file)
         } catch (e: Exception) {
             log("verify", e)
             return Reject.IO
-        }
-        if (!isAgreedWav(bytes)) return Reject.FORMAT
-        val duration = dataRange(bytes)?.second?.let { it * 1000L / (SAMPLE_RATE * 2) } ?: return Reject.FORMAT
-        if (duration < MIN_MS || duration > MAX_MS) return Reject.LENGTH
+        } ?: return Reject.FORMAT
+        if (!header.agreed) return Reject.FORMAT
+        val duration = header.durationMs
+        if (duration < MIN_MS || duration > maxMsOf(kind)) return Reject.LENGTH
         return null
     }
 
-    /** 16 kHz mono PCM16 — byte-for-byte the format the voice corpus itself writes. */
-    private fun isAgreedWav(bytes: ByteArray): Boolean {
-        if (bytes.size < 44) return false
-        if (String(bytes, 0, 4, Charsets.US_ASCII) != "RIFF") return false
-        if (String(bytes, 8, 4, Charsets.US_ASCII) != "WAVE") return false
-        val fmt = chunkRange(bytes, "fmt ") ?: return false
-        if (fmt.second < 16) return false
-        val b = ByteBuffer.wrap(bytes, fmt.first, 16).order(ByteOrder.LITTLE_ENDIAN)
-        val audioFormat = b.short.toInt()
-        val channels = b.short.toInt()
-        val rate = b.int
-        b.int // byte rate — derived, not trusted
-        b.short // block align
-        val bits = b.short.toInt()
-        return audioFormat == 1 && channels == 1 && rate == SAMPLE_RATE && bits == 16
+    /**
+     * A clip's shape, read from its header and nothing else: a four-hour recording is 460 MB, and reading
+     * it whole in order to look at 44 bytes is an out-of-memory error with a walk's audio inside it. The
+     * chunk list is walked by SEEKING, so a header of any shape is handled and no payload is ever read.
+     */
+    private class Header(
+        val dataOffset: Long,
+        val dataBytes: Long,
+        val format: Int,
+        val channels: Int,
+        val rate: Int,
+        val bits: Int
+    ) {
+        /** From the bytes that are REALLY there — a recording a kill cut short declares more than it has. */
+        val durationMs: Long get() = dataBytes / BYTES_PER_MS
+
+        /** 16 kHz mono PCM16 — byte-for-byte the format the voice corpus itself writes. */
+        val agreed: Boolean get() = format == 1 && channels == 1 && rate == SAMPLE_RATE && bits == 16
+    }
+
+    private fun readHeader(file: File): Header? {
+        RandomAccessFile(file, "r").use { raf ->
+            val length = raf.length()
+            if (length < 44) return null
+            val riff = ByteArray(12)
+            raf.readFully(riff)
+            if (String(riff, 0, 4, Charsets.US_ASCII) != "RIFF") return null
+            if (String(riff, 8, 4, Charsets.US_ASCII) != "WAVE") return null
+            var format: ByteBuffer? = null
+            var dataOffset = -1L
+            var dataBytes = 0L
+            var offset = 12L
+            val head = ByteArray(8)
+            while (offset + 8 <= length) {
+                raf.seek(offset)
+                raf.readFully(head)
+                val name = String(head, 0, 4, Charsets.US_ASCII)
+                val size = ByteBuffer.wrap(head, 4, 4).order(ByteOrder.LITTLE_ENDIAN).int
+                if (size < 0) return null
+                val payload = offset + 8
+                if (name == "fmt " && size >= 16 && format == null) {
+                    val fmt = ByteArray(16)
+                    raf.readFully(fmt)
+                    format = ByteBuffer.wrap(fmt).order(ByteOrder.LITTLE_ENDIAN)
+                } else if (name == "data" && dataOffset < 0) {
+                    dataOffset = payload
+                    dataBytes = minOf(size.toLong(), length - payload).coerceAtLeast(0L)
+                }
+                if (format != null && dataOffset >= 0) break
+                offset = payload + size + (size and 1)
+            }
+            val fmt = format ?: return null
+            if (dataOffset < 0) return null
+            val audioFormat = fmt.short.toInt()
+            val channels = fmt.short.toInt()
+            val rate = fmt.int
+            fmt.int // byte rate — derived, not trusted
+            fmt.short // block align
+            val bits = fmt.short.toInt()
+            return Header(dataOffset, dataBytes, audioFormat, channels, rate, bits)
+        }
     }
 
     private fun dataRange(bytes: ByteArray): Pair<Int, Int>? = chunkRange(bytes, "data")
@@ -392,7 +548,7 @@ class VoiceCaptureStore(private val context: Context) {
     }
 
     private fun wavDurationMs(file: File): Long? = try {
-        dataRange(file.readBytes())?.second?.let { it * 1000L / (SAMPLE_RATE * 2) }
+        readHeader(file)?.durationMs
     } catch (e: Exception) {
         log("duration", e)
         null
@@ -447,7 +603,12 @@ class VoiceCaptureStore(private val context: Context) {
             // Written before the flag existed: a sentence whose text already differs from the decode was
             // settled by hand, which is exactly what the flag would have said about it.
             edited = o.optBoolean("edited", text != null && text != recognized),
-            settled = settledFrom(o.optJSONArray("settled"))
+            settled = settledFrom(o.optJSONArray("settled")),
+            kind = Kind.of(o.optString("kind")),
+            salvaged = o.optBoolean("salvaged"),
+            parent = if (o.isNull("parent")) null else o.optString("parent"),
+            ogg = if (o.isNull("ogg")) null else o.optString("ogg"),
+            pieces = o.optInt("pieces")
         )
     }
 
@@ -512,6 +673,11 @@ class VoiceCaptureStore(private val context: Context) {
                         .put("attempts", e.attempts)
                         .put("edited", e.edited)
                         .put("settled", settledTo(e.settled))
+                        .put("kind", e.kind.tag)
+                        .put("salvaged", e.salvaged)
+                        .put("parent", e.parent ?: JSONObject.NULL)
+                        .put("ogg", e.ogg ?: JSONObject.NULL)
+                        .put("pieces", e.pieces)
                         .put("rawWords", e.rawWords?.let { JSONArray(it) } ?: JSONObject.NULL)
                         .put(
                             "rawConfidences",
@@ -589,17 +755,34 @@ class VoiceCaptureStore(private val context: Context) {
         /** Whisper's window is 30 s; 自由作業盤 splits a sentence at 28 s, so longer than 30 s loses its tail. */
         private const val MAX_MS = 30_000L
 
+        /** The recorder's own ceiling for one press-to-press recording (contract §9): four hours. */
+        private const val MAX_LONG_MS = 4 * 60 * 60 * 1000L
+
         /** Shorter than this is a stray key press, not a sentence. */
         private const val MIN_MS = 200L
 
         private const val MIN_FILE_BYTES = 44L + 2 * SAMPLE_RATE * MIN_MS / 1000
         private const val MAX_FILE_BYTES = 1024L + 2 * SAMPLE_RATE * MAX_MS / 1000
+        private const val MAX_LONG_FILE_BYTES = 1024L + 2 * SAMPLE_RATE * MAX_LONG_MS / 1000
+
+        /** The agreed audio, in bytes per millisecond — 16 kHz × PCM16 mono. */
+        const val BYTES_PER_MS = SAMPLE_RATE * 2 / 1000
+
+        /** The longest and the shortest a clip of [kind] may be. */
+        private fun maxBytesOf(kind: Kind) = if (kind == Kind.LONG) MAX_LONG_FILE_BYTES else MAX_FILE_BYTES
+
+        private fun maxMsOf(kind: Kind) = if (kind == Kind.LONG) MAX_LONG_MS else MAX_MS
 
         /** How long a clip with no index row is left alone before it counts as an orphan. */
         private const val ORPHAN_GRACE_MS = 60 * 60 * 1000L
 
-        /** How much captured audio may wait at once (half a gigabyte is many walks). */
-        private const val BUDGET_BYTES = 512L * 1024 * 1024
+        /**
+         * How much captured audio may wait at once. Two gigabytes rather than §1's 512 MB because a long
+         * recording is up to four hours (460 MB) and CUTTING one needs room for the pieces beside the
+         * original — which is also why the long recordings and the sentences share one budget instead of
+         * each getting their own: a split must never fail for want of room the recording itself occupies.
+         */
+        private const val BUDGET_BYTES = 2048L * 1024 * 1024
 
         /** A uuid becomes a file name, so it may only be a plain one. */
         fun isSafeUuid(uuid: String): Boolean =

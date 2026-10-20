@@ -105,7 +105,15 @@ class VoiceCaptureStoreTest {
 
     @Test
     fun `a missing descriptor is its own refusal`() {
-        val outcome = store.import("nofd", 1L, 1000, "en", 40000, "", null)
+        val outcome = store.import(
+            uuid = "nofd",
+            capturedAt = 1L,
+            durationMs = 1000,
+            language = "en",
+            declaredBytes = 40000,
+            sha256 = "",
+            source = null
+        )
         assertEquals(VoiceCaptureStore.Import.Refused(VoiceCaptureStore.Reject.NO_FD), outcome)
     }
 
@@ -351,13 +359,131 @@ class VoiceCaptureStoreTest {
         assertFalse(store.setLanguage("missing", "cs"))
     }
 
-    private fun offer(uuid: String, wav: ByteArray, language: String = "en"): VoiceCaptureStore.Import = store.import(
+    // ---- long recordings (contract §9) -----------------------------------------------------------------
+
+    @Test
+    fun `a long recording is taken in at a length no sentence may have`() {
+        val twoMinutes = wav(seconds = 120.0, peak = 8000)
+        assertEquals(
+            VoiceCaptureStore.Import.Stored,
+            offer("long-one", twoMinutes, kind = VoiceCaptureStore.Kind.LONG, salvaged = true)
+        )
+
+        val entry = store.entries().single()
+        assertTrue(entry.isLong)
+        assertTrue(entry.salvaged)
+        assertEquals(120_000L, entry.durationMs)
+        // Never decoded, so it is not a sentence waiting for anything.
+        assertFalse(entry.transcribed)
+    }
+
+    @Test
+    fun `the same clip offered as a sentence is still too long to be one`() {
+        val twoMinutes = wav(seconds = 120.0, peak = 8000)
+        assertEquals(
+            VoiceCaptureStore.Import.Refused(VoiceCaptureStore.Reject.LENGTH),
+            offer("long-as-sentence", twoMinutes)
+        )
+        assertTrue(store.entries().isEmpty())
+        assertNull(dir.listFiles()?.firstOrNull { it.name.endsWith(".wav") })
+    }
+
+    @Test
+    fun `a recording longer than the recorder can make is refused before a byte is copied`() {
+        val wav = wav(seconds = 1.0, peak = 8000)
+        val outcome = store.import(
+            uuid = "absurd",
+            capturedAt = 1L,
+            durationMs = 0,
+            language = "en",
+            // Five hours, past the recorder's own four-hour ceiling (contract §9).
+            declaredBytes = 44L + 2 * 16000 * 5 * 3600,
+            sha256 = sha(wav),
+            kind = VoiceCaptureStore.Kind.LONG,
+            source = ByteArrayInputStream(wav)
+        )
+        assertEquals(VoiceCaptureStore.Import.Refused(VoiceCaptureStore.Reject.LENGTH), outcome)
+        assertNull(dir.listFiles()?.firstOrNull { it.name.endsWith(".part") })
+    }
+
+    @Test
+    fun `a recording a kill cut short is as long as the bytes it really has`() {
+        // 自由作業盤 rewrites the header every five seconds and saves what is on disk after a kill, so a
+        // salvaged clip can declare more audio than it holds. The length is read off the file, never off
+        // the claim — and the header is all that is read, which is what makes four hours affordable.
+        val whole = wav(seconds = 10.0, peak = 8000)
+        val truncated = whole.copyOf(44 + 2 * 16000 * 4)
+        assertEquals(
+            VoiceCaptureStore.Import.Stored,
+            offer("cut-short", truncated, kind = VoiceCaptureStore.Kind.LONG, salvaged = true)
+        )
+        assertEquals(4_000L, store.entries().single().durationMs)
+    }
+
+    @Test
+    fun `what became of a recording survives a reload, and both of them together end it`() {
+        assertEquals(
+            VoiceCaptureStore.Import.Stored,
+            offer("long-two", wav(seconds = 120.0, peak = 8000), kind = VoiceCaptureStore.Kind.LONG)
+        )
+        store.markOgg("long-two", "/sdcard/〇/録音/2026-10-19_08-00-00.ogg")
+        store.markSplit("long-two", 3)
+
+        val reloaded = VoiceCaptureStore(context).entries().single()
+        assertTrue(reloaded.isLong)
+        assertEquals("/sdcard/〇/録音/2026-10-19_08-00-00.ogg", reloaded.ogg)
+        assertEquals(3, reloaded.pieces)
+    }
+
+    @Test
+    fun `a piece cut out of a recording is an ordinary sentence of its own`() {
+        assertEquals(
+            VoiceCaptureStore.Import.Stored,
+            offer("parent", wav(seconds = 120.0, peak = 8000), language = "cs", kind = VoiceCaptureStore.Kind.LONG)
+        )
+        val parent = store.entries().single()
+
+        // Two seconds of audio taken from 30 s into the recording.
+        val pcm = ByteArray(2 * 16000 * 2) { if (it % 2 == 0) 0x40 else 0x10 }
+        val uuid = store.addPiece(parent, offsetMs = 30_000, pcm = pcm)!!
+
+        val piece = store.entries().first { it.uuid == uuid }
+        assertFalse(piece.isLong)
+        assertEquals("parent", piece.parent)
+        // Spoken half a minute into the recording, and in the language the recording was marked with.
+        assertEquals(parent.capturedAt + 30_000, piece.capturedAt)
+        assertEquals("cs", piece.language)
+        assertEquals(2_000L, piece.durationMs)
+        // A canonical WAV like any other clip here: it reads back as samples the engine can take.
+        assertEquals(2 * 16000, store.readSamples(piece)!!.size)
+    }
+
+    @Test
+    fun `a piece too short to be a sentence is not written at all`() {
+        assertEquals(
+            VoiceCaptureStore.Import.Stored,
+            offer("parent-two", wav(seconds = 120.0, peak = 8000), kind = VoiceCaptureStore.Kind.LONG)
+        )
+        val parent = store.entries().single()
+        assertNull(store.addPiece(parent, offsetMs = 0, pcm = ByteArray(1000)))
+        assertEquals(1, store.entries().size)
+    }
+
+    private fun offer(
+        uuid: String,
+        wav: ByteArray,
+        language: String = "en",
+        kind: VoiceCaptureStore.Kind = VoiceCaptureStore.Kind.SENTENCE,
+        salvaged: Boolean = false
+    ): VoiceCaptureStore.Import = store.import(
         uuid = uuid,
         capturedAt = 1_700_000_000_000L,
         durationMs = 0,
         language = language,
         declaredBytes = wav.size.toLong(),
         sha256 = sha(wav),
+        kind = kind,
+        salvaged = salvaged,
         source = ByteArrayInputStream(wav)
     )
 

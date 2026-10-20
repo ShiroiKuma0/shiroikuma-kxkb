@@ -116,7 +116,9 @@ class VoiceCaptureOfferTest {
     @Test
     fun `an offer that would not fit the budget is refused whole`() {
         val clip = wav()
-        val items = JSONArray().put(item("huge", clip, 0).put("byteLength", 600L * 1024 * 1024))
+        // Whatever the inbox's ceiling is — §9 raised it to hold four-hour recordings and the sentences
+        // one of them is cut into — a clip that does not fit under it is refused before anything is copied.
+        val items = JSONArray().put(item("huge", clip, 0).put("byteLength", store.budgetBytes() + 1))
 
         val answer = offer.apply(items.toString(), opener(listOf("huge" to clip)))
 

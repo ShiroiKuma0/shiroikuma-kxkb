@@ -17,6 +17,7 @@ import com.urik.keyboard.model.KeyboardDisplayMode
 import com.urik.keyboard.service.GeometryBucket
 import com.urik.keyboard.service.KeyboardLookKnobs
 import com.urik.keyboard.settings.SettingsRepository.Companion.EXPORT_SET_DELIMITER
+import com.urik.keyboard.settings.voice.VoiceCaptureControls
 import com.urik.keyboard.utils.CacheMemoryManager
 import com.urik.keyboard.utils.ErrorLogger
 import com.urik.keyboard.utils.isUserUnlocked
@@ -93,6 +94,8 @@ constructor(
         val CURRENT_LAYOUT_LANGUAGE = stringPreferencesKey("current_layout_language")
         val LIBRARY_REPO_PATH = stringPreferencesKey("library_repo_path")
         val EXPORT_IMPORT_PATH = stringPreferencesKey("export_import_path")
+        val VOICE_RECORDING_PATH = stringPreferencesKey("voice_recording_path")
+        val VOICE_CAPTURE_BUTTON_ORDER = stringPreferencesKey("voice_capture_button_order")
         val LIBRARY_GIT_FOLDED = booleanPreferencesKey("library_git_folded")
         // The Library git archive's HTTPS remote. Stored in app-private DataStore (this device already has
         // All-Files-Access); the token is a personal-access token used only for clone/pull/push, never on
@@ -846,6 +849,51 @@ constructor(
             if (trimmed.isEmpty()) it.remove(PreferenceKeys.EXPORT_IMPORT_PATH)
             else it[PreferenceKeys.EXPORT_IMPORT_PATH] = trimmed
         }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    /**
+     * The real filesystem directory (All-Files-Access) the walk review writes kept recordings to as OGG
+     * files. Null if unset, and unset is the state the Walk capture page starts in deliberately: a
+     * recording is 白い熊's own audio, so where it lands is picked rather than guessed, and the pick is what
+     * asks for the file access it needs.
+     *
+     * Deliberately NOT in [stringExportKeys], exactly like the backup path above: a path is a fact about
+     * one device, and restoring another phone's onto this one would point the recordings at nothing.
+     */
+    suspend fun getVoiceRecordingPath(): String? = try {
+        dataStore.data.first()[PreferenceKeys.VOICE_RECORDING_PATH]?.takeIf { it.isNotBlank() }
+    } catch (e: Exception) {
+        null
+    }
+
+    suspend fun setVoiceRecordingPath(path: String): Result<Unit> = try {
+        dataStore.edit {
+            val trimmed = path.trim()
+            if (trimmed.isEmpty()) it.remove(PreferenceKeys.VOICE_RECORDING_PATH)
+            else it[PreferenceKeys.VOICE_RECORDING_PATH] = trimmed
+        }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    /**
+     * The order of the control pills under a walk-review row, as 白い熊 has dragged them — the ids of
+     * [com.urik.keyboard.settings.voice.VoiceCaptureControls], comma-separated. Unlike the two paths above
+     * this one DOES ride in the backup ([stringExportKeys]): it is a preference, true on any phone, not a
+     * fact about this one's filesystem.
+     */
+    suspend fun getVoiceCaptureButtonOrder(): List<String> = try {
+        VoiceCaptureControls.parse(dataStore.data.first()[PreferenceKeys.VOICE_CAPTURE_BUTTON_ORDER])
+    } catch (e: Exception) {
+        VoiceCaptureControls.DEFAULT
+    }
+
+    suspend fun setVoiceCaptureButtonOrder(order: List<String>): Result<Unit> = try {
+        dataStore.edit { it[PreferenceKeys.VOICE_CAPTURE_BUTTON_ORDER] = VoiceCaptureControls.encode(order) }
         Result.success(Unit)
     } catch (e: Exception) {
         Result.failure(e)
@@ -1662,7 +1710,8 @@ constructor(
             PreferenceKeys.KEY_LABEL_SIZE,
             PreferenceKeys.CURSOR_SPEED,
             PreferenceKeys.ALTERNATIVE_KEYBOARD_LAYOUT,
-            PreferenceKeys.KEYBOARD_DISPLAY_MODE
+            PreferenceKeys.KEYBOARD_DISPLAY_MODE,
+            PreferenceKeys.VOICE_CAPTURE_BUTTON_ORDER
         )
 
         internal val setExportKeys: List<Preferences.Key<Set<String>>> = listOf(

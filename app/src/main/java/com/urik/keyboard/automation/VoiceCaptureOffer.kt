@@ -15,6 +15,10 @@ import org.json.JSONObject
  * **`OK:` means "written and fsynced here", never "accepted for processing"** — the other side deletes its
  * only copy on that word, and a success reply that outran the write is exactly how the 2026-09-03 empty
  * backups happened. So the copying is synchronous and the batch is small.
+ *
+ * A long recording (§9) travels the same way and is offered alone, one descriptor in the call: the rules
+ * below do not care which it is, beyond handing the kind to the store, whose length check is the one thing
+ * that differs between a sentence and four hours of audio.
  */
 class VoiceCaptureOffer(private val store: VoiceCaptureStore) {
     /** [result] is the `result` extra; [rejected] the optional per-uuid refusal list ("uuid:reason,…"). */
@@ -62,6 +66,10 @@ class VoiceCaptureOffer(private val store: VoiceCaptureStore) {
                     language = item.optString("language", "en"),
                     declaredBytes = item.optLong("byteLength"),
                     sha256 = item.optString("sha256"),
+                    // §9: a clip over 28 s says so, and is kept to be saved or cut up rather than decoded.
+                    // Anything else — a pre-§9 clip saying nothing — is a sentence, and keeps §1's 30 s cap.
+                    kind = VoiceCaptureStore.Kind.of(item.optString("kind")),
+                    salvaged = item.optBoolean("salvaged"),
                     source = stream
                 )
             ) {

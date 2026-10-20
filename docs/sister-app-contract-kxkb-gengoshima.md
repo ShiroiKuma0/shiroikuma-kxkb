@@ -294,3 +294,37 @@ either direction.
 kxkb fires it, package-pinned and resolve-checked, as its **default** return whenever the review was
 opened through its door; `return_task` still wins when a caller names one; and with the door missing
 (an older 自由作業盤) the review falls back to a plain close. So the two halves land in either order.
+
+## 9. Amendment — long recordings (自由作業盤 side 2026-10-19; kxkb side by hand-off)
+
+白い熊 wants the walk capture's press to double as a plain audio recorder — "record this, keep it for
+later", not transcribed — with no second key. So the recorder no longer cuts at 28 s: one press-to-press
+is **one clip, however long** (up to 4 h, or until the phone's free storage falls under 200 MB, where the
+clip is saved and the mode stays armed). Whisper still hears only 30 s, so what a long clip IS for is
+decided in kxkb's review, not by the recorder.
+
+Changes to §1, everything else unchanged:
+
+- **Length:** `data` ≥ 0.2 s, no upper bound but the recorder's 4 h. A clip over **28 s is a long
+  recording**: the item carries `"kind":"long"` (absent on a sentence), and it must never be decoded as
+  one piece.
+- **Batching:** a long recording is offered **alone** in its call (one descriptor), never with sentences.
+- **An older kxkb** answers it `rejected` `length` (its pre-§9 size check, before anything is copied).
+  自由作業盤 then **keeps** it pending — it is not a bad clip — and re-offers it on the next mode end or
+  engine start. So the halves land in either order.
+- **Salvage:** the recorder now rewrites the header every 5 s, and a recording cut off by a kill is
+  saved on the next start as what was on disk. Its item carries `"salvaged":true`; it is otherwise
+  ordinary.
+
+kxkb's side (in its review):
+
+- Store a long recording, show it as one row (duration, time, play / seek), and never auto-decode it.
+- **Save as OGG** — Opus to a directory 白い熊 picks once on the review page, named by its `capturedAt`
+  (`yyyy-MM-dd_HH-mm-ss.ogg`), never written over. Offered on **every** row that still has its recording,
+  not only a long one — what makes audio worth keeping is what was said into it.
+- **Split into sentences** — cut at the pauses (the VAD kxkb already carries), each piece ≤ 28 s, a hard
+  cut only where 28 s holds no pause. Each piece is an ordinary sentence with a **new uuid**, `parent` =
+  the long clip's uuid and `capturedAt` = parent + its offset, so §2 to 言語島 is unchanged.
+- Both may be done; the long WAV goes when the last of them is done, or on **Drop** (confirmed).
+- The capture budget (512 MB, about 4.6 h of audio) is kxkb's to raise; `ERROR:budget` keeps working
+  as before (自由作業盤 keeps the clip and re-offers later).

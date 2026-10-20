@@ -8,7 +8,11 @@ import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
 import android.media.MediaPlayer
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.Environment
+import android.provider.Settings
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.method.LinkMovementMethod
@@ -17,6 +21,7 @@ import android.text.style.ForegroundColorSpan
 import android.text.style.StrikethroughSpan
 import android.text.style.StyleSpan
 import android.util.TypedValue
+import android.view.DragEvent
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -26,6 +31,7 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.ScrollView
+import android.widget.SeekBar
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
@@ -43,7 +49,9 @@ import com.urik.keyboard.service.voice.SpokenPunctuation
 import com.urik.keyboard.service.voice.VoiceInputController
 import com.urik.keyboard.service.voice.VoiceJudging
 import com.urik.keyboard.service.voice.VoiceLanguages
+import com.urik.keyboard.service.voice.VoiceLongSplit
 import com.urik.keyboard.service.voice.VoiceModelStore
+import com.urik.keyboard.service.voice.VoiceOggExport
 import com.urik.keyboard.service.voice.VoiceSessionLedger
 import com.urik.keyboard.service.voice.VoiceSettledWords
 import com.urik.keyboard.service.voice.VoiceTranscript
@@ -59,10 +67,13 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -78,6 +89,17 @@ import kotlinx.coroutines.withContext
  * ([VoiceCorpusRepository.recordCorrection] / [VoiceCorpusRepository.recordAcceptance]), exactly the same
  * judging and the same word marks ([VoiceJudging]), so what the keyboard learns here cannot drift from what
  * it learns at a text field.
+ *
+ * A row may also be a long RECORDING rather than a sentence (contract §9): the walk-capture press doubles
+ * as 白い熊's plain audio recorder, so one press-to-press may be hours long, and Whisper hears thirty
+ * seconds. Such a row is never decoded — what it is FOR is decided here: kept as an Opus OGG, cut into
+ * sentences at its own pauses, or both, and the recording goes when the last thing wanted from it is done.
+ *
+ * **Any** row's recording can be kept, not only a long one (白い熊, 2026-10-20): what makes audio worth
+ * keeping is what was said into it, which has nothing to do with how long the press was. So "Save as OGG"
+ * sits on every row that still has its recording, and the directory they are written to is picked once at
+ * the top of the page — the page asks for it the first time it is needed, and that ask is also what
+ * requests the file access, since the directory is 白い熊's own, not somewhere inside this app.
  */
 @AndroidEntryPoint
 class VoiceCaptureFragment : Fragment() {
@@ -106,8 +128,29 @@ class VoiceCaptureFragment : Fragment() {
     private lateinit var root: LinearLayout
     private var player: MediaPlayer? = null
     private var playingButton: Button? = null
+    private var playingUuid: String? = null
+
+    /** Where each long recording is being listened from, so its position survives a re-render. */
+    private val playFrom = mutableMapOf<String, Int>()
+
+    /** The seek bar and its clock, per long row on the page, for the one that is playing to move. */
+    private val seekViews = mutableMapOf<String, Pair<SeekBar, TextView>>()
     private var working = false
     private val rows = mutableListOf<Row>()
+
+    /** The directory kept recordings are written to, as it is set now. Null = not picked yet. */
+    private var recordingDir: String? = null
+
+    /**
+     * The order of the pills under a row, as 白い熊 has dragged them. One order for the whole page: a row
+     * renders the controls it has in this sequence, so a pill moved under one sentence moves under all of
+     * them ([VoiceCaptureControls]).
+     */
+    private var buttonOrder: List<String> = VoiceCaptureControls.DEFAULT
+
+    /** The pill being dragged and the row it was lifted from, so a drop lands only where it started. */
+    private var draggingId: String? = null
+    private var draggingUuid: String? = null
 
     /**
      * Sentences deleted on this page but not yet in the store. Deleting a walk sentence throws away a
@@ -127,6 +170,11 @@ class VoiceCaptureFragment : Fragment() {
 
     private val yellow = 0xFFFFFF00.toInt()
     private val dim = 0xFFCCCC66.toInt()
+
+    // The Export/import page's warn colour, for the same thing it warns about there: a directory not
+    // chosen yet. Deliberately NOT one of the four settable mark colours below — those mean something about a
+    // word, and a page that borrowed one would change meaning when 白い熊 re-set it.
+    private val warn = 0xFFFF6666.toInt()
 
     // The dictation strip's three marks, so a word means the same thing on both, plus one this page adds:
     // a colour for a word YOU corrected here (in a field you can see that in the text; in a list you
@@ -188,6 +236,8 @@ class VoiceCaptureFragment : Fragment() {
             val settings = settingsRepository.settings.first()
             val threshold = settings.voiceUncertaintyPercent / 100f
             loadMarkColours()
+            recordingDir = settingsRepository.getVoiceRecordingPath()
+            buttonOrder = settingsRepository.getVoiceCaptureButtonOrder()
             val entries = withContext(Dispatchers.IO) {
                 store.sweepOrphans()
                 store.entries()
@@ -273,23 +323,41 @@ class VoiceCaptureFragment : Fragment() {
 
     private fun render() {
         root.removeAllViews()
+        seekViews.clear()
         root.addView(text(getString(R.string.voice_capture_title), 22f, yellow))
         val used = store.usedBytes() / (1024.0 * 1024.0)
         val budget = store.budgetBytes() / (1024.0 * 1024.0)
-        val waitingRows = rows.count { !it.dropped }
+        // A long recording is not a sentence waiting to be reviewed, and counting it as one made the page
+        // promise work that "Transcribe all" would never do.
+        val waitingRows = rows.count { !it.dropped && !it.entry.isLong }
         root.addView(
             text(getString(R.string.voice_capture_summary, waitingRows, used, budget), 13f, dim)
                 .apply { setPadding(0, dp(6), 0, 0) }
         )
+        val longRows = rows.count { !it.dropped && it.entry.isLong }
+        if (longRows > 0) {
+            root.addView(
+                text(getString(R.string.voice_capture_long_waiting, longRows), 13f, dim)
+                    .apply { setPadding(0, dp(2), 0, 0) }
+            )
+        }
         val waiting = outbox.pendingCount()
         root.addView(
             text(getString(R.string.voice_capture_handoff_state, waiting, outbox.sentCount()), 13f, dim)
                 .apply { setPadding(0, dp(2), 0, 0) }
         )
         root.addView(text(getString(R.string.voice_capture_intro), 13f, dim).apply { setPadding(0, dp(6), 0, 0) })
+        root.addView(directoryBox())
         root.addView(legend())
+        if (rows.isNotEmpty()) {
+            // A long press is invisible until it is named; without this the pills look fixed.
+            root.addView(
+                text(getString(R.string.voice_capture_reorder_hint), 12f, dim)
+                    .apply { setPadding(0, dp(4), 0, 0) }
+            )
+        }
         if (rows.isNotEmpty()) root.addView(markAllRow())
-        if (rows.any { !it.dropped && !it.entry.transcribed }) {
+        if (rows.any { !it.dropped && !it.entry.isLong && !it.entry.transcribed }) {
             root.addView(pill(getString(R.string.voice_capture_transcribe_all)) { transcribeAll() })
         }
         if (rows.isEmpty()) {
@@ -298,6 +366,143 @@ class VoiceCaptureFragment : Fragment() {
             for (row in rows) root.addView(rowView(row))
         }
         root.addView(bottomBar(waiting))
+    }
+
+    // ---- the recordings directory ---------------------------------------------------------------------
+
+    /**
+     * Where kept recordings go, in the same bordered box the Export/import page uses for the backup
+     * directory: a small label over the path itself, warn-red while it is unset, and the whole box a tap
+     * into the picker. It sits above the rows because it is a fact about the page, not about one recording.
+     */
+    private fun directoryBox(): View = LinearLayout(requireContext()).apply {
+        orientation = LinearLayout.VERTICAL
+        isClickable = true
+        isFocusable = true
+        setPadding(dp(12), dp(10), dp(12), dp(10))
+        background = android.graphics.drawable.GradientDrawable().apply {
+            setColor(0xFF000000.toInt())
+            setStroke(dp(2), yellow)
+            cornerRadius = dp(10).toFloat()
+        }
+        val set = recordingDir?.takeIf { it.isNotBlank() }
+        setOnClickListener { editRecordingDir(set) }
+        addView(text(getString(R.string.voice_capture_ogg_dir_label), 12f, yellow))
+        addView(
+            text(set ?: getString(R.string.voice_capture_ogg_dir_unset), 15f, if (set == null) warn else dim)
+                .apply { setTypeface(typeface, Typeface.BOLD) }
+        )
+        layoutParams = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply { topMargin = dp(10); bottomMargin = dp(4) }
+    }
+
+    /**
+     * The directory, typed or browsed to. [OGG_DIR] under the shared storage root is only ever a
+     * SUGGESTION — the hint in the box and where the browser opens — and never a silent default: a
+     * recording written to a directory 白い熊 did not name is a file they have to go looking for.
+     */
+    private fun editRecordingDir(current: String?, resume: String? = null) {
+        val suggestion = File(Environment.getExternalStorageDirectory(), OGG_DIR)
+        val input = EditText(requireContext()).apply {
+            setText(current ?: "")
+            hint = suggestion.absolutePath
+            setSingleLine()
+            setTextColor(yellow)
+        }
+        val box = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), 0)
+            addView(input)
+        }
+        AlertDialog.Builder(requireContext(), R.style.Theme_Urik_Dialog)
+            .setTitle(R.string.voice_capture_ogg_dir_title)
+            .setMessage(getString(R.string.voice_capture_ogg_dir_message, suggestion.absolutePath))
+            .setView(box)
+            .setPositiveButton(R.string.export_import_save) { _, _ ->
+                saveRecordingDir(input.text.toString(), resume)
+            }
+            .setNeutralButton(R.string.export_import_browse) { _, _ ->
+                val start = current?.takeIf { it.isNotBlank() }?.let { File(it) }?.takeIf { it.isDirectory }
+                    ?: suggestion.takeIf { it.isDirectory }
+                    ?: Environment.getExternalStorageDirectory()
+                browseForDirectory(start) { picked -> saveRecordingDir(picked.absolutePath, resume) }
+            }
+            .setNegativeButton(R.string.export_import_cancel, null)
+            .show()
+    }
+
+    /**
+     * [resume] is the recording whose "Save as OGG" asked for the directory in the first place: picking one
+     * is the first half of that gesture, not an errand of its own, so the save goes on from here instead of
+     * making 白い熊 find the row again and press it a second time. Only that path rebuilds afterwards (the
+     * save does its own), so two renders cannot race and show the pill back on a recording already kept.
+     */
+    private fun saveRecordingDir(path: String, resume: String? = null) {
+        lifecycleScope.launch {
+            settingsRepository.setVoiceRecordingPath(path)
+            recordingDir = settingsRepository.getVoiceRecordingPath()
+            val row = resume?.let { uuid -> rows.firstOrNull { it.entry.uuid == uuid && !it.dropped } }
+            if (row != null && recordingDir != null) saveOgg(row) else rebuild()
+        }
+    }
+
+    /**
+     * One dialog per directory: the list walks, the buttons decide. "Use this directory" is the POSITIVE
+     * button, so it sits at the bottom right of Cancel (白い熊, 2026-10-20) — the decision belongs where a
+     * dialog's decisions are, not at the top of a list of places to go, where it read as another place.
+     */
+    private fun browseForDirectory(dir: File, onPick: (File) -> Unit) {
+        if (!hasAllFilesAccess()) {
+            requestAllFilesAccess()
+            return
+        }
+        val subDirs = dir.listFiles { f -> f.isDirectory }?.sortedBy { it.name.lowercase() } ?: emptyList()
+        val labels = mutableListOf<String>()
+        val targets = mutableListOf<File>()
+        dir.parentFile?.let {
+            labels.add(".. (" + it.name.ifBlank { "/" } + ")")
+            targets.add(it)
+        }
+        subDirs.forEach {
+            labels.add("📁 " + it.name)
+            targets.add(it)
+        }
+        AlertDialog.Builder(requireContext(), R.style.Theme_Urik_Dialog)
+            .setTitle(dir.absolutePath)
+            .setItems(labels.toTypedArray()) { _, which -> browseForDirectory(targets[which], onPick) }
+            .setPositiveButton(R.string.export_import_pick_here) { _, _ -> onPick(dir) }
+            .setNegativeButton(R.string.export_import_cancel, null)
+            .show()
+    }
+
+    /**
+     * The directory to write into, or null — having asked for whatever is missing. Pressing "Save as OGG"
+     * with nothing set is not an error to report: it is the first half of the same gesture, so it opens the
+     * picker (白い熊, 2026-10-20) and [resume] carries the recording on into the save once a directory is
+     * chosen. The file access comes first, since the browser cannot list a single directory without it —
+     * and that one cannot be resumed: granting it happens in the system settings, outside this page.
+     */
+    private fun recordingDirOrAsk(resume: String? = null): File? {
+        if (!hasAllFilesAccess()) {
+            KxkbToast.show(requireContext(), getString(R.string.voice_capture_ogg_no_access))
+            requestAllFilesAccess()
+            return null
+        }
+        val set = recordingDir?.takeIf { it.isNotBlank() }
+        if (set == null) {
+            KxkbToast.show(requireContext(), getString(R.string.voice_capture_ogg_dir_needed))
+            editRecordingDir(null, resume)
+            return null
+        }
+        val dir = File(set)
+        if (!dir.isDirectory && !dir.mkdirs()) {
+            KxkbToast.show(requireContext(), getString(R.string.voice_capture_ogg_dir_failed, set))
+            editRecordingDir(set, resume)
+            return null
+        }
+        return dir
     }
 
     /** What the colours mean, in the colours themselves — four words beat a paragraph. */
@@ -355,15 +560,16 @@ class VoiceCaptureFragment : Fragment() {
         setPadding(0, dp(14), 0, dp(10))
         val entry = row.entry
         addView(
-            text(
-                "${stamp.format(Date(entry.capturedAt))} · " +
-                    String.format(Locale.ROOT, "%.1f s", entry.durationMs / 1000.0),
-                12f,
-                dim
-            )
+            TextView(requireContext()).apply {
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+                setTextColor(dim)
+                text = rowHeader(entry)
+            }
         )
         if (row.dropped) {
             addView(droppedBody(row))
+        } else if (entry.isLong) {
+            addView(longBody(row))
         } else if (row.sentence == null) {
             val label = if (entry.attempts > 0) {
                 getString(R.string.voice_capture_nothing, entry.attempts)
@@ -388,7 +594,11 @@ class VoiceCaptureFragment : Fragment() {
                 addView(text(getString(R.string.voice_capture_heard, heard), 12f, dim))
             }
         }
-        addView(buttonRow(row))
+        // A long row says this inside [longBody], with the rest of what has become of it.
+        if (!row.dropped && !entry.isLong) {
+            entry.ogg?.let { addView(text(getString(R.string.voice_capture_long_ogg, it), 12f, yellow)) }
+        }
+        addView(if (!row.dropped && entry.isLong) longButtons(row) else buttonRow(row))
         addView(
             View(requireContext()).apply {
                 setBackgroundColor(0x66FFFF00)
@@ -399,12 +609,44 @@ class VoiceCaptureFragment : Fragment() {
         )
     }
 
+    /**
+     * When it was spoken and how long it ran. A long recording says so in words as well — bold, and not by
+     * colour alone: it is the one row on the page that behaves differently from all the others, and 白い熊
+     * is red–green colour-blind. Its length reads as a clock, since 12:34 means nothing as "754.0 s".
+     */
+    private fun rowHeader(entry: VoiceCaptureStore.Entry): CharSequence {
+        val spoken = stamp.format(Date(entry.capturedAt))
+        if (!entry.isLong) {
+            return "$spoken · " + String.format(Locale.ROOT, "%.1f s", entry.durationMs / 1000.0)
+        }
+        val sb = SpannableStringBuilder("$spoken · ")
+        val start = sb.length
+        sb.append(getString(R.string.voice_capture_long_label))
+        sb.setSpan(StyleSpan(Typeface.BOLD), start, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        sb.append(" · ").append(clock(entry.durationMs))
+        return sb
+    }
+
+    /** Milliseconds as a clock: `12:34`, and `1:02:03` once there is an hour of it. */
+    private fun clock(ms: Long): String {
+        val seconds = (ms / 1000).coerceAtLeast(0)
+        val minutes = seconds / 60
+        return if (minutes >= 60) {
+            String.format(Locale.ROOT, "%d:%02d:%02d", minutes / 60, minutes % 60, seconds % 60)
+        } else {
+            String.format(Locale.ROOT, "%d:%02d", minutes, seconds % 60)
+        }
+    }
+
     /** What a deleted sentence leaves behind until the page goes: what it held, struck through. */
     private fun droppedBody(row: Row): View = TextView(requireContext()).apply {
         setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
         setTextColor(dim)
         setPadding(0, dp(2), 0, 0)
-        val held = row.entry.text ?: getString(R.string.voice_capture_not_decoded)
+        val held = row.entry.text
+            ?: getString(
+                if (row.entry.isLong) R.string.voice_capture_long_label else R.string.voice_capture_not_decoded
+            )
         text = SpannableStringBuilder(held).apply {
             setSpan(StrikethroughSpan(), 0, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
@@ -415,8 +657,12 @@ class VoiceCaptureFragment : Fragment() {
      * four pills on it, and there are six here now — the language pill alone is as wide as two — so the
      * line breaks where the screen ends instead, and unfolding the phone simply fits more on a line.
      *
+     * They are built as a MAP and laid out by [controlFlow] in 白い熊's own order, which is why a row that
+     * happens to offer only four of them still shows those four where they belong.
+     *
      * "Send to 白い熊 自由作業盤" keeps a line of its own beneath them, as before: it is the one that cannot
-     * be taken back, and it should not drift under a thumb aimed at Share.
+     * be taken back, and it should not drift under a thumb aimed at Share — so it is not one of the pills
+     * that can be dragged, either.
      */
     private fun buttonRow(row: Row): View = LinearLayout(requireContext()).apply {
         orientation = LinearLayout.VERTICAL
@@ -431,30 +677,33 @@ class VoiceCaptureFragment : Fragment() {
             )
             return@apply
         }
-        addView(
-            FlowLayout(requireContext()).apply {
-                // The pills carry their own margins for a LinearLayout, which a flow ignores; these are
-                // the same two gaps, in the one place the flow reads them.
-                horizontalSpacing = dp(10)
-                verticalSpacing = dp(8)
-                setPadding(0, dp(8), 0, 0)
-                addView(languagePill(row))
-                // Both of these need the recording itself, and a corrected sentence's clip has moved into
-                // the voice corpus — which is exactly what [clipOf] follows.
-                if (clipOf(row.entry) != null) {
-                    lateinit var play: Button
-                    play = pill(getString(R.string.voice_corpus_play)) { togglePlay(row, play) }
-                    addView(play)
-                    addView(pill(transcribeLabel(row)) { transcribeOne(row) })
+        val controls = linkedMapOf<String, Button>()
+        controls[VoiceCaptureControls.LANGUAGE] = languagePill(row)
+        // Both of these need the recording itself, and a corrected sentence's clip has moved into the voice
+        // corpus — which is exactly what [clipOf] follows.
+        if (clipOf(row.entry) != null) {
+            lateinit var play: Button
+            play = pill(getString(R.string.voice_corpus_play)) { togglePlay(row, play) }
+            controls[VoiceCaptureControls.PLAY] = play
+            controls[VoiceCaptureControls.TRANSCRIBE] = pill(transcribeLabel(row)) { transcribeOne(row) }
+            // Keeping the audio has nothing to do with the length of the press: a sentence worth keeping is
+            // kept the same way an hour is (白い熊, 2026-10-20). Offered once — a second press would only
+            // write the same recording out under a second name.
+            // On an Android too old for the OGG muxer the pill is simply absent here: a long row still
+            // offers it, because there the toast explains an alternative (cutting) that a sentence does not.
+            if (row.entry.ogg == null && VoiceOggExport.supported) {
+                controls[VoiceCaptureControls.SAVE_OGG] = pill(getString(R.string.voice_capture_save_ogg)) {
+                    saveOgg(row)
                 }
-                addView(pill(getString(R.string.voice_capture_edit)) { editSentence(row) })
-                if (textOf(row) != null) {
-                    addView(pill(getString(R.string.voice_capture_copy)) { copySentence(row) })
-                    addView(pill(getString(R.string.voice_capture_share)) { shareSentence(row) })
-                }
-                addView(pill(getString(R.string.voice_corpus_delete)) { confirmDrop(row) })
             }
-        )
+        }
+        controls[VoiceCaptureControls.EDIT] = pill(getString(R.string.voice_capture_edit)) { editSentence(row) }
+        if (textOf(row) != null) {
+            controls[VoiceCaptureControls.COPY] = pill(getString(R.string.voice_capture_copy)) { copySentence(row) }
+            controls[VoiceCaptureControls.SHARE] = pill(getString(R.string.voice_capture_share)) { shareSentence(row) }
+        }
+        controls[VoiceCaptureControls.DELETE] = pill(getString(R.string.voice_corpus_delete)) { confirmDrop(row) }
+        addView(controlFlow(row, controls))
         if (row.sentence != null) {
             addView(
                 LinearLayout(requireContext()).apply {
@@ -463,6 +712,129 @@ class VoiceCaptureFragment : Fragment() {
                     addView(pill(getString(R.string.voice_capture_send_one)) { sendOneAndPush(row) })
                 }
             )
+        }
+    }
+
+    /**
+     * The row's controls, laid out in 白い熊's order and draggable into another one (白い熊, 2026-10-20).
+     *
+     * [controls] is what THIS row offers, keyed by id; the sequence comes from [buttonOrder], which covers
+     * every control there is — so a row renders its own subset in the one order, and moving a pill here
+     * moves it under every line. A long press lifts a pill into a framework drag, the flow re-orders its
+     * children live under the finger, and the drop writes the new order down.
+     *
+     * The drag is confined to the row it started in: every row has a pill with the same id, so a listener
+     * that accepted any drag would let a Delete lifted from the third sentence be dropped among the first
+     * one's pills, where it would mean nothing.
+     */
+    private fun controlFlow(row: Row, controls: Map<String, Button>): View =
+        FlowLayout(requireContext()).apply {
+            // The pills carry their own margins for a LinearLayout, which a flow ignores; these are the
+            // same two gaps, in the one place the flow reads them.
+            horizontalSpacing = dp(10)
+            verticalSpacing = dp(8)
+            setPadding(0, dp(8), 0, 0)
+            for (id in buttonOrder) {
+                val control = controls[id] ?: continue
+                control.tag = id
+                control.setOnLongClickListener { lifted -> liftControl(lifted, id, row.entry.uuid) }
+                addView(control)
+            }
+            setOnDragListener { view, event -> onControlDrag(row.entry.uuid, view as FlowLayout, event) }
+        }
+
+    /**
+     * Long press = lift. The pill stays in place, dimmed, while its shadow follows the finger.
+     *
+     * What is being dragged is written down BEFORE the drag starts: the framework delivers
+     * ACTION_DRAG_STARTED off the back of this call, and a listener that read the fields after it would
+     * refuse the very drag it had just begun. [DragEvent.getClipData] is null until the drop, so the id
+     * cannot simply be read back off the event.
+     */
+    private fun liftControl(control: View, id: String, uuid: String): Boolean {
+        draggingId = id
+        draggingUuid = uuid
+        control.alpha = LIFTED_ALPHA
+        val data = ClipData.newPlainText(DRAG_CONTROL, id)
+        val started =
+            control.startDragAndDrop(data, View.DragShadowBuilder(control), null, View.DRAG_FLAG_OPAQUE)
+        if (!started) {
+            draggingId = null
+            draggingUuid = null
+            control.alpha = 1f
+        }
+        return started
+    }
+
+    private fun onControlDrag(uuid: String, flow: FlowLayout, event: DragEvent): Boolean {
+        val id = draggingId ?: return false
+        if (uuid != draggingUuid) return false
+        val lifted = flow.findViewWithTag<View>(id)
+        return when (event.action) {
+            // Accepted only by the flow the pill was lifted from — see [controlFlow].
+            DragEvent.ACTION_DRAG_STARTED ->
+                lifted != null && event.clipDescription?.label == DRAG_CONTROL
+            DragEvent.ACTION_DRAG_LOCATION -> {
+                if (lifted == null) return false
+                val slot = dropSlot(flow, lifted, event.x, event.y)
+                if (slot != flow.indexOfChild(lifted)) {
+                    flow.removeView(lifted)
+                    flow.addView(lifted, slot)
+                }
+                true
+            }
+            DragEvent.ACTION_DROP -> {
+                if (lifted == null) return false
+                val shown = (0 until flow.childCount).mapNotNull { flow.getChildAt(it).tag as? String }
+                // Put the pill down here rather than waiting for the redraw: ACTION_DRAG_ENDED arrives
+                // after this, by which time there is nothing being dragged for it to tidy up.
+                lifted.alpha = 1f
+                draggingId = null
+                draggingUuid = null
+                saveControlOrder(id, shown)
+                true
+            }
+            DragEvent.ACTION_DRAG_ENDED -> {
+                lifted?.alpha = 1f
+                draggingId = null
+                draggingUuid = null
+                true
+            }
+            else -> true
+        }
+    }
+
+    /**
+     * Where the finger says the lifted pill now belongs: after every pill it has already passed in reading
+     * order — a whole line above counts as passed, and within a line the pill's own midpoint is the
+     * boundary, so a pill swaps as soon as the finger is more than half way across its neighbour.
+     */
+    private fun dropSlot(flow: FlowLayout, lifted: View, x: Float, y: Float): Int {
+        var slot = 0
+        for (i in 0 until flow.childCount) {
+            val child = flow.getChildAt(i)
+            if (child === lifted) continue
+            val passed = y > child.bottom || (y >= child.top && x > (child.left + child.right) / 2f)
+            if (!passed) break
+            slot++
+        }
+        return slot
+    }
+
+    /**
+     * Write the dragged pill's new place down and redraw every row in it. [render] is enough — the rows
+     * themselves have not changed, only the order their pills are built in.
+     */
+    private fun saveControlOrder(dragged: String, shown: List<String>) {
+        val moved = VoiceCaptureControls.moveWithin(buttonOrder, dragged, shown)
+        if (moved == buttonOrder) {
+            render()
+            return
+        }
+        buttonOrder = moved
+        lifecycleScope.launch {
+            settingsRepository.setVoiceCaptureButtonOrder(moved)
+            render()
         }
     }
 
@@ -738,6 +1110,293 @@ class VoiceCaptureFragment : Fragment() {
         }
     }
 
+    // ---- long recordings (contract §9) -----------------------------------------------------------------
+
+    /** What has become of this recording so far, and the bar to listen through it with. */
+    private fun longBody(row: Row): View = LinearLayout(requireContext()).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(0, dp(2), 0, 0)
+        val entry = row.entry
+        val done = mutableListOf<String>()
+        entry.ogg?.let { done.add(getString(R.string.voice_capture_long_ogg, it)) }
+        if (entry.pieces > 0) done.add(getString(R.string.voice_capture_long_pieces, entry.pieces))
+        if (done.isEmpty()) {
+            addView(text(getString(R.string.voice_capture_long_untouched), 14f, dim))
+        } else {
+            for (line in done) addView(text(line, 14f, yellow))
+        }
+        if (entry.salvaged) addView(text(getString(R.string.voice_capture_long_salvaged), 12f, dim))
+        if (clipOf(entry) != null) addView(seekView(row))
+    }
+
+    /**
+     * The seek bar, because a recording of this length is not listened to from the start every time. It is
+     * draggable while nothing is playing too: the position is remembered per recording and the player is
+     * started there.
+     */
+    private fun seekView(row: Row): View {
+        val uuid = row.entry.uuid
+        val duration = row.entry.durationMs
+        val label = text(
+            getString(R.string.voice_capture_position, clock((playFrom[uuid] ?: 0).toLong()), clock(duration)),
+            12f,
+            dim
+        )
+        val bar = SeekBar(requireContext()).apply {
+            max = duration.toInt().coerceAtLeast(1)
+            progress = playFrom[uuid] ?: 0
+            progressTintList = ColorStateList.valueOf(yellow)
+            progressBackgroundTintList = ColorStateList.valueOf(0x66FFFF00)
+            thumbTintList = ColorStateList.valueOf(yellow)
+            setOnSeekBarChangeListener(
+                object : SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(view: SeekBar, value: Int, fromUser: Boolean) {
+                        if (!fromUser) return
+                        playFrom[uuid] = value
+                        label.text =
+                            getString(R.string.voice_capture_position, clock(value.toLong()), clock(duration))
+                        if (playingUuid == uuid) runCatching { player?.seekTo(value) }
+                    }
+
+                    override fun onStartTrackingTouch(view: SeekBar) = Unit
+
+                    override fun onStopTrackingTouch(view: SeekBar) = Unit
+                }
+            )
+        }
+        seekViews[uuid] = bar to label
+        return LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(bar)
+            addView(label)
+        }
+    }
+
+    /**
+     * A recording's own controls. Each of the two things that can be made of it is offered once: a second
+     * OGG of the same recording would be a second file under a different name, and a second cut a second
+     * set of the same sentences. What has been done is on the row; when both have, the recording goes.
+     *
+     * The same five ids a sentence row uses, laid out by the same [controlFlow] in the same one order — a
+     * recording and a sentence are not two different pages.
+     */
+    private fun longButtons(row: Row): View = LinearLayout(requireContext()).apply {
+        orientation = LinearLayout.VERTICAL
+        val controls = linkedMapOf<String, Button>()
+        // The language is the one the PIECES will be decoded in, so it is set before cutting.
+        controls[VoiceCaptureControls.LANGUAGE] = languagePill(row)
+        if (clipOf(row.entry) != null) {
+            lateinit var play: Button
+            play = pill(getString(R.string.voice_corpus_play)) { togglePlay(row, play) }
+            controls[VoiceCaptureControls.PLAY] = play
+            if (row.entry.ogg == null) {
+                controls[VoiceCaptureControls.SAVE_OGG] = pill(getString(R.string.voice_capture_save_ogg)) {
+                    saveOgg(row)
+                }
+            }
+            if (row.entry.pieces <= 0) {
+                controls[VoiceCaptureControls.SPLIT] = pill(getString(R.string.voice_capture_split)) {
+                    splitLong(row)
+                }
+            }
+        }
+        controls[VoiceCaptureControls.DELETE] = pill(getString(R.string.voice_corpus_delete)) { confirmDrop(row) }
+        addView(controlFlow(row, controls))
+    }
+
+    /**
+     * Keep the recording as an Opus OGG in 白い熊's chosen directory, named by when it was spoken. Written as
+     * a `.part` and renamed only when the encoder has finished, so a failed or interrupted run leaves no
+     * file that plays as far as it got and then stops — and an existing name is never overwritten: the
+     * recording cannot be made again, and neither can anything else in that directory.
+     *
+     * The same path serves a sentence and an hours-long recording. A sentence encodes in a blink, so it is
+     * not given the progress dialog the long one needs — a box that appears and vanishes says nothing —
+     * and nothing is removed when it is done: only a long recording goes, and only once BOTH things that
+     * can be made of it have been ([finishLong]).
+     */
+    private fun saveOgg(row: Row) {
+        if (working) return
+        if (!VoiceOggExport.supported) {
+            KxkbToast.show(requireContext(), getString(R.string.voice_capture_ogg_unsupported))
+            return
+        }
+        val dir = recordingDirOrAsk(resume = row.entry.uuid) ?: return
+        val clip = clipOf(row.entry) ?: return
+        working = true
+        stopRequested = false
+        stopPlaying()
+        lifecycleScope.launch {
+            val seconds = (row.entry.durationMs / 1000).toInt().coerceAtLeast(1)
+            val encoded = AtomicLong()
+            val watched = row.entry.durationMs >= OGG_PROGRESS_MIN_MS
+            if (watched) {
+                showProgress(seconds)
+                updateProgress(0, seconds, getString(R.string.voice_capture_ogg_step))
+            }
+            val ticker = launch {
+                while (isActive && watched) {
+                    updateProgress((encoded.get() / 1000).toInt(), seconds, null)
+                    delay(PROGRESS_POLL_MS)
+                }
+            }
+            val written = withContext(Dispatchers.IO) {
+                runCatching {
+                    val pcm = store.pcmOf(clip) ?: error("no audio")
+                    val target = VoiceOggExport.targetIn(dir, row.entry.capturedAt)
+                    val part = File(target.parentFile, target.name + ".part")
+                    try {
+                        val whole = VoiceOggExport.write(
+                            source = clip,
+                            dataOffset = pcm.offset,
+                            dataBytes = pcm.bytes,
+                            target = part,
+                            stop = { stopRequested }
+                        ) { ms -> encoded.set(ms) }
+                        // Given up on: the part-file goes and the recording is exactly as it was. An OGG
+                        // that stops halfway through an hour would look like a whole one in a file manager.
+                        if (!whole) {
+                            part.delete()
+                            return@runCatching null
+                        }
+                        if (!part.renameTo(target)) error(target.name)
+                    } catch (e: Throwable) {
+                        part.delete()
+                        throw e
+                    }
+                    target
+                }
+            }
+            ticker.cancel()
+            dismissProgress()
+            working = false
+            written
+                .onSuccess { target ->
+                    if (target == null) {
+                        KxkbToast.show(requireContext(), getString(R.string.voice_capture_long_stopped))
+                        return@onSuccess
+                    }
+                    withContext(Dispatchers.IO) { store.markOgg(row.entry.uuid, target.absolutePath) }
+                    val finished = row.entry.isLong && finishLong(row.entry.uuid)
+                    KxkbToast.show(
+                        requireContext(),
+                        if (finished) {
+                            getString(R.string.voice_capture_long_finished)
+                        } else {
+                            getString(R.string.voice_capture_ogg_done, target.absolutePath)
+                        }
+                    )
+                    rebuild()
+                }
+                .onFailure { e ->
+                    KxkbToast.show(
+                        requireContext(),
+                        getString(R.string.voice_capture_ogg_failed, e.message ?: e.javaClass.simpleName)
+                    )
+                }
+        }
+    }
+
+    /**
+     * Cut the recording into sentences at its own pauses, each of them an ordinary captured sentence from
+     * there on — decoded, reviewed and sent exactly as one spoken into a single press would be. The
+     * recording itself stays until the last thing wanted from it is done; nothing is lost if this goes
+     * wrong halfway, the pieces written so far simply stand.
+     */
+    private fun splitLong(row: Row) {
+        if (working) return
+        val clip = clipOf(row.entry) ?: return
+        working = true
+        stopRequested = false
+        stopPlaying()
+        lifecycleScope.launch {
+            val total = AtomicInteger()
+            val cut = AtomicInteger()
+            showProgress(1)
+            updateProgress(0, 1, getString(R.string.voice_capture_split_pauses))
+            val ticker = launch {
+                while (isActive) {
+                    val all = total.get()
+                    if (all > 0) {
+                        updateProgress(
+                            cut.get(),
+                            all,
+                            getString(R.string.voice_capture_split_cutting, (cut.get() + 1).coerceAtMost(all), all)
+                        )
+                    }
+                    delay(PROGRESS_POLL_MS)
+                }
+            }
+            val made = withContext(Dispatchers.IO) {
+                runCatching {
+                    val pcm = store.pcmOf(clip) ?: return@runCatching 0
+                    val plan = VoiceLongSplit.Detector().use { detector ->
+                        VoiceLongSplit.plan(
+                            VoiceLongSplit.verdicts(clip, pcm.offset, pcm.bytes, detector) { stopRequested }
+                        )
+                    }
+                    // Given up on while listening through it: a plan made of half the recording would cut
+                    // only half of it and then call the recording done.
+                    if (stopRequested) return@runCatching 0
+                    total.set(plan.size)
+                    var made = 0
+                    for (piece in plan) {
+                        if (stopRequested) break
+                        val bytes = VoiceLongSplit.read(clip, pcm.offset, piece)
+                        if (store.addPiece(row.entry, piece.offsetMs, bytes) != null) made++
+                        cut.set(made)
+                    }
+                    made
+                }.getOrElse { -1 }
+            }
+            ticker.cancel()
+            dismissProgress()
+            working = false
+            when {
+                made < 0 -> KxkbToast.show(requireContext(), getString(R.string.voice_capture_split_failed))
+                made == 0 && stopRequested ->
+                    KxkbToast.show(requireContext(), getString(R.string.voice_capture_long_stopped))
+                made == 0 -> KxkbToast.show(requireContext(), getString(R.string.voice_capture_split_silent))
+                else -> {
+                    withContext(Dispatchers.IO) { store.markSplit(row.entry.uuid, made) }
+                    val finished = finishLong(row.entry.uuid)
+                    KxkbToast.show(
+                        requireContext(),
+                        if (finished) {
+                            getString(R.string.voice_capture_long_finished)
+                        } else {
+                            getString(R.string.voice_capture_split_done, made)
+                        }
+                    )
+                }
+            }
+            rebuild()
+        }
+    }
+
+    /**
+     * The recording goes when BOTH things that can be made of it have been — never after the first, which
+     * would decide for 白い熊 that the other was not wanted. True when it has just gone.
+     */
+    private suspend fun finishLong(uuid: String): Boolean {
+        val entry = withContext(Dispatchers.IO) { store.entries().firstOrNull { it.uuid == uuid } } ?: return false
+        if (entry.ogg == null || entry.pieces <= 0) return false
+        withContext(Dispatchers.IO) { store.remove(uuid) }
+        return true
+    }
+
+    private fun hasAllFilesAccess(): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.R || Environment.isExternalStorageManager()
+
+    private fun requestAllFilesAccess() {
+        val pkg = "package:" + requireContext().packageName
+        try {
+            startActivity(Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse(pkg)))
+        } catch (_: Exception) {
+            runCatching { startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)) }
+        }
+    }
+
     // ---- correcting ------------------------------------------------------------------------------------
 
     /**
@@ -925,7 +1584,15 @@ class VoiceCaptureFragment : Fragment() {
     private fun confirmDrop(row: Row) {
         AlertDialog.Builder(requireContext(), R.style.Theme_Urik_Dialog)
             .setTitle(R.string.voice_corpus_delete)
-            .setMessage(getString(R.string.voice_capture_drop_confirm))
+            .setMessage(
+                getString(
+                    if (row.entry.isLong) {
+                        R.string.voice_capture_long_drop_confirm
+                    } else {
+                        R.string.voice_capture_drop_confirm
+                    }
+                )
+            )
             .setPositiveButton(R.string.voice_corpus_delete) { _, _ ->
                 stopPlaying()
                 pendingDrops.add(row.entry.uuid)
@@ -1017,7 +1684,10 @@ class VoiceCaptureFragment : Fragment() {
             val settings = settingsRepository.settings.first()
             val pending = withContext(Dispatchers.IO) {
                 store.entries().filter {
-                    it.uuid !in pendingDrops && if (only == null) !it.transcribed else it.uuid in only
+                    // A long recording is never decoded, singly or in a run: Whisper's window is 30 s and
+                    // the thing is hours. It is saved or cut into sentences instead (contract §9).
+                    it.uuid !in pendingDrops && !it.isLong &&
+                        if (only == null) !it.transcribed else it.uuid in only
                 }
             }
             var decoded = 0
@@ -1176,22 +1846,47 @@ class VoiceCaptureFragment : Fragment() {
         stopPlaying()
         if (wasThis) return
         val clip = clipOf(row.entry) ?: return
+        val uuid = row.entry.uuid
         try {
             player = MediaPlayer().apply {
                 setDataSource(clip.absolutePath)
-                setOnCompletionListener { stopPlaying() }
+                setOnCompletionListener {
+                    // An hour-long recording is listened to in pieces: it starts again where it was left,
+                    // not from the top, unless it ran all the way out.
+                    playFrom.remove(uuid)
+                    stopPlaying()
+                }
                 prepare()
+                playFrom[uuid]?.let { seekTo(it) }
                 start()
             }
             playingButton = button
+            playingUuid = uuid
             button.text = getString(R.string.voice_corpus_stop)
+            if (row.entry.isLong) followPlayback(uuid, row.entry.durationMs)
         } catch (e: Exception) {
             stopPlaying()
             KxkbToast.show(requireContext(), e.message ?: "")
         }
     }
 
+    /** The playing position onto the row's own seek bar, while it is this row that is playing. */
+    private fun followPlayback(uuid: String, durationMs: Long) {
+        lifecycleScope.launch {
+            while (isActive && playingUuid == uuid) {
+                val at = runCatching { player?.currentPosition }.getOrNull() ?: break
+                playFrom[uuid] = at
+                seekViews[uuid]?.let { (bar, label) ->
+                    bar.progress = at
+                    label.text = getString(R.string.voice_capture_position, clock(at.toLong()), clock(durationMs))
+                }
+                delay(PLAY_POLL_MS)
+            }
+        }
+    }
+
     private fun stopPlaying() {
+        playingUuid = null
         try {
             player?.stop()
         } catch (_: Exception) {
@@ -1243,8 +1938,27 @@ class VoiceCaptureFragment : Fragment() {
         /** The sentences deleted but not yet committed, across a recreation of the page. */
         private const val STATE_DROPS = "pending_drops"
 
+        /** Marks a drag as one of ours, so a drop from anywhere else is not mistaken for a pill. */
+        private const val DRAG_CONTROL = "kxkb_walk_control"
+
+        /** A lifted pill stays where it was, dimmed, so the gap it will leave is visible. */
+        private const val LIFTED_ALPHA = 0.35f
+
         /** How long the page waits for the model set to load before giving up on a run. */
         private const val ENGINE_WAIT_MS = 120_000L
         private const val ENGINE_POLL_MS = 150L
+
+        /** The playing position, and the progress of a long run, are read rather than pushed. */
+        private const val PLAY_POLL_MS = 250L
+        private const val PROGRESS_POLL_MS = 200L
+
+        /**
+         * The directory offered for kept recordings when none has been picked — the hint in the box and where
+         * the browser opens. Only ever a suggestion; nothing is written anywhere until it is chosen.
+         */
+        private const val OGG_DIR = "〇/録音"
+
+        /** Below this, encoding is over before a progress dialog could be read, so none is shown. */
+        private const val OGG_PROGRESS_MIN_MS = 20_000L
     }
 }
