@@ -386,8 +386,10 @@ class SpaceInputHandler(
             }
             outputBridge.deleteSurroundingText(1, 0)
             outputBridge.commitText(". ", 1)
-            val textBefore = outputBridge.safeGetTextBeforeCursor(50)
-            onCheckAutoCapitalization(textBefore)
+            // The period and its space, as written: a read-back inside the batch edit answers with the text
+            // as it stood before them in any editor that buffers its edits (see the note in
+            // NonLetterInputHandler.commitPunctuationAfterClusterCommit).
+            onCheckAutoCapitalization(". ")
         } finally {
             outputBridge.endBatchEdit()
         }

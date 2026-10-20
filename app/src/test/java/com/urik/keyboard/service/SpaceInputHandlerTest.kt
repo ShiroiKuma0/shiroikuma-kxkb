@@ -437,4 +437,20 @@ class SpaceInputHandlerTest {
         verify(mockSuggestionPipeline).storeAndCapitalizeSuggestions(eq(listOf(suggestion)), any())
         verify(mockCandidateBarController).updateSuggestions(listOf("hello"))
     }
+
+    @Test
+    fun `the double-space period reports the period and its space to the auto-cap rule`() = testScope.runTest {
+        // Not a read-back of them: inside the batch edit an editor that buffers its edits (every Compose
+        // text field, the Android Claude app among them) still answers with the text as it stood before,
+        // so the rule saw no mark and no whitespace and the next sentence lost its capital
+        // (白い熊, 2026-10-20).
+        realInputState.lastSpaceTime = System.currentTimeMillis()
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(50), any())).thenReturn("Yes ")
+
+        handler.handle()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockOutputBridge).commitText(". ", 1)
+        assertEquals(listOf(". "), autoCapArgs)
+    }
 }

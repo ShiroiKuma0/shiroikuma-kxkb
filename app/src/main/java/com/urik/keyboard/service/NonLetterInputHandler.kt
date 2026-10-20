@@ -70,10 +70,11 @@ class NonLetterInputHandler(
                         // defers its space the same way, so a time comes out as "10:35".
                         val suppressTrailing = nextCharSuppressesTrailingSpace() ||
                             CursorEditingUtils.isNumberInternalMark(single, before[before.length - 2])
+                        val committed = if (suppressTrailing) char else "$char "
                         outputBridge.beginBatchEdit()
                         try {
                             outputBridge.deleteSurroundingText(1, 0)
-                            outputBridge.commitText(if (suppressTrailing) char else "$char ", 1)
+                            outputBridge.commitText(committed, 1)
                             inputState.pendingWordSeparator = suppressTrailing
                             inputState.lastAutocorrection = null
                             if (inputState.postCommitReplacementState != null) {
@@ -85,7 +86,9 @@ class NonLetterInputHandler(
                             swipeSpaceManager.clearAutoSpaceFlag()
                             if (isSentenceEndingPunctuation(single) && !inputState.requiresDirectCommit) {
                                 onDisableCapsLockAfterPunctuation()
-                                onCheckAutoCapitalization(outputBridge.safeGetTextBeforeCursor(50))
+                                // What we just wrote, never a read-back of it — see the note in
+                                // commitPunctuationAfterClusterCommit.
+                                onCheckAutoCapitalization(committed)
                             }
                             suggestionPipeline.showBigramPredictions()
                         } finally {
@@ -386,13 +389,23 @@ class NonLetterInputHandler(
                 )
             // Openers and the hyphen attach to what follows -> no trailing space.
             val trailing = if (wantsTrailingSpace && !suppressTrailing) " " else ""
-            outputBridge.commitText("$leading$punctuation$trailing", 1)
+            val committed = "$leading$punctuation$trailing"
+            outputBridge.commitText(committed, 1)
             inputState.pendingWordSeparator = suppressTrailing
             swipeSpaceManager.clearAutoSpaceFlag()
             inputState.lastAutocorrection = null
             if (isSentenceEndingPunctuation(punctuation) && !inputState.requiresDirectCommit) {
                 onDisableCapsLockAfterPunctuation()
-                onCheckAutoCapitalization(outputBridge.safeGetTextBeforeCursor(50))
+                // AUTO-CAP IS DECIDED FROM WHAT WE WROTE, NOT FROM A READ-BACK OF IT (白い熊, 2026-10-20).
+                // Inside a batch edit an editor that BUFFERS its edits — every Compose text field does; the
+                // commands are only applied when the batch closes — still answers getTextBeforeCursor with
+                // the text as it stood BEFORE the commit. The mark and its trailing space were therefore
+                // invisible to the check that decides whether a new sentence starts here, and in such an app
+                // (the Android Claude app among them) the next sentence never auto-capitalised. The text
+                // committed above IS the tail now before the cursor, and the rule reads nothing else: a
+                // terminal mark followed by whitespace. A suppressed trailing space still means no capital —
+                // the Czech ordinal "10. května" depends on it.
+                onCheckAutoCapitalization(committed)
             }
         } finally {
             outputBridge.endBatchEdit()
@@ -550,14 +563,16 @@ class NonLetterInputHandler(
             // Inside a pair („Ahoj…|“) the trailing space would land before the closer: suppress it and
             // hand it to the next word as its separator, like every other mark and word commit.
             val suppressTrailing = nextCharSuppressesTrailingSpace()
-            outputBridge.commitText(if (suppressTrailing) ellipsis else "$ellipsis ", 1)
+            val committed = if (suppressTrailing) ellipsis else "$ellipsis "
+            outputBridge.commitText(committed, 1)
             inputState.pendingWordSeparator = suppressTrailing
             swipeSpaceManager.clearAutoSpaceFlag()
             inputState.lastAutocorrection = null
             inputState.postCommitReplacementState = null
             if (!inputState.requiresDirectCommit) {
                 onDisableCapsLockAfterPunctuation()
-                onCheckAutoCapitalization(outputBridge.safeGetTextBeforeCursor(50))
+                // What we just wrote — see the note in commitPunctuationAfterClusterCommit.
+                onCheckAutoCapitalization(committed)
             }
             onCoordinateStateClear()
             suggestionPipeline.showBigramPredictions()

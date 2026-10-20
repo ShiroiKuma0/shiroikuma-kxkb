@@ -804,4 +804,20 @@ class NonLetterInputHandlerTest {
         // Ordinary letters are not terminators.
         assert(!NonLetterInputHandler.isClusterTerminatorChar('a'))
     }
+
+    // ---- Auto-cap is decided from the text we WROTE, not from a read-back of it ----
+    // The cases that turn on a real sentence-terminal mark live in AutoCapReportingTest: this class runs
+    // without Robolectric, so ICU's S_TERM property answers false here and "." never reaches the check.
+
+    @Test
+    fun `the ellipsis reports what it wrote too`() {
+        realInputState.displayBuffer = ""
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn(" ")
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(50), any())).thenReturn("Yes")
+
+        handler.handle("…")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assert(autoCapArgs.lastOrNull() == "… ") { "got: $autoCapArgs" }
+    }
 }
