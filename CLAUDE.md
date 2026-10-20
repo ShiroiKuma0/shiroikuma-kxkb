@@ -796,7 +796,59 @@ review all along. Rows edited by an older build have nothing stored and cannot g
 back. Suite 2 195 green (`VoiceSettledWordsTest` runs the page's own sequence — judge, ledger, read the
 marks, carry, judge and rebuild — and was verified to fail 3 of 5 against the old behaviour).
 
-**Released `0.23.1+355`** (2026-10-19; tagged `0.23.1+355` — a hand edit of a walk sentence costs only the words it changed; APK attached, on the fork's
+**Shipped since `+355`** (the `+361` line): **a walk recording that is not one sentence is kept too** —
+the screen-off recorder marks a sentence with a 物理鍵 press, so a missed, held or mid-breath-stopped press
+left a recording that was no sentence and could only be deleted, though the walk cannot be walked again;
+**Save as OGG** (`service/voice/VoiceOggExport.kt`, `MediaCodec` Opus → `MediaMuxer`, API 29+) writes it into
+a directory 白い熊 picks once (`voice_recording_path`, deliberately NOT in the backup — a path is a fact
+about one phone) named by its `capturedAt`, as a `.part` renamed only when the encoder finishes and never
+over an existing name, and **Cut into sentences** (`service/voice/VoiceLongSplit.kt`) splits it at its own
+pauses into inbox rows; each is offered ONCE, what has been done is on the row, and the recording goes only
+when both have been — and keeping the audio is offered on EVERY row that still has its recording, not only
+a long one (contract §9, 白い熊: what makes audio worth keeping is what was said into it). **The row's pills
+are draggable** (`settings/voice/VoiceCaptureControls.kt`): ONE order over all nine controls, each row
+rendering the subset it has in that sequence, so a pill moved under one sentence moves under all of them —
+a long press lifts it into a framework drag (the dragged id is recorded BEFORE `startDragAndDrop`, since
+ACTION_DRAG_STARTED arrives off the back of that call and `getClipData` is null until the drop), the
+`FlowLayout` reorders its children live under the finger, and the drop writes the order to
+`voice_capture_button_order`, which DOES ride in the backup. **Only the dragged pill moves** — rewriting the
+whole order from the row that was dragged in would let a long row's four pills decide where Copy and Share
+sit on every sentence, from a line they never appear on — so the drop is read as "before THAT shown one",
+with the controls the row has no pill for keeping their places; **Save as OGG now comes after Delete**
+(白い熊, 2026-10-20), the drag is confined to the row it started in (every row has a pill with the same
+id), and Send keeps its own line. In the directory browser **"Use this directory" is the POSITIVE button**,
+at the bottom right of Cancel — a decision belongs where a dialog's decisions are, not at the top of a list
+of places to go. Plus **the cluster bar predicts from what 白い熊 types** (a word's own typing count earns a
+rung above dictionary frequency) and **the strongly preferred forms outrank every count**: `(io mwk` IS
+"I'm" and `(io btn sh)` IS "it's", but the apostrophe is on no band so those taps spell the bare "im"/"ith"
+and the contraction must come from the curated table — emitted at `0.995` it lost to a typed word's
+`0.9994`, so "implement" and "other" took the row; `queryPreferredFormSuggestions` is now a rung of its own
+at `CONTRACTION_PREFERRED_CONFIDENCE = 1.05`, run FIRST in `querySingleLanguage`, above the user dictionary
+(deliberately above 1.0, which every ladder tops out at — a decision, not a probability). With the
+apostrophe TAPPED the buffer is `it'h` and the open-class possessive synthesized over every allowed head
+ranked "in's" first, so `Contractions.candidatesForBands` now matches a contraction TWO ways — the bare key
+and the form itself — and the real one leads with the possessive under it (still offered on purpose, `+312`).
+**Right arrow releases the composing word**: at the end of the text `KEYCODE_DPAD_RIGHT` moves nothing, no
+selection change arrives, nothing invalidated the composing state, so the next Space committed a candidate
+instead of typing a space; the released word is NOT learned and NOT counted as typed (Japanese exempt — an
+arrow during kana conversion means something else). **Č on a shifted Czech cluster board** — two faults:
+`clearShiftAfterCharacter` ran before the arming was noticed (so the diacritic itself spent the shift and
+the base arrived lowercase), and the `is KeyboardKey.Action` branch cleared `pendingDeadKey` for SHIFT,
+discarding the háček; arming now spends nothing, the COMPOSED letter spends the shift, and Shift/caps-lock
+leave an armed mark alone while space, Enter, backspace and a layer switch still end it. **Auto-capitalisation
+in an editor that buffers its edits** — after writing a terminal mark the handler asked the field for the
+text it had just written, INSIDE its own batch edit, and every Compose text field (the Android Claude app
+among them) answers with the pre-commit text, so the mark and its space were invisible and no capital was
+ever armed there; the four punctuation sites now report what they wrote, a suppressed trailing space still
+means no capital (`10. května` untouched), and the period cases need Robolectric because ICU's `S_TERM` is
+stubbed false in plain unit tests. **NEVER READ BACK YOUR OWN WRITE INSIDE A BATCH EDIT.** And the word
+**"folder" is gone** — the Library git archive and its browser (two resource NAMES with it:
+`library_git_select_directory`, `library_git_new_directory`), Export/import, the voice model import,
+`browseForDirectory` in both fragments, the comments/KDoc of five files, README, `docs/PLAN.md` and the
+fork's own `CHANGELOG.md` entries; the CLDR emoji keywords for 📂/📁 are left alone, being what someone
+types to FIND the emoji. Suite 2 259 green.
+
+**Released `0.23.1+361`** (2026-10-20; tagged `0.23.1+361` — a long walk recording is kept as an OGG or cut into sentences, and the row's pills are draggable; APK attached, on the fork's
 GitHub; default branch `custom`; README badge + `CHANGELOG.md` track it). **Release tags carry NO `v` prefix** (白い熊,
 2026-09-05): the first fork release was the bare `0.23.1+72`, the `v` crept in at `+147`, and the 30 tags
 from `+147` to `+316` were renamed to bare — their GitHub releases were MOVED onto the new tags
@@ -808,7 +860,8 @@ by it — so recreating 30 tags at once sorted them all above the genuinely newe
 older tag object. `publishedAt` is untouched and the `releases/latest` API stayed correct, but the page
 looked wrong until `0.23.1+320`'s tag was force-recreated so its object was the newest again. Retag oldest
 first, or re-cut the newest tag last. Recent fork releases:
-`+316`, `+320`, `+321`, `+324`, `+335`, `+337`, `+338`, `+343`, `+347`, `+348`, `+349`, `+350`, `+354`, `+355` (earlier: `+313`, `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`, `+211`, `+213`,
+`+316`, `+320`, `+321`, `+324`, `+335`, `+337`, `+338`, `+343`, `+347`, `+348`, `+349`, `+350`, `+354`,
+`+355`, `+361` (earlier: `+313`, `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`, `+211`, `+213`,
 `+214`, `+215`, `+217`, `+222`, `+230`, `+250`, `+287`, `+292`, `+295`, `+296`, `+298`, `+299`, `+300`,
 `+301`, `+302`, `+304`, `+305`, `+306`, `+309`, `+312`). Remaining M5 tail (low priority): number/arrow
 rows on the look page, quick-period flick. Full architecture + milestone sequence in `docs/PLAN.md`.
