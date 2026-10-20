@@ -30,7 +30,7 @@ import kotlinx.coroutines.launch
  * - `<pkg>.action.EXPORT_STATE`: run the ordinary category-ZIP export ([BackupManager]) with no Activity and no
  *   user interaction. Extras (all String): `token` (OPTIONAL — [AutomationAuth]; checked only when
  *   「Use authorization token?」 is on, ignored otherwise), `path` (optional absolute
- *   directory, wins over the app's configured export folder), `items` (optional comma list of [BackupPart] ids;
+ *   directory, wins over the app's configured export directory), `items` (optional comma list of [BackupPart] ids;
  *   absent/empty = our default set, i.e. the parts LIST_CATEGORIES reports as `on`), `progress_action`
  *   (optional — see below), plus the reply trio
  *   `reply_action` / `reply_package` / `reply_id`.
@@ -174,7 +174,7 @@ class StateExportReceiver : BroadcastReceiver() {
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
                 val entry = EntryPointAccessors.fromApplication(app, BackupEntryPoint::class.java)
-                // Directory precedence: the `path` extra → the app's configured export folder → error.
+                // Directory precedence: the `path` extra → the app's configured export directory → error.
                 val dirPath = pathOverride.ifEmpty {
                     entry.settingsRepository().getExportImportPath()?.trim().orEmpty()
                 }

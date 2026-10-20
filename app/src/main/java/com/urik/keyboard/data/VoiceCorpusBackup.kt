@@ -142,7 +142,7 @@ constructor(
     }
 
     companion object {
-        /** Archive folder of the recordings (binary entries — never read as text). */
+        /** Archive directory of the recordings (binary entries — never read as text). */
         const val CLIP_PREFIX = "voice_corpus/"
     }
 }

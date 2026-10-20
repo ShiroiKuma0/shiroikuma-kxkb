@@ -106,10 +106,10 @@
     <string name="library_git_path_unset">Not set</string>
     <string name="library_git_path_dialog_title">Git archive path</string>
     <string name="library_git_path_dialog_hint">/storage/emulated/0/kxkb-archive</string>
-    <string name="library_git_path_dialog_message">Absolute path to a real folder (All-Files-Access). Leave blank to disable the git archive.</string>
+    <string name="library_git_path_dialog_message">Absolute path to a real directory (All-Files-Access). Leave blank to disable the git archive.</string>
     <string name="library_git_grant_access">Grant all-files access</string>
-    <string name="library_git_need_access">All-files access is required to read or write the archive folder.</string>
-    <string name="library_git_dir_missing">Folder does not exist yet — it will be created on init.</string>
+    <string name="library_git_need_access">All-files access is required to read or write the archive directory.</string>
+    <string name="library_git_dir_missing">Directory does not exist yet — it will be created on init.</string>
     <string name="library_git_init">Initialise repo here</string>
     <string name="library_git_initialised_toast">Initialised git archive</string>
     <string name="library_git_init_failed">Could not initialise repo</string>
@@ -128,8 +128,8 @@
     <string name="library_git_save">Save</string>
     <string name="library_git_cancel">Cancel</string>
     <string name="library_git_browse">Browse…</string>
-    <string name="library_git_select_folder">Select this folder</string>
-    <string name="library_git_new_folder">New folder…</string>
+    <string name="library_git_select_directory">Select this directory</string>
+    <string name="library_git_new_directory">New directory…</string>
     <string name="library_git_up">⬆  ..</string>
     <!-- Library git archive: HTTPS remote (clone / pull / push) -->
     <string name="library_git_remote_label">Remote</string>
@@ -144,7 +144,7 @@
     <string name="library_git_pull">Pull</string>
     <string name="library_git_push">Push</string>
     <string name="library_git_remote_need_fields">Set the remote URL and token first.</string>
-    <string name="library_git_clone_need_empty">Clone needs an empty (non-repo) folder path.</string>
+    <string name="library_git_clone_need_empty">Clone needs an empty (non-repo) directory path.</string>
     <!-- History browser (M4 L3): browse the archive's git log, preview/restore a layout at any commit. -->
     <string name="library_git_history">History</string>
     <string name="library_git_history_title">Archive history</string>
@@ -790,15 +790,15 @@
     <!-- Export / import -->
     <string name="export_import_title">Export / import</string>
     <string name="export_import_summary">Back up and restore your keyboard — colours, layouts, dictionaries and more.</string>
-    <string name="export_import_intro">Pick the parts to back up, choose a folder once, then Export or Import. Backups are plain .zip files you can copy anywhere.</string>
+    <string name="export_import_intro">Pick the parts to back up, choose a directory once, then Export or Import. Backups are plain .zip files you can copy anywhere.</string>
     <string name="space_menu_export_import">Export/import</string>
-    <string name="export_import_dir_label">Backup folder</string>
+    <string name="export_import_dir_label">Backup directory</string>
     <string name="export_import_dir_unset">Not set — tap to choose</string>
-    <string name="export_import_need_access">All-files access is required to read and write the backup folder.</string>
+    <string name="export_import_need_access">All-files access is required to read and write the backup directory.</string>
     <string name="export_import_grant_access">Grant all-files access</string>
-    <string name="export_import_last_none">No backup found in this folder yet.</string>
+    <string name="export_import_last_none">No backup found in this directory yet.</string>
     <string name="export_import_db_unavailable">The word database could not be opened when the keyboard started, so the user dictionary, learned words and next-word predictions cannot be exported or imported right now. Hide and reopen the keyboard once the phone is unlocked, then come back.</string>
-    <string name="export_import_last_nodir">Set a backup folder first.</string>
+    <string name="export_import_last_nodir">Set a backup directory first.</string>
     <string name="export_import_last">Last backup: %1$s</string>
     <string name="export_import_select_all">Select all</string>
     <string name="export_import_export">Export</string>
@@ -810,16 +810,16 @@
     <string name="export_import_export_failed">Export failed: %1$s</string>
     <string name="export_import_import_done_title">Import complete</string>
     <string name="export_import_import_failed">Import failed: %1$s</string>
-    <string name="export_import_no_backups">No backups in this folder to import.</string>
+    <string name="export_import_no_backups">No backups in this directory to import.</string>
     <string name="export_import_pick_backup">Choose a backup to import</string>
     <string name="export_import_restart_hint">Reopen apps to see every change applied.</string>
-    <string name="export_import_dir_dialog_title">Backup folder</string>
-    <string name="export_import_dir_dialog_message">Enter a full path, or Browse to pick a folder.</string>
+    <string name="export_import_dir_dialog_title">Backup directory</string>
+    <string name="export_import_dir_dialog_message">Enter a full path, or Browse to pick a directory.</string>
     <string name="export_import_dir_hint">/storage/emulated/0/…</string>
     <string name="export_import_browse">Browse</string>
     <string name="export_import_save">Save</string>
     <string name="export_import_cancel">Cancel</string>
-    <string name="export_import_pick_here">Use this folder</string>
+    <string name="export_import_pick_here">Use this directory</string>
 
     <!-- Backup part names -->
     <string name="backup_part_appearance">Appearance &amp; colours</string>
@@ -917,12 +917,12 @@
     <string name="voice_status_mic_ok">✓ Microphone permission granted</string>
     <string name="voice_status_mic_missing">✗ Microphone permission not granted</string>
     <string name="voice_step1_title">1 · Download the model</string>
-    <string name="voice_step1_text">The recognizer needs the Whisper “small” model in its ONNX form — six Whisper_*.onnx files zipped as whisper_small_int8.zip (about 243 MB), published on Hugging Face. This button hands the download to your BROWSER, which saves the zip to your Downloads folder — the keyboard itself never touches the network.</string>
+    <string name="voice_step1_text">The recognizer needs the Whisper “small” model in its ONNX form — six Whisper_*.onnx files zipped as whisper_small_int8.zip (about 243 MB), published on Hugging Face. This button hands the download to your BROWSER, which saves the zip to your Downloads directory — the keyboard itself never touches the network.</string>
     <string name="voice_step1_button">Download model in browser</string>
     <string name="voice_step2_title">2 · Import the model</string>
     <string name="voice_step2_text">Once the browser has finished downloading, select the zip here. It is unpacked into the keyboard\'s own app-private storage (about 250 MB) and checked for the six expected model files; a progress bar shows the extraction. After a successful import the zip in Downloads can be deleted.</string>
     <string name="voice_step2_button">Select downloaded zip…</string>
-    <string name="voice_need_all_files">Reading the Downloads folder needs the All-Files-Access permission (the same one the layout Library and Export/import use).</string>
+    <string name="voice_need_all_files">Reading the Downloads directory needs the All-Files-Access permission (the same one the layout Library and Export/import use).</string>
     <string name="voice_grant_all_files">Grant All-Files-Access</string>
     <string name="voice_remove_model">Remove installed model</string>
     <string name="voice_remove_model_confirm">Delete the six model files from the keyboard\'s storage (frees about 250 MB)? Voice input stops working until a model is imported again.</string>
@@ -1018,6 +1018,35 @@
     <string name="voice_capture_lang_confirm_one">Decode this sentence as %1$s? What was transcribed in the other language is dropped, and the recording is transcribed again on the next “Transcribe all”. Corrections you have already saved are kept — they were learned the moment you saved them.</string>
     <string name="voice_capture_lang_confirm_many">Mark %1$d of the sentences as %2$s? %3$d of them are transcribed already; those transcriptions are dropped and the recordings transcribed again on the next “Transcribe all”.</string>
     <string name="voice_capture_lang_marked">Marked %1$d as %2$s</string>
+    <string name="voice_capture_long_label">長い録音</string>
+    <string name="voice_capture_long_waiting">%1$d long recording(s) to keep or cut up</string>
+    <string name="voice_capture_long_untouched">Not kept yet — save it as an OGG, cut it into sentences, or both.</string>
+    <string name="voice_capture_long_ogg">Saved as %1$s</string>
+    <string name="voice_capture_long_pieces">Cut into %1$d sentences</string>
+    <string name="voice_capture_long_salvaged">Recovered after the recorder was stopped mid-recording.</string>
+    <string name="voice_capture_long_finished">Kept as an OGG and cut into sentences — the recording itself is gone.</string>
+    <string name="voice_capture_long_drop_confirm">Delete this recording? It cannot be recorded again, and nothing has been kept from it.</string>
+    <string name="voice_capture_long_stopped">Stopped — the recording is as it was.</string>
+    <string name="voice_capture_position">%1$s / %2$s</string>
+    <string name="voice_capture_save_ogg">Save as OGG</string>
+    <string name="voice_capture_ogg_step">Writing the OGG…</string>
+    <string name="voice_capture_ogg_done">Saved as %1$s</string>
+    <string name="voice_capture_ogg_failed">The OGG could not be written: %1$s</string>
+    <string name="voice_capture_ogg_unsupported">This Android version cannot write OGG files — the recording can still be cut into sentences.</string>
+    <string name="voice_capture_ogg_no_access">Allow access to all files first — a recording is written to your own directory, outside this app.</string>
+    <string name="voice_capture_ogg_dir_label">Recordings directory (OGG)</string>
+    <string name="voice_capture_ogg_dir_unset">Not set — tap to choose where kept recordings go</string>
+    <string name="voice_capture_ogg_dir_title">Recordings directory</string>
+    <string name="voice_capture_ogg_dir_message">Where “Save as OGG” writes a recording. Type a full path or browse to one; %1$s is only a suggestion. Nothing in that directory is ever overwritten.</string>
+    <string name="voice_capture_ogg_dir_needed">Choose the directory recordings are written to first.</string>
+    <string name="voice_capture_ogg_dir_failed">%1$s could not be created — choose another directory.</string>
+    <string name="voice_capture_split">Cut into sentences</string>
+    <string name="voice_capture_split_pauses">Looking for the pauses…</string>
+    <string name="voice_capture_split_cutting">Cutting sentence %1$d of %2$d…</string>
+    <string name="voice_capture_split_done">Cut into %1$d sentences</string>
+    <string name="voice_capture_split_silent">No speech was found in this recording, so there was nothing to cut.</string>
+    <string name="voice_capture_split_failed">The recording could not be cut up.</string>
+    <string name="voice_capture_reorder_hint">Hold a button under a sentence and drag it — the order you set is the order under every line.</string>
     <string name="voice_capture_no_store">The word store is unavailable right now, so nothing can be kept — reopen the keyboard once and try again.</string>
     <string name="voice_corpus_title">Voice corrections</string>
     <string name="voice_corpus_summary">%1$d dictations kept · %2$.1f MB of recordings</string>

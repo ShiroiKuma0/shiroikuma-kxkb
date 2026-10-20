@@ -238,7 +238,7 @@ class LibraryFragment : Fragment() {
 
             if (path.isNullOrBlank()) return@launch
 
-            // All-files access is required to touch a real external folder.
+            // All-files access is required to touch a real external directory.
             if (!hasAllFilesAccess()) {
                 container.addView(gitCaption(getString(R.string.library_git_need_access)))
                 container.addView(pillRow(pillButton(getString(R.string.library_git_grant_access)) {
@@ -268,7 +268,7 @@ class LibraryFragment : Fragment() {
                     val pills = LinearLayout(requireContext()).apply { orientation = LinearLayout.HORIZONTAL }
                     pills.setPadding(0, dp(4), 0, dp(8))
                     pills.addView(pillButton(getString(R.string.library_git_init)) { initRepo(dir) })
-                    // With a remote set, offer Clone into this (empty/non-repo) folder.
+                    // With a remote set, offer Clone into this (empty/non-repo) directory.
                     if (!remoteUrl.isNullOrBlank()) {
                         pills.addView(pillButton(getString(R.string.library_git_clone)) {
                             cloneRepo(remoteUrl, dir)
@@ -413,7 +413,7 @@ class LibraryFragment : Fragment() {
                 val start = current?.takeIf { it.isNotBlank() }?.let { File(it) }
                     ?.takeIf { it.isDirectory }
                     ?: Environment.getExternalStorageDirectory()
-                browseForFolder(start) { picked ->
+                browseForDirectory(start) { picked ->
                     lifecycleScope.launch {
                         settingsRepository.setLibraryRepoPath(picked.absolutePath)
                         rebuild()
@@ -527,10 +527,10 @@ class LibraryFragment : Fragment() {
     }
 
     /**
-     * A no-SAF, in-app directory browser (we hold All-Files-Access): list the sub-folders of [dir], let the
-     * user walk up/into them, create a new sub-folder, or pick [dir] itself. Re-shows itself per navigation.
+     * A no-SAF, in-app directory browser (we hold All-Files-Access): list the subdirectories of [dir], let
+     * the user walk up/into them, create a new one, or pick [dir] itself. Re-shows itself per navigation.
      */
-    private fun browseForFolder(dir: File, onPick: (File) -> Unit) {
+    private fun browseForDirectory(dir: File, onPick: (File) -> Unit) {
         if (!hasAllFilesAccess()) {
             flash(getString(R.string.library_git_need_access)); requestAllFilesAccess(); return
         }
@@ -542,20 +542,20 @@ class LibraryFragment : Fragment() {
         subdirs.forEach { labels.add("📁  " + it.name); targets.add(it) }
         AlertDialog.Builder(requireContext(), R.style.Theme_Urik_Dialog)
             .setTitle(dir.absolutePath)
-            .setItems(labels.toTypedArray()) { _, which -> browseForFolder(targets[which], onPick) }
-            .setPositiveButton(R.string.library_git_select_folder) { _, _ -> onPick(dir) }
-            .setNeutralButton(R.string.library_git_new_folder) { _, _ ->
+            .setItems(labels.toTypedArray()) { _, which -> browseForDirectory(targets[which], onPick) }
+            .setPositiveButton(R.string.library_git_select_directory) { _, _ -> onPick(dir) }
+            .setNeutralButton(R.string.library_git_new_directory) { _, _ ->
                 val input = EditText(requireContext()).apply { setSingleLine() }
                 val pad = dp(20)
                 AlertDialog.Builder(requireContext(), R.style.Theme_Urik_Dialog)
-                    .setTitle(R.string.library_git_new_folder)
+                    .setTitle(R.string.library_git_new_directory)
                     .setView(FrameLayout(requireContext()).apply { setPadding(pad, dp(8), pad, 0); addView(input) })
                     .setPositiveButton(R.string.library_git_save) { _, _ ->
                         val name = input.text.toString().trim().takeIf { it.isNotEmpty() }
                         val created = name?.let { File(dir, it).apply { mkdirs() } }
-                        browseForFolder(created?.takeIf { it.isDirectory } ?: dir, onPick)
+                        browseForDirectory(created?.takeIf { it.isDirectory } ?: dir, onPick)
                     }
-                    .setNegativeButton(R.string.library_git_cancel) { _, _ -> browseForFolder(dir, onPick) }
+                    .setNegativeButton(R.string.library_git_cancel) { _, _ -> browseForDirectory(dir, onPick) }
                     .show()
             }
             .setNegativeButton(R.string.library_git_cancel, null)

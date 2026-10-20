@@ -282,10 +282,10 @@ block below); the orphaned `preference_switch_kxkb_divided.xml` deleted.
 **Shipped since `+299`** (the `+300` line): **the Export/import page in the Kōjiki sheet format**
 (`settings/eximport/ExportImportFragment.kt`, visual only — engine/flows untouched): the whole page in
 one bordered rounded box (2 dp yellow stroke, 16 dp corners, inset from the edges) with a centred bold
-title + dim intro; the backup folder as its own bordered tappable box (small label over the bold path,
+title + dim intro; the backup directory as its own bordered tappable box (small label over the bold path,
 warn-red when unset) with the last-backup line beneath; thin yellow 40 %-alpha dividers around the
 flat, yellow-tinted checkbox checklist (bold Select all); Import | Export as equal-width side-by-side
-pills; the All-Files-Access gate kept between intro and folder box.
+pills; the All-Files-Access gate kept between intro and directory box.
 
 **Shipped since `+300`** (the `+301` line): **the ArcaneChat-style button bar** on the Export/import
 page — Cancel alone on the left (back navigation), Import + Export grouped right; all pills fully

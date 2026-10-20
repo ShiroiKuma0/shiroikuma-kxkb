@@ -838,7 +838,7 @@ running headless export can now be stopped.
 - The stop is a flag the write loop checks **between entries**, so the archive unwinds at a clean
   boundary. Nothing is interrupted mid-write, no thread is killed, and the process is never
   terminated.
-- **A cancelled export leaves the backup folder exactly as it found it.** Every export is now built
+- **A cancelled export leaves the backup directory exactly as it found it.** Every export is now built
   as `<name>.zip.part` and renamed to its real name only once the archive is complete; the partial is
   deleted on cancel and on every other failure alike. No short archive, no stray file — and because
   a `.part` is not a backup name, one can never be offered for import or counted as your last backup.
@@ -847,7 +847,7 @@ running headless export can now be stopped.
 - **Safe to send at any moment**: with nothing running, after the export already finished, or for a
   different run, it is a silent no-op — not an error, not a crash.
 - The in-app **Export** button writes through the same `.part` path, so a failure there can no longer
-  leave a half-written backup in the folder either.
+  leave a half-written backup in the directory either.
 
 ## 0.23.1+304
 
@@ -901,7 +901,7 @@ Built on Urik `0.23.1-beta`. The keyboard joins 白い熊 自由作業盤's 保�
   gate**, and both are dead until the switch below is turned on.
 - The headless export goes through the **same engine as the Export / import page** — one ZIP, the
   same parts, the same format — so an automated backup restores exactly like a manual one. It
-  honours a `path` extra (an absolute directory that overrides the configured backup folder) and an
+  honours a `path` extra (an absolute directory that overrides the configured backup directory) and an
   `items` extra (a comma-separated subset of category ids).
 - The reply is a **fresh broadcast** carrying `OK:<path>|<bytes>|<human size>|<n> categories`, or a
   distinct `ERROR:…` line — exactly one reply per request. No Binder is ever handed over and the
@@ -925,8 +925,8 @@ Built on Urik `0.23.1-beta`. The keyboard joins 白い熊 自由作業盤's 保�
 
 - Backups are now named **`shiroikuma-kxkb_<yyyy-MM-dd_HH-mm-ss>.zip`** — no version, no `_backup`
   suffix, no decoration — from the Export / import page and the automation path alike. Every 白い熊
-  app writes its backups into one shared folder, so they must sort and read uniformly.
-- The "last backup" line and the import picker now **filter by the app's own prefix**, so a folder
+  app writes its backups into one shared directory, so they must sort and read uniformly.
+- The "last backup" line and the import picker now **filter by the app's own prefix**, so a directory
   full of sister-app backups no longer offers you somebody else's ZIP. Backups written under the
   old name are still recognised.
 
@@ -952,13 +952,13 @@ Built on Urik `0.23.1-beta`. The Export / import page gets the Kōjiki look.
 - The whole page now lives in **one bordered rounded box** (yellow stroke, rounded corners, inset
   from the screen edges) — the same surface as Kōjiki's export/import sheet — with a **centred
   bold title** and the dim intro line at the top.
-- The **backup folder is a bordered, clearly-tappable box** of its own: a small yellow label over
+- The **backup directory is a bordered, clearly-tappable box** of its own: a small yellow label over
   the path in bold, shown **warn-red when unset**; the last-backup line sits directly beneath it.
-- A thin yellow divider separates the folder area from the checklist — bold **Select all** over
+- A thin yellow divider separates the directory area from the checklist — bold **Select all** over
   the flat list of part checkboxes, all with yellow-tinted boxes — and a second divider closes
   the checklist before the **Import | Export buttons, side by side at equal width**.
 - The All-Files-Access gate (red warning + grant button) keeps its place between the intro and
-  the folder box.
+  the directory box.
 
 ## 0.23.1+299
 
@@ -1411,7 +1411,7 @@ the bundled Czech dictionary is cleaned of foreign-word pollution.
   colours, settings, keyboard layouts, user dictionary, learned words, next-word predictions, blocked
   words, per-app layout memory** — then Export or Import. Each part is one JSON file plus a manifest;
   import merges per row (never wipes; re-import is idempotent) and one failing part never aborts the rest.
-- The backup folder is a real filesystem path (All-Files-Access, no SAF — the Library model); the page
+- The backup directory is a real filesystem path (All-Files-Access, no SAF — the Library model); the page
   scans it and shows when the last backup was made.
 
 ### Suggestion bar
@@ -1651,7 +1651,7 @@ picker, per-row sizing), and Czech / Japanese input work.
 
 ### Git archive (in-app JGit, Library-tab only)
 
-- A real git repo at a **settable real path** (All-Files-Access, an in-app folder picker — no SAF):
+- A real git repo at a **settable real path** (All-Files-Access, an in-app directory picker — no SAF):
   **init**, **import**, and **commit** the whole effective layout set under clean names.
 - **HTTPS remotes** — set origin, **clone / pull / push** (token stored in app settings).
 - **History browser** — browse the commit log and **preview / restore** a layout as it was at any

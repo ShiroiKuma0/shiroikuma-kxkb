@@ -36,7 +36,7 @@ The earlier "git is the source of truth" framing was **wrong** and was corrected
 ### Locked decisions
 1. Runtime store = authoritative binary (app-private, self-contained). Git repo = archival/curation, never
    a runtime/boot dependency.
-2. Git engine = in-app JGit on a real path, settable on the Library page via a real-path folder chooser
+2. Git engine = in-app JGit on a real path, settable on the Library page via a real-path directory chooser
    (not SAF). In-app commit + history + live-render-per-commit + restore. (No Termux.)
 3. **Looks = 3 composed layers:** general **default** → reusable **look artifacts** (separately versioned,
    bound per geometry) → **per-key particulars embedded in the layout JSON** (the "make this key bigger"

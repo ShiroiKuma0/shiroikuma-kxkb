@@ -328,7 +328,7 @@ class VoiceSettingsFragment : Fragment() {
         browseForZip(if (downloads.isDirectory) downloads else Environment.getExternalStorageDirectory())
     }
 
-    /** House file browser (All-Files-Access real paths, no SAF): folders to descend, .zip files to pick. */
+    /** House file browser (All-Files-Access real paths, no SAF): directories to descend, .zip files to pick. */
     private fun browseForZip(dir: File) {
         val subDirs = dir.listFiles { f -> f.isDirectory }?.sortedBy { it.name.lowercase() } ?: emptyList()
         val zips = dir.listFiles { f -> f.isFile && f.name.endsWith(".zip", ignoreCase = true) }
@@ -430,7 +430,7 @@ class VoiceSettingsFragment : Fragment() {
 
     /**
      * Unpack the six model files from the zip into [targetDir]. Entries are matched by base name so a
-     * zip with a folder inside works too. Throws when the zip is not the expected model set; returns
+     * zip with a directory inside works too. Throws when the zip is not the expected model set; returns
      * false when cancelled (partial files are removed either way).
      */
     private fun extractModel(

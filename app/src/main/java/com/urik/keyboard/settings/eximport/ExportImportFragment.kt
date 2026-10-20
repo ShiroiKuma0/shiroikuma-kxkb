@@ -37,12 +37,12 @@ import kotlinx.coroutines.withContext
 
 /**
  * The Export / import window: a single house-style page that backs up and restores the keyboard. The user
- * ticks the parts ([BackupPart]) they want, sets a real backup folder once (All-Files-Access, no SAF — the
- * same model as the Library git path), then Exports (writes a timestamped .zip) or Imports (picks a .zip from
- * the folder). The page scans the folder for the newest backup and shows when it was made.
+ * ticks the parts ([BackupPart]) they want, sets a real backup directory once (All-Files-Access, no SAF —
+ * the same model as the Library git path), then Exports (writes a timestamped .zip) or Imports (picks a .zip
+ * from it). The page scans that directory for the newest backup and shows when it was made.
  *
  * Visual format = the Kōjiki export/import sheet: one bordered rounded box carries the whole page —
- * centred bold title, dim description, a bordered tappable folder box (small label over a bold value,
+ * centred bold title, dim description, a bordered tappable directory box (small label over a bold value,
  * warn-red when unset), the last-backup line, a divider, Select all + the part checkboxes, a divider,
  * then the two equal-width Import | Export buttons.
  *
@@ -144,7 +144,7 @@ class ExportImportFragment : Fragment() {
 
     // ---- rows ------------------------------------------------------------------------------------------
 
-    /** The folder box: a bordered, clearly-tappable box — small label over the bold value, warn when unset. */
+    /** The directory box: a bordered, clearly-tappable box — small label over the bold value, warn when unset. */
     private fun dirRow(path: String?): View = LinearLayout(requireContext()).apply {
         orientation = LinearLayout.VERTICAL
         isClickable = true
@@ -248,7 +248,7 @@ class ExportImportFragment : Fragment() {
                 withContext(Dispatchers.IO) {
                     if (!dir.exists()) dir.mkdirs()
                     // Same writer as the headless automation path: a `.part` file renamed only once the
-                    // archive is complete, so a failure never leaves a short .zip in the backup folder.
+                    // archive is complete, so a failure never leaves a short .zip in the backup directory.
                     backupManager.exportToDirectory(parts, dir, version, name)
                 }
             }
@@ -319,10 +319,10 @@ class ExportImportFragment : Fragment() {
             .show()
     }
 
-    // ---- backup folder helpers -------------------------------------------------------------------------
+    // ---- backup directory helpers -------------------------------------------------------------------------
 
     /**
-     * Our backups in the folder, newest first. Filtered by [BackupManager.EXPORT_PREFIX] because 白い熊 keeps
+     * Our backups in that directory, newest first. Filtered by [BackupManager.EXPORT_PREFIX] because 白い熊 keeps
      * every sister app's backups in one directory — an unfiltered `*.zip` scan would offer their files too.
      */
     private fun listBackups(): List<File> {
@@ -366,7 +366,7 @@ class ExportImportFragment : Fragment() {
             .setNeutralButton(R.string.export_import_browse) { _, _ ->
                 val start = current?.takeIf { it.isNotBlank() }?.let { File(it) }?.takeIf { it.isDirectory }
                     ?: Environment.getExternalStorageDirectory()
-                browseForFolder(start) { picked -> saveDir(picked.absolutePath) }
+                browseForDirectory(start) { picked -> saveDir(picked.absolutePath) }
             }
             .setNegativeButton(R.string.export_import_cancel, null)
             .show()
@@ -379,7 +379,7 @@ class ExportImportFragment : Fragment() {
         }
     }
 
-    private fun browseForFolder(dir: File, onPick: (File) -> Unit) {
+    private fun browseForDirectory(dir: File, onPick: (File) -> Unit) {
         if (!hasAllFilesAccess()) {
             requestAllFilesAccess(); return
         }
@@ -393,7 +393,7 @@ class ExportImportFragment : Fragment() {
             .setTitle(dir.absolutePath)
             .setItems(labels.toTypedArray()) { _, which ->
                 val t = targets[which]
-                if (t == null) onPick(dir) else browseForFolder(t, onPick)
+                if (t == null) onPick(dir) else browseForDirectory(t, onPick)
             }
             .setNegativeButton(R.string.export_import_cancel, null)
             .show()

@@ -172,14 +172,14 @@ the default and then to a built-in QWERTY: the PIN field is never left without a
 ## 💾 Back it up — by hand or automatically
 
 Everything settable — colours, layouts, learned words, the user dictionary, per-app memory — exports
-to **one ZIP**, part by part, into a real folder you choose (no SAF hoops). Import merges rather than
+to **one ZIP**, part by part, into a real directory you choose (no SAF hoops). Import merges rather than
 wipes, so a restore never destroys what it didn’t cover.
 
 The same export answers a **token-gated broadcast**, so an automation app can back the keyboard up
 headlessly alongside every other app on the phone: one master switch (off until you turn it on), one
 copyable token, real-count progress while it runs, and the written path and size reported back. The
 keyboard tells the caller which categories start ticked, and a run in flight can be **cancelled** —
-the half-written file is removed, so a stopped backup leaves the folder exactly as it found it.
+the half-written file is removed, so a stopped backup leaves the directory exactly as it found it.
 
 And the word database itself is **never deleted by code**: it is probed before Room opens it, a file
 that cannot be read is set aside under a dated name rather than wiped, whatever was set aside is
