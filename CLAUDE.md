@@ -848,8 +848,33 @@ stubbed false in plain unit tests. **NEVER READ BACK YOUR OWN WRITE INSIDE A BAT
 fork's own `CHANGELOG.md` entries; the CLDR emoji keywords for 📂/📁 are left alone, being what someone
 types to FIND the emoji. Suite 2 259 green.
 
-**Released `0.23.1+361`** (2026-10-20; tagged `0.23.1+361` — a long walk recording is kept as an OGG or cut into sentences, and the row's pills are draggable; APK attached, on the fork's
-GitHub; default branch `custom`; README badge + `CHANGELOG.md` track it). **Release tags carry NO `v` prefix** (白い熊,
+**Shipped since `+361`** (the `+362` line): **the word the taps spell leads the candidate row** —
+one tap on `(io` offered "in it is on I" and three on `;l:` `aev` `btn` offered
+"let's language lens languages let", the word actually spelled LAST, because the band-constrained
+PREFIX ladders (`queryTypedHistorySuggestions`, `queryLearnedHeavySuggestions`,
+`queryCompletionSuggestions`) score through `learnedHeavyConfidence` — 0.9994 rising to 1.0 — while the
+exact-length DAWG walk tops out at 0.99, so a count that says how often a word has been typed, and
+nothing about how much of it the taps account for, buried the word being typed;
+`SpellCheckManager.holdBackBeyondTaps` (run inside `mergeAndRankSuggestions` BEFORE the pool cap, or a
+full-length word is truncated out of the row it should lead) now holds every prediction standing above
+the BEST full-length word down to just under it (`BEYOND_TAPS_GAP`), keeping their own order — so one
+tap answers "I in it is on" and three "let let's language lens languages". **Deliberately NOT the
+strict reading**: measured against the real `en.urik`, those three taps spell SIX words
+(let 1.74M · lab 29819 · lan 2780 · len 2598 · lat 363 · leb 44), so "all short ones first" would bury
+the word 白い熊 types behind five rarities — one word moves, not the band. Held above the rule: the
+preferred forms above 1.0 (`(io mwk` still MEANS "I'm" though those taps also spell "ok"), the user
+dictionary (a shortcut's surface — "on my way" off three taps — says nothing about its taps), and the
+apostrophe, which is on no band and costs no tap, so length is counted WITHOUT apostrophes ("don't" off
+four taps is full-length; "let's" off three still wants a fourth). **Cluster boards only** — on a flat
+board the buffer IS the word and already leads the bar, and a longer candidate there is usually a real
+correction ("helo" → "hello" must not fall behind "help"; the suite caught both that and
+"dont" → "don't" against the first cut). This REVERSES one aspect of the `+361` ranking: a word typed
+once no longer leads every rival — with three taps spelling "rec", "rec" leads and "recommend" is
+second (`TypedHistoryPredictionTest` says so in those words). Suite 2 265 green
+(`FullWordLeadsPredictionTest`, verified to fail 3 of 6 against the old ranking).
+
+**Released `0.23.1+362`** (2026-10-29; tagged `0.23.1+362` — the word the taps spell in full leads the
+candidate row; APK attached, on the fork's GitHub; default branch `custom`; README badge + `CHANGELOG.md` track it). **Release tags carry NO `v` prefix** (白い熊,
 2026-09-05): the first fork release was the bare `0.23.1+72`, the `v` crept in at `+147`, and the 30 tags
 from `+147` to `+316` were renamed to bare — their GitHub releases were MOVED onto the new tags
 (`gh release edit --tag`), never deleted and re-cut, so every APK asset, release note and **publication**
@@ -860,8 +885,9 @@ by it — so recreating 30 tags at once sorted them all above the genuinely newe
 older tag object. `publishedAt` is untouched and the `releases/latest` API stayed correct, but the page
 looked wrong until `0.23.1+320`'s tag was force-recreated so its object was the newest again. Retag oldest
 first, or re-cut the newest tag last. Recent fork releases:
-`+316`, `+320`, `+321`, `+324`, `+335`, `+337`, `+338`, `+343`, `+347`, `+348`, `+349`, `+350`, `+354`,
-`+355`, `+361` (earlier: `+313`, `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`, `+211`, `+213`,
+`+320`, `+321`, `+324`, `+335`, `+337`, `+338`, `+343`, `+347`, `+348`, `+349`, `+350`, `+354`,
+`+355`, `+361`, `+362` (earlier: `+316`, `+313`, `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`,
+`+211`, `+213`,
 `+214`, `+215`, `+217`, `+222`, `+230`, `+250`, `+287`, `+292`, `+295`, `+296`, `+298`, `+299`, `+300`,
 `+301`, `+302`, `+304`, `+305`, `+306`, `+309`, `+312`). Remaining M5 tail (low priority): number/arrow
 rows on the look page, quick-period flick. Full architecture + milestone sequence in `docs/PLAN.md`.
