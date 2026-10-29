@@ -4,7 +4,39 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+361 — current
+## 0.23.1+362 — current
+
+Built on Urik `0.23.1-beta`.
+
+### ⌨ The word your taps spell leads the row
+
+One tap on the `(io` key offered “in it is on I”, and three on `;l:` `aev` `btn` offered
+“let's language lens languages let”: the word you had actually spelled came **last**. The bar was
+ranking how often a word has been typed over how much of it the taps account for — and not by a
+hair. A word reached by its opening taps alone scores from your own count, which starts near the
+ceiling and stays there, while the word of exactly the tapped length is ranked on dictionary
+frequency, which cannot reach it. Any word you type often buried the word you were typing.
+
+- **Nothing the taps merely begin may outrank the best word they spell in full.** One tap now
+  answers “I in it is on”, three answer “let let's language lens languages”.
+- **The predictions are not thrown away** — only the ones standing above that word move, and only
+  to just below it, keeping the order your own counts gave them. Typing a long word from a handful
+  of taps works exactly as before, one place lower.
+- **Not the strict reading of “shortest first”.** Those three taps spell six real English words
+  (let, lab, lan, len, lat, leb); putting the whole band ahead of the row would bury the word you
+  type behind five rarities. One word moves, the one the taps spell best.
+- The curated forms still lead where they mean something: two taps on `(io` and `mwk` are still
+  “I'm”, though those taps also spell “ok”. Your own dictionary still leads, because a shortcut's
+  surface (“on my way” from three taps) says nothing about how many taps it cost. And the
+  apostrophe costs no tap, sitting on no band — so “don't” is the word four taps spell, while
+  “let's” off three still wants a fourth and waits behind “let”.
+- **Cluster boards only.** On a flat board what you typed already leads the bar, and a longer
+  candidate there is usually a correction of a real typo: “helo” still answers “hello”, not “help”.
+
+A word you have typed once still leads every other prediction — the word the taps spell is now the
+one exception to it.
+
+## 0.23.1+361
 
 Built on Urik `0.23.1-beta`.
 
