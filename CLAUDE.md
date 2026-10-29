@@ -874,7 +874,8 @@ second (`TypedHistoryPredictionTest` says so in those words). Suite 2 265 green
 (`FullWordLeadsPredictionTest`, verified to fail 3 of 6 against the old ranking).
 
 **Released `0.23.1+362`** (2026-10-29; tagged `0.23.1+362` — the word the taps spell in full leads the
-candidate row; APK attached, on the fork's GitHub; default branch `custom`; README badge + `CHANGELOG.md` track it). **Release tags carry NO `v` prefix** (白い熊,
+candidate row; APK attached, on the fork's GitHub; default branch `custom`; README badge +
+`CHANGELOG.md` track it). **Release tags carry NO `v` prefix** (白い熊,
 2026-09-05): the first fork release was the bare `0.23.1+72`, the `v` crept in at `+147`, and the 30 tags
 from `+147` to `+316` were renamed to bare — their GitHub releases were MOVED onto the new tags
 (`gh release edit --tag`), never deleted and re-cut, so every APK asset, release note and **publication**
