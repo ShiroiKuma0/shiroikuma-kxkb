@@ -185,16 +185,19 @@ class TypedHistoryPredictionTest {
     }
 
     @Test
-    fun `a word typed once leads the most frequent dictionary word`() = runTest {
+    fun `a word typed once leads every other prediction, under the word the taps spell`() = runTest {
         // 白い熊, 2026-10-20: the ladder has no probationary rung — a typo costs one long-press, while a
         // word you really use cost a row of taps every time it sat second. The rival at these three taps is
-        // the band's own exact-length word at the frequency of the commonest English words.
+        // the band's own exact-length word at the frequency of the commonest English words — and since
+        // 2026-10-29 that one word is the exception: "rec" is what three taps SPELL, "recommend" a guess at
+        // the six that have not happened, so the full word leads and your own word follows it
+        // (SpellCheckManager.holdBackBeyondTaps).
         typed("recommend" to 1)
 
         val words = bar("fec")
 
-        assertEquals("a word typed once must lead, got: $words", "recommend", words.first())
-        assertTrue("the dictionary word is still offered, got: $words", "rec" in words)
+        assertEquals("the word the taps spell leads, got: $words", "rec", words.first())
+        assertEquals("your own word comes straight after it, got: $words", "recommend", words[1])
     }
 
     @Test

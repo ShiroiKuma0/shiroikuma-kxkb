@@ -628,7 +628,7 @@ constructor(
                     .flatten()
 
             val cap = if (clusterActive) CLUSTER_BAR_POOL else MAX_SUGGESTIONS
-            mergeAndRankSuggestions(allLanguageSuggestions, cap, effectiveLanguage)
+            mergeAndRankSuggestions(allLanguageSuggestions, cap, effectiveLanguage, normalizedWord)
         } catch (e: Exception) {
             ErrorLogger.logException(
                 component = "SpellCheckManager",
@@ -1510,7 +1510,8 @@ constructor(
     private fun mergeAndRankSuggestions(
         suggestions: List<SpellingSuggestion>,
         maxResults: Int,
-        languageCode: String
+        languageCode: String,
+        buffer: String
     ): List<SpellingSuggestion> {
         val promoted = promoteContractionForms(suggestions, languageCode)
 
@@ -1519,7 +1520,60 @@ constructor(
             .mapValues { (_, dupes) -> dupes.maxBy { it.confidence } }
             .values
             .sortedByDescending { it.confidence }
+            .let { ranked -> holdBackBeyondTaps(ranked, buffer) }
+            .sortedByDescending { it.confidence }
             .take(maxResults)
+    }
+
+    /**
+     * The word the taps spell IN FULL leads every word they merely BEGIN (白い熊, 2026-10-29). One tap on the
+     * `(io` key IS "I"; three on `;l:` `aev` `btn` ARE "let" — while "in", "it", "is", "on" (one tap) and
+     * "language", "lens", "languages" (three) are guesses at what MIGHT follow, reached through the
+     * band-constrained PREFIX that [queryTypedHistorySuggestions], [queryLearnedHeavySuggestions] and
+     * [queryCompletionSuggestions] match on. Those ladders rank by how often a word has been typed — a
+     * number that saturates just under 1.0 and knows nothing of how much of the word the taps account for —
+     * so a word typed often buried the word actually spelled, which has to be reachable without a detour
+     * through the expand pane. Applied BEFORE the pool cap, or a full-length word could be truncated out of
+     * the row it is meant to lead.
+     *
+     * The rule is exactly this: nothing the taps merely begin may outrank the BEST word they spell in full.
+     * Only the predictions standing above that word move, and they move only just below it, keeping the
+     * order among themselves that your own counts gave them — so three taps answer
+     * "let let's language lens languages" and not the strict reading of "shortest first", which would put
+     * the whole band ahead of them ("let lab lan len lat leb …", five rare words burying the one you type).
+     * Three things are held above the rule, all deliberately:
+     *  - the strongly preferred forms ([queryPreferredFormSuggestions], confidence above 1.0) — two taps on
+     *    `(io` `mwk` MEAN "I'm", though those taps also spell "ok" (白い熊, 2026-10-20);
+     *  - the user dictionary, matched by its own key: a shortcut's surface ("on my way" off three taps) says
+     *    nothing about how many taps it cost;
+     *  - the apostrophe itself, which is on no band and so costs no tap: "don't" off `gdy` `(io` `btn` `btn`
+     *    is the word those four taps spell, not a fifth-tap prediction. Length is therefore counted without
+     *    apostrophes — which still holds "let's" back off three taps, since its own "lets" wants a fourth.
+     *
+     * CLUSTER boards only, which is where the prefix ladders run at all: on a flat board the buffer IS the
+     * word (it already leads the bar from [SuggestionPipeline]), and a longer candidate there is typically a
+     * correction of a real typo — "helo" → "hello" — which must not be held back behind "help".
+     */
+    private fun holdBackBeyondTaps(ranked: List<SpellingSuggestion>, buffer: String): List<SpellingSuggestion> {
+        if (buffer.isEmpty() || !clusterActive) return ranked
+        val taps = buffer.length
+        fun decided(suggestion: SpellingSuggestion) =
+            suggestion.confidence > 1.0 || suggestion.source == "userdict"
+        fun spelledInFull(suggestion: SpellingSuggestion) =
+            suggestion.word.count { it != '\'' && it != '\u2019' } <= taps
+        val best = ranked
+            .filter { !decided(it) && spelledInFull(it) }
+            .maxOfOrNull { it.confidence }
+            ?: return ranked
+        var held = 0
+        return ranked.map { suggestion ->
+            if (decided(suggestion) || spelledInFull(suggestion) || suggestion.confidence < best) {
+                suggestion
+            } else {
+                val ceiling = best - BEYOND_TAPS_GAP - held++ * BEYOND_TAPS_RANK_STEP
+                suggestion.copy(confidence = minOf(suggestion.confidence, ceiling).coerceAtLeast(0.0))
+            }
+        }
     }
 
     private fun promoteContractionForms(
@@ -2086,6 +2140,13 @@ constructor(
 
         /** How far under the weakest attested candidate a synthesized apostrophe form is held. */
         const val SYNTHESIZED_GAP = 0.01
+
+        /** How far under the best word the taps spell in full a prediction that outranked it sits; see
+         * [holdBackBeyondTaps]. */
+        const val BEYOND_TAPS_GAP = 0.01
+
+        /** The step that keeps those held-back predictions in the order they already had. */
+        const val BEYOND_TAPS_RANK_STEP = 0.0001
         const val MIN_COMPLETION_LENGTH = 4
         const val FAT_FINGER_MIN_WORD_LENGTH = 4
         const val APOSTROPHE_BOOST = 0.30
