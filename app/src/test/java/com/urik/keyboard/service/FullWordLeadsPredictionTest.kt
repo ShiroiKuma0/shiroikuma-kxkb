@@ -71,6 +71,12 @@ class FullWordLeadsPredictionTest {
         let 2500000
         let's 1800000
         lets 60000
+        some 1159102
+        home 549932
+        hike 4176
+        something 1012154
+        however 39106
+        somewhere 94391
         """.trimIndent()
 
     /** The real `en_3p2_5r4c` bands of the keys these buffers touch. */
@@ -246,5 +252,21 @@ class FullWordLeadsPredictionTest {
         val words = bar("it'h")
 
         assertEquals("it's must still lead, got: $words", "it's", words.first())
+    }
+
+    @Test
+    fun `a full word near the best one leads the predictions too`() = runTest {
+        // 白い熊, 2026-11-09: "hiwe" (sh) (io mwk aev) offered "some something however somewhere somehow" —
+        // "home", half as common as "some", was only in the expand pane. The real `en.urik` frequencies.
+        typed("something" to 20, "however" to 12, "somewhere" to 6)
+
+        val words = bar("hiwe")
+
+        assertEquals("the two full words lead, got: $words", listOf("some", "home"), words.take(2))
+        assertTrue("the predictions follow, got: $words", "something" in words)
+        assertTrue(
+            "a rare full word still follows them, got: $words",
+            words.indexOf("hike") < 0 || words.indexOf("hike") > words.indexOf("something")
+        )
     }
 }

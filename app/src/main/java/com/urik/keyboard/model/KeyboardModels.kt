@@ -80,7 +80,12 @@ sealed class KeyboardKey {
         val type: KeyType,
         override val width: Float = 0f,
         override val appearance: KeyAppearance? = null,
-        override val attributes: KeyAttributes? = null
+        override val attributes: KeyAttributes? = null,
+        /**
+         * The layout's own long-press list ("XK", the same `longPressKeys` a compass key carries). Non-empty =
+         * shown verbatim on a hold in place of the built-in accent variations; empty = the built-in ones.
+         */
+        val longPressExtraKeys: List<String> = emptyList()
     ) : KeyboardKey()
 
     data class Action(

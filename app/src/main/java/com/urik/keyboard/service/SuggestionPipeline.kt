@@ -335,6 +335,9 @@ class SuggestionPipeline(
                     )
 
                 val predictions = allPredictions.filter { !spellCheckManager.isWordBlacklisted(it) }
+                val predictsAfterNumber = state.lastCommittedWord.let { word ->
+                    word.any { it.isDigit() } && word.none { it.isLetter() }
+                }
 
                 if (predictions.isNotEmpty() && state.displayBuffer.isEmpty()) {
                     val suggestionObjects =
@@ -354,6 +357,9 @@ class SuggestionPipeline(
                             state.isShowingBigramPredictions = true
                             state.pendingSuggestions = displayPredictions
                             state.updateSuggestionDisplay(displayPredictions)
+                            // After a number the next word is TAP-ONLY (白い熊, 2026-11-09): "1." + Space must
+                            // give the list item "1. ", not "1.57" off a next-word prediction for "1".
+                            if (predictsAfterNumber) state.clearCandidateSelection()
                         }
                     }
                 }

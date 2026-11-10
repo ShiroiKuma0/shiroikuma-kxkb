@@ -302,6 +302,7 @@
     <string name="keyedit_macro_label">label</string>
     <string name="keyedit_chord_keys">keys  (e.g. C-x C-s)</string>
     <string name="keyedit_label_chord">label (blank = keys)</string>
+    <string name="keyedit_label_binding">label shown on the key (blank = the name)</string>
     <string name="keyedit_cycle_taps">taps  (one per line)</string>
     <string name="keyedit_cycle_label">label</string>
     <!-- case -->

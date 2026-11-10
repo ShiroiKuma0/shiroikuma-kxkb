@@ -5,6 +5,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import org.junit.After
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import org.mockito.Mockito.mock
@@ -168,6 +169,54 @@ class NonLetterInputHandlerTest {
         // The auto-space left by the candidate commit is removed, then the closing mark + a space committed.
         verify(mockOutputBridge).deleteSurroundingText(1, 0)
         verify(mockOutputBridge).commitText(". ", 1)
+    }
+
+    @Test
+    fun `a slash keeps a space pressed with Space`() {
+        realInputState.clusterLayoutActive = true
+        whenever(mockLanguageManager.currentLanguage)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("en"))
+        // "and" committed by Space: "and |".
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn(" ")
+
+        handler.handle("/")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockOutputBridge, never()).deleteSurroundingText(1, 0)
+        verify(mockOutputBridge).commitText("/", 1)
+    }
+
+    @Test
+    fun `a slash straight after the word attaches to it`() {
+        realInputState.clusterLayoutActive = true
+        realInputState.displayBuffer = "abd"
+        realInputState.pendingSuggestions = listOf("and")
+        whenever(mockLanguageManager.currentLanguage)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("en"))
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn(" ")
+
+        handler.handle("/")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockOutputBridge).deleteSurroundingText(1, 0)
+        verify(mockOutputBridge).commitText("/", 1)
+    }
+
+    @Test
+    fun `a slash takes back the space a tapped word brought with it`() {
+        realInputState.clusterLayoutActive = true
+        realInputState.tapAddedSpaceAfter = "and"
+        whenever(mockLanguageManager.currentLanguage)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow("en"))
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(1), any())).thenReturn(" ")
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(eq(4), any())).thenReturn("and ")
+
+        handler.handle("/")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockOutputBridge).deleteSurroundingText(1, 0)
+        verify(mockOutputBridge).commitText("/", 1)
+        assertNull(realInputState.tapAddedSpaceAfter)
     }
 
     // ---- Punctuation typed INSIDE a pair („…“ / “…” / (…) ) defers its trailing space. ----

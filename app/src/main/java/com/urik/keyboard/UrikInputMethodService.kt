@@ -3072,6 +3072,8 @@ open class UrikInputMethodService :
             }
 
             suggestionPipeline.coordinateSuggestionSelection(suggestion, ::checkAutoCapitalization)
+            // The space after a TAPPED word is the keyboard's, not 白い熊's: a slash may take it back.
+            inputState.tapAddedSpaceAfter = suggestion
         }
     }
 

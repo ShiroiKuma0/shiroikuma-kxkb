@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 白い熊 kxkb settings action pill (main): OUTLINED, never filled — black fill, 3dp yellow frame, fully
+     round, translucent-yellow ripple inside the pill (the black-yellow-theme settings-page rule). -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="#40FFFF00">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#FF000000" />
+            <stroke
+                android:width="3dp"
+                android:color="@color/kxkb_yellow" />
+            <corners android:radius="50dp" />
+        </shape>
+    </item>
+</ripple>

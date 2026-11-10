@@ -24,6 +24,7 @@ class BackspaceHandler(
     private val onSendDownUpKeyEvents: (keyCode: Int) -> Unit
 ) {
     fun handle() {
+        inputState.tapAddedSpaceAfter = null
         try {
             if (inputState.isTerminalField) {
                 outputBridge.sendBackspace()

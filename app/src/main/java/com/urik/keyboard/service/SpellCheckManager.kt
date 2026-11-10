@@ -1536,8 +1536,10 @@ constructor(
      * through the expand pane. Applied BEFORE the pool cap, or a full-length word could be truncated out of
      * the row it is meant to lead.
      *
-     * The rule is exactly this: nothing the taps merely begin may outrank the BEST word they spell in full.
-     * Only the predictions standing above that word move, and they move only just below it, keeping the
+     * The rule is exactly this: nothing the taps merely begin may outrank the BEST word they spell in full, nor
+     * any full word standing near it (白い熊, 2026-11-09: "hiwe" offered "some something however somewhere
+     * somehow" with "home" only in the expand pane). Only the predictions standing above those words move,
+     * and they move only just below the weakest of them, keeping the
      * order among themselves that your own counts gave them — so three taps answer
      * "let let's language lens languages" and not the strict reading of "shortest first", which would put
      * the whole band ahead of them ("let lab lan len lat leb …", five rare words burying the one you type).
@@ -1561,16 +1563,21 @@ constructor(
             suggestion.confidence > 1.0 || suggestion.source == "userdict"
         fun spelledInFull(suggestion: SpellingSuggestion) =
             suggestion.word.count { it != '\'' && it != '\u2019' } <= taps
-        val best = ranked
+        val fullWords = ranked
             .filter { !decided(it) && spelledInFull(it) }
-            .maxOfOrNull { it.confidence }
-            ?: return ranked
+            .map { it.confidence }
+        val best = fullWords.maxOrNull() ?: return ranked
+        // The word the taps spell is not always the commonest of its peers: "hiwe" spells "some" AND "home",
+        // and "home" — half as common — is just as surely what was typed. Every full word standing within
+        // [FULL_WORD_PEER_MARGIN] of the best is a peer and leads too; the rarities far under it ("lab",
+        // "lan" beside "let") still follow the predictions.
+        val floor = fullWords.filter { it >= best - FULL_WORD_PEER_MARGIN }.min()
         var held = 0
         return ranked.map { suggestion ->
-            if (decided(suggestion) || spelledInFull(suggestion) || suggestion.confidence < best) {
+            if (decided(suggestion) || spelledInFull(suggestion) || suggestion.confidence < floor) {
                 suggestion
             } else {
-                val ceiling = best - BEYOND_TAPS_GAP - held++ * BEYOND_TAPS_RANK_STEP
+                val ceiling = floor - BEYOND_TAPS_GAP - held++ * BEYOND_TAPS_RANK_STEP
                 suggestion.copy(confidence = minOf(suggestion.confidence, ceiling).coerceAtLeast(0.0))
             }
         }
@@ -2144,6 +2151,13 @@ constructor(
         /** How far under the best word the taps spell in full a prediction that outranked it sits; see
          * [holdBackBeyondTaps]. */
         const val BEYOND_TAPS_GAP = 0.01
+
+        /**
+         * How far under the best full word another full word may stand and still lead the predictions with
+         * it — 0.05 is a seventh of the dictionary frequency ("home" beside "some" is a half; "lab" beside
+         * "let" a fifty-eighth). See [holdBackBeyondTaps].
+         */
+        const val FULL_WORD_PEER_MARGIN = 0.05
 
         /** The step that keeps those held-back predictions in the order they already had. */
         const val BEYOND_TAPS_RANK_STEP = 0.0001

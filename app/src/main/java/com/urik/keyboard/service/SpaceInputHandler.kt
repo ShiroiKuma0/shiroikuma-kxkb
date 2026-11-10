@@ -46,6 +46,19 @@ class SpaceInputHandler(
 
                 swipeSpaceManager.clearAutoSpaceFlag()
 
+                // Long-press Space right after a word TAPPED in the bar keeps the space that came with it —
+                // it now counts as pressed, so a following "/" leaves it standing ("and /") — and adds no
+                // second one.
+                val tappedWord = inputState.tapAddedSpaceAfter
+                inputState.tapAddedSpaceAfter = null
+                if (literalSpace &&
+                    tappedWord != null &&
+                    inputState.displayBuffer.isEmpty() &&
+                    outputBridge.safeGetTextBeforeCursor(tappedWord.length + 1).endsWith("$tappedWord ", ignoreCase = true)
+                ) {
+                    return@launch
+                }
+
                 if (inputState.displayBuffer.isNotEmpty()) {
                     val actualTextBefore = outputBridge.safeGetTextBeforeCursor(1)
                     val actualTextAfter = outputBridge.safeGetTextAfterCursor(1)
@@ -85,9 +98,13 @@ class SpaceInputHandler(
                     // selectedCandidate is -1 (no explicit selection), so a plain Space enters a literal space.
                     // But once Tab has EXPLICITLY selected a custom entry (selectedCandidate >= 0), Space commits
                     // THAT entry via the custom path — the only way to enter a custom default-row word. (Bug B.)
+                    // A real prediction with NOTHING selected — next-word predictions after a number — is
+                    // tap-only too: Space falls through to a literal space ("1. ", never "1.57").
                     if (!inputState.isCustomSuggestion(candidate)) {
-                        suggestionPipeline.coordinateSuggestionSelection(candidate, onCheckAutoCapitalization)
-                        return@launch
+                        if (inputState.hasExplicitSelection || inputState.displayBuffer.isNotEmpty()) {
+                            suggestionPipeline.coordinateSuggestionSelection(candidate, onCheckAutoCapitalization)
+                            return@launch
+                        }
                     } else if (inputState.hasExplicitSelection) {
                         suggestionPipeline.coordinateCustomSuggestionSelection(candidate, onCheckAutoCapitalization)
                         return@launch

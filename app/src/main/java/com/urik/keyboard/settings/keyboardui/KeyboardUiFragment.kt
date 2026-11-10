@@ -8,7 +8,9 @@ import android.text.InputType
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.graphics.Typeface
 import android.widget.EditText
+import android.widget.TextView
 import android.widget.Toast
 import com.urik.keyboard.utils.KxkbToast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -16,11 +18,14 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.recyclerview.widget.RecyclerView
 import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceCategory
 import androidx.preference.PreferenceFragmentCompat
+import androidx.preference.PreferenceGroupAdapter
+import androidx.preference.PreferenceScreen
 import androidx.preference.PreferenceViewHolder
 import androidx.preference.SeekBarPreference
 import androidx.preference.SwitchPreferenceCompat
@@ -157,6 +162,29 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         return wrapper
     }
 
+    /**
+     * Every row in the black-yellow settings-row style (白い熊's black-yellow-theme rules, 2026-11-09): a row
+     * that carries an explanation gets a bold label and the thin dim-gold rule down its left edge, a row
+     * without one keeps a plain label (its rule slot stays, invisible, so every label lines up), and a
+     * switch loses the platform's 48 dp minimum so the row is only as tall as its text.
+     */
+    override fun onCreateAdapter(preferenceScreen: PreferenceScreen): RecyclerView.Adapter<*> =
+        object : PreferenceGroupAdapter(preferenceScreen) {
+            override fun onBindViewHolder(holder: PreferenceViewHolder, position: Int) {
+                super.onBindViewHolder(holder, position)
+                val rule = holder.findViewById(R.id.kxkb_rule) ?: return
+                val summary = holder.findViewById(android.R.id.summary) as? TextView
+                val explained = summary != null && summary.visibility == View.VISIBLE && !summary.text.isNullOrEmpty()
+                rule.visibility = if (explained) View.VISIBLE else View.INVISIBLE
+                (holder.findViewById(android.R.id.title) as? TextView)
+                    ?.setTypeface(null, if (explained) Typeface.BOLD else Typeface.NORMAL)
+                holder.findViewById(androidx.preference.R.id.switchWidget)?.apply {
+                    minimumHeight = 0
+                    (this as? TextView)?.minHeight = 0
+                }
+            }
+        }
+
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         val context = preferenceManager.context
         val screen = preferenceManager.createPreferenceScreen(context)
@@ -172,10 +200,8 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                 layoutResource = R.layout.preference_category_kxkb_first
             }
         val exportImportPref =
-            Preference(context).apply {
+            KxkbActionPreference(context, main = true, opens = true).apply {
                 key = "kb_ui_export_import"
-                isPersistent = false
-                layoutResource = R.layout.preference_item_kxkb
                 title = resources.getString(R.string.export_import_title)
                 summary = resources.getString(R.string.export_import_summary)
                 setOnPreferenceClickListener {
@@ -240,10 +266,8 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                 layoutResource = R.layout.preference_category_kxkb
             }
         val voicePref =
-            Preference(context).apply {
+            KxkbActionPreference(context, main = true, opens = true).apply {
                 key = "kb_ui_voice_input"
-                isPersistent = false
-                layoutResource = R.layout.preference_item_kxkb
                 title = resources.getString(R.string.voice_settings_title)
                 summary = resources.getString(R.string.voice_settings_summary)
                 setOnPreferenceClickListener {
@@ -601,10 +625,8 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         // Bottom of the page: per-app reset. Clears ONLY the size of the app the user was last typing in
         // (published by the IME), so that app reverts to default while every other app keeps its own size.
         resetPref =
-            Preference(context).apply {
+            KxkbActionPreference(context, main = false, opens = false).apply {
                 key = "kb_ui_reset"
-                isPersistent = false
-                layoutResource = R.layout.preference_item_kxkb
                 title = resources.getString(R.string.keyboard_ui_reset_layout)
                 summary = resources.getString(R.string.keyboard_ui_reset_layout_summary)
             }

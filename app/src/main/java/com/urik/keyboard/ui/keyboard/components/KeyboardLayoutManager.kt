@@ -750,9 +750,13 @@ class KeyboardLayoutManager(
         voiceHoldFired = false
     }
 
-    /** Long-press fired: the packed strip takes over the touch; the compass preview stays put, strip above it. */
+    /** Long-press fired: the packed strip takes over the touch and the compass guide goes — its directions are
+     *  no longer what the finger chooses between (白い熊, 2026-11-09), so the strip sits right above the key. */
     private fun showFlickStrip(key: KeyboardKey.FlickKey, view: View) {
         flickGestureDetector.cancel() // the strip owns the gesture now — no flick commit on release
+        cancelFlickGuideTimer()
+        flickPopup?.dismiss()
+        flickPopup = null
         currentVariationKeyType = key.type
         val density = context.resources.displayMetrics.density
         // The strip is case-aware: under shift the key's shifted face supplies its own row (and centre),
@@ -765,19 +769,23 @@ class KeyboardLayoutManager(
         popup.setChars(
             chars = chars,
             baseIndex = 0,
-            textSizePx = 14f * (adaptiveDimensions?.extraStripFontScale ?: 2.5f) * density,
+            textSizePx = extraStripTextSizePx(),
             maxWidthPx = context.resources.displayMetrics.widthPixels - (16 * density).toInt(),
             downRawX = flickStripDownRawX,
             downRawY = flickStripDownRawY,
             onSelected = characterVariationCallback
         )
-        popup.showAboveCompass(view, flickPopup?.height ?: 0)
+        popup.showAboveCompass(view, 0)
         flickStripLastChar = face.center
         flickStripActive = true
         popupSelectionMode = true
         swipeKeyboardView?.setPopupActive(true)
         performContextualHaptic(null)
     }
+
+    /** The compass strip's glyph size — every long-press popup draws at it, so a held flat key looks the same. */
+    private fun extraStripTextSizePx(): Float =
+        14f * (adaptiveDimensions?.extraStripFontScale ?: 2.5f) * context.resources.displayMetrics.density
 
     private fun onFlickStripMove(rawX: Float, rawY: Float) {
         val char = extraStripPopup?.moveTo(rawX, rawY)
@@ -2551,6 +2559,7 @@ class KeyboardLayoutManager(
 
         val popup =
             CharacterVariationPopup(context, themeManager).apply {
+                textSizePx = extraStripTextSizePx()
                 setCharacterVariations("", punctuationList, punctuationVariationCallback)
                 showAboveAnchor(anchorView)
             }
@@ -2562,6 +2571,12 @@ class KeyboardLayoutManager(
     }
 
     private fun handleCharacterLongPress(key: KeyboardKey.Character, view: View, button: Button) {
+        // The layout's own list wins, verbatim and in its own order — the same row the GNU 15c key of that
+        // letter holds on its compass strip (白い熊, 2026-11-09).
+        if (key.longPressExtraKeys.isNotEmpty()) {
+            showCharacterVariationPopup(key, view, key.longPressExtraKeys)
+            return
+        }
         val customSymbols = customKeyMappings[key.value.lowercase()].orEmpty()
         val currentLayoutLang = languageManager.currentLayoutLanguage.value
 
@@ -2642,6 +2657,7 @@ class KeyboardLayoutManager(
 
         variationPopup =
             CharacterVariationPopup(context, themeManager).apply {
+                textSizePx = extraStripTextSizePx()
                 setCharacterVariations("", variations, characterVariationCallback)
                 showAboveAnchor(anchorView)
             }

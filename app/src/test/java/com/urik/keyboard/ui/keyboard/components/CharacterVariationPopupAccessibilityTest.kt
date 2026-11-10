@@ -108,11 +108,11 @@ class CharacterVariationPopupAccessibilityTest {
     fun `buttons have character option role description`() {
         assertTrue(
             "Popup must have at least one button",
-            variationContainer.childCount > 0
+            popup.cells.size > 0
         )
 
-        for (i in 0 until variationContainer.childCount) {
-            val button = variationContainer.getChildAt(i) as Button
+        for (i in 0 until popup.cells.size) {
+            val button = popup.cells[i]
             val nodeInfo = AccessibilityNodeInfoCompat.wrap(button.createAccessibilityNodeInfo())
 
             assertEquals(
@@ -125,8 +125,8 @@ class CharacterVariationPopupAccessibilityTest {
 
     @Test
     fun `buttons are not editable`() {
-        for (i in 0 until variationContainer.childCount) {
-            val button = variationContainer.getChildAt(i) as Button
+        for (i in 0 until popup.cells.size) {
+            val button = popup.cells[i]
             val nodeInfo = AccessibilityNodeInfoCompat.wrap(button.createAccessibilityNodeInfo())
 
             assertFalse(
@@ -138,8 +138,8 @@ class CharacterVariationPopupAccessibilityTest {
 
     @Test
     fun `buttons have no ACTION_SET_TEXT`() {
-        for (i in 0 until variationContainer.childCount) {
-            val button = variationContainer.getChildAt(i) as Button
+        for (i in 0 until popup.cells.size) {
+            val button = popup.cells[i]
             val nodeInfo = AccessibilityNodeInfoCompat.wrap(button.createAccessibilityNodeInfo())
             val hasSetText =
                 nodeInfo.actionList.any {
@@ -155,8 +155,8 @@ class CharacterVariationPopupAccessibilityTest {
 
     @Test
     fun `buttons have content descriptions with position info`() {
-        for (i in 0 until variationContainer.childCount) {
-            val button = variationContainer.getChildAt(i) as Button
+        for (i in 0 until popup.cells.size) {
+            val button = popup.cells[i]
 
             assertNotNull(
                 "Button '${button.text}' must have content description",
@@ -171,8 +171,8 @@ class CharacterVariationPopupAccessibilityTest {
 
     @Test
     fun `buttons remain clickable and focusable for TalkBack`() {
-        for (i in 0 until variationContainer.childCount) {
-            val button = variationContainer.getChildAt(i) as Button
+        for (i in 0 until popup.cells.size) {
+            val button = popup.cells[i]
 
             assertTrue(
                 "Button '${button.text}' must remain clickable",
@@ -190,8 +190,8 @@ class CharacterVariationPopupAccessibilityTest {
         val containerImportance = variationContainer.importantForAccessibility
         assertEquals(View.IMPORTANT_FOR_ACCESSIBILITY_NO, containerImportance)
 
-        for (i in 0 until variationContainer.childCount) {
-            val button = variationContainer.getChildAt(i) as Button
+        for (i in 0 until popup.cells.size) {
+            val button = popup.cells[i]
             val nodeInfo = button.createAccessibilityNodeInfo()
 
             assertNotNull(
@@ -206,7 +206,7 @@ class CharacterVariationPopupAccessibilityTest {
         assertEquals(
             "3 variations = 3 buttons",
             3,
-            variationContainer.childCount
+            popup.cells.size
         )
     }
 
@@ -225,11 +225,11 @@ class CharacterVariationPopupAccessibilityTest {
         assertEquals(
             "Empty base char should produce only variation buttons",
             2,
-            container.childCount
+            emptyBasePopup.cells.size
         )
 
-        for (i in 0 until container.childCount) {
-            val button = container.getChildAt(i) as Button
+        for (i in 0 until emptyBasePopup.cells.size) {
+            val button = emptyBasePopup.cells[i]
             val nodeInfo = AccessibilityNodeInfoCompat.wrap(button.createAccessibilityNodeInfo())
 
             assertEquals(

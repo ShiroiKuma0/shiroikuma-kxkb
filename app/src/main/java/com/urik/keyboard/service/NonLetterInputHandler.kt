@@ -157,6 +157,7 @@ class NonLetterInputHandler(
                     // Commit the composing word's candidate first IF a word is being composed; otherwise just
                     // enter the mark directly. Either way the mark is entered here (with the right spacing),
                     // never appended to the centre-letter buffer.
+                    val wordJustCommitted = inputState.displayBuffer.isNotEmpty()
                     if (inputState.displayBuffer.isNotEmpty() && inputState.pendingSuggestions.isNotEmpty()) {
                         suggestionPipeline.cancelDebounceJob()
                         val idx = inputState.selectedCandidate.coerceIn(0, inputState.pendingSuggestions.size - 1)
@@ -178,7 +179,7 @@ class NonLetterInputHandler(
                             suggestionPipeline.coordinateSuggestionSelection(candidate, onCheckAutoCapitalization)
                         }
                     }
-                    commitPunctuationAfterClusterCommit(char.single())
+                    commitPunctuationAfterClusterCommit(char.single(), wordJustCommitted)
                     return@launch
                 }
 
@@ -343,7 +344,13 @@ class NonLetterInputHandler(
      *    rewrites in place.
      * Re-runs sentence-end auto-cap so the next word capitalises. (Bugs A & C.)
      */
-    private suspend fun commitPunctuationAfterClusterCommit(punctuation: Char) {
+    private suspend fun commitPunctuationAfterClusterCommit(punctuation: Char, wordJustCommitted: Boolean = false) {
+        // Read BEFORE the batch opens — whether the space in front is one the keyboard added for a tapped word.
+        val tappedSpace = punctuation in SPACE_KEEPING_MARKS &&
+            inputState.tapAddedSpaceAfter?.let {
+                inputState.hasTapAddedSpace(outputBridge.safeGetTextBeforeCursor(it.length + 1))
+            } == true
+        inputState.tapAddedSpaceAfter = null
         outputBridge.beginBatchEdit()
         try {
             // A dash is set off by spaces only where the language always wants it (see dashIsSpacedHere).
@@ -351,8 +358,15 @@ class NonLetterInputHandler(
             // Openers ("word (") and a spaced dash ("слово — ") KEEP the preceding space; everything else
             // (closers "word) ", the hyphen "word-", a tight dash "slovo–", ellipsis/.,?!:;) attaches to the
             // word, eating that space.
-            val keepPreceding = punctuation in OPENING_BRACKETS_QUOTES || spacedDash
             val before = outputBridge.safeGetTextBeforeCursor(1)
+            // A slash (and @, backslash, §) keeps a space that was PRESSED: "and" + Space + "/" is "and /".
+            // Straight after the word ("and/or", "km/h") or after the space a TAPPED word brought with it,
+            // it attaches like any mark. (白い熊, 2026-11-09.)
+            val keepsPressedSpace = punctuation in SPACE_KEEPING_MARKS &&
+                !wordJustCommitted &&
+                !tappedSpace &&
+                before == " "
+            val keepPreceding = punctuation in OPENING_BRACKETS_QUOTES || spacedDash || keepsPressedSpace
             // Inside a pair („Ahoj|“) there IS no preceding space to keep — the word commit suppressed it —
             // so a mark that wants one has to write it itself, or it glues to the word („Ahoj(“, „Ahoj—“).
             val leading = if (keepPreceding && needsLeadingSpace(before)) " " else ""
@@ -591,6 +605,10 @@ class NonLetterInputHandler(
         // Opening brackets/quotes: typed as a CHARACTER, they begin a group and join the FOLLOWING word, so
         // they terminate the composing cluster word but get NO trailing space. Includes the curly opens.
         private val OPENING_BRACKETS_QUOTES = setOf('(', '[', '{', '"', '“', '‘')
+
+        // Marks that attach to a word typed straight before them but keep a space PRESSED in front of them
+        // ("and /", "write @", "viz §"). They take no trailing space either way.
+        private val SPACE_KEEPING_MARKS = setOf('/', '@', '\\', '§')
 
         // Closing brackets/quotes: they end a group, so they get a trailing space. (The straight double quote
         // `"` is ambiguous; it's handled as a closer here — matching the common close-then-space expectation.)

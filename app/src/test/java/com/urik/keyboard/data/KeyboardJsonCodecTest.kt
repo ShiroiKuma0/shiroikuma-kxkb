@@ -134,6 +134,28 @@ class KeyboardJsonCodecTest {
     }
 
     @Test
+    fun `a slide the key editor opened reads as the text it holds`() {
+        // The editor turns an edited slide into a full key object; it must still be that slide's text.
+        val json = JSONObject(
+            """{"type": "cluster", "cluster": "sh)", "char": "h",
+                "flick": {"left": "s", "right": ")",
+                          "down": {"type": "character", "char": "/", "keyType": "letter"},
+                          "up": {"type": "macro", "text": "→"},
+                          "downLeft": {"type": "chord", "keys": "C-e", "label": "End"},
+                          "upLeft": {"type": "character", "char": ""}}}"""
+        )
+        val key = KeyboardJsonCodec.parseKey(json, KeyboardKey.ActionType.ENTER) as KeyboardKey.FlickKey
+        assertEquals("/", key.down)
+        assertEquals("→", key.up)
+        assertEquals("End", key.downLeft)
+        assertEquals(KeyboardKey.FlickBinding.Chord("C-e"), key.bindings["downLeft"])
+        assertEquals(null, key.upLeft)
+
+        val again = KeyboardJsonCodec.parseKey(KeyboardJsonCodec.emitKey(key), KeyboardKey.ActionType.ENTER)
+        assertEquals(key, again)
+    }
+
+    @Test
     fun `per-key attributes round-trip and accept futokxkb aliases`() {
         val json = JSONObject(
             """{"type": "cluster", "main": "aev", "char": "e",

@@ -250,19 +250,40 @@
           },
           {
             "type": "character",
-            "char": "c"
+            "char": "c",
+            "longPressKeys": [
+              "č",
+              "ç",
+              "ć",
+              "℃",
+              "©",
+              "°",
+              "¢",
+              "Č",
+              "Ç",
+              "Ć"
+            ]
           },
           {
             "type": "character",
-            "char": "m"
+            "char": "m",
+            "longPressKeys": [
+              "µ"
+            ]
           },
           {
             "type": "character",
-            "char": "w"
+            "char": "w",
+            "longPressKeys": [
+              "₩"
+            ]
           },
           {
             "type": "character",
-            "char": "k"
+            "char": "k",
+            "longPressKeys": [
+              "¯"
+            ]
           },
           {
             "type": "character",
@@ -270,15 +291,36 @@
           },
           {
             "type": "character",
-            "char": "f"
+            "char": "f",
+            "longPressKeys": [
+              "′",
+              "℉"
+            ]
           },
           {
             "type": "character",
-            "char": "r"
+            "char": "r",
+            "longPressKeys": [
+              "ř",
+              "₽",
+              "®",
+              "√",
+              "Ř"
+            ]
           },
           {
             "type": "character",
-            "char": "l"
+            "char": "l",
+            "longPressKeys": [
+              "ľ",
+              "ĺ",
+              "ł",
+              "λ",
+              "£",
+              "Ľ",
+              "Ĺ",
+              "Ł"
+            ]
           },
           {
             "type": "compass",
@@ -298,19 +340,70 @@
         [
           {
             "type": "character",
-            "char": "i"
+            "char": "i",
+            "longPressKeys": [
+              "í",
+              "ī",
+              "ï",
+              "″",
+              "Í",
+              "Ī",
+              "Ï"
+            ]
           },
           {
             "type": "character",
-            "char": "o"
+            "char": "o",
+            "longPressKeys": [
+              "ó",
+              "ö",
+              "ō",
+              "ő",
+              "ø",
+              "ǿ",
+              "Ó",
+              "Ö",
+              "Ō",
+              "Ő",
+              "Ø",
+              "Ǿ"
+            ]
           },
           {
             "type": "character",
-            "char": "a"
+            "char": "a",
+            "longPressKeys": [
+              "á",
+              "ä",
+              "ā",
+              "æ",
+              "α",
+              "ą",
+              "å",
+              "&",
+              "@",
+              "Á",
+              "Ä",
+              "Ā",
+              "Æ",
+              "Ą",
+              "Å"
+            ]
           },
           {
             "type": "character",
-            "char": "e"
+            "char": "e",
+            "longPressKeys": [
+              "é",
+              "ě",
+              "ē",
+              "ę",
+              "€",
+              "É",
+              "Ě",
+              "Ē",
+              "Ę"
+            ]
           },
           {
             "type": "character",
@@ -318,19 +411,48 @@
           },
           {
             "type": "character",
-            "char": "b"
+            "char": "b",
+            "longPressKeys": [
+              "β"
+            ]
           },
           {
             "type": "character",
-            "char": "t"
+            "char": "t",
+            "longPressKeys": [
+              "ť",
+              "þ",
+              "Ť",
+              "Þ"
+            ]
           },
           {
             "type": "character",
-            "char": "n"
+            "char": "n",
+            "longPressKeys": [
+              "ň",
+              "ń",
+              "ñ",
+              "Ň",
+              "Ń",
+              "Ñ"
+            ]
           },
           {
             "type": "character",
-            "char": "s"
+            "char": "s",
+            "longPressKeys": [
+              "š",
+              "ß",
+              "ś",
+              "σ",
+              "/",
+              "∑",
+              "∫",
+              "~",
+              "Š",
+              "Ś"
+            ]
           },
           {
             "type": "character",
@@ -349,31 +471,83 @@
           },
           {
             "type": "character",
-            "char": "x"
+            "char": "x",
+            "longPressKeys": [
+              "×"
+            ]
           },
           {
             "type": "character",
-            "char": "p"
+            "char": "p",
+            "longPressKeys": [
+              "π",
+              "%",
+              "#",
+              "§",
+              "$"
+            ]
           },
           {
             "type": "character",
-            "char": "u"
+            "char": "u",
+            "longPressKeys": [
+              "ú",
+              "ů",
+              "ü",
+              "ū",
+              "ű",
+              "Ú",
+              "Ů",
+              "Ü",
+              "Ū",
+              "Ű"
+            ]
           },
           {
             "type": "character",
-            "char": "z"
+            "char": "z",
+            "longPressKeys": [
+              "ž",
+              "ź",
+              "ż",
+              "〇",
+              "Ž",
+              "Ź",
+              "Ż"
+            ]
           },
           {
             "type": "character",
-            "char": "g"
+            "char": "g",
+            "longPressKeys": [
+              "ğ",
+              "γ",
+              "Ğ"
+            ]
           },
           {
             "type": "character",
-            "char": "d"
+            "char": "d",
+            "longPressKeys": [
+              "ď",
+              "δ",
+              "đ",
+              "ð",
+              "$",
+              "°",
+              "Ď",
+              "Đ",
+              "Ð"
+            ]
           },
           {
             "type": "character",
-            "char": "y"
+            "char": "y",
+            "longPressKeys": [
+              "ý",
+              "¥",
+              "Ý"
+            ]
           },
           {
             "type": "character",

@@ -9,8 +9,16 @@
     android:minHeight="0dp"
     android:paddingStart="72dp"
     android:paddingEnd="16dp"
-    android:paddingTop="5dp"
-    android:paddingBottom="5dp">
+    android:paddingTop="2dp"
+    android:paddingBottom="2dp">
+
+    <View
+        android:id="@+id/kxkb_rule"
+        android:layout_width="2dp"
+        android:layout_height="match_parent"
+        android:layout_marginEnd="10dp"
+        android:background="@color/kxkb_yellow_dim"
+        android:visibility="invisible" />
 
     <LinearLayout
         android:layout_width="0dp"

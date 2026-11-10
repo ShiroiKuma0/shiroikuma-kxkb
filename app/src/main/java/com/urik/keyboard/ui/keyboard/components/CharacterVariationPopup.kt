@@ -2,7 +2,9 @@ package com.urik.keyboard.ui.keyboard.components
 
 import android.content.Context
 import android.graphics.Color
+import android.graphics.Paint
 import android.graphics.drawable.GradientDrawable
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.widget.Button
@@ -17,8 +19,10 @@ import com.urik.keyboard.R
 import com.urik.keyboard.theme.ThemeManager
 
 /**
- * Character variation popup for long-press key menu.
- *
+ * Character variation popup for long-press key menu — drawn exactly like the compass keys' long-press strip
+ * ([ExtraKeyStripPopup], 白い熊 2026-11-09): one rounded panel, glyphs packed tightly with no per-glyph boxes
+ * (the rolling highlight marks the active one), at the strip's text size, wrapping onto more rows when the
+ * screen is too narrow so every glyph stays within reach of the sliding finger.
  */
 class CharacterVariationPopup(private val context: Context, private val themeManager: ThemeManager) : PopupWindow() {
     private var onVariationSelected: ((String) -> Unit)? = null
@@ -26,10 +30,13 @@ class CharacterVariationPopup(private val context: Context, private val themeMan
     private var highlightedButton: Button? = null
     private var baseCharButton: Button? = null
     private val density = context.resources.displayMetrics.density
-    /** Multiplies item + text size (the compass long-press strip sets this so its glyphs are larger). */
-    var itemScale: Float = 1f
-    private val cachedCornerRadius = 8f * density
-    private val cachedStrokeWidth = (1 * density).toInt()
+
+    /** Glyph size in px; the host sets the compass strip's own size (14 × its font scale × density). */
+    var textSizePx: Float = 14f * DEFAULT_STRIP_FONT_SCALE * density
+    private val cachedCornerRadius = 6f * density
+    private val panelPad = (8 * density).toInt()
+    private val cellPadH = (7 * density).toInt()
+    private val cellPadV = (4 * density).toInt()
 
     private val scrollView: HorizontalScrollView =
         HorizontalScrollView(context).apply {
@@ -49,19 +56,21 @@ class CharacterVariationPopup(private val context: Context, private val themeMan
             )
         }
 
+    /** The panel: a vertical stack of glyph rows. */
     private val variationContainer: LinearLayout =
         LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-
-            val paddingH = (8 * density).toInt()
-            val paddingV = (4 * density).toInt()
-            setPadding(paddingH, paddingV, paddingH, paddingV)
-
-            setBackgroundColor(themeManager.currentTheme.value.colors.keyBackgroundAction)
+            orientation = LinearLayout.VERTICAL
+            setPadding(panelPad, panelPad, panelPad, panelPad)
+            background = GradientDrawable().apply {
+                setColor(themeManager.currentTheme.value.colors.keyBackgroundAction)
+                cornerRadius = 6f * density
+            }
             elevation = 8f * density
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }
+
+    /** Every glyph cell in order, whatever row it landed on. */
+    internal val cells: List<Button> get() = characterButtons
 
     init {
         scrollView.addView(variationContainer)
@@ -96,70 +105,70 @@ class CharacterVariationPopup(private val context: Context, private val themeMan
         baseCharButton = null
 
         val totalCount = variations.size + if (baseChar.isNotEmpty()) 1 else 0
+        val glyphs = (if (baseChar.isNotEmpty()) listOf(baseChar) else emptyList()) + variations
 
-        if (baseChar.isNotEmpty()) {
-            addCharacterView(baseChar, isBase = true, index = 0, totalCount = totalCount)
-        }
+        val measure = Paint().apply { textSize = textSizePx }
+        val fm = measure.fontMetrics
+        val rowHeight = (fm.bottom - fm.top).toInt() + cellPadV * 2
+        val screenWidth = context.resources.displayMetrics.widthPixels
+        val avail = (screenWidth - (16 * density).toInt() - panelPad * 2).coerceAtLeast(1)
 
-        variations.forEachIndexed { index, variation ->
-            val actualIndex = if (baseChar.isNotEmpty()) index + 1 else index
-            addCharacterView(variation, isBase = false, index = actualIndex, totalCount = totalCount)
+        var row: LinearLayout? = null
+        var x = 0
+        var widest = 0
+        var rows = 0
+        glyphs.forEachIndexed { index, glyph ->
+            val w = measure.measureText(glyph).toInt() + cellPadH * 2
+            if (row == null || (x > 0 && x + w > avail)) {
+                row = LinearLayout(context).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                }
+                variationContainer.addView(row)
+                rows++
+                x = 0
+            }
+            addCharacterView(row!!, glyph, w, rowHeight, isBase = baseChar.isNotEmpty() && index == 0, index, totalCount)
+            x += w
+            widest = maxOf(widest, x)
         }
 
         if (variations.isNotEmpty()) {
             setHighlighted(variations[0])
         }
 
-        val itemSize = (40 * density * itemScale).toInt()
-        val idealWidth = totalCount * itemSize + (16 * density).toInt()
-        val popupHeight = itemSize + (8 * density).toInt()
-
-        val screenWidth = context.resources.displayMetrics.widthPixels
-        val maxWidth = screenWidth - (32 * density).toInt()
-
-        width = minOf(idealWidth, maxWidth)
-        height = popupHeight
+        width = (widest + panelPad * 2).coerceAtLeast(1)
+        height = (rows * rowHeight + panelPad * 2).coerceAtLeast(1)
     }
 
-    private fun addCharacterView(char: String, isBase: Boolean, index: Int, totalCount: Int) {
+    private fun addCharacterView(
+        row: LinearLayout,
+        char: String,
+        cellWidth: Int,
+        rowHeight: Int,
+        isBase: Boolean,
+        index: Int,
+        totalCount: Int
+    ) {
         val button =
             Button(context).apply {
                 text = char
-
-                val buttonSize = (36 * density * itemScale).toInt()
-                layoutParams =
-                    LinearLayout.LayoutParams(buttonSize, buttonSize).apply {
-                        val margin = (2 * density).toInt()
-                        setMargins(margin, 0, margin, 0)
-                    }
-
-                textSize = 14f * itemScale
-
-                val theme = themeManager.currentTheme.value
-                setTextColor(
-                    if (isBase) {
-                        theme.colors.keyTextAction
-                    } else {
-                        theme.colors.keyTextCharacter
-                    }
-                )
-
-                val backgroundColor =
-                    if (isBase) {
-                        theme.colors.keyBackgroundAction
-                    } else {
-                        theme.colors.keyBackgroundCharacter
-                    }
-
+                isAllCaps = false
+                stateListAnimator = null
+                layoutParams = LinearLayout.LayoutParams(cellWidth, rowHeight)
+                setTextSize(TypedValue.COMPLEX_UNIT_PX, textSizePx)
+                gravity = Gravity.CENTER
+                setTextColor(themeManager.currentTheme.value.colors.keyTextCharacter)
                 background =
                     GradientDrawable().apply {
-                        setColor(backgroundColor)
+                        setColor(Color.TRANSPARENT)
                         cornerRadius = cachedCornerRadius
-                        setStroke(cachedStrokeWidth, theme.colors.keyBorder)
                     }
 
                 minHeight = 0
                 minimumHeight = 0
+                minWidth = 0
+                minimumWidth = 0
                 includeFontPadding = false
                 setPadding(0, 0, 0, 0)
 
@@ -197,7 +206,7 @@ class CharacterVariationPopup(private val context: Context, private val themeMan
 
         if (isBase) baseCharButton = button
         characterButtons.add(button)
-        variationContainer.addView(button)
+        row.addView(button)
     }
 
     /**
@@ -261,22 +270,23 @@ class CharacterVariationPopup(private val context: Context, private val themeMan
         }
     }
 
+    /** The cell under local (x, y) of the panel, else the nearest one. */
     internal fun findButtonAt(localX: Float, localY: Float): Button? {
         if (characterButtons.isEmpty()) return null
+        fun bounds(button: Button): FloatArray {
+            val row = button.parent as View
+            val l = row.left + button.left.toFloat()
+            val t = row.top + button.top.toFloat()
+            return floatArrayOf(l, t, l + button.width, t + button.height)
+        }
         for (button in characterButtons) {
-            if (localX >= button.left &&
-                localX <= button.right &&
-                localY >= button.top &&
-                localY <= button.bottom
-            ) {
-                return button
-            }
+            val (l, t, r, b) = bounds(button).toList()
+            if (localX in l..r && localY in t..b) return button
         }
         return characterButtons.minByOrNull { button ->
-            val cx = (button.left + button.right) / 2f
-            val cy = (button.top + button.bottom) / 2f
-            val dx = localX - cx
-            val dy = localY - cy
+            val (l, t, r, b) = bounds(button).toList()
+            val dx = localX - (l + r) / 2f
+            val dy = localY - (t + b) / 2f
             dx * dx + dy * dy
         }
     }
@@ -284,7 +294,7 @@ class CharacterVariationPopup(private val context: Context, private val themeMan
     fun getCharacterAt(rawX: Float, rawY: Float): String? {
         if (!isShowing) return null
         val location = IntArray(2)
-        contentView.getLocationOnScreen(location)
+        variationContainer.getLocationOnScreen(location)
         return findButtonAt(rawX - location[0], rawY - location[1])?.text?.toString()
     }
 
@@ -292,20 +302,8 @@ class CharacterVariationPopup(private val context: Context, private val themeMan
         val theme = themeManager.currentTheme.value
 
         highlightedButton?.let { button ->
-            val isBase = button === baseCharButton
-            val backgroundColor =
-                if (isBase) {
-                    theme.colors.keyBackgroundAction
-                } else {
-                    theme.colors.keyBackgroundCharacter
-                }
-
-            val bg = button.background
-            if (bg is GradientDrawable) {
-                bg.setColor(backgroundColor)
-                bg.setStroke(cachedStrokeWidth, theme.colors.keyBorder)
-                button.invalidate()
-            }
+            (button.background as? GradientDrawable)?.setColor(Color.TRANSPARENT)
+            button.invalidate()
         }
 
         highlightedButton = null
@@ -314,15 +312,16 @@ class CharacterVariationPopup(private val context: Context, private val themeMan
             val button = characterButtons.find { it.text == char }
             if (button != null) {
                 highlightedButton = button
-                val bg = button.background
-                if (bg is GradientDrawable) {
-                    bg.setColor(theme.colors.statePressed)
-                    bg.setStroke(cachedStrokeWidth, theme.colors.keyBorder)
-                    button.invalidate()
-                }
+                (button.background as? GradientDrawable)?.setColor(theme.colors.statePressed)
+                button.invalidate()
             }
         }
     }
 
     fun getHighlightedCharacter(): String? = highlightedButton?.text?.toString()
+
+    private companion object {
+        /** The compass strip's fallback font scale, as [KeyboardLayoutManager] uses it. */
+        const val DEFAULT_STRIP_FONT_SCALE = 2.5f
+    }
 }

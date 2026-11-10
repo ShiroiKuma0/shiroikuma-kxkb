@@ -94,6 +94,21 @@ class InputStateManager(
     val hasExplicitSelection: Boolean
         get() = selectedCandidate >= 0
 
+    /**
+     * The word whose trailing space the KEYBOARD added because the word was TAPPED in the bar (null when
+     * the last space was pressed, or anything has been typed since). A slash after it takes that space
+     * back ("and/or"), while a space pressed with Space stays ("and /"); long-press Space turns the added
+     * space into a pressed one. See [hasTapAddedSpace]. (白い熊, 2026-11-09.)
+     */
+    @Volatile
+    var tapAddedSpaceAfter: String? = null
+
+    /** True when [textBefore] still ends with the word tapped in the bar plus the space that came with it. */
+    fun hasTapAddedSpace(textBefore: String): Boolean {
+        val word = tapAddedSpaceAfter ?: return false
+        return textBefore.endsWith("$word ", ignoreCase = true)
+    }
+
     /** True while a cluster-key layout is active, gating Space-commits-candidate / Tab-advances behaviour. */
     @Volatile
     var clusterLayoutActive: Boolean = false
@@ -343,6 +358,15 @@ class InputStateManager(
     fun clearSuggestionDisplay() {
         // An empty prediction list still shows the custom row as the default when one is configured.
         showCustomRowOrClear()
+    }
+
+    /**
+     * Leave the bar's candidates on show but select none of them: a plain Space then types a space and a
+     * candidate goes in only when tapped (or picked with Tab). Used for next-word predictions after a number.
+     */
+    fun clearCandidateSelection() {
+        selectedCandidate = -1
+        viewCallback.setSelectedSuggestion(-1)
     }
 
     fun updateSuggestionDisplay(suggestions: List<String>) {

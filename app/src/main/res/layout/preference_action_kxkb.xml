@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 白い熊 kxkb settings ACTION row: a row that opens something or acts is an outlined pill as wide as its
+     label (never stretched across the line), left-aligned at the item indent, with its explanation beneath
+     in dim yellow aligned with the label. Only the pill is the touch target (KxkbActionPreference). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:minHeight="0dp"
+    android:paddingStart="72dp"
+    android:paddingEnd="16dp"
+    android:paddingTop="3dp"
+    android:paddingBottom="3dp">
+
+    <LinearLayout
+        android:id="@+id/kxkb_action_pill"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="9dp"
+        android:paddingBottom="9dp"
+        android:clickable="true"
+        android:focusable="true">
+
+        <TextView
+            android:id="@android:id/title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/kxkb_yellow"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/kxkb_action_chevron"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:text="›"
+            android:textColor="@color/kxkb_yellow"
+            android:textSize="18sp"
+            android:importantForAccessibility="no" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@android:id/summary"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="17dp"
+        android:layout_marginTop="2dp"
+        android:textColor="@color/kxkb_yellow_dim"
+        android:textSize="13sp" />
+</LinearLayout>

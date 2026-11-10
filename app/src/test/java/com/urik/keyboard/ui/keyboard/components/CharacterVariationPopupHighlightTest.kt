@@ -1,8 +1,6 @@
 package com.urik.keyboard.ui.keyboard.components
 
 import android.graphics.drawable.GradientDrawable
-import android.widget.HorizontalScrollView
-import android.widget.LinearLayout
 import com.urik.keyboard.theme.Default
 import com.urik.keyboard.theme.KeyboardTheme
 import com.urik.keyboard.theme.ThemeManager
@@ -46,9 +44,7 @@ class CharacterVariationPopupHighlightTest {
     fun `pre-highlighted button has the same highlighted background as setHighlighted applies`() {
         popup.setCharacterVariations("", listOf("ö", "ò", "ó")) {}
 
-        val scrollView = popup.contentView as HorizontalScrollView
-        val container = scrollView.getChildAt(0) as LinearLayout
-        val highlightedButton = container.getChildAt(0)
+        val highlightedButton = popup.cells[0]
 
         val bg = highlightedButton.background as GradientDrawable
         val color = bg.color?.defaultColor

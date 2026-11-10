@@ -29,7 +29,14 @@ object KeyboardJsonCodec {
             "character" -> {
                 val char = keyData.getString("char")
                 val keyType = parseKeyType(keyData.optString("keyType", "letter"))
-                KeyboardKey.Character(char, keyType, keyData.optDouble("width", 0.0).toFloat())
+                KeyboardKey.Character(
+                    char,
+                    keyType,
+                    keyData.optDouble("width", 0.0).toFloat(),
+                    longPressExtraKeys = keyData.optJSONArray("longPressKeys")?.let { a ->
+                        (0 until a.length()).map { a.getString(it) }
+                    } ?: emptyList()
+                )
             }
 
             "action" -> {
@@ -268,6 +275,15 @@ object KeyboardJsonCodec {
                     val target = raw.getString("layer")
                     raw.optString("label").ifEmpty { target } to KeyboardKey.FlickBinding.Layer(target)
                 }
+                // A slide the key editor has opened is a full KEY OBJECT ({type:character,char:"/"}, a macro,
+                // a chord) — read it as the text or binding it stands for. Dropped as unknown, an edited slide
+                // vanished from the key and the flick fell through to the centre letter (白い熊, 2026-11-10).
+                raw.optString("type") == "macro" -> raw.optString("text").ifEmpty { null } to null
+                raw.optString("type") == "chord" && raw.has("keys") -> {
+                    val spec = raw.getString("keys")
+                    raw.optString("label").ifEmpty { spec } to KeyboardKey.FlickBinding.Chord(spec)
+                }
+                raw.has("type") -> raw.optString("char").ifEmpty { null } to null
                 else -> null to null
             }
             else -> null to null
@@ -343,6 +359,7 @@ object KeyboardJsonCodec {
                 .withWidth(key.width)
                 .withAppearance(key.appearance)
                 .withAttributes(key.attributes)
+                .apply { if (key.longPressExtraKeys.isNotEmpty()) put("longPressKeys", JSONArray(key.longPressExtraKeys)) }
 
         is KeyboardKey.Action ->
             JSONObject()

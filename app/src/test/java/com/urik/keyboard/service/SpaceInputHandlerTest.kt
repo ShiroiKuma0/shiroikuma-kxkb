@@ -425,6 +425,54 @@ class SpaceInputHandlerTest {
     }
 
     @Test
+    fun `next-word predictions after a number are tap-only - Space types the space`() = testScope.runTest {
+        realInputState.clusterLayoutActive = true
+        whenever(mockLanguageManager.currentLanguage).thenReturn(MutableStateFlow("en"))
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(any(), any())).thenReturn("1.")
+        // "1." with next-word predictions for "1" on the bar, none of them selected.
+        realInputState.pendingSuggestions = listOf("57", "and", "2")
+        realInputState.clearCandidateSelection()
+
+        handler.handle(literalSpace = false)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockOutputBridge).commitText(" ", 1)
+        org.mockito.kotlin.verifyBlocking(mockSuggestionPipeline, org.mockito.Mockito.never()) {
+            coordinateSuggestionSelection(any(), any(), any())
+        }
+    }
+
+    @Test
+    fun `a prediction after a number picked with Tab still commits on Space`() = testScope.runTest {
+        realInputState.clusterLayoutActive = true
+        whenever(mockLanguageManager.currentLanguage).thenReturn(MutableStateFlow("en"))
+        realInputState.pendingSuggestions = listOf("57", "and", "2")
+        realInputState.clearCandidateSelection()
+        realInputState.selectedCandidate = 1
+
+        handler.handle(literalSpace = false)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        org.mockito.kotlin.verifyBlocking(mockSuggestionPipeline) {
+            coordinateSuggestionSelection(eq("and"), any(), any())
+        }
+    }
+
+    @Test
+    fun `long-press Space after a tapped word keeps its space and adds none`() = testScope.runTest {
+        realInputState.clusterLayoutActive = true
+        realInputState.tapAddedSpaceAfter = "and"
+        whenever(mockLanguageManager.currentLanguage).thenReturn(MutableStateFlow("en"))
+        whenever(mockOutputBridge.safeGetTextBeforeCursor(any(), any())).thenReturn("and ")
+
+        handler.handle(literalSpace = true)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockOutputBridge, org.mockito.Mockito.never()).commitText(any(), any())
+        assertEquals(null, realInputState.tapAddedSpaceAfter)
+    }
+
+    @Test
     fun `handle Suggestions decision reuses precomputed list without recomputing`() = testScope.runTest {
         val suggestion = SpellingSuggestion("hello", 1.0, 0)
         stubDecisionPath(AutocorrectDecision.Suggestions(listOf(suggestion)), "helo")

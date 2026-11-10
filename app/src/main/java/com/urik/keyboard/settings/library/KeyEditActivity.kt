@@ -175,29 +175,18 @@ class KeyEditActivity : AppCompatActivity() {
         // Flick direction (or "center").
         val flick = parent.optJSONObject("flick") ?: JSONObject().also { parent.put("flick", it) }
         val raw = flick.opt(token)
-        val child = asKeyObject(raw)
+        val child = asKeyObject(raw, inSlide = true)
         flick.put(token, child)
         return child
     }
 
-    /** Coerce a slot's raw JSON (string | object | absent) into a full key object the editor can recurse on. */
-    private fun asKeyObject(raw: Any?): JSONObject = when (raw) {
-        is JSONObject ->
-            // A binding object ({action|chord|layer|text}) isn't a key object → wrap its text as a character.
-            if (raw.has("type")) raw
-            else JSONObject().put("type", "character").put("char", bindingLabel(raw))
-        is String -> JSONObject().put("type", "character").put("char", raw)
-        else -> JSONObject().put("type", "character").put("char", "")
-    }
+    /** True when the edited key is a SLIDE of another key — the only place a layer binding can live. */
+    private fun isFlickSlot(): Boolean = path.size > 3 && path.last() !in CASE_STATES
 
-    private fun bindingLabel(o: JSONObject): String = when {
-        o.has("text") -> o.optString("text")
-        o.has("label") -> o.optString("label")
-        o.has("action") -> o.optString("action")
-        o.has("chord") -> o.optString("chord")
-        o.has("layer") -> o.optString("layer")
-        else -> ""
-    }
+    private fun asKeyObject(raw: Any?, inSlide: Boolean = false): JSONObject =
+        EditorKeyObjects.asKeyObject(raw, inSlide)
+
+    private fun bindingLabel(o: JSONObject): String = EditorKeyObjects.bindingLabel(o)
 
     private fun isTopLevel(): Boolean = path.size == 3
 
@@ -433,9 +422,19 @@ class KeyEditActivity : AppCompatActivity() {
     // -- base --
     private fun buildBaseFields() {
         val specInit = keyObj.optString("char").ifEmpty {
-            if (keyObj.optString("type") == "action") "!action/" + keyObj.optString("action") else ""
+            when (keyObj.optString("type")) {
+                "action" -> "!action/" + keyObj.optString("action")
+                "layer" -> "!layer/" + keyObj.optString("layer")
+                else -> ""
+            }
         }
         val specField = labelledField(getString(R.string.keyedit_spec), specInit)
+        // An action or layer slide keeps the label it shows on the key (⇥ for Tab), editable here.
+        val bindingLabelField = if (keyObj.optString("type") in setOf("action", "layer")) {
+            labelledField(getString(R.string.keyedit_label_binding), keyObj.optString("label"))
+        } else {
+            null
+        }
         val pickRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             addView(pill(getString(R.string.keyedit_special_key)) { specialKeyPicker(specField) }
@@ -450,11 +449,18 @@ class KeyEditActivity : AppCompatActivity() {
         collectors += {
             val spec = specField.text.toString()
             // A spec beginning with "!action/" re-emits as an action key; otherwise it's a character.
+            val label = bindingLabelField?.text?.toString().orEmpty()
             if (spec.startsWith("!action/")) {
                 replaceKeyObj(JSONObject().put("type", "action")
-                    .put("action", spec.removePrefix("!action/").ifEmpty { "dynamic_action" }))
+                    .put("action", spec.removePrefix("!action/").ifEmpty { "dynamic_action" })
+                    .apply { if (label.isNotEmpty()) put("label", label) })
+            } else if (isFlickSlot() && spec.startsWith("!layer/") && spec.length > "!layer/".length) {
+                replaceKeyObj(JSONObject().put("type", "layer").put("layer", spec.removePrefix("!layer/"))
+                    .apply { if (label.isNotEmpty()) put("label", label) })
             } else {
                 keyObj.put("type", "character").remove("action")
+                keyObj.remove("layer")
+                keyObj.remove("label")
                 keyObj.put("char", spec)
                 if (!keyObj.has("keyType")) keyObj.put("keyType", "letter")
                 putOrRemove("hint", hintField.text.toString())
