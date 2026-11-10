@@ -4,7 +4,63 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+362 — current
+## 0.23.1+368 — current
+
+Built on Urik `0.23.1-beta`.
+
+### ⌨ Typing
+
+- **A full word close to the best one leads the row too.** Four taps on `sh)` `(io` `mwk` `aev`
+  spell both “some” and “home”, but only “some” led: “home” was pushed below “something”,
+  “however” and “somewhere”, the longer words those taps only begin. Every word the taps spell in
+  full, if it is nearly as common as the best one, now comes before those longer words, so the row
+  reads “some home something …”. A much rarer full word (“lab” beside “let”) still waits behind
+  them.
+- **After a number, Space types a space.** “1.” + Space gave “1.57”, because Space committed a
+  next-word prediction for “1”. Those predictions still show, but none is highlighted: tap one, or
+  pick it with Tab, to use it. A numbered list (“1. ”) now types normally.
+- **The slash keeps a space you pressed.** “and” + Space + `/` used to glue into “and/”. Now:
+  - `/` straight after the word gives “and/” (for “and/or”, “km/h”);
+  - after a word you committed with Space, the space stays: “and /”;
+  - after a word you **tapped** in the bar, the space the tap added is taken back: “and/”;
+  - long-press Space after a tapped word keeps its space without adding a second one, so `/` then
+    gives “and /”.
+
+  `@`, `\` and `§` follow the same rule. None of them adds a space after itself.
+
+### 🧭 Long-press strips
+
+- **The compass guide disappears when the candidate strip opens.** Holding a compass key showed the
+  compass, then the full strip of extra characters, with the compass still on screen behind it.
+- **The 10c boards’ long-press popup looks like the compass strip:** the same font size, cells and
+  frame, wrapping onto further rows when it is wider than the screen. It used a much smaller font
+  before.
+- **The English 10c boards (kxkb and QWERTY) carry the GNU 15c candidate lines.** A long press on a
+  letter offers that letter’s full GNU 15c list (á ä ā æ α ą å & @ … on `a`), in place of the
+  built-in accents. A board can now set any letter key’s long-press list in its layout file
+  (`longPressKeys`).
+
+### ✏ Keyboard editor
+
+- **An edited slide no longer vanishes.** Setting a slide to a character in the key editor (Down of
+  `sh)` → `/`) saved it in a form the keyboard did not read back. Nothing showed on the key and the
+  flick typed the centre letter. Every slide edited this way works now, and none needs editing again.
+- **Opening a slide keeps what it does.** Opening a Tab slide turned it into the text “⇥”. Action,
+  chord and layer slides now keep their function and label when opened, and action and layer slides
+  get an editable “label shown on the key” field.
+
+### 🎛 Settings page
+
+- **Buttons look like buttons.** On the kxkb UI page, Export / import, Voice input and Reset are
+  outlined pills as wide as their label, with a › on those that open another screen. The section’s
+  main action has the thicker frame and a bold label. Rows with a switch, slider or value stay
+  plain.
+- **Tighter rows.** Every row is only as tall as its content: 2 dp above and below, and no 48 dp
+  minimum height, switches included.
+- **Explained rows stand out.** A row with an explanation has a bold label and a thin dim-gold rule
+  down its left edge.
+
+## 0.23.1+362
 
 Built on Urik `0.23.1-beta`.
 
