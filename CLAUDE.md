@@ -873,7 +873,23 @@ once no longer leads every rival — with three taps spelling "rec", "rec" leads
 second (`TypedHistoryPredictionTest` says so in those words). Suite 2 265 green
 (`FullWordLeadsPredictionTest`, verified to fail 3 of 6 against the old ranking).
 
-**Released `0.23.1+362`** (2026-10-29; tagged `0.23.1+362` — the word the taps spell in full leads the
+**Shipped since `+362`** (the `+368` line): **full-word peers** — `holdBackBeyondTaps` holds predictions
+under the WEAKEST full-length word within `FULL_WORD_PEER_MARGIN` (0.05) of the best, so "hiwe" leads
+"some home" before "something"; **the compass guide hides** when the long-press strip opens;
+**10c long-press = the strip** — `KeyboardKey.Character.longPressExtraKeys` (layout `longPressKeys`) shown
+verbatim by a restyled `CharacterVariationPopup` at `extraStripTextSizePx`, the en 10c boards carrying
+GNU 15c's lists; **tap-only predictions after a number** (`InputStateManager.clearCandidateSelection`, Space
+with no explicit selection on an empty buffer types a space — "1. " not "1.57"); **the slash rule** —
+`/ @ \ §` (`SPACE_KEEPING_MARKS`) keep a space PRESSED with Space ("and /") but attach straight after the
+word or after the space a TAPPED candidate added (`tapAddedSpaceAfter`, "and/or"), long-press Space after a
+tapped word confirms its space; **editor slides** — the codec reads a slide stored as a full key object
+(character/macro/chord), and `settings/library/EditorKeyObjects` keeps an action/chord/layer slide's binding
+and label when the editor opens it; **the kxkb UI page in the black-yellow settings rules**
+(`KxkbActionPreference` pills, 2 dp rows, bold label + dim-gold left rule on explained rows via an
+`onCreateAdapter` bind hook). Suite green.
+
+**Released `0.23.1+368`** (2026-11-10; the `+362`–`+368` work above). **Released `0.23.1+362`** (2026-10-29;
+tagged `0.23.1+362` — the word the taps spell in full leads the
 candidate row; APK attached, on the fork's GitHub; default branch `custom`; README badge +
 `CHANGELOG.md` track it). **Release tags carry NO `v` prefix** (白い熊,
 2026-09-05): the first fork release was the bare `0.23.1+72`, the `v` crept in at `+147`, and the 30 tags
@@ -887,7 +903,7 @@ older tag object. `publishedAt` is untouched and the `releases/latest` API staye
 looked wrong until `0.23.1+320`'s tag was force-recreated so its object was the newest again. Retag oldest
 first, or re-cut the newest tag last. Recent fork releases:
 `+320`, `+321`, `+324`, `+335`, `+337`, `+338`, `+343`, `+347`, `+348`, `+349`, `+350`, `+354`,
-`+355`, `+361`, `+362` (earlier: `+316`, `+313`, `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`,
+`+355`, `+361`, `+362`, `+368` (earlier: `+316`, `+313`, `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`,
 `+211`, `+213`,
 `+214`, `+215`, `+217`, `+222`, `+230`, `+250`, `+287`, `+292`, `+295`, `+296`, `+298`, `+299`, `+300`,
 `+301`, `+302`, `+304`, `+305`, `+306`, `+309`, `+312`). Remaining M5 tail (low priority): number/arrow
