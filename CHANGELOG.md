@@ -4,7 +4,75 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+368 — current
+## 0.23.1+381 — current
+
+Built on Urik `0.23.1-beta`.
+
+### ✏ Keyboard editor
+
+- **The long-press list of a key is editable.** A compass key and a flat key have a “Long-press keys
+  (XK)” field: one line, entries separated by spaces. The old “More keys” field, which the keyboard
+  never read, is gone.
+- **A real width.** “Width in keys” sets the number the keyboard sizes a key by. The “width”
+  dropdown and the “Custom key widths” sliders, which did nothing, are removed.
+- **Space, Shift, Enter and Backspace keep their width.** An action key was rebuilt one key wide on
+  every Apply, Move, Duplicate and Insert, and on a change of type.
+- **The shifted face is a key of its own.** A compass, cluster or column key has a “Shifted face”
+  row: add a face (it starts as a copy of the key) and edit its character, slides and long-press list
+  on its own page. Without one the keyboard upper-cases the key as before.
+- **Appearance numbers can be typed.** Font size, hint size and the offsets are a switch plus a
+  value; a switch alone could only keep or drop a number.
+- **Character class and slide hints.** Each key has a “Character class” (letter, number, symbol,
+  punctuation, or automatic); the layout has a “Show the slide characters on the keys” switch.
+- **“Special key…” stores what the keyboard reads.** Every pick used to be stored under a name the
+  keyboard read as Enter. The list now also has the number pad.
+- **Only what works is on the page.** “hint”, “code override”, the compact “slide” string, the
+  cluster “icon” and the attributes the keyboard ignores are no longer shown; what a layout stores
+  under them is left untouched.
+- **Cancel and Apply are at the top**, shown only once something has changed: Cancel in red, Apply in
+  blue with the heavy frame. They no longer sit at the end of a long page.
+- **The main page offers Activate only after a change.** Cancel and Activate appear together at the
+  end of the button row once anything has changed, on this page or on a key page. Activate accepts the
+  changes, makes the layout the active one and leaves the editor. Cancel puts the layout back as it
+  was when the editor was opened.
+- **Removing an alt page asks first.**
+
+### 🔁 An edited layout reaches every app
+
+- **Leaving the editor settles the layout everywhere.** Each app remembers its board per fold state.
+  An app that remembered the stock layout switched back to it on every focus, so an edit never showed
+  there — and the editor, finding the stock active again, made a new copy each time it was opened.
+  Now a stock layout that was opened and changed is replaced by its copy in every app; one that was
+  opened and not changed leaves no copy behind.
+- **Activating in the Library does the same**, and the keyboard rebuilds as soon as the editor saves.
+- **Copies can be told apart.** A copy’s row in the Library shows the tail of its id (“copy2”).
+
+### ⌨ Keyboard
+
+- **Per-key hint size and offsets are drawn.** A key’s own hint size, label offset, band offsets and
+  hint-row offsets were stored and ignored. The `Esc`, `Ctrl` and `⇥` keys of GNU 15c carry such
+  values and now look as designed.
+- **A case key without a width on its normal face takes its own.**
+
+### 🎨 The black-yellow look, across the app
+
+- **Every button is an outlined pill**, the main action of a block the heavy one, a deleting one in
+  red — dialog buttons included.
+- **Every switch is the outlined switch**: a round outline with a dot, right and bright when on, left
+  and dim when off. The backup parts on the Export / import page and the voice options are switches
+  now.
+- **Icons everywhere, coloured by what a row does**: the settings list, every plain settings page,
+  the Library, the walk-capture buttons, action lists in dialogs and the Learned-words menu.
+- **The 白い熊 kxkb UI page folds.** Under an “App settings” link sits an index of small chips, one per
+  section: tap a chip to open its section and jump to it, long-press to drag the sections into
+  another order. Every section starts folded; order and fold state are remembered and travel in a
+  backup. “Maintenance” has “Reset section order”.
+- **App colours are settable.** A new section sets the colours of the app’s own pages — accent,
+  background, text, notes, the switch that is off, the icon colours, the delete red and the Apply
+  blue — separately from the keyboard’s look.
+- **The plain settings pages are tighter**: no minimum row height.
+
+## 0.23.1+368
 
 Built on Urik `0.23.1-beta`.
 
