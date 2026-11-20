@@ -1,5 +1,6 @@
 package com.urik.keyboard.settings.keyboardui
 
+import com.urik.keyboard.chrome.ChromeColors
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
@@ -25,7 +26,7 @@ object ColorPicker {
 
     fun show(context: Context, initial: Int, onColor: (Int) -> Unit) {
         val density = context.resources.displayMetrics.density
-        val yellow = ContextCompat.getColor(context, R.color.kxkb_yellow)
+        val yellow = ChromeColors.text
 
         var a = Color.alpha(initial)
         var r = Color.red(initial)
@@ -100,7 +101,7 @@ object ColorPicker {
                 layoutParams = LinearLayout.LayoutParams(sizePx, sizePx).apply { marginEnd = gap }
                 background = GradientDrawable().apply {
                     setColor(sw)
-                    setStroke((1.5f * density).toInt(), yellow)
+                    setStroke((1.5f * density).toInt(), ChromeColors.accent)
                     cornerRadius = 4f * density
                 }
                 setOnClickListener { setFrom(sw) }

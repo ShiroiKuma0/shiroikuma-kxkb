@@ -1,5 +1,7 @@
 package com.urik.keyboard.settings.voice
 
+import com.urik.keyboard.chrome.Pills
+import com.urik.keyboard.chrome.ChromeColors
 import android.media.MediaPlayer
 import android.os.Bundle
 import android.util.TypedValue
@@ -39,14 +41,13 @@ class VoiceCorpusFragment : Fragment() {
     private var player: MediaPlayer? = null
     private var playingButton: Button? = null
 
-    private val yellow = 0xFFFFFF00.toInt()
-    private val dim = 0xFFCCCC66.toInt()
-    private val blue = 0xFF4FC3F7.toInt()
+    private val yellow: Int get() = ChromeColors.text
+    private val dim: Int get() = ChromeColors.note
     private val stamp = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.ROOT)
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val scroll = ScrollView(requireContext()).apply {
-            setBackgroundColor(0xFF000000.toInt())
+            setBackgroundColor(ChromeColors.background)
             isFillViewport = true
         }
         root = LinearLayout(requireContext()).apply {
@@ -82,7 +83,7 @@ class VoiceCorpusFragment : Fragment() {
             )
             root.addView(text(getString(R.string.voice_corpus_intro), 13f, dim).apply { setPadding(0, dp(6), 0, 0) })
             if (items.isNotEmpty()) {
-                root.addView(pill(getString(R.string.voice_corpus_delete_all)) { confirmDeleteAll() })
+                root.addView(pill(getString(R.string.voice_corpus_delete_all), color = ChromeColors.delete) { confirmDeleteAll() })
             }
             for (item in items) root.addView(itemView(item))
         }
@@ -111,7 +112,7 @@ class VoiceCorpusFragment : Fragment() {
             } else {
                 "✓ ${e.recognized}"
             }
-            addView(text(line, 13f, blue).apply { setPadding(dp(12), dp(1), 0, 0) })
+            addView(text(line, 13f, dim).apply { setPadding(dp(12), dp(1), 0, 0) })
         }
         val buttons = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -119,13 +120,13 @@ class VoiceCorpusFragment : Fragment() {
         }
         if (item.clip != null) {
             lateinit var play: Button
-            play = pill(getString(R.string.voice_corpus_play)) { togglePlay(item, play) }
+            play = pill(getString(R.string.voice_corpus_play), main = true) { togglePlay(item, play) }
             buttons.addView(play)
         }
-        buttons.addView(pill(getString(R.string.voice_corpus_delete)) { confirmDelete(item) })
+        buttons.addView(pill(getString(R.string.voice_corpus_delete), color = ChromeColors.delete) { confirmDelete(item) })
         addView(buttons)
         addView(View(requireContext()).apply {
-            setBackgroundColor(0x66FFFF00)
+            setBackgroundColor(ChromeColors.divider)
             layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(1)).apply {
                 topMargin = dp(8)
             }
@@ -176,6 +177,7 @@ class VoiceCorpusFragment : Fragment() {
             }
             .setNegativeButton(R.string.export_import_cancel, null)
             .show()
+            .also { Pills.destructive(it) }
     }
 
     private fun confirmDeleteAll() {
@@ -191,6 +193,7 @@ class VoiceCorpusFragment : Fragment() {
             }
             .setNegativeButton(R.string.export_import_cancel, null)
             .show()
+            .also { Pills.destructive(it) }
     }
 
     private fun text(value: String, sizeSp: Float, color: Int) = TextView(requireContext()).apply {
@@ -199,22 +202,12 @@ class VoiceCorpusFragment : Fragment() {
         setTextSize(TypedValue.COMPLEX_UNIT_SP, sizeSp)
     }
 
-    private fun pill(label: String, onClick: () -> Unit): Button = Button(requireContext()).apply {
-        text = label
-        setTextColor(yellow)
-        isAllCaps = false
-        background = android.graphics.drawable.GradientDrawable().apply {
-            setColor(0xFF000000.toInt())
-            setStroke(dp(2), yellow)
-            cornerRadius = dp(50).toFloat()
-        }
-        minHeight = 0
-        minimumHeight = 0
-        minWidth = 0
-        minimumWidth = 0
-        setPadding(dp(16), dp(8), dp(16), dp(8))
-        stateListAnimator = null
-        setOnClickListener { onClick() }
+    private fun pill(
+        label: String,
+        main: Boolean = false,
+        color: Int = ChromeColors.accent,
+        onClick: () -> Unit
+    ): Button = Pills.button(requireContext(), label, main = main, color = color, onClick = onClick).apply {
         layoutParams = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT,
             ViewGroup.LayoutParams.WRAP_CONTENT

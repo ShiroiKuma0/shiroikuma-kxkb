@@ -13,6 +13,10 @@ import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import com.urik.keyboard.utils.KxkbToast
+import com.urik.keyboard.chrome.ChromeColors
+import com.urik.keyboard.chrome.ChromeIcons
+import com.urik.keyboard.chrome.ChromePageState
+import com.urik.keyboard.chrome.SectionIndex
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
@@ -172,16 +176,34 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         object : PreferenceGroupAdapter(preferenceScreen) {
             override fun onBindViewHolder(holder: PreferenceViewHolder, position: Int) {
                 super.onBindViewHolder(holder, position)
+                holder.findViewById(R.id.kxkb_underline)?.setBackgroundColor(ChromeColors.accent)
                 val rule = holder.findViewById(R.id.kxkb_rule) ?: return
                 val summary = holder.findViewById(android.R.id.summary) as? TextView
                 val explained = summary != null && summary.visibility == View.VISIBLE && !summary.text.isNullOrEmpty()
-                rule.visibility = if (explained) View.VISIBLE else View.INVISIBLE
+                // A loose note (no label of its own) is dim gold too, but carries no rule.
+                val isNote = getItem(position)?.title.isNullOrEmpty()
+                rule.visibility = if (explained && !isNote) View.VISIBLE else View.INVISIBLE
                 (holder.findViewById(android.R.id.title) as? TextView)
                     ?.setTypeface(null, if (explained) Typeface.BOLD else Typeface.NORMAL)
                 holder.findViewById(androidx.preference.R.id.switchWidget)?.apply {
                     minimumHeight = 0
                     (this as? TextView)?.minHeight = 0
                 }
+                // Every row carries an icon coloured by what the row does; a note has none.
+                val pref = getItem(position)
+                holder.findViewById(R.id.kxkb_icon)?.let { iconView ->
+                    val icon = pref?.let { p -> if (p.title.isNullOrEmpty()) null else iconOf(p) }
+                    if (icon == null) {
+                        iconView.visibility = View.INVISIBLE
+                    } else {
+                        iconView.visibility = View.VISIBLE
+                        iconView.background = ChromeIcons.drawable(requireContext(), icon.first, icon.second)
+                    }
+                }
+                // The settable roles: the rule and the explanation share the note colour.
+                rule.setBackgroundColor(ChromeColors.note)
+                summary?.setTextColor(ChromeColors.note)
+                (holder.findViewById(android.R.id.title) as? TextView)?.setTextColor(ChromeColors.text)
             }
         }
 
@@ -191,16 +213,34 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
 
         eventHandler = SettingsEventHandler(requireContext())
 
+        // The very top of the page: the link to the keyboard's own settings (the first, thick pill), then the
+        // chip index of the sections below.
+        linkPref =
+            KxkbActionPreference(context, main = true, opens = true, icon = ChromeIcons.Icon.SLIDERS).apply {
+                key = "kb_ui_app_settings"
+                title = resources.getString(R.string.chrome_app_settings)
+                summary = resources.getString(R.string.chrome_app_settings_summary)
+                setOnPreferenceClickListener {
+                    parentFragmentManager
+                        .beginTransaction()
+                        .replace(R.id.settings_container, com.urik.keyboard.settings.MainSettingsFragment())
+                        .addToBackStack(null)
+                        .commit()
+                    true
+                }
+            }
+        indexPref = SectionIndexPreference(context).apply { key = "kb_ui_section_index" }
+        screen.addPreference(linkPref!!)
+        screen.addPreference(indexPref!!)
+
         // Top of the page: the Export / import section (back up & restore colours, layouts, dicts…) — a
         // real heading like Geometry, with the navigation row beneath it.
         val exportImportCategory =
-            PreferenceCategory(context).apply {
-                key = "kb_ui_cat_export_import"
-                title = resources.getString(R.string.export_import_title)
-                layoutResource = R.layout.preference_category_kxkb_first
-            }
+            section("kb_ui_cat_export_import", resources.getString(R.string.export_import_title))
         val exportImportPref =
-            KxkbActionPreference(context, main = true, opens = true).apply {
+            KxkbActionPreference(
+                context, main = true, opens = true, icon = ChromeIcons.Icon.EXPORT, does = ChromeIcons.Does.SHARE
+            ).apply {
                 key = "kb_ui_export_import"
                 title = resources.getString(R.string.export_import_title)
                 summary = resources.getString(R.string.export_import_summary)
@@ -227,7 +267,8 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         // an off switch only invites pasting it somewhere it will do nothing.
         val automationTokenPref =
             automationTokenPreference(context).apply {
-                isVisible = AutomationAuth.requireToken(context)
+                key = "kb_ui_automation_token"
+                if (!AutomationAuth.requireToken(context)) hiddenRows += "kb_ui_automation_token"
             }
         val automationSwitchPref =
             SwitchPreferenceCompat(context).apply {
@@ -253,20 +294,19 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
                 setOnPreferenceChangeListener { _, value ->
                     val on = value as Boolean
                     AutomationAuth.setRequireToken(context, on)
-                    automationTokenPref.isVisible = on
+                    if (on) hiddenRows -= "kb_ui_automation_token" else hiddenRows += "kb_ui_automation_token"
+                    sections.firstOrNull { it.key == "kb_ui_cat_export_import" }?.let { applyFold(it) }
                     true
                 }
             }
 
         // The Voice input section (offline Whisper model setup + dictation options).
         val voiceCategory =
-            PreferenceCategory(context).apply {
-                key = "kb_ui_cat_voice"
-                title = resources.getString(R.string.voice_settings_title)
-                layoutResource = R.layout.preference_category_kxkb
-            }
+            section("kb_ui_cat_voice", resources.getString(R.string.voice_settings_title))
         val voicePref =
-            KxkbActionPreference(context, main = true, opens = true).apply {
+            KxkbActionPreference(
+                context, main = true, opens = true, icon = ChromeIcons.Icon.MIC, does = ChromeIcons.Does.MESSAGE
+            ).apply {
                 key = "kb_ui_voice_input"
                 title = resources.getString(R.string.voice_settings_title)
                 summary = resources.getString(R.string.voice_settings_summary)
@@ -287,11 +327,7 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         // keyboard shows before the device has been unlocked once. Written to device-protected storage, the
         // only store readable there; the picker offers bundled layouts only (see [bfuLayoutChoices]).
         val bfuCategory =
-            PreferenceCategory(context).apply {
-                key = "kb_ui_cat_bfu"
-                title = resources.getString(R.string.keyboard_ui_bfu_title)
-                layoutResource = R.layout.preference_category_kxkb
-            }
+            section("kb_ui_cat_bfu", resources.getString(R.string.keyboard_ui_bfu_title))
         val bfuChoices = bfuLayoutChoices(context)
         val bfuPref =
             ListPreference(context).apply {
@@ -315,11 +351,7 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
 
         // The "Apply to all keyboards" section — its own divider block with the toggle beneath.
         val applyEverywhereCategory =
-            PreferenceCategory(context).apply {
-                key = "kb_ui_cat_apply_everywhere"
-                title = resources.getString(R.string.keyboard_ui_apply_everywhere)
-                layoutResource = R.layout.preference_category_kxkb
-            }
+            section("kb_ui_cat_apply_everywhere", resources.getString(R.string.keyboard_ui_apply_everywhere))
         applyEverywherePref =
             SwitchPreferenceCompat(context).apply {
                 key = "kb_ui_apply_everywhere"
@@ -331,11 +363,7 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
             }
 
         val geometryCategory =
-            PreferenceCategory(context).apply {
-                key = "kb_ui_cat_geometry"
-                title = resources.getString(R.string.keyboard_ui_category_geometry)
-                layoutResource = R.layout.preference_category_kxkb
-            }
+            section("kb_ui_cat_geometry", resources.getString(R.string.keyboard_ui_category_geometry))
 
         geometryPref =
             ListPreference(context).apply {
@@ -624,13 +652,37 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
 
         // Bottom of the page: per-app reset. Clears ONLY the size of the app the user was last typing in
         // (published by the IME), so that app reverts to default while every other app keeps its own size.
+        buildChromeColorsSection(context, screen)
+
+        val maintenanceCategory = section("kb_ui_cat_maintenance", resources.getString(R.string.chrome_section_maintenance))
         resetPref =
-            KxkbActionPreference(context, main = false, opens = false).apply {
+            KxkbActionPreference(
+                context, main = false, opens = false, icon = ChromeIcons.Icon.RESET,
+                does = ChromeIcons.Does.DELETE, destructive = true
+            ).apply {
                 key = "kb_ui_reset"
                 title = resources.getString(R.string.keyboard_ui_reset_layout)
                 summary = resources.getString(R.string.keyboard_ui_reset_layout_summary)
             }
-        screen.addPreference(resetPref)
+        screen.addPreference(maintenanceCategory)
+        maintenanceCategory.addPreference(resetPref)
+        maintenanceCategory.addPreference(
+            KxkbActionPreference(context, main = false, opens = false, icon = ChromeIcons.Icon.RESET).apply {
+                key = "kb_ui_reset_order"
+                title = resources.getString(R.string.chrome_reset_order)
+                summary = resources.getString(R.string.chrome_reset_order_summary)
+                setOnPreferenceClickListener {
+                    ChromePageState.resetOrder(requireContext(), PAGE)
+                    applySectionOrder()
+                    KxkbToast.show(requireContext(), getString(R.string.chrome_reset_order_done))
+                    true
+                }
+            }
+        )
+
+        // Every section starts folded; the stored order and fold state are applied over the built page.
+        applySectionOrder()
+        sections.forEach { applyFold(it) }
 
         preferenceScreen = screen
     }
@@ -660,11 +712,200 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
     }
 
     private fun sectionCategory(prefKey: String, titleRes: Int): PreferenceCategory =
-        PreferenceCategory(preferenceManager.context).apply {
-            key = prefKey
-            title = resources.getString(titleRes)
+        section(prefKey, resources.getString(titleRes))
+
+    // ---- the page's arrangement: folding sections, their order, the chip index ------------------
+
+    /** Every top-level section in the order it was built; the stored order is applied over this. */
+    private val sections = mutableListOf<SectionCategory>()
+
+    /** Rows hidden for a reason of their own (the automation token while no token is asked for). */
+    private val hiddenRows = mutableSetOf<String>()
+
+    private var linkPref: Preference? = null
+    private var indexPref: SectionIndexPreference? = null
+
+    /**
+     * A top-level section: its heading folds and unfolds its rows (› folded, ⌄ open). Folded by default; the
+     * state is remembered, and the thin line above the heading stays either way.
+     */
+    private inner class SectionCategory(context: Context) : PreferenceCategory(context) {
+        init {
             layoutResource = R.layout.preference_category_kxkb
         }
+
+        fun refresh() = notifyChanged()
+
+        override fun onBindViewHolder(holder: PreferenceViewHolder) {
+            super.onBindViewHolder(holder)
+            val open = ChromePageState.isOpen(context, PAGE, key)
+            (holder.findViewById(R.id.kxkb_chevron) as? TextView)?.apply {
+                text = if (open) "⌄" else "›"
+                setTextColor(ChromeColors.accent)
+            }
+            (holder.findViewById(android.R.id.title) as? TextView)?.setTextColor(ChromeColors.accent)
+            holder.findViewById(R.id.kxkb_divider)?.setBackgroundColor(ChromeColors.divider)
+            holder.findViewById(R.id.kxkb_underline)?.setBackgroundColor(ChromeColors.accent)
+            holder.itemView.isClickable = true
+            holder.itemView.setOnClickListener { setSectionOpen(this, !ChromePageState.isOpen(context, PAGE, key)) }
+        }
+    }
+
+    private fun section(prefKey: String, title: String): SectionCategory =
+        SectionCategory(preferenceManager.context).apply {
+            key = prefKey
+            this.title = title
+            sections += this
+        }
+
+    /** The chip index under the settings link: one chip per section, in the sections' current order. */
+    private inner class SectionIndexPreference(context: Context) : Preference(context) {
+        init {
+            layoutResource = R.layout.preference_section_index_kxkb
+            isPersistent = false
+            isSelectable = false
+        }
+
+        fun refresh() = notifyChanged()
+
+        override fun onBindViewHolder(holder: PreferenceViewHolder) {
+            super.onBindViewHolder(holder)
+            // The row's root view: binding a preference overwrites the root's id, so it cannot be looked up by it.
+            val frame = holder.itemView as? ViewGroup ?: return
+            frame.removeAllViews()
+            val items = orderedSections().map { SectionIndex.Item(it.key, it.title ?: "") }
+            frame.addView(SectionIndex.build(context, items, object : SectionIndex.Listener {
+                override fun onJump(key: String) {
+                    sections.firstOrNull { it.key == key }?.let { jumpToSection(it) }
+                }
+
+                override fun onReordered(order: List<String>) {
+                    // Posted: the drag is still being dispatched to the chips this rebuild replaces.
+                    frame.post {
+                        ChromePageState.setOrder(context, PAGE, order)
+                        applySectionOrder()
+                    }
+                }
+            }))
+        }
+    }
+
+    private fun orderedSections(): List<SectionCategory> {
+        val order = ChromePageState.order(requireContext(), PAGE, sections.map { it.key })
+        return order.mapNotNull { k -> sections.firstOrNull { it.key == k } }
+    }
+
+    /** Pin the settings link and the index on top, then the sections in their stored order. */
+    private fun applySectionOrder() {
+        linkPref?.order = 0
+        indexPref?.order = 1
+        orderedSections().forEachIndexed { i, cat -> cat.order = 10 + i }
+        indexPref?.refresh()
+    }
+
+    private fun applyFold(cat: SectionCategory) {
+        val open = ChromePageState.isOpen(requireContext(), PAGE, cat.key)
+        for (i in 0 until cat.preferenceCount) {
+            val row = cat.getPreference(i)
+            row.isVisible = open && row.key !in hiddenRows
+        }
+    }
+
+    private fun setSectionOpen(cat: SectionCategory, open: Boolean) {
+        ChromePageState.setOpen(requireContext(), PAGE, cat.key, open)
+        applyFold(cat)
+        // Rebind the heading so its › / ⌄ follows.
+        cat.refresh()
+    }
+
+    /** A tap on a chip: unfold the section and bring its heading to the top of the page. */
+    private fun jumpToSection(cat: SectionCategory) {
+        setSectionOpen(cat, true)
+        listView?.post {
+            val list = listView ?: return@post
+            val position = (list.adapter as? PreferenceGroupAdapter)?.getPreferenceAdapterPosition(cat) ?: return@post
+            if (position >= 0) {
+                (list.layoutManager as? androidx.recyclerview.widget.LinearLayoutManager)
+                    ?.scrollToPositionWithOffset(position, 0)
+            }
+        }
+    }
+
+    /** A row's icon and what the row does (which colours the icon), told from what kind of row it is. */
+    private fun iconOf(pref: Preference): Pair<ChromeIcons.Icon, ChromeIcons.Does>? {
+        val key = pref.key.orEmpty()
+        return when {
+            pref is PreferenceCategory || pref is SectionIndexPreference || pref is KxkbActionPreference -> null
+            pref.layoutResource == R.layout.preference_subcategory_kxkb -> null
+            pref is ColorSwatchPreference -> ChromeIcons.Icon.PALETTE to ChromeIcons.Does.VIEW
+            key.contains("automation_require") || key.contains("bfu") -> ChromeIcons.Icon.LOCK to ChromeIcons.Does.BLOCK
+            key.contains("automation") -> ChromeIcons.Icon.EXPORT to ChromeIcons.Does.SHARE
+            key == "kb_ui_apply_everywhere" -> ChromeIcons.Icon.COPY to ChromeIcons.Does.SHARE
+            key == "kb_ui_geometry" -> ChromeIcons.Icon.DEVICE to ChromeIcons.Does.CONTACT
+            key == "kb_ui_app_locale" -> ChromeIcons.Icon.GLOBE to ChromeIcons.Does.CONTACT
+            key == "kb_ui_mode" -> ChromeIcons.Icon.KEYBOARD to ChromeIcons.Does.CONTACT
+            key == "kb_ui_key_preview" -> ChromeIcons.Icon.EYE to ChromeIcons.Does.VIEW
+            key == "kb_ui_emoji_button" -> ChromeIcons.Icon.STAR to ChromeIcons.Does.VIEW
+            pref is EditTextPreference -> ChromeIcons.Icon.EDIT to ChromeIcons.Does.MESSAGE
+            pref is SeekBarPreference && key.contains("weight") -> ChromeIcons.Icon.TEXT to ChromeIcons.Does.MESSAGE
+            pref is SeekBarPreference && (key.endsWith("size") || key.endsWith("_font") ||
+                key == "kb_ui_font" || key == "kb_ui_hint") -> ChromeIcons.Icon.SIZE to ChromeIcons.Does.MESSAGE
+            key.endsWith("font") || key.endsWith("font_family") -> ChromeIcons.Icon.TEXT to ChromeIcons.Does.MESSAGE
+            pref is SeekBarPreference && (key.contains("off_") || key.contains("dist") || key.contains("cluster")) ->
+                ChromeIcons.Icon.MOVE to ChromeIcons.Does.VIEW
+            pref is SeekBarPreference -> ChromeIcons.Icon.SLIDERS to ChromeIcons.Does.VIEW
+            pref is SwitchPreferenceCompat -> ChromeIcons.Icon.TOGGLE to ChromeIcons.Does.VIEW
+            pref is ListPreference -> ChromeIcons.Icon.LIST to ChromeIcons.Does.VIEW
+            else -> ChromeIcons.Icon.LIST to ChromeIcons.Does.VIEW
+        }
+    }
+
+    /** The App colours section: one swatch per colour role of the app's own pages, and a reset. */
+    private fun buildChromeColorsSection(context: Context, screen: PreferenceScreen) {
+        val cat = section("kb_ui_cat_chrome", resources.getString(R.string.chrome_section_colors))
+        screen.addPreference(cat)
+        cat.addPreference(
+            Preference(context).apply {
+                key = "chrome_colors_note"
+                isPersistent = false
+                isSelectable = false
+                layoutResource = R.layout.preference_item_kxkb
+                summary = resources.getString(R.string.chrome_colors_note)
+            }
+        )
+        ChromeColors.Role.entries.forEach { role ->
+            cat.addPreference(
+                ColorSwatchPreference(context).apply {
+                    key = "chrome_role_${role.key}"
+                    isPersistent = false
+                    title = resources.getString(role.labelRes)
+                    color = ChromeColors[role]
+                    setOnPreferenceClickListener {
+                        ColorPicker.show(requireContext(), ChromeColors[role]) { picked ->
+                            ChromeColors.set(requireContext(), role, picked)
+                            requireActivity().recreate()
+                        }
+                        true
+                    }
+                }
+            )
+        }
+        cat.addPreference(
+            KxkbActionPreference(
+                context, main = false, opens = false, icon = ChromeIcons.Icon.RESET,
+                does = ChromeIcons.Does.DELETE, destructive = true
+            ).apply {
+                key = "chrome_colors_reset"
+                title = resources.getString(R.string.chrome_colors_reset)
+                setOnPreferenceClickListener {
+                    ChromeColors.Role.entries.forEach { ChromeColors.set(requireContext(), it, null) }
+                    KxkbToast.show(requireContext(), getString(R.string.chrome_colors_reset_done))
+                    requireActivity().recreate()
+                    true
+                }
+            }
+        )
+    }
 
     /**
      * The automation-token row: shows the token abbreviated, copies the WHOLE token to the clipboard on tap,
@@ -817,6 +1058,9 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        // The only lines on this page are the sections' own; the list's stock dividers doubled them.
+        setDivider(null)
+        setDividerHeight(0)
 
         applyEverywherePref.setOnPreferenceChangeListener { _, newValue ->
             viewModel.updateApplyEverywhere(newValue as Boolean)
@@ -1249,3 +1493,6 @@ class KeyboardUiFragment : PreferenceFragmentCompat() {
         testField = null
     }
 }
+
+/** The key the kxkb UI page keeps its section order and fold state under. */
+private const val PAGE = "kxkb_ui"

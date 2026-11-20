@@ -37,6 +37,9 @@
         <!-- Route EVERY AlertDialog spawned from a Settings activity (ListPreference pickers, plain
              AlertDialog.Builder(this), etc.) through our black/yellow dialog, so none falls back to the
              default grey Material dialog. Dialogs that pass Theme.Urik.Dialog explicitly are unaffected. -->
+        <!-- Every inflated Button / switch passes through the chrome inflater: pills and outlined switches
+             on every screen, the stock dialog button bar included. -->
+        <item name="viewInflaterClass">com.urik.keyboard.chrome.KxkbViewInflater</item>
         <item name="alertDialogTheme">@style/Theme.Urik.Dialog</item>
         <item name="android:alertDialogTheme">@style/Theme.Urik.Dialog</item>
     </style>
@@ -65,6 +68,7 @@
         <item name="android:colorControlNormal">@color/kxkb_yellow</item>
         <item name="android:colorControlActivated">@color/kxkb_yellow</item>
         <item name="android:windowBackground">@drawable/kxkb_dialog_bg</item>
+        <item name="viewInflaterClass">com.urik.keyboard.chrome.KxkbViewInflater</item>
         <item name="buttonBarPositiveButtonStyle">@style/Theme.Urik.Dialog.Button</item>
         <item name="buttonBarNegativeButtonStyle">@style/Theme.Urik.Dialog.Button</item>
         <item name="buttonBarNeutralButtonStyle">@style/Theme.Urik.Dialog.Button</item>

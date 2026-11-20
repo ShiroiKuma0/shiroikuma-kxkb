@@ -55,3 +55,6 @@
 
 -repackageclasses
 -allowaccessmodification
+
+# Named only by the theme's viewInflaterClass string, which R8 cannot see.
+-keep class com.urik.keyboard.chrome.KxkbViewInflater { <init>(); }

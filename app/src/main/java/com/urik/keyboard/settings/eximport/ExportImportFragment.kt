@@ -1,5 +1,9 @@
 package com.urik.keyboard.settings.eximport
 
+import com.urik.keyboard.chrome.ChromeDialogs
+import com.urik.keyboard.chrome.ChromeIcons
+import com.urik.keyboard.chrome.Pills
+import com.urik.keyboard.chrome.ChromeColors
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -12,7 +16,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
-import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -59,13 +62,13 @@ class ExportImportFragment : Fragment() {
     private val selectedParts: MutableSet<BackupPart> =
         BackupPart.entries.filter { it.defaultSelected }.toMutableSet()
 
-    private val yellow = 0xFFFFFF00.toInt()
-    private val dim = 0xFFCCCC66.toInt()
-    private val red = 0xFFFF6666.toInt()
+    private val yellow: Int get() = ChromeColors.text
+    private val dim: Int get() = ChromeColors.note
+    private val red: Int get() = ChromeColors.delete
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val scroll = ScrollView(requireContext()).apply {
-            setBackgroundColor(0xFF000000.toInt())
+            setBackgroundColor(ChromeColors.background)
             isFillViewport = true
             clipToPadding = false
         }
@@ -102,8 +105,8 @@ class ExportImportFragment : Fragment() {
                 clipToPadding = false
                 clipChildren = false
                 background = android.graphics.drawable.GradientDrawable().apply {
-                    setColor(0xFF000000.toInt())
-                    setStroke(dp(2), yellow)
+                    setColor(ChromeColors.background)
+                    setStroke(dp(2), ChromeColors.accent)
                     cornerRadius = dp(16).toFloat()
                 }
             }
@@ -151,8 +154,8 @@ class ExportImportFragment : Fragment() {
         isFocusable = true
         setPadding(dp(12), dp(10), dp(12), dp(10))
         background = android.graphics.drawable.GradientDrawable().apply {
-            setColor(0xFF000000.toInt())
-            setStroke(dp(2), yellow)
+            setColor(ChromeColors.background)
+            setStroke(dp(2), ChromeColors.accent)
             cornerRadius = dp(10).toFloat()
         }
         setOnClickListener { editDir(path) }
@@ -189,25 +192,22 @@ class ExportImportFragment : Fragment() {
         }
     }
 
-    private fun selectAllRow(): View = checkbox(getString(R.string.export_import_select_all), bold = true).apply {
-        isChecked = selectedParts.size == BackupPart.entries.size
-        setOnClickListener {
-            if (isChecked) selectedParts.addAll(BackupPart.entries) else selectedParts.clear()
-            rebuild()
+    private fun selectAllRow(): View =
+        switchRow(getString(R.string.export_import_select_all), selectedParts.size == BackupPart.entries.size, bold = true) { on ->
+            if (on) selectedParts.addAll(BackupPart.entries) else selectedParts.clear()
+            // Posted: rebuild() replaces the very row whose switch is still reporting.
+            view?.post { rebuild() }
         }
-    }
 
-    private fun partRow(part: BackupPart): View = checkbox(getString(part.labelRes)).apply {
-        isChecked = part in selectedParts
-        setOnCheckedChangeListener { _, checked ->
-            if (checked) selectedParts.add(part) else selectedParts.remove(part)
+    private fun partRow(part: BackupPart): View =
+        switchRow(getString(part.labelRes), part in selectedParts) { on ->
+            if (on) selectedParts.add(part) else selectedParts.remove(part)
         }
-    }
 
     private fun divider(topGap: Int = 0): View = View(requireContext()).apply {
         layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(1))
             .apply { topMargin = dp(topGap) }
-        setBackgroundColor(yellow)
+        setBackgroundColor(ChromeColors.accent)
         alpha = 0.4f
     }
 
@@ -226,7 +226,7 @@ class ExportImportFragment : Fragment() {
         addView(pillButton(getString(R.string.export_import_import)) { onImport() }.also {
             (it.layoutParams as LinearLayout.LayoutParams).marginEnd = dp(8)
         })
-        addView(pillButton(getString(R.string.export_import_export)) { onExport() })
+        addView(pillButton(getString(R.string.export_import_export), main = true) { onExport() })
     }
 
     // ---- export ----------------------------------------------------------------------------------------
@@ -276,12 +276,11 @@ class ExportImportFragment : Fragment() {
         if (backups.isEmpty()) {
             flash(getString(R.string.export_import_no_backups)); return
         }
-        val names = backups.map { it.name }.toTypedArray()
-        AlertDialog.Builder(requireContext(), R.style.Theme_Urik_Dialog)
-            .setTitle(R.string.export_import_pick_backup)
-            .setItems(names) { _, which -> runImport(backups[which]) }
-            .setNegativeButton(R.string.export_import_cancel, null)
-            .show()
+        ChromeDialogs.actions(
+            requireContext(), getString(R.string.export_import_pick_backup),
+            backups.map { ChromeDialogs.Row(it.name, ChromeIcons.Icon.IMPORT, ChromeIcons.Does.CONNECT, opens = true) },
+            cancelText = getString(R.string.export_import_cancel)
+        ) { which -> runImport(backups[which]) }
     }
 
     private fun runImport(file: File) {
@@ -384,19 +383,27 @@ class ExportImportFragment : Fragment() {
             requestAllFilesAccess(); return
         }
         val subDirs = dir.listFiles { f -> f.isDirectory }?.sortedBy { it.name.lowercase() } ?: emptyList()
-        val labels = mutableListOf<String>()
+        val rows = mutableListOf<ChromeDialogs.Row>()
         val targets = mutableListOf<File?>()
-        labels.add("✓ ${getString(R.string.export_import_pick_here)}"); targets.add(null)
-        dir.parentFile?.let { labels.add(".. (${it.name.ifBlank { "/" }})"); targets.add(it) }
-        subDirs.forEach { labels.add("📁 ${it.name}"); targets.add(it) }
-        AlertDialog.Builder(requireContext(), R.style.Theme_Urik_Dialog)
-            .setTitle(dir.absolutePath)
-            .setItems(labels.toTypedArray()) { _, which ->
-                val t = targets[which]
-                if (t == null) onPick(dir) else browseForDirectory(t, onPick)
-            }
-            .setNegativeButton(R.string.export_import_cancel, null)
-            .show()
+        rows.add(
+            ChromeDialogs.Row(getString(R.string.export_import_pick_here), ChromeIcons.Icon.CHECK, ChromeIcons.Does.CONNECT)
+        )
+        targets.add(null)
+        dir.parentFile?.let {
+            rows.add(ChromeDialogs.Row(".. (${it.name.ifBlank { "/" }})", ChromeIcons.Icon.UP, opens = true))
+            targets.add(it)
+        }
+        subDirs.forEach {
+            rows.add(ChromeDialogs.Row(it.name, ChromeIcons.Icon.DIRECTORY, opens = true))
+            targets.add(it)
+        }
+        ChromeDialogs.actions(
+            requireContext(), dir.absolutePath, rows,
+            cancelText = getString(R.string.export_import_cancel)
+        ) { which ->
+            val t = targets[which]
+            if (t == null) onPick(dir) else browseForDirectory(t, onPick)
+        }
     }
 
     private fun hasAllFilesAccess(): Boolean = Environment.isExternalStorageManager()
@@ -442,45 +449,39 @@ class ExportImportFragment : Fragment() {
         ).apply { topMargin = dp(topGap) }
     }
 
-    private fun checkbox(labelText: String, bold: Boolean = false): CheckBox = CheckBox(requireContext()).apply {
-        text = labelText
-        setTextColor(yellow)
-        if (bold) setTypeface(typeface, android.graphics.Typeface.BOLD)
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
-        buttonTintList = android.content.res.ColorStateList.valueOf(yellow)
-        setPadding(dp(8), dp(7), 0, dp(7))
-    }
+    /** One part of the backup, on or off: its label, and the outlined switch at the right. The row toggles it. */
+    private fun switchRow(labelText: String, checked: Boolean, bold: Boolean = false, onChange: (Boolean) -> Unit): View =
+        LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(8), dp(3), dp(4), dp(3))
+            val sw = com.urik.keyboard.chrome.KxkbSwitch(requireContext()).apply {
+                isChecked = checked
+                setOnCheckedChangeListener { _, on -> onChange(on) }
+            }
+            addView(TextView(requireContext()).apply {
+                text = labelText
+                setTextColor(yellow)
+                if (bold) setTypeface(typeface, android.graphics.Typeface.BOLD)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            addView(sw, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { marginStart = dp(8) })
+            setOnClickListener { sw.toggle() }
+        }
 
     private fun spacer(height: Int) = View(requireContext()).apply {
         layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(height))
     }
 
-    /** An ArcaneChat-style round pill: black fill, thin accent stroke, accent text, accent ripple. */
-    private fun pillButton(text: String, onClick: () -> Unit): Button = Button(requireContext()).apply {
-        this.text = text
-        isAllCaps = false
-        setTextColor(yellow)
-        background = android.graphics.drawable.RippleDrawable(
-            android.content.res.ColorStateList.valueOf((yellow and 0x00FFFFFF) or 0x33000000),
-            makePillBg(),
-            null
-        )
-        // Explicit padding + zeroed minimums so the rounded stroke is never clipped at the view edge.
-        minHeight = 0
-        minimumHeight = 0
-        setPadding(dp(20), dp(6), dp(20), dp(6))
-        stateListAnimator = null
-        setOnClickListener { onClick() }
+    /** An outlined round pill; [main] is the one action the page is for (3 dp frame, bold). */
+    private fun pillButton(text: String, main: Boolean = false, onClick: () -> Unit): Button =
+        Pills.button(requireContext(), text, main = main, onClick = onClick).apply {
         layoutParams = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
         ).apply { topMargin = dp(8); gravity = Gravity.CENTER }
-    }
-
-    private fun makePillBg() = android.graphics.drawable.GradientDrawable().apply {
-        setColor(0xFF000000.toInt())
-        setStroke((1.5f * resources.displayMetrics.density).toInt(), yellow)
-        cornerRadius = dp(50).toFloat()
     }
 
     private fun flash(msg: String) = KxkbToast.show(requireContext(), msg)

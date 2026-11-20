@@ -1,5 +1,7 @@
 package com.urik.keyboard.settings.layoutmapper
 
+import com.urik.keyboard.chrome.Pills
+import com.urik.keyboard.chrome.ChromeColors
 import android.os.Bundle
 import android.view.Gravity
 import android.view.MenuItem
@@ -148,9 +150,7 @@ class LayoutMapperActivity : AppCompatActivity() {
                         val resetButton =
                             MaterialButton(context).apply {
                                 text = getString(R.string.layout_mapper_reset_all)
-                                setTextColor(
-                                    getThemeColor(com.google.android.material.R.attr.colorOnPrimaryContainer)
-                                )
+                                Pills.style(this, main = false, color = ChromeColors.delete)
                                 layoutParams =
                                     LinearLayout
                                         .LayoutParams(
@@ -290,9 +290,7 @@ class LayoutMapperActivity : AppCompatActivity() {
                             val removeButton =
                                 MaterialButton(context).apply {
                                     text = getString(R.string.layout_mapper_remove)
-                                    setTextColor(
-                                        getThemeColor(com.google.android.material.R.attr.colorOnPrimaryContainer)
-                                    )
+                                    Pills.style(this, main = false, color = ChromeColors.delete)
                                     setOnClickListener {
                                         viewModel.removeMapping(keyValue)
                                         bottomSheet.dismiss()
@@ -304,7 +302,7 @@ class LayoutMapperActivity : AppCompatActivity() {
                         val saveButton =
                             MaterialButton(context).apply {
                                 text = getString(R.string.layout_mapper_save)
-                                setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnPrimaryContainer))
+                                Pills.style(this, main = true)
                                 layoutParams =
                                     LinearLayout
                                         .LayoutParams(
@@ -343,6 +341,7 @@ class LayoutMapperActivity : AppCompatActivity() {
                 viewModel.clearAllMappings()
             }.setNegativeButton(android.R.string.cancel, null)
             .show()
+            .also { Pills.destructive(it) }
     }
 
     private fun observeState() {

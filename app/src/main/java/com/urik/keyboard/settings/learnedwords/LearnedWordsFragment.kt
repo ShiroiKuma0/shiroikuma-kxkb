@@ -1,5 +1,7 @@
 package com.urik.keyboard.settings.learnedwords
 
+import com.urik.keyboard.chrome.MenuPills
+import com.urik.keyboard.chrome.Pills
 import android.os.Bundle
 import android.view.GestureDetector
 import android.view.LayoutInflater
@@ -99,6 +101,7 @@ class LearnedWordsFragment : Fragment() {
             object : MenuProvider {
                 override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
                     menuInflater.inflate(R.menu.menu_learned_words, menu)
+                    MenuPills.decorate(requireContext(), menu)
                 }
 
                 override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
@@ -166,5 +169,6 @@ class LearnedWordsFragment : Fragment() {
             .setPositiveButton(android.R.string.ok) { _, _ -> viewModel.deleteAllWords() }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
+            .also { Pills.destructive(it) }
     }
 }

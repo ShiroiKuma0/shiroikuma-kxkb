@@ -178,10 +178,11 @@ object KeyboardYamlEmitter {
     private fun emitCharacter(key: JSONObject): String {
         val char = key.optString("char")
         val attrs = recombinedAttributes(key)
-        val more = key.optString("moreKeys")
+        // The long-press strip: `longPressKeys` (what the keyboard reads), else a legacy `moreKeys` string.
+        val more = longPressList(key).ifEmpty { key.optString("moreKeys").split("\n").filter { it.isNotEmpty() } }
         if (attrs == null && more.isEmpty()) return quote(char)
         val parts = mutableListOf("type: base", "spec: ${quote(char)}")
-        if (more.isNotEmpty()) parts.add("moreKeys: " + listFlow(more.split("\n").filter { it.isNotEmpty() }))
+        if (more.isNotEmpty()) parts.add("moreKeys: " + listFlow(more))
         attrs?.let { parts.add("attributes: $it") }
         return "{ " + parts.joinToString(", ") + " }"
     }
@@ -199,9 +200,13 @@ object KeyboardYamlEmitter {
         val parts = mutableListOf("type: compass")
         parts.add("primary: ${quote(primaryOf(key))}")
         emitFlickParts(key, parts)
+        longPressList(key).takeIf { it.isNotEmpty() }?.let { parts.add("longPressKeys: " + listFlow(it)) }
         recombinedAttributes(key)?.let { parts.add("attributes: $it") }
         return "{ " + parts.joinToString(", ") + " }"
     }
+
+    private fun longPressList(key: JSONObject): List<String> =
+        key.optJSONArray("longPressKeys")?.let { a -> (0 until a.length()).map { a.optString(it) } } ?: emptyList()
 
     private fun emitCluster(key: JSONObject): String {
         val parts = mutableListOf("type: cluster")

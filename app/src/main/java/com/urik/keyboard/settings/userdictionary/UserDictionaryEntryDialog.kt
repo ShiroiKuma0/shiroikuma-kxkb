@@ -1,5 +1,6 @@
 package com.urik.keyboard.settings.userdictionary
 
+import com.urik.keyboard.chrome.ChromeColors
 import android.content.Context
 import android.text.InputType
 import android.view.View
@@ -46,6 +47,7 @@ object UserDictionaryEntryDialog {
         fun label(textRes: Int, topGap: Int = 10): TextView = TextView(context).apply {
             setText(textRes)
             textSize = 12f
+            setTextColor(ChromeColors.note)
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT

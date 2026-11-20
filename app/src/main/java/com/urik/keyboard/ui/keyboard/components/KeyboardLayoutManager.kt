@@ -286,7 +286,11 @@ class KeyboardLayoutManager(
         if (labels.isEmpty()) return null
         val dims = adaptiveDimensions
         val density = context.resources.displayMetrics.density
-        val baseHintPx = 9f * density * (dims?.hintScale ?: 1f)
+        // The key's own appearance (the editor's per-key rows) scales and places its hints over the look knobs:
+        // hintScale multiplies the size, and each flick…Offset is that row's distance from the key's edge as a
+        // fraction of the key's height (top/bottom) or width (left/right).
+        val app = key.appearance
+        val baseHintPx = 9f * density * (dims?.hintScale ?: 1f) * (app?.hintScale ?: 1f)
         // Default hint colour: the key text colour, dimmed to ~70% so hints read as secondary.
         val dimmed = (getKeyTextColor(key) and 0x00FFFFFF) or 0xB4000000.toInt()
         // Resolution per row: row override -> general secondary -> renderer default.
@@ -316,7 +320,11 @@ class KeyboardLayoutManager(
             topMarginPx = dims?.hintTopMarginPx ?: pad,
             bottomMarginPx = dims?.hintBottomMarginPx ?: pad,
             leftMarginPx = dims?.hintLeftMarginPx ?: pad,
-            rightMarginPx = dims?.hintRightMarginPx ?: pad
+            rightMarginPx = dims?.hintRightMarginPx ?: pad,
+            topFrac = app?.flickTopOffset,
+            bottomFrac = app?.flickBottomOffset,
+            leftFrac = app?.flickLeftOffset,
+            rightFrac = app?.flickRightOffset
         )
     }
 
@@ -344,7 +352,8 @@ class KeyboardLayoutManager(
             ClusterMainsDrawable(
                 key.clusterMains, mainsPaint, basePx,
                 (adaptiveDimensions?.primaryOffsetXPx ?: 0).toFloat(),
-                (adaptiveDimensions?.primaryOffsetYPx ?: 0).toFloat()
+                (adaptiveDimensions?.primaryOffsetYPx ?: 0).toFloat(),
+                key.appearance
             )
         )
         val hintLabels = flickHintLabels(key).filterKeys { it != "left" && it != "right" }
@@ -374,7 +383,8 @@ class KeyboardLayoutManager(
             ColumnMainsDrawable(
                 key.clusterMains, mainsPaint, basePx,
                 (adaptiveDimensions?.primaryOffsetXPx ?: 0).toFloat(),
-                (adaptiveDimensions?.primaryOffsetYPx ?: 0).toFloat()
+                (adaptiveDimensions?.primaryOffsetYPx ?: 0).toFloat(),
+                key.appearance
             )
         )
         val hintLabels = flickHintLabels(key).filterKeys { it != "up" && it != "down" }
@@ -388,7 +398,8 @@ class KeyboardLayoutManager(
         private val paint: Paint,
         private val basePx: Float,
         private val offX: Float = 0f,
-        private val offY: Float = 0f
+        private val offY: Float = 0f,
+        private val app: KeyAppearance? = null
     ) : Drawable() {
         override fun draw(canvas: Canvas) {
             val b = bounds
@@ -398,11 +409,15 @@ class KeyboardLayoutManager(
             val fm = paint.fontMetrics
             val lineHeight = fm.descent - fm.ascent
             val total = lineHeight * mains.length
-            val cx = b.exactCenterX() + offX
+            val cx = b.exactCenterX() + offX + (app?.labelOffsetX ?: 0f) * b.width()
             // Baseline of the first (top) glyph so the whole stack is vertically centred on the key.
-            var baseline = b.exactCenterY() + offY - total / 2f - fm.ascent
+            var baseline = b.exactCenterY() + offY + (app?.labelOffsetY ?: 0f) * b.height() - total / 2f - fm.ascent
+            // The band's two ends move outwards by their own per-key fraction of the key's height.
+            val firstShift = -(app?.clusterLeftOffset ?: 0f) * b.height()
+            val lastShift = (app?.clusterRightOffset ?: 0f) * b.height()
             for (i in mains.indices) {
-                canvas.drawText(mains[i].toString(), cx, baseline, paint)
+                val shift = if (mains.length > 1 && i == 0) firstShift else if (mains.length > 1 && i == mains.lastIndex) lastShift else 0f
+                canvas.drawText(mains[i].toString(), cx, baseline + shift, paint)
                 baseline += lineHeight
             }
         }
@@ -472,7 +487,8 @@ class KeyboardLayoutManager(
         private val paint: Paint,
         private val basePx: Float,
         private val offX: Float = 0f,
-        private val offY: Float = 0f
+        private val offY: Float = 0f,
+        private val app: KeyAppearance? = null
     ) : Drawable() {
         override fun draw(canvas: Canvas) {
             val b = bounds
@@ -483,11 +499,15 @@ class KeyboardLayoutManager(
             paint.textAlign = Paint.Align.LEFT
             val advances = FloatArray(mains.length) { paint.measureText(mains[it].toString()) }
             val total = advances.sum()
-            var x = b.exactCenterX() - total / 2f + offX
+            var x = b.exactCenterX() - total / 2f + offX + (app?.labelOffsetX ?: 0f) * b.width()
             val fm = paint.fontMetrics
-            val cy = b.exactCenterY() - (fm.ascent + fm.descent) / 2f + offY
+            val cy = b.exactCenterY() - (fm.ascent + fm.descent) / 2f + offY + (app?.labelOffsetY ?: 0f) * b.height()
+            // The band's two ends move outwards by their own per-key fraction of the key's width.
+            val firstShift = -(app?.clusterLeftOffset ?: 0f) * b.width()
+            val lastShift = (app?.clusterRightOffset ?: 0f) * b.width()
             for (i in mains.indices) {
-                canvas.drawText(mains[i].toString(), x, cy, paint)
+                val shift = if (mains.length > 1 && i == 0) firstShift else if (mains.length > 1 && i == mains.lastIndex) lastShift else 0f
+                canvas.drawText(mains[i].toString(), x + shift, cy, paint)
                 x += advances[i]
             }
         }
@@ -507,17 +527,26 @@ class KeyboardLayoutManager(
         private val topMarginPx: Int,
         private val bottomMarginPx: Int,
         private val leftMarginPx: Int,
-        private val rightMarginPx: Int
+        private val rightMarginPx: Int,
+        private val topFrac: Float? = null,
+        private val bottomFrac: Float? = null,
+        private val leftFrac: Float? = null,
+        private val rightFrac: Float? = null
     ) : Drawable() {
         override fun draw(canvas: Canvas) {
             val b = bounds
             if (b.isEmpty) return
             val cx = b.exactCenterX()
-            val topY = b.top + topMarginPx + topPaint.textSize
-            val botY = (b.bottom - bottomMarginPx).toFloat()
+            // A per-key fraction of the key's own size replaces the look-knob margin of that row or column.
+            val topMargin = topFrac?.let { it * b.height() } ?: topMarginPx.toFloat()
+            val bottomMargin = bottomFrac?.let { it * b.height() } ?: bottomMarginPx.toFloat()
+            val leftMargin = leftFrac?.let { it * b.width() } ?: leftMarginPx.toFloat()
+            val rightMargin = rightFrac?.let { it * b.width() } ?: rightMarginPx.toFloat()
+            val topY = b.top + topMargin + topPaint.textSize
+            val botY = b.bottom - bottomMargin
             val midY = b.exactCenterY() + sidePaint.textSize * 0.35f
-            fun leftX(p: Paint) = b.left + leftMarginPx + p.textSize * 0.55f
-            fun rightX(p: Paint) = b.right - rightMarginPx - p.textSize * 0.55f
+            fun leftX(p: Paint) = b.left + leftMargin + p.textSize * 0.55f
+            fun rightX(p: Paint) = b.right - rightMargin - p.textSize * 0.55f
             fun t(k: String, x: Float, y: Float, p: Paint) {
                 labels[k]?.let { canvas.drawText(it, x, y, p) }
             }
@@ -1676,6 +1705,30 @@ class KeyboardLayoutManager(
                 horizontalPadding - primaryOffsetX,
                 verticalPadding - primaryOffsetY
             )
+            // The key's own label offset (fractions of ITS width and height, known only once it is laid out)
+            // rides on top of the look-knob offset. Buttons are pooled, so the previous key's listener goes first.
+            (getTag(R.id.key_label_offset_listener) as? View.OnLayoutChangeListener)
+                ?.let { removeOnLayoutChangeListener(it) }
+            val labelFx = keyAppearance(key)?.labelOffsetX ?: 0f
+            val labelFy = keyAppearance(key)?.labelOffsetY ?: 0f
+            if (labelFx != 0f || labelFy != 0f) {
+                val listener = View.OnLayoutChangeListener { v, l, t, r, b, _, _, _, _ ->
+                    val ox = primaryOffsetX + (labelFx * (r - l)).toInt()
+                    val oy = primaryOffsetY + (labelFy * (b - t)).toInt()
+                    if (v.paddingLeft != horizontalPadding + ox || v.paddingTop != verticalPadding + oy) {
+                        v.post {
+                            v.setPadding(
+                                horizontalPadding + ox, verticalPadding + oy,
+                                horizontalPadding - ox, verticalPadding - oy
+                            )
+                        }
+                    }
+                }
+                addOnLayoutChangeListener(listener)
+                setTag(R.id.key_label_offset_listener, listener)
+            } else {
+                setTag(R.id.key_label_offset_listener, null)
+            }
 
             if (key is KeyboardKey.Action &&
                 key.action in

@@ -1,5 +1,8 @@
 package com.urik.keyboard.settings.voice
 
+import com.urik.keyboard.chrome.ChromeIcons
+import com.urik.keyboard.chrome.Pills
+import com.urik.keyboard.chrome.ChromeColors
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -168,13 +171,13 @@ class VoiceCaptureFragment : Fragment() {
     private var progressBar: ProgressBar? = null
     private var stopRequested = false
 
-    private val yellow = 0xFFFFFF00.toInt()
-    private val dim = 0xFFCCCC66.toInt()
+    private val yellow: Int get() = ChromeColors.text
+    private val dim: Int get() = ChromeColors.note
 
     // The Export/import page's warn colour, for the same thing it warns about there: a directory not
     // chosen yet. Deliberately NOT one of the four settable mark colours below — those mean something about a
     // word, and a page that borrowed one would change meaning when 白い熊 re-set it.
-    private val warn = 0xFFFF6666.toInt()
+    private val warn: Int get() = ChromeColors.delete
 
     // The dictation strip's three marks, so a word means the same thing on both, plus one this page adds:
     // a colour for a word YOU corrected here (in a field you can see that in the text; in a list you
@@ -194,7 +197,7 @@ class VoiceCaptureFragment : Fragment() {
         outbox = VoiceHandoffOutbox(requireContext())
         handoff = GengoshimaHandoff(outbox)
         val scroll = ScrollView(requireContext()).apply {
-            setBackgroundColor(0xFF000000.toInt())
+            setBackgroundColor(ChromeColors.background)
             isFillViewport = true
         }
         root = LinearLayout(requireContext()).apply {
@@ -358,7 +361,7 @@ class VoiceCaptureFragment : Fragment() {
         }
         if (rows.isNotEmpty()) root.addView(markAllRow())
         if (rows.any { !it.dropped && !it.entry.isLong && !it.entry.transcribed }) {
-            root.addView(pill(getString(R.string.voice_capture_transcribe_all)) { transcribeAll() })
+            root.addView(pill(getString(R.string.voice_capture_transcribe_all), main = true, icon = ChromeIcons.Icon.MIC, does = ChromeIcons.Does.MESSAGE) { transcribeAll() })
         }
         if (rows.isEmpty()) {
             root.addView(text(getString(R.string.voice_capture_empty), 14f, dim).apply { setPadding(0, dp(16), 0, 0) })
@@ -381,8 +384,8 @@ class VoiceCaptureFragment : Fragment() {
         isFocusable = true
         setPadding(dp(12), dp(10), dp(12), dp(10))
         background = android.graphics.drawable.GradientDrawable().apply {
-            setColor(0xFF000000.toInt())
-            setStroke(dp(2), yellow)
+            setColor(ChromeColors.background)
+            setStroke(dp(2), ChromeColors.accent)
             cornerRadius = dp(10).toFloat()
         }
         val set = recordingDir?.takeIf { it.isNotBlank() }
@@ -465,13 +468,36 @@ class VoiceCaptureFragment : Fragment() {
             labels.add(".. (" + it.name.ifBlank { "/" } + ")")
             targets.add(it)
         }
+        val hasUp = labels.isNotEmpty()
         subDirs.forEach {
-            labels.add("📁 " + it.name)
+            labels.add(it.name)
             targets.add(it)
         }
-        AlertDialog.Builder(requireContext(), R.style.Theme_Urik_Dialog)
+        // The places to go, as full-width pills; the dialog's own buttons stay the decisions.
+        var dialog: AlertDialog? = null
+        val column = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(8), dp(6), dp(8), dp(2))
+        }
+        labels.forEachIndexed { i, label ->
+            val up = hasUp && i == 0
+            column.addView(
+                Pills.iconPill(
+                    requireContext(), label,
+                    if (up) ChromeIcons.Icon.UP else ChromeIcons.Icon.DIRECTORY,
+                    ChromeIcons.color(ChromeIcons.Does.VIEW), opens = true, fullWidth = true
+                ) {
+                    dialog?.dismiss()
+                    browseForDirectory(targets[i], onPick)
+                },
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = dp(3); bottomMargin = dp(3) }
+            )
+        }
+        dialog = AlertDialog.Builder(requireContext(), R.style.Theme_Urik_Dialog)
             .setTitle(dir.absolutePath)
-            .setItems(labels.toTypedArray()) { _, which -> browseForDirectory(targets[which], onPick) }
+            .setView(android.widget.ScrollView(requireContext()).apply { addView(column) })
             .setPositiveButton(R.string.export_import_pick_here) { _, _ -> onPick(dir) }
             .setNegativeButton(R.string.export_import_cancel, null)
             .show()
@@ -536,20 +562,20 @@ class VoiceCaptureFragment : Fragment() {
         orientation = LinearLayout.VERTICAL
         setPadding(0, dp(18), 0, 0)
         if (rows.any { it.sentence != null }) {
-            addView(pill(getString(R.string.voice_capture_send_all)) { sendAll() })
+            addView(pill(getString(R.string.voice_capture_send_all), main = true, icon = ChromeIcons.Icon.EXPORT, does = ChromeIcons.Does.SHARE) { sendAll() })
         }
         addView(
             LinearLayout(requireContext()).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
-                addView(pill(getString(R.string.voice_capture_close)) { closeSettings() })
+                addView(pill(getString(R.string.voice_capture_close), icon = ChromeIcons.Icon.CLOSE, does = ChromeIcons.Does.VIEW) { closeSettings() })
                 addView(
                     View(requireContext()).apply {
                         layoutParams = LinearLayout.LayoutParams(0, dp(1), 1f)
                     }
                 )
                 if (waiting > 0) {
-                    addView(pill(getString(R.string.voice_capture_resend, waiting)) { resend() })
+                    addView(pill(getString(R.string.voice_capture_resend, waiting), icon = ChromeIcons.Icon.RESET, does = ChromeIcons.Does.SHARE) { resend() })
                 }
             }
         )
@@ -601,7 +627,7 @@ class VoiceCaptureFragment : Fragment() {
         addView(if (!row.dropped && entry.isLong) longButtons(row) else buttonRow(row))
         addView(
             View(requireContext()).apply {
-                setBackgroundColor(0x66FFFF00)
+                setBackgroundColor(ChromeColors.withAlpha(ChromeColors.accent, 0.4f))
                 layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(1)).apply {
                     topMargin = dp(8)
                 }
@@ -671,7 +697,7 @@ class VoiceCaptureFragment : Fragment() {
                 LinearLayout(requireContext()).apply {
                     orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.CENTER_VERTICAL
-                    addView(pill(getString(R.string.voice_capture_undo)) { undoDrop(row) })
+                    addView(pill(getString(R.string.voice_capture_undo), main = true, icon = ChromeIcons.Icon.RESET, does = ChromeIcons.Does.CONNECT) { undoDrop(row) })
                     addView(text(getString(R.string.voice_capture_dropped), 12f, dim))
                 }
             )
@@ -683,33 +709,33 @@ class VoiceCaptureFragment : Fragment() {
         // corpus — which is exactly what [clipOf] follows.
         if (clipOf(row.entry) != null) {
             lateinit var play: Button
-            play = pill(getString(R.string.voice_corpus_play)) { togglePlay(row, play) }
+            play = pill(getString(R.string.voice_corpus_play), icon = ChromeIcons.Icon.PLAY, does = ChromeIcons.Does.CONNECT) { togglePlay(row, play) }
             controls[VoiceCaptureControls.PLAY] = play
-            controls[VoiceCaptureControls.TRANSCRIBE] = pill(transcribeLabel(row)) { transcribeOne(row) }
+            controls[VoiceCaptureControls.TRANSCRIBE] = pill(transcribeLabel(row), icon = ChromeIcons.Icon.MIC, does = ChromeIcons.Does.MESSAGE) { transcribeOne(row) }
             // Keeping the audio has nothing to do with the length of the press: a sentence worth keeping is
             // kept the same way an hour is (白い熊, 2026-10-20). Offered once — a second press would only
             // write the same recording out under a second name.
             // On an Android too old for the OGG muxer the pill is simply absent here: a long row still
             // offers it, because there the toast explains an alternative (cutting) that a sentence does not.
             if (row.entry.ogg == null && VoiceOggExport.supported) {
-                controls[VoiceCaptureControls.SAVE_OGG] = pill(getString(R.string.voice_capture_save_ogg)) {
+                controls[VoiceCaptureControls.SAVE_OGG] = pill(getString(R.string.voice_capture_save_ogg), icon = ChromeIcons.Icon.EXPORT, does = ChromeIcons.Does.SHARE) {
                     saveOgg(row)
                 }
             }
         }
-        controls[VoiceCaptureControls.EDIT] = pill(getString(R.string.voice_capture_edit)) { editSentence(row) }
+        controls[VoiceCaptureControls.EDIT] = pill(getString(R.string.voice_capture_edit), icon = ChromeIcons.Icon.EDIT, does = ChromeIcons.Does.MESSAGE) { editSentence(row) }
         if (textOf(row) != null) {
-            controls[VoiceCaptureControls.COPY] = pill(getString(R.string.voice_capture_copy)) { copySentence(row) }
-            controls[VoiceCaptureControls.SHARE] = pill(getString(R.string.voice_capture_share)) { shareSentence(row) }
+            controls[VoiceCaptureControls.COPY] = pill(getString(R.string.voice_capture_copy), icon = ChromeIcons.Icon.COPY, does = ChromeIcons.Does.SHARE) { copySentence(row) }
+            controls[VoiceCaptureControls.SHARE] = pill(getString(R.string.voice_capture_share), icon = ChromeIcons.Icon.EXPORT, does = ChromeIcons.Does.SHARE) { shareSentence(row) }
         }
-        controls[VoiceCaptureControls.DELETE] = pill(getString(R.string.voice_corpus_delete)) { confirmDrop(row) }
+        controls[VoiceCaptureControls.DELETE] = pill(getString(R.string.voice_corpus_delete), color = ChromeColors.delete, icon = ChromeIcons.Icon.DELETE, does = ChromeIcons.Does.DELETE) { confirmDrop(row) }
         addView(controlFlow(row, controls))
         if (row.sentence != null) {
             addView(
                 LinearLayout(requireContext()).apply {
                     orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.START
-                    addView(pill(getString(R.string.voice_capture_send_one)) { sendOneAndPush(row) })
+                    addView(pill(getString(R.string.voice_capture_send_one), main = true, icon = ChromeIcons.Icon.EXPORT, does = ChromeIcons.Does.SHARE) { sendOneAndPush(row) })
                 }
             )
         }
@@ -903,7 +929,7 @@ class VoiceCaptureFragment : Fragment() {
             setSelection(current.length)
             setTextColor(yellow)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
-            setBackgroundColor(0xFF000000.toInt())
+            setBackgroundColor(ChromeColors.background)
             setPadding(dp(8), dp(8), dp(8), dp(8))
             minLines = 3
             inputType = android.text.InputType.TYPE_CLASS_TEXT or
@@ -1019,7 +1045,7 @@ class VoiceCaptureFragment : Fragment() {
                 if (code == current) StyleSpan(Typeface.BOLD) else ForegroundColorSpan(dim)
             label.setSpan(mark, start, label.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
-        return pill(label) { flipLanguage(row) }
+        return pill(label, icon = ChromeIcons.Icon.GLOBE, does = ChromeIcons.Does.CONTACT) { flipLanguage(row) }
     }
 
     /**
@@ -1042,6 +1068,7 @@ class VoiceCaptureFragment : Fragment() {
             }
             .setNegativeButton(R.string.export_import_cancel, null)
             .show()
+            .also { Pills.destructive(it) }
     }
 
     private fun applyLanguage(uuid: String, target: String) {
@@ -1058,7 +1085,7 @@ class VoiceCaptureFragment : Fragment() {
         gravity = Gravity.START
         for (code in VoiceLanguages.CAPTURE_PAIR) {
             addView(
-                pill(getString(R.string.voice_capture_lang_all, VoiceLanguages.displayName(code))) {
+                pill(getString(R.string.voice_capture_lang_all, VoiceLanguages.displayName(code)), icon = ChromeIcons.Icon.GLOBE, does = ChromeIcons.Does.CONTACT) {
                     markAll(code)
                 }
             )
@@ -1090,6 +1117,7 @@ class VoiceCaptureFragment : Fragment() {
             .setPositiveButton(R.string.voice_capture_lang_again) { _, _ -> applyLanguageToAll(target) }
             .setNegativeButton(R.string.export_import_cancel, null)
             .show()
+            .also { Pills.destructive(it) }
     }
 
     private fun applyLanguageToAll(target: String) {
@@ -1145,9 +1173,9 @@ class VoiceCaptureFragment : Fragment() {
         val bar = SeekBar(requireContext()).apply {
             max = duration.toInt().coerceAtLeast(1)
             progress = playFrom[uuid] ?: 0
-            progressTintList = ColorStateList.valueOf(yellow)
-            progressBackgroundTintList = ColorStateList.valueOf(0x66FFFF00)
-            thumbTintList = ColorStateList.valueOf(yellow)
+            progressTintList = ColorStateList.valueOf(ChromeColors.accent)
+            progressBackgroundTintList = ColorStateList.valueOf(ChromeColors.withAlpha(ChromeColors.accent, 0.4f))
+            thumbTintList = ColorStateList.valueOf(ChromeColors.accent)
             setOnSeekBarChangeListener(
                 object : SeekBar.OnSeekBarChangeListener {
                     override fun onProgressChanged(view: SeekBar, value: Int, fromUser: Boolean) {
@@ -1187,20 +1215,20 @@ class VoiceCaptureFragment : Fragment() {
         controls[VoiceCaptureControls.LANGUAGE] = languagePill(row)
         if (clipOf(row.entry) != null) {
             lateinit var play: Button
-            play = pill(getString(R.string.voice_corpus_play)) { togglePlay(row, play) }
+            play = pill(getString(R.string.voice_corpus_play), icon = ChromeIcons.Icon.PLAY, does = ChromeIcons.Does.CONNECT) { togglePlay(row, play) }
             controls[VoiceCaptureControls.PLAY] = play
             if (row.entry.ogg == null) {
-                controls[VoiceCaptureControls.SAVE_OGG] = pill(getString(R.string.voice_capture_save_ogg)) {
+                controls[VoiceCaptureControls.SAVE_OGG] = pill(getString(R.string.voice_capture_save_ogg), icon = ChromeIcons.Icon.EXPORT, does = ChromeIcons.Does.SHARE) {
                     saveOgg(row)
                 }
             }
             if (row.entry.pieces <= 0) {
-                controls[VoiceCaptureControls.SPLIT] = pill(getString(R.string.voice_capture_split)) {
+                controls[VoiceCaptureControls.SPLIT] = pill(getString(R.string.voice_capture_split), main = true, icon = ChromeIcons.Icon.LAYERS, does = ChromeIcons.Does.SHARE) {
                     splitLong(row)
                 }
             }
         }
-        controls[VoiceCaptureControls.DELETE] = pill(getString(R.string.voice_corpus_delete)) { confirmDrop(row) }
+        controls[VoiceCaptureControls.DELETE] = pill(getString(R.string.voice_corpus_delete), color = ChromeColors.delete, icon = ChromeIcons.Icon.DELETE, does = ChromeIcons.Does.DELETE) { confirmDrop(row) }
         addView(controlFlow(row, controls))
     }
 
@@ -1415,7 +1443,7 @@ class VoiceCaptureFragment : Fragment() {
             setSelection(runText.length)
             setTextColor(yellow)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
-            setBackgroundColor(0xFF000000.toInt())
+            setBackgroundColor(ChromeColors.background)
             setPadding(dp(8), dp(8), dp(8), dp(8))
         }
         val content = LinearLayout(requireContext()).apply {
@@ -1430,9 +1458,9 @@ class VoiceCaptureFragment : Fragment() {
                 LinearLayout(requireContext()).apply {
                     orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.START
-                    addView(pill(getString(R.string.voice_capture_extend_left)) {})
-                    addView(pill(getString(R.string.voice_capture_extend_right)) {})
-                    if (word.autoReplaced) addView(pill(getString(R.string.voice_capture_restore)) {})
+                    addView(pill(getString(R.string.voice_capture_extend_left), icon = ChromeIcons.Icon.LEFT) {})
+                    addView(pill(getString(R.string.voice_capture_extend_right), icon = ChromeIcons.Icon.RIGHT) {})
+                    if (word.autoReplaced) addView(pill(getString(R.string.voice_capture_restore), icon = ChromeIcons.Icon.RESET, does = ChromeIcons.Does.CONNECT) {})
                 }
             )
         }
@@ -1600,6 +1628,7 @@ class VoiceCaptureFragment : Fragment() {
             }
             .setNegativeButton(R.string.export_import_cancel, null)
             .show()
+            .also { Pills.destructive(it) }
     }
 
     private fun undoDrop(row: Row) {
@@ -1665,6 +1694,7 @@ class VoiceCaptureFragment : Fragment() {
             }
             .setNegativeButton(R.string.export_import_cancel, null)
             .show()
+            .also { Pills.destructive(it) }
     }
 
     /**
@@ -1771,8 +1801,8 @@ class VoiceCaptureFragment : Fragment() {
                 isIndeterminate = false
                 max = total.coerceAtLeast(1)
                 progress = 0
-                progressTintList = ColorStateList.valueOf(yellow)
-                progressBackgroundTintList = ColorStateList.valueOf(0x66FFFF00)
+                progressTintList = ColorStateList.valueOf(ChromeColors.accent)
+                progressBackgroundTintList = ColorStateList.valueOf(ChromeColors.withAlpha(ChromeColors.accent, 0.4f))
                 layoutParams = LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT
@@ -1905,22 +1935,17 @@ class VoiceCaptureFragment : Fragment() {
         setTextSize(TypedValue.COMPLEX_UNIT_SP, sizeSp)
     }
 
-    private fun pill(label: CharSequence, onClick: () -> Unit): Button = Button(requireContext()).apply {
-        text = label
-        setTextColor(yellow)
-        isAllCaps = false
-        background = android.graphics.drawable.GradientDrawable().apply {
-            setColor(0xFF000000.toInt())
-            setStroke(dp(2), yellow)
-            cornerRadius = dp(50).toFloat()
-        }
-        minHeight = 0
-        minimumHeight = 0
-        minWidth = 0
-        minimumWidth = 0
-        setPadding(dp(16), dp(8), dp(16), dp(8))
-        stateListAnimator = null
-        setOnClickListener { onClick() }
+    /** An outlined pill: [main] is the one action its block is for, a deleting one passes the delete red. */
+    private fun pill(
+        label: CharSequence,
+        main: Boolean = false,
+        color: Int = ChromeColors.accent,
+        icon: ChromeIcons.Icon? = null,
+        does: ChromeIcons.Does = ChromeIcons.Does.VIEW,
+        onClick: () -> Unit
+    ): Button = Pills.button(
+        requireContext(), label, main = main, color = color, icon = icon, does = does, onClick = onClick
+    ).apply {
         layoutParams = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT,
             ViewGroup.LayoutParams.WRAP_CONTENT

@@ -1,5 +1,9 @@
 package com.urik.keyboard.settings.voice
 
+import com.urik.keyboard.chrome.ChromeDialogs
+import com.urik.keyboard.chrome.ChromeIcons
+import com.urik.keyboard.chrome.Pills
+import com.urik.keyboard.chrome.ChromeColors
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -11,7 +15,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
-import android.widget.CheckBox
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.ScrollView
@@ -53,10 +56,10 @@ class VoiceSettingsFragment : Fragment() {
 
     private lateinit var root: LinearLayout
 
-    private val yellow = 0xFFFFFF00.toInt()
-    private val dim = 0xFFCCCC66.toInt()
-    private val red = 0xFFFF6666.toInt()
-    private val green = 0xFF99DD66.toInt()
+    private val yellow: Int get() = ChromeColors.text
+    private val dim: Int get() = ChromeColors.note
+    private val red: Int get() = ChromeColors.delete
+    private val green: Int get() = ChromeColors[ChromeColors.Role.CONNECT]
 
     private val micPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -72,7 +75,7 @@ class VoiceSettingsFragment : Fragment() {
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val scroll = ScrollView(requireContext()).apply {
-            setBackgroundColor(0xFF000000.toInt())
+            setBackgroundColor(ChromeColors.background)
             isFillViewport = true
             clipToPadding = false
         }
@@ -112,7 +115,7 @@ class VoiceSettingsFragment : Fragment() {
             root.addView(spacer(16))
             root.addView(label(getString(R.string.voice_step1_title)))
             root.addView(caption(getString(R.string.voice_step1_text), topGap = 4))
-            root.addView(pillButton(getString(R.string.voice_step1_button)) { openModelDownload() })
+            root.addView(pillButton(getString(R.string.voice_step1_button), main = true) { openModelDownload() })
 
             // -- Step 2: import the downloaded zip from disk. --
             root.addView(spacer(16))
@@ -120,11 +123,11 @@ class VoiceSettingsFragment : Fragment() {
             root.addView(caption(getString(R.string.voice_step2_text), topGap = 4))
             if (!hasAllFilesAccess()) {
                 root.addView(caption(getString(R.string.voice_need_all_files), topGap = 8, color = red))
-                root.addView(pillButton(getString(R.string.voice_grant_all_files)) { requestAllFilesAccess() })
+                root.addView(pillButton(getString(R.string.voice_grant_all_files), main = true) { requestAllFilesAccess() })
             } else {
-                root.addView(pillButton(getString(R.string.voice_step2_button)) { pickModelZip() })
+                root.addView(pillButton(getString(R.string.voice_step2_button), main = true) { pickModelZip() })
                 if (VoiceModelStore.status(requireContext()) != VoiceModelStore.Status.MISSING) {
-                    root.addView(pillButton(getString(R.string.voice_remove_model)) { confirmRemoveModel() })
+                    root.addView(pillButton(getString(R.string.voice_remove_model), color = ChromeColors.delete) { confirmRemoveModel() })
                 }
             }
 
@@ -135,7 +138,7 @@ class VoiceSettingsFragment : Fragment() {
             if (micGranted()) {
                 root.addView(caption(getString(R.string.voice_mic_granted), topGap = 8, color = green))
             } else {
-                root.addView(pillButton(getString(R.string.voice_step3_button)) {
+                root.addView(pillButton(getString(R.string.voice_step3_button), main = true) {
                     micPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
                 })
             }
@@ -214,7 +217,7 @@ class VoiceSettingsFragment : Fragment() {
                     settings.voiceKeepAllAudio
                 ) { checked -> lifecycleScope.launch { settingsRepository.updateVoiceKeepAllAudio(checked) } })
 
-                root.addView(pillButton(getString(R.string.voice_corpus_open)) {
+                root.addView(navPill(getString(R.string.voice_corpus_open), ChromeIcons.Icon.HISTORY) {
                     parentFragmentManager.beginTransaction()
                         .replace(R.id.settings_container, VoiceCorpusFragment())
                         .addToBackStack(null)
@@ -225,7 +228,7 @@ class VoiceSettingsFragment : Fragment() {
             // Walk capture: the clips 自由作業盤 recorded outside, waiting to be transcribed and reviewed.
             // Independent of the review switch above — a walk is reviewed here whatever dictation does.
             val waiting = com.urik.keyboard.data.VoiceCaptureStore(requireContext()).entries().size
-            root.addView(pillButton(getString(R.string.voice_capture_open, waiting)) {
+            root.addView(navPill(getString(R.string.voice_capture_open, waiting), ChromeIcons.Icon.MIC) {
                 parentFragmentManager.beginTransaction()
                     .replace(R.id.settings_container, VoiceCaptureFragment())
                     .addToBackStack(null)
@@ -333,25 +336,29 @@ class VoiceSettingsFragment : Fragment() {
         val subDirs = dir.listFiles { f -> f.isDirectory }?.sortedBy { it.name.lowercase() } ?: emptyList()
         val zips = dir.listFiles { f -> f.isFile && f.name.endsWith(".zip", ignoreCase = true) }
             ?.sortedByDescending { it.lastModified() } ?: emptyList()
-        val labels = mutableListOf<String>()
+        val rows = mutableListOf<ChromeDialogs.Row>()
         val actions = mutableListOf<() -> Unit>()
         dir.parentFile?.let { parent ->
-            labels.add(".. (${parent.name.ifBlank { "/" }})")
+            rows.add(ChromeDialogs.Row(".. (${parent.name.ifBlank { "/" }})", ChromeIcons.Icon.UP, opens = true))
             actions.add { browseForZip(parent) }
         }
         zips.forEach { zip ->
-            labels.add("🗜 ${zip.name} (${zip.length() / (1024 * 1024)} MB)")
+            rows.add(
+                ChromeDialogs.Row(
+                    "${zip.name} (${zip.length() / (1024 * 1024)} MB)",
+                    ChromeIcons.Icon.IMPORT, ChromeIcons.Does.CONNECT, opens = true
+                )
+            )
             actions.add { confirmImport(zip) }
         }
         subDirs.forEach { sub ->
-            labels.add("📁 ${sub.name}")
+            rows.add(ChromeDialogs.Row(sub.name, ChromeIcons.Icon.DIRECTORY, opens = true))
             actions.add { browseForZip(sub) }
         }
-        AlertDialog.Builder(requireContext(), R.style.Theme_Urik_Dialog)
-            .setTitle(dir.absolutePath)
-            .setItems(labels.toTypedArray()) { _, which -> actions[which]() }
-            .setNegativeButton(R.string.export_import_cancel, null)
-            .show()
+        ChromeDialogs.actions(
+            requireContext(), dir.absolutePath, rows,
+            cancelText = getString(R.string.export_import_cancel)
+        ) { which -> actions[which]() }
     }
 
     private fun confirmImport(zip: File) {
@@ -501,6 +508,7 @@ class VoiceSettingsFragment : Fragment() {
             }
             .setNegativeButton(R.string.export_import_cancel, null)
             .show()
+            .also { Pills.destructive(it) }
     }
 
     // ---- step 3 / permissions --------------------------------------------------------------------------
@@ -570,16 +578,33 @@ class VoiceSettingsFragment : Fragment() {
         checked: Boolean,
         onChange: (Boolean) -> Unit
     ): View = LinearLayout(requireContext()).apply {
-        orientation = LinearLayout.VERTICAL
-        setPadding(0, dp(8), 0, 0)
-        addView(CheckBox(requireContext()).apply {
-            text = title
-            setTextColor(yellow)
-            textSize = 15f
+        // An option that is on or off is a switch row: a bold label over its dim-gold explanation, the thin
+        // rule down the left, and the outlined switch on the right. The whole row toggles it.
+        orientation = LinearLayout.HORIZONTAL
+        gravity = android.view.Gravity.CENTER_VERTICAL
+        setPadding(0, dp(2), 0, dp(2))
+        val sw = com.urik.keyboard.chrome.KxkbSwitch(requireContext()).apply {
             isChecked = checked
             setOnCheckedChangeListener { _, c -> onChange(c) }
-        })
-        addView(caption(description).apply { setPadding(dp(40), 0, 0, 0) })
+        }
+        addView(
+            View(requireContext()).apply { setBackgroundColor(com.urik.keyboard.chrome.ChromeColors.note) },
+            LinearLayout.LayoutParams(dp(2), ViewGroup.LayoutParams.MATCH_PARENT).apply { marginEnd = dp(10) }
+        )
+        addView(LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(TextView(requireContext()).apply {
+                text = title
+                setTextColor(yellow)
+                textSize = 15f
+                setTypeface(null, android.graphics.Typeface.BOLD)
+            })
+            addView(caption(description))
+        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        addView(sw, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply { marginStart = dp(8) })
+        setOnClickListener { sw.toggle() }
     }
 
     /** Title + live value + a yellow slider; persists on finger release, label updates while dragging. */
@@ -593,7 +618,7 @@ class VoiceSettingsFragment : Fragment() {
         onCommit: (Int) -> Unit
     ): View = LinearLayout(requireContext()).apply {
         orientation = LinearLayout.VERTICAL
-        setPadding(0, dp(10), 0, dp(2))
+        setPadding(0, dp(2), 0, dp(2))
         val valueView = TextView(requireContext()).apply {
             text = format(current.coerceIn(min, max))
             setTextColor(dim)
@@ -609,8 +634,8 @@ class VoiceSettingsFragment : Fragment() {
         addView(android.widget.SeekBar(requireContext()).apply {
             this.max = (max - min) / step
             progress = (current.coerceIn(min, max) - min) / step
-            progressTintList = android.content.res.ColorStateList.valueOf(yellow)
-            thumbTintList = android.content.res.ColorStateList.valueOf(yellow)
+            progressTintList = android.content.res.ColorStateList.valueOf(ChromeColors.accent)
+            thumbTintList = android.content.res.ColorStateList.valueOf(ChromeColors.accent)
             setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(sb: android.widget.SeekBar, p: Int, fromUser: Boolean) {
                     valueView.text = format(min + p * step)
@@ -628,7 +653,7 @@ class VoiceSettingsFragment : Fragment() {
     private fun valueRow(title: String, value: String, onClick: () -> Unit): View =
         LinearLayout(requireContext()).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(0, dp(10), 0, dp(2))
+            setPadding(0, dp(2), 0, dp(2))
             isClickable = true
             isFocusable = true
             setOnClickListener { onClick() }
@@ -645,24 +670,29 @@ class VoiceSettingsFragment : Fragment() {
             })
         }
 
-    private fun pillButton(text: String, onClick: () -> Unit): Button = Button(requireContext()).apply {
-        this.text = text
-        setTextColor(yellow)
-        background = android.graphics.drawable.GradientDrawable().apply {
-            setColor(0xFF000000.toInt())
-            setStroke(dp(2), yellow)
-            cornerRadius = dp(8).toFloat()
-        }
-        minHeight = 0
-        minimumHeight = 0
-        setPadding(dp(20), dp(14), dp(20), dp(14))
-        stateListAnimator = null
-        setOnClickListener { onClick() }
+    /** An outlined pill: [main] is the one action its step is for, a deleting one passes the delete red. */
+    private fun pillButton(
+        text: String,
+        main: Boolean = false,
+        color: Int = ChromeColors.accent,
+        onClick: () -> Unit
+    ): Button = Pills.button(requireContext(), text, main = main, color = color, onClick = onClick).apply {
         layoutParams = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
         ).apply { topMargin = dp(8); gravity = Gravity.CENTER }
     }
+
+    /** A pill that opens another page: its icon at the left, a › at the right. */
+    private fun navPill(text: String, icon: ChromeIcons.Icon, onClick: () -> Unit): View =
+        Pills.iconPill(
+            requireContext(), text, icon, ChromeIcons.color(ChromeIcons.Does.MESSAGE), opens = true, onClick = onClick
+        ).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(8); gravity = Gravity.CENTER }
+        }
 
     private fun flash(msg: String) = KxkbToast.show(requireContext(), msg)
 

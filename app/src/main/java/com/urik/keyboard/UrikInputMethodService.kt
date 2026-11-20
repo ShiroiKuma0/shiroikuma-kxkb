@@ -2065,6 +2065,24 @@ open class UrikInputMethodService :
             }
         )
 
+        observerJobs.add(
+            serviceScope.launch {
+                // The layout editor saved something: rebuild the board from the store, the same way a layout
+                // switch does. drop(1) skips the value the flow starts with.
+                repository.layoutEdits.drop(1).collect {
+                    if (::viewModel.isInitialized) {
+                        try {
+                            repository.cleanup()
+                            viewModel.reloadLayout()
+                            refreshLookKnobs()
+                            withContext(Dispatchers.Main) { updateSwipeKeyboard() }
+                        } catch (_: Exception) {
+                        }
+                    }
+                }
+            }
+        )
+
         observeSettings()
     }
 
@@ -3489,6 +3507,25 @@ open class UrikInputMethodService :
      * Whether [layoutId] still exists in the registry AND still belongs to [language] — a bound layout may
      * have been deleted in the Library since, or its id re-created under another language.
      */
+    /**
+     * What a binding to [layoutId] opens: the layout ACTIVE for [language] when that is the same board (the
+     * bound stock's edited copy, or another copy of it), else [layoutId] itself. Without this an app bound to
+     * a stock layout before its copy existed switched back to the unedited original on every focus — and the
+     * editor, finding the stock active again, made yet another copy each time it was opened.
+     */
+    private suspend fun boundOrActiveCopy(layoutId: String, language: String): String = withContext(Dispatchers.IO) {
+        try {
+            val active = settingsRepository.getActiveLayoutForLanguage(language) ?: return@withContext layoutId
+            if (active == layoutId) return@withContext layoutId
+            val entries = com.urik.keyboard.data.CustomLayoutStore.customEntries(this@UrikInputMethodService)
+            val activeEntry = entries.firstOrNull { it.id == active } ?: return@withContext layoutId
+            val family = com.urik.keyboard.data.CustomLayoutStore.familyOf(this@UrikInputMethodService, activeEntry)
+            if (layoutId in family) active else layoutId
+        } catch (_: Exception) {
+            layoutId
+        }
+    }
+
     private suspend fun layoutBelongsToLanguage(layoutId: String, language: String): Boolean =
         withContext(Dispatchers.IO) {
             LayoutRegistry.load(this@UrikInputMethodService).entries.any {
@@ -3524,7 +3561,10 @@ open class UrikInputMethodService :
                     ?: return@launch
                 if (language !in languageManager.activeLanguages.value) return@launch
 
-                val layoutId = bound?.second?.takeIf { layoutBelongsToLanguage(it, language) }
+                // A binding made to a stock layout follows that layout's edited copy: the copy stands in for
+                // the stock everywhere else, and an app bound before the copy existed went on opening the
+                // unedited original.
+                val layoutId = bound?.second?.let { boundOrActiveCopy(it, language) }?.takeIf { layoutBelongsToLanguage(it, language) }
                 val layoutChanged = layoutId != null &&
                     settingsRepository.getActiveLayoutForLanguage(language) != layoutId
                 if (layoutChanged) {

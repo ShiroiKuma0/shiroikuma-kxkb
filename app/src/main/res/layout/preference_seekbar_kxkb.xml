@@ -6,10 +6,17 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:minHeight="0dp"
-    android:paddingStart="72dp"
+    android:paddingStart="42dp"
     android:paddingEnd="16dp"
     android:paddingTop="2dp"
     android:paddingBottom="2dp">
+
+    <View
+        android:id="@+id/kxkb_icon"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:layout_marginEnd="10dp"
+        android:layout_marginTop="2dp" />
 
     <View
         android:id="@+id/kxkb_rule"

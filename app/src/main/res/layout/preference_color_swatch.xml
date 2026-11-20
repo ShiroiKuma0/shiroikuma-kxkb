@@ -3,5 +3,5 @@
 <View xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/color_swatch"
     android:layout_width="38dp"
-    android:layout_height="38dp"
+    android:layout_height="26dp"
     android:layout_gravity="center" />

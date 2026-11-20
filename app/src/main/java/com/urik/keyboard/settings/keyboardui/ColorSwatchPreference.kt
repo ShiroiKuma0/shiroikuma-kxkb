@@ -31,7 +31,7 @@ class ColorSwatchPreference(context: Context) : Preference(context) {
         swatch.background = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             setColor(fill)
-            setStroke((1.5f * density).toInt(), ContextCompat.getColor(context, R.color.kxkb_yellow))
+            setStroke((1.5f * density).toInt(), com.urik.keyboard.chrome.ChromeColors.accent)
             cornerRadius = 4f * density
         }
     }

@@ -25,6 +25,12 @@
         android:clickable="true"
         android:focusable="true">
 
+        <View
+            android:id="@+id/kxkb_icon"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_marginEnd="10dp" />
+
         <TextView
             android:id="@android:id/title"
             android:layout_width="wrap_content"
@@ -47,7 +53,7 @@
         android:id="@android:id/summary"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="17dp"
+        android:layout_marginStart="47dp"
         android:layout_marginTop="2dp"
         android:textColor="@color/kxkb_yellow_dim"
         android:textSize="13sp" />

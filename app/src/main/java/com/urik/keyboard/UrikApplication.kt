@@ -44,6 +44,9 @@ class UrikApplication : Application() {
         // because Room opened lazily; it now crashes at launch with UnsatisfiedLinkError.
         ErrorLogger.init(applicationContext)
         loadSqlCipher()
+        // The colour roles of the app's own pages (device-protected, so readable before first unlock too).
+        com.urik.keyboard.chrome.ChromeColors.load(applicationContext)
+        registerActivityLifecycleCallbacks(com.urik.keyboard.chrome.ChromeActivities)
 
         super.onCreate()
 

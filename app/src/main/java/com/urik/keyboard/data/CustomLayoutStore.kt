@@ -61,6 +61,27 @@ object CustomLayoutStore {
         return if (f.exists()) f.readText().takeIf { it.isNotBlank() } else null
     }
 
+    /**
+     * Every layout id that is "the same board" as [entry] for the purpose of remembering which board an app
+     * uses: the stock layout it was copied from, every other copy of that stock, and every copy carrying its
+     * name in its language (a stand-alone copy keeps no link to its origin). An app that remembered any of
+     * them should open the one that has just been activated.
+     */
+    fun familyOf(context: Context, entry: LayoutEntry): Set<String> {
+        val root = entry.derivedFrom ?: entry.id
+        val family = mutableSetOf(root, entry.id)
+        try {
+            for (e in customEntries(context)) {
+                if (e.derivedFrom == root || e.id == root || (e.lang == entry.lang && e.name == entry.name)) {
+                    family += e.id
+                    e.derivedFrom?.let { family += it }
+                }
+            }
+        } catch (_: Exception) {
+        }
+        return family
+    }
+
     /** The custom registry entries (empty if none / unreadable). */
     fun customEntries(context: Context): List<LayoutEntry> = try {
         if (!context.isUserUnlocked) return emptyList()

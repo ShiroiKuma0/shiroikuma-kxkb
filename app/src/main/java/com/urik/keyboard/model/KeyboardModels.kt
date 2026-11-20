@@ -226,8 +226,8 @@ sealed class KeyboardKey {
 /**
  * Per-key visual overrides (futokxkb's per-key appearance), all nullable = inherit from the theme / look
  * knobs. Colours are ARGB ints; scales are multipliers on the resolved size; offsets are fractions of the
- * key dimension. [color]/[fontScale]/[backgroundColor]/[borderColor] are rendered today; the offset fields
- * are carried losslessly through the codec and rendered as the editor surfaces them.
+ * key dimension. All of them are rendered: [hintScale] and the four flick offsets by the slide hints,
+ * [labelOffsetX]/[labelOffsetY] by the main label, and the two cluster offsets by a band's two ends.
  */
 data class KeyAppearance(
     val color: Int? = null,

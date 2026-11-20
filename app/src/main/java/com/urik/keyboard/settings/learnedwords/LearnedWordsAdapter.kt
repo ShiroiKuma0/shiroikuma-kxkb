@@ -1,5 +1,6 @@
 package com.urik.keyboard.settings.learnedwords
 
+import com.urik.keyboard.chrome.ChromeIcons
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -27,6 +28,14 @@ class LearnedWordsAdapter(private val onDeleteClick: (LearnedWordRow) -> Unit) :
         private val wordText: TextView = itemView.findViewById(R.id.word_text)
         private val userDictMarker: TextView = itemView.findViewById(R.id.user_dict_marker)
         private val deleteButton: ImageButton = itemView.findViewById(R.id.delete_button)
+
+        init {
+            // The delete red is a settable role, so the icon is drawn in it here rather than tinted in XML.
+            deleteButton.imageTintList = null
+            deleteButton.setImageDrawable(
+                ChromeIcons.drawable(itemView.context, ChromeIcons.Icon.DELETE, ChromeIcons.Does.DELETE)
+            )
+        }
 
         fun bind(row: LearnedWordRow) {
             wordText.text = row.word

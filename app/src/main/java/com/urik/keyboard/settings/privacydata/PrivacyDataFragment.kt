@@ -1,5 +1,7 @@
 package com.urik.keyboard.settings.privacydata
 
+import com.urik.keyboard.chrome.ChromeIcons
+import com.urik.keyboard.chrome.Pills
 import android.app.Activity
 import android.content.Intent
 import android.os.Build
@@ -131,7 +133,9 @@ class PrivacyDataFragment : PreferenceFragmentCompat() {
         screen.addPreference(clipboardPref)
 
         val clearLearnedPref =
-            Preference(context).apply {
+            com.urik.keyboard.settings.keyboardui.KxkbActionPreference(
+                context, main = false, opens = true, icon = ChromeIcons.Icon.DELETE, destructive = true
+            ).apply {
                 key = "clear_learned_words"
                 title = resources.getString(R.string.privacy_settings_clear_learned_words)
                 summary = resources.getString(R.string.privacy_settings_clear_learned_words_summary)
@@ -148,7 +152,9 @@ class PrivacyDataFragment : PreferenceFragmentCompat() {
         screen.addPreference(clearLearnedPref)
 
         val manageLearnedWordsPref =
-            Preference(context).apply {
+            com.urik.keyboard.settings.keyboardui.KxkbActionPreference(
+                context, main = false, opens = true, icon = ChromeIcons.Icon.BOOK
+            ).apply {
                 key = "manage_learned_words"
                 title = resources.getString(R.string.learned_words_manage)
                 summary = resources.getString(R.string.learned_words_manage_summary)
@@ -160,7 +166,9 @@ class PrivacyDataFragment : PreferenceFragmentCompat() {
         screen.addPreference(manageLearnedWordsPref)
 
         val exportDictionaryPref =
-            Preference(context).apply {
+            com.urik.keyboard.settings.keyboardui.KxkbActionPreference(
+                context, main = false, opens = true, icon = ChromeIcons.Icon.EXPORT, does = ChromeIcons.Does.SHARE
+            ).apply {
                 key = "export_dictionary"
                 title = resources.getString(R.string.privacy_settings_export_dictionary)
                 summary = resources.getString(R.string.privacy_settings_export_dictionary_summary)
@@ -172,7 +180,9 @@ class PrivacyDataFragment : PreferenceFragmentCompat() {
         screen.addPreference(exportDictionaryPref)
 
         val importDictionaryPref =
-            Preference(context).apply {
+            com.urik.keyboard.settings.keyboardui.KxkbActionPreference(
+                context, main = false, opens = true, icon = ChromeIcons.Icon.IMPORT, does = ChromeIcons.Does.CONNECT
+            ).apply {
                 key = "import_dictionary"
                 title = resources.getString(R.string.privacy_settings_import_dictionary)
                 summary = resources.getString(R.string.privacy_settings_import_dictionary_summary)
@@ -184,7 +194,9 @@ class PrivacyDataFragment : PreferenceFragmentCompat() {
         screen.addPreference(importDictionaryPref)
 
         val exportSettingsPref =
-            Preference(context).apply {
+            com.urik.keyboard.settings.keyboardui.KxkbActionPreference(
+                context, main = false, opens = true, icon = ChromeIcons.Icon.EXPORT, does = ChromeIcons.Does.SHARE
+            ).apply {
                 key = "export_settings"
                 title = resources.getString(R.string.privacy_settings_export_settings)
                 summary = resources.getString(R.string.privacy_settings_export_settings_summary)
@@ -196,7 +208,9 @@ class PrivacyDataFragment : PreferenceFragmentCompat() {
         screen.addPreference(exportSettingsPref)
 
         val importSettingsPref =
-            Preference(context).apply {
+            com.urik.keyboard.settings.keyboardui.KxkbActionPreference(
+                context, main = false, opens = true, icon = ChromeIcons.Icon.IMPORT, does = ChromeIcons.Does.CONNECT
+            ).apply {
                 key = "import_settings"
                 title = resources.getString(R.string.privacy_settings_import_settings)
                 summary = resources.getString(R.string.privacy_settings_import_settings_summary)
@@ -208,7 +222,9 @@ class PrivacyDataFragment : PreferenceFragmentCompat() {
         screen.addPreference(importSettingsPref)
 
         val resetPref =
-            Preference(context).apply {
+            com.urik.keyboard.settings.keyboardui.KxkbActionPreference(
+                context, main = false, opens = true, icon = ChromeIcons.Icon.RESET, destructive = true
+            ).apply {
                 key = "reset_defaults"
                 title = resources.getString(R.string.privacy_settings_reset_to_defaults)
                 summary = ""
@@ -225,7 +241,9 @@ class PrivacyDataFragment : PreferenceFragmentCompat() {
         screen.addPreference(resetPref)
 
         exportErrorLogPref =
-            Preference(context).apply {
+            com.urik.keyboard.settings.keyboardui.KxkbActionPreference(
+                context, main = false, opens = true, icon = ChromeIcons.Icon.CODE, does = ChromeIcons.Does.SHARE
+            ).apply {
                 key = "export_error_log"
                 title = resources.getString(R.string.privacy_settings_export_error_log)
                 summary = resources.getString(R.string.privacy_settings_export_error_log_summary)
@@ -303,6 +321,7 @@ class PrivacyDataFragment : PreferenceFragmentCompat() {
             .setPositiveButton(android.R.string.ok) { _, _ -> onConfirm() }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
+            .also { Pills.destructive(it) }
     }
 
     private fun launchExportPicker() {

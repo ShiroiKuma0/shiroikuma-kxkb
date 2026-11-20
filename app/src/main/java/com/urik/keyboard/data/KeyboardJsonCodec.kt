@@ -98,7 +98,15 @@ object KeyboardJsonCodec {
             "case" -> {
                 val base = parseCaseBranch(keyData.opt("normal"), currentAction)
                     ?: throw IllegalArgumentException("case key missing 'normal'")
-                val baseFlick = asFlick(base) ?: return base
+                // The width of a case key is the width of its `normal` face — that is what every bundled
+                // layout is drawn by, and the two often differ. Only where that face has none does the case's
+                // own `width` count (three bundled keys carry it there alone).
+                val caseWidth = keyData.optDouble("width", 0.0).toFloat()
+                val baseFlick = asFlick(base)?.let { if (it.width <= 0f && caseWidth > 0f) it.copy(width = caseWidth) else it }
+                    ?: return decorate(
+                        if (base is KeyboardKey.Action && base.width <= 0f && caseWidth > 0f) base.copy(width = caseWidth) else base,
+                        keyData
+                    )
                 val faces = LinkedHashMap<String, KeyboardKey.FlickKey>()
                 for (state in CASE_STATES) {
                     parseCaseBranch(keyData.opt(state), currentAction)?.let { asFlick(it) }

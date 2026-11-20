@@ -1,5 +1,6 @@
 package com.urik.keyboard.settings.userdictionary
 
+import com.urik.keyboard.chrome.ChromeIcons
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -39,6 +40,14 @@ class UserDictionaryAdapter(
         private val primary: TextView = itemView.findViewById(R.id.user_dict_primary)
         private val secondary: TextView = itemView.findViewById(R.id.user_dict_secondary)
         private val deleteButton: ImageButton = itemView.findViewById(R.id.user_dict_delete)
+
+        init {
+            // The delete red is a settable role, so the icon is drawn in it here rather than tinted in XML.
+            deleteButton.imageTintList = null
+            deleteButton.setImageDrawable(
+                ChromeIcons.drawable(itemView.context, ChromeIcons.Icon.DELETE, ChromeIcons.Does.DELETE)
+            )
+        }
 
         fun bind(row: UserDictionaryRow) {
             val ctx = itemView.context

@@ -149,4 +149,25 @@ class PerAppLayoutBindingTest {
 
         assertEquals("cs" to "cs_qwertz_5r10c", repository.getPerAppLayoutBinding("com.termux", "semi_port"))
     }
+
+    @Test
+    fun `activating an edited copy moves the apps that remembered its original`() = runTest {
+        // The 2026-11-20 fault: every app was bound to the stock GNU 15c, so the edited copy that had just been
+        // activated was switched away from on the next focus.
+        repository.setPerAppLayoutBinding("shiroikuma.memo", "semi_port", "gnu", "gnu_5r15c")
+        repository.setPerAppLayoutBinding("shiroikuma.memo", "unfolded_port", "gnu", "gnu_5r15c_copy")
+        repository.setPerAppLayoutBinding("com.termux", "folded_port", "gnu", "gnu_5r10c")
+        repository.setPerAppLayoutBinding("com.termux", "semi_port", "cs", "cs_3p2_5r9c")
+
+        val moved = repository.rebindPerAppLayouts(
+            "gnu", setOf("gnu_5r15c", "gnu_5r15c_copy", "gnu_5r15c_copy2"), "gnu_5r15c_copy2"
+        )
+
+        assertEquals(2, moved.getOrThrow())
+        assertEquals("gnu" to "gnu_5r15c_copy2", repository.getPerAppLayoutBinding("shiroikuma.memo", "semi_port"))
+        assertEquals("gnu" to "gnu_5r15c_copy2", repository.getPerAppLayoutBinding("shiroikuma.memo", "unfolded_port"))
+        // Another board of the same language, and another language, stay where they were.
+        assertEquals("gnu" to "gnu_5r10c", repository.getPerAppLayoutBinding("com.termux", "folded_port"))
+        assertEquals("cs" to "cs_3p2_5r9c", repository.getPerAppLayoutBinding("com.termux", "semi_port"))
+    }
 }

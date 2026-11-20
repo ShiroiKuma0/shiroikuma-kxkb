@@ -1,5 +1,7 @@
 package com.urik.keyboard.settings
 
+import com.urik.keyboard.chrome.ChromeIcons
+import com.urik.keyboard.chrome.ChromeColors
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -80,18 +82,8 @@ class AboutActivity : AppCompatActivity() {
                     TextView(context).apply {
                         id = R.id.about_text
                         textSize = 16f
-                        setTextColor(
-                            ContextCompat.getColor(
-                                context,
-                                R.color.content_primary
-                            )
-                        )
-                        setLinkTextColor(
-                            ContextCompat.getColor(
-                                context,
-                                R.color.light_orange
-                            )
-                        )
+                        setTextColor(ChromeColors.text)
+                        setLinkTextColor(ChromeIcons.color(ChromeIcons.Does.SHARE))
                     }
                 addView(textView)
             }

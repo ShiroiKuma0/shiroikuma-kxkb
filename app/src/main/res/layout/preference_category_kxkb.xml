@@ -1,38 +1,68 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 白い熊 kxkb settings category header: a FULL-WIDTH yellow separator line above the group (the
-     between-categories border), then a big bold yellow heading with a WORD-WIDTH yellow underline. -->
+<!-- 白い熊 kxkb settings section header: the thin full-width line between sections (kept whether the section
+     is folded or open), then a big bold heading with a rule as wide as its words, and at the row's right a
+     › while the section is folded and a ⌄ while it is open. A tap on the header folds or unfolds it. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:paddingTop="10dp"
+    android:paddingTop="8dp"
     android:paddingBottom="2dp">
 
-    <!-- Full-width hairline separator between this group and the previous one (1px = thinnest possible). -->
     <View
+        android:id="@+id/kxkb_divider"
         android:layout_width="match_parent"
         android:layout_height="1px"
         android:background="@color/kxkb_yellow" />
 
     <LinearLayout
-        android:layout_width="wrap_content"
+        android:id="@+id/kxkb_section_header"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
         android:paddingStart="36dp"
-        android:paddingTop="8dp">
+        android:paddingEnd="16dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="2dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@android:id/title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/kxkb_yellow"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <View
+                    android:id="@+id/kxkb_underline"
+                    android:layout_width="match_parent"
+                    android:layout_height="2.5dp"
+                    android:layout_marginTop="2dp"
+                    android:background="@color/kxkb_yellow" />
+            </LinearLayout>
+        </LinearLayout>
 
         <TextView
-            android:id="@android:id/title"
+            android:id="@+id/kxkb_chevron"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:paddingStart="10dp"
+            android:paddingEnd="4dp"
+            android:text="›"
             android:textColor="@color/kxkb_yellow"
-            android:textSize="20sp"
-            android:textStyle="bold" />
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="2.5dp"
-            android:layout_marginTop="2dp"
-            android:background="@color/kxkb_yellow" />
+            android:textSize="22sp"
+            android:importantForAccessibility="no" />
     </LinearLayout>
 </LinearLayout>

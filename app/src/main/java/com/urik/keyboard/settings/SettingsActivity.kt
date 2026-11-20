@@ -1,5 +1,6 @@
 package com.urik.keyboard.settings
 
+import com.urik.keyboard.chrome.ChromeIcons
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -246,6 +247,7 @@ class MainSettingsFragment : PreferenceFragmentCompat() {
         screen.addPreference(
             Preference(context).apply {
                 key = "auto_correction_category"
+                icon = ChromeIcons.drawable(context, ChromeIcons.Icon.SPARK, ChromeIcons.Does.MESSAGE, sizeDp = 24f)
                 title = resources.getString(R.string.autocorrect_settings_title)
                 summary = resources.getString(R.string.autocorrect_settings_description)
                 setOnPreferenceClickListener {
@@ -258,6 +260,7 @@ class MainSettingsFragment : PreferenceFragmentCompat() {
         screen.addPreference(
             Preference(context).apply {
                 key = "user_dictionary_category"
+                icon = ChromeIcons.drawable(context, ChromeIcons.Icon.BOOK, ChromeIcons.Does.MESSAGE, sizeDp = 24f)
                 title = resources.getString(R.string.user_dictionary_title)
                 summary = resources.getString(R.string.user_dictionary_summary)
                 setOnPreferenceClickListener {
@@ -270,6 +273,7 @@ class MainSettingsFragment : PreferenceFragmentCompat() {
         screen.addPreference(
             Preference(context).apply {
                 key = "languages_category"
+                icon = ChromeIcons.drawable(context, ChromeIcons.Icon.GLOBE, ChromeIcons.Does.CONTACT, sizeDp = 24f)
                 title = resources.getString(R.string.language_settings_title)
                 summary = resources.getString(R.string.language_settings_description)
                 setOnPreferenceClickListener {
@@ -282,6 +286,7 @@ class MainSettingsFragment : PreferenceFragmentCompat() {
         screen.addPreference(
             Preference(context).apply {
                 key = "voice_input_category"
+                icon = ChromeIcons.drawable(context, ChromeIcons.Icon.MIC, ChromeIcons.Does.MESSAGE, sizeDp = 24f)
                 title = resources.getString(R.string.voice_settings_title)
                 summary = resources.getString(R.string.voice_settings_summary)
                 setOnPreferenceClickListener {
@@ -294,6 +299,7 @@ class MainSettingsFragment : PreferenceFragmentCompat() {
         screen.addPreference(
             Preference(context).apply {
                 key = "typing_behavior_category"
+                icon = ChromeIcons.drawable(context, ChromeIcons.Icon.KEYCAP, ChromeIcons.Does.MESSAGE, sizeDp = 24f)
                 title = resources.getString(R.string.typing_settings_title)
                 summary = resources.getString(R.string.typing_settings_description)
                 setOnPreferenceClickListener {
@@ -306,6 +312,7 @@ class MainSettingsFragment : PreferenceFragmentCompat() {
         screen.addPreference(
             Preference(context).apply {
                 key = "layout_input_category"
+                icon = ChromeIcons.drawable(context, ChromeIcons.Icon.KEYBOARD, ChromeIcons.Does.CONTACT, sizeDp = 24f)
                 title = resources.getString(R.string.layout_settings_title)
                 summary = resources.getString(R.string.layout_settings_description)
                 setOnPreferenceClickListener {
@@ -318,6 +325,7 @@ class MainSettingsFragment : PreferenceFragmentCompat() {
         screen.addPreference(
             Preference(context).apply {
                 key = "appearance_category"
+                icon = ChromeIcons.drawable(context, ChromeIcons.Icon.PALETTE, ChromeIcons.Does.VIEW, sizeDp = 24f)
                 title = resources.getString(R.string.appearance_settings_title)
                 summary = resources.getString(R.string.appearance_settings_description)
                 setOnPreferenceClickListener {
@@ -330,6 +338,7 @@ class MainSettingsFragment : PreferenceFragmentCompat() {
         screen.addPreference(
             Preference(context).apply {
                 key = "keyboard_ui_category"
+                icon = ChromeIcons.drawable(context, ChromeIcons.Icon.SLIDERS, ChromeIcons.Does.VIEW, sizeDp = 24f)
                 title = resources.getString(R.string.keyboard_ui_settings_title)
                 summary = resources.getString(R.string.keyboard_ui_settings_description)
                 setOnPreferenceClickListener {
@@ -342,6 +351,7 @@ class MainSettingsFragment : PreferenceFragmentCompat() {
         screen.addPreference(
             Preference(context).apply {
                 key = "editor_category"
+                icon = ChromeIcons.drawable(context, ChromeIcons.Icon.EDIT, ChromeIcons.Does.CONTACT, sizeDp = 24f)
                 title = resources.getString(R.string.editor_settings_title)
                 summary = resources.getString(R.string.editor_settings_description)
                 setOnPreferenceClickListener {
@@ -354,6 +364,7 @@ class MainSettingsFragment : PreferenceFragmentCompat() {
         screen.addPreference(
             Preference(context).apply {
                 key = "library_category"
+                icon = ChromeIcons.drawable(context, ChromeIcons.Icon.LAYERS, ChromeIcons.Does.CONTACT, sizeDp = 24f)
                 title = resources.getString(R.string.library_settings_title)
                 summary = resources.getString(R.string.library_settings_description)
                 setOnPreferenceClickListener {
@@ -366,6 +377,7 @@ class MainSettingsFragment : PreferenceFragmentCompat() {
         screen.addPreference(
             Preference(context).apply {
                 key = "privacy_data_category"
+                icon = ChromeIcons.drawable(context, ChromeIcons.Icon.PRIVACY, ChromeIcons.Does.BLOCK, sizeDp = 24f)
                 title = resources.getString(R.string.privacy_settings_title)
                 summary = resources.getString(R.string.privacy_settings_description)
                 setOnPreferenceClickListener {
@@ -378,6 +390,7 @@ class MainSettingsFragment : PreferenceFragmentCompat() {
         screen.addPreference(
             Preference(context).apply {
                 key = "open_source_licenses"
+                icon = ChromeIcons.drawable(context, ChromeIcons.Icon.CODE, ChromeIcons.Does.VIEW, sizeDp = 24f)
                 title = resources.getString(R.string.licenses_title)
                 summary = resources.getString(R.string.licenses_description)
                 setOnPreferenceClickListener {
@@ -390,6 +403,7 @@ class MainSettingsFragment : PreferenceFragmentCompat() {
         screen.addPreference(
             Preference(context).apply {
                 key = "dictionary_attribution"
+                icon = ChromeIcons.drawable(context, ChromeIcons.Icon.INFO, ChromeIcons.Does.VIEW, sizeDp = 24f)
                 title = resources.getString(R.string.dictionary_attribution_title)
                 summary = resources.getString(R.string.dictionary_attribution_summary)
                 setOnPreferenceClickListener {

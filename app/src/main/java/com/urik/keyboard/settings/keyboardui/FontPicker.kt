@@ -1,5 +1,6 @@
 package com.urik.keyboard.settings.keyboardui
 
+import com.urik.keyboard.chrome.ChromeColors
 import android.content.Context
 import android.util.TypedValue
 import android.view.View
@@ -20,7 +21,7 @@ import com.urik.keyboard.service.KeyboardFonts
 object FontPicker {
     fun show(context: Context, current: String, onPick: (String) -> Unit, onImport: () -> Unit) {
         val fonts = KeyboardFonts.availableFonts(context)
-        val yellow = ContextCompat.getColor(context, R.color.kxkb_yellow)
+        val yellow = ChromeColors.text
         val density = context.resources.displayMetrics.density
 
         val adapter = object : BaseAdapter() {
@@ -37,7 +38,7 @@ object FontPicker {
                 tv.setTextColor(yellow)
                 tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
                 val padH = (20 * density).toInt()
-                val padV = (10 * density).toInt()
+                val padV = (6 * density).toInt()
                 tv.setPadding(padH, padV, padH, padV)
                 return tv
             }

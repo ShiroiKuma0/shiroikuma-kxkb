@@ -10,6 +10,7 @@
     <item name="theme_picker_recycler" type="id" />
     <item name="layout_mapper_toolbar" type="id" />
     <item name="key_data" type="id" />
+    <item name="key_label_offset_listener" type="id" />
     <item name="suggestion_text" type="id" />
     <item name="action_delete_word" type="id" />
 </resources>

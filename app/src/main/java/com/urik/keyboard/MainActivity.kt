@@ -1,5 +1,7 @@
 package com.urik.keyboard
 
+import com.urik.keyboard.chrome.Pills
+import com.urik.keyboard.chrome.ChromeColors
 import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
@@ -69,7 +71,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun createMainLayout(): android.widget.FrameLayout = android.widget.FrameLayout(this).apply {
-        setBackgroundColor(ContextCompat.getColor(context, R.color.surface_background))
+        setBackgroundColor(ChromeColors.background)
 
         addView(createCenteredContent())
         addView(createButtonsSection())
@@ -97,7 +99,7 @@ class MainActivity : AppCompatActivity() {
             TextView(context).apply {
                 text = context.getString(R.string.ime_label)
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 24f)
-                setTextColor(ContextCompat.getColor(context, R.color.content_primary))
+                setTextColor(ChromeColors.text)
                 gravity = Gravity.CENTER
             }
 
@@ -205,8 +207,8 @@ class MainActivity : AppCompatActivity() {
         com.google.android.material.floatingactionbutton.FloatingActionButton(this).apply {
             size = com.google.android.material.floatingactionbutton.FloatingActionButton.SIZE_MINI
             setImageDrawable(ContextCompat.getDrawable(context, R.drawable.ic_info))
-            imageTintList = ContextCompat.getColorStateList(context, R.color.content_primary)
-            backgroundTintList = ContextCompat.getColorStateList(context, R.color.key_background_character)
+            imageTintList = android.content.res.ColorStateList.valueOf(ChromeColors.accent)
+            backgroundTintList = android.content.res.ColorStateList.valueOf(ChromeColors.background)
 
             layoutParams =
                 android.widget.FrameLayout
@@ -242,10 +244,7 @@ class MainActivity : AppCompatActivity() {
                 val buttonPadding = dpToPx(16)
                 setPadding(buttonPadding, buttonPadding, buttonPadding, buttonPadding)
 
-                backgroundTintList = ContextCompat.getColorStateList(context, R.color.kxkb_black)
-                strokeColor = ContextCompat.getColorStateList(context, R.color.kxkb_yellow)
-                strokeWidth = dpToPx(2)
-                setTextColor(ContextCompat.getColor(context, R.color.kxkb_yellow))
+                Pills.style(this, main = true)
 
                 setOnClickListener {
                     openKeyboardSettings()
@@ -258,10 +257,7 @@ class MainActivity : AppCompatActivity() {
                 val buttonPadding = dpToPx(16)
                 setPadding(buttonPadding, buttonPadding, buttonPadding, buttonPadding)
 
-                backgroundTintList = ContextCompat.getColorStateList(context, R.color.kxkb_black)
-                strokeColor = ContextCompat.getColorStateList(context, R.color.kxkb_yellow)
-                strokeWidth = dpToPx(2)
-                setTextColor(ContextCompat.getColor(context, R.color.kxkb_yellow))
+                Pills.style(this, main = false)
 
                 setOnClickListener {
                     val intent = SettingsActivity.createIntent(context)
@@ -275,10 +271,7 @@ class MainActivity : AppCompatActivity() {
                 val buttonPadding = dpToPx(16)
                 setPadding(buttonPadding, buttonPadding, buttonPadding, buttonPadding)
 
-                backgroundTintList = ContextCompat.getColorStateList(context, R.color.kxkb_black)
-                strokeColor = ContextCompat.getColorStateList(context, R.color.kxkb_yellow)
-                strokeWidth = dpToPx(2)
-                setTextColor(ContextCompat.getColor(context, R.color.kxkb_yellow))
+                Pills.style(this, main = false)
 
                 setOnClickListener {
                     val intent = Intent(context, com.urik.keyboard.settings.AboutActivity::class.java)

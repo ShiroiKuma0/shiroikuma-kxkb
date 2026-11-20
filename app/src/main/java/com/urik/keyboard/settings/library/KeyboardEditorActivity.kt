@@ -19,7 +19,6 @@ import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
-import android.widget.SeekBar
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -28,6 +27,12 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.appbar.MaterialToolbar
 import com.urik.keyboard.R
+import com.urik.keyboard.chrome.ChromeColors
+import com.urik.keyboard.chrome.ChromeDialogs
+import com.urik.keyboard.chrome.ChromeIcons
+import com.urik.keyboard.chrome.KxkbSwitch
+import com.urik.keyboard.chrome.Pills
+import com.urik.keyboard.chrome.SectionIndex
 import com.urik.keyboard.data.CustomLayoutStore
 import com.urik.keyboard.data.GitArchive
 import com.urik.keyboard.data.KeyboardRepository
@@ -64,8 +69,8 @@ import org.json.JSONObject
  * losslessly, so fields the editor doesn't surface (script, per-key `shifted`, compass bindings) ride
  * through untouched. Top→bottom it is: mode tabs → a true live preview (each preview key is tappable →
  * opens the per-key [KeyEditActivity] for that key's (mode,row,col)) → a Rows section (reorder/dup/+key/
- * delete per row) → an Alt-pages section → Custom-key-width sliders → a Suggestion-bar candidates box → an
- * action row (Apply / Export YAML / Apply as new / Revert). Every committed change auto-saves to the
+ * delete per row) → an Alt-pages section → the layout-wide options → a Suggestion-bar candidates box; the
+ * pending-change bar and the layout's actions (Activate / Commit / Export YAML / Apply as new) stay pinned on top. Every committed change auto-saves to the
  * [CustomLayoutStore] and refreshes the preview (the same render path the Library uses).
  *
  * Preview-tap → (mode,row,col) mapping is reliable even though the renderer transposes column boards and
@@ -93,8 +98,31 @@ class KeyboardEditorActivity : AppCompatActivity() {
     private lateinit var previewContainer: LinearLayout
     private lateinit var rowsContainer: LinearLayout
     private lateinit var altPagesContainer: LinearLayout
-    private lateinit var widthsContainer: LinearLayout
+    private lateinit var layoutContainer: LinearLayout
     private lateinit var topBarField: EditText
+    /** Cancel and Activate as one unit, so a line break never parts them. */
+    private lateinit var pendingPair: View
+
+    /**
+     * The layout as it stood when the editor was opened or Apply was last pressed. Every edit here is
+     * auto-saved (the keyboard shows it at once and a killed process loses nothing), so THIS is what Cancel
+     * writes back. Kept in a cache file as well: folding the phone recreates the activity, and that must not
+     * move the point Cancel returns to.
+     */
+    private var baseline: String = ""
+    private var dirty = false
+    private var restoredInstance = false
+
+    /** The stock layout this session copied on opening (null when an existing copy is being edited). */
+    private var createdFrom: String? = null
+
+    /** Activate was pressed: the copy stays whatever the comparison with the baseline says. */
+    private var activated = false
+    private var exiting = false
+
+    /** True while [renderTopBar] fills the candidates box, so its watcher does not read that as typing. */
+    private var bindingTopBar = false
+    private var topBarPending = false
 
     private val layoutManager by lazy {
         KeyboardLayoutManager(
@@ -111,8 +139,10 @@ class KeyboardEditorActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.statusBarColor = Color.BLACK
-        window.navigationBarColor = Color.BLACK
+        window.statusBarColor = ChromeColors.background
+        window.navigationBarColor = ChromeColors.background
+        restoredInstance = savedInstanceState != null
+        createdFrom = savedInstanceState?.getString(STATE_CREATED_FROM)
         if (intent.getBooleanExtra(EXTRA_EDIT_ACTIVE, false)) {
             // "Edit active layout": resolve (and, for a stock layout, duplicate into an editable copy) the
             // currently active layout, then run the normal editor setup on the resolved entry. Settings reads
@@ -169,6 +199,7 @@ class KeyboardEditorActivity : AppCompatActivity() {
             val newEntry = baseEntry.copy(id = newId, derivedFrom = activeId)
             CustomLayoutStore.saveLayout(this, newEntry, raw)
             settingsRepository.setActiveLayoutForLanguage(lang, newId)
+            createdFrom = activeId
             newEntry
         }
         if (!setupEditor(targetEntry)) finish()
@@ -181,6 +212,12 @@ class KeyboardEditorActivity : AppCompatActivity() {
         if (loaded == null || !loaded.has("modes")) return false
         working = loaded
         mode = modesPresent().firstOrNull() ?: "letters"
+        val kept = if (restoredInstance) runCatching { baselineFile().readText() }.getOrNull() else null
+        if (kept != null && runCatching { JSONObject(kept).has("modes") }.getOrDefault(false)) {
+            baseline = kept
+        } else {
+            setBaseline(working)
+        }
 
         setContentView(buildRoot())
         renderAll()
@@ -202,13 +239,101 @@ class KeyboardEditorActivity : AppCompatActivity() {
         renderAll()
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        createdFrom?.let { outState.putString(STATE_CREATED_FROM, it) }
+    }
+
+    /**
+     * Leaving the editor settles which layout the keyboard uses (白い熊, 2026-11-20):
+     *  - a stock layout was opened and CHANGED → its copy replaces the stock everywhere: it is the active
+     *    layout of its language, and every app that remembered the stock (or another copy of it) now opens it;
+     *  - a stock layout was opened and NOT changed → the copy made on opening is removed again and the stock
+     *    stays, so merely looking never leaves a copy behind;
+     *  - an existing copy that is the active layout was edited → the apps follow it the same way.
+     */
+    override fun finish() {
+        if (exiting || !built) {
+            super.finish()
+            return
+        }
+        exiting = true
+        lifecycleScope.launch {
+            try {
+                settleOnExit()
+            } catch (_: Exception) {
+            }
+            super.finish()
+        }
+    }
+
+    private suspend fun settleOnExit() {
+        if (topBarPending) commitTopBar()
+        val origin = createdFrom
+        val changed = runCatching {
+            EditorChrome.comparable(working) != EditorChrome.comparable(JSONObject(baseline))
+        }.getOrDefault(true)
+        if (origin != null && !changed && !activated) {
+            CustomLayoutStore.deleteLayout(this, entry.id)
+            settingsRepository.setActiveLayoutForLanguage(entry.lang, origin)
+            settingsRepository.rebindPerAppLayouts(entry.lang, setOf(entry.id), origin)
+        } else if (settingsRepository.getActiveLayoutForLanguage(entry.lang) == entry.id) {
+            val family = withContext(Dispatchers.IO) { CustomLayoutStore.familyOf(this@KeyboardEditorActivity, entry) }
+            settingsRepository.rebindPerAppLayouts(entry.lang, family, entry.id)
+        }
+        keyboardRepository.invalidateLayoutCache()
+    }
+
+    /** The candidates box saves on focus loss; leaving the screen must not depend on that arriving. */
+    override fun onPause() {
+        if (built && topBarPending) commitTopBar()
+        super.onPause()
+    }
+
     private fun renderAll() {
         renderModeTabs()
         renderRows()
         renderAltPages()
-        renderWidths()
+        renderLayoutOptions()
         renderTopBar()
         refreshPreview()
+        updateDirty()
+    }
+
+    // ---- pending changes (Apply / Cancel) ---------------------------------------------------------
+
+    private fun baselineFile(): File = File(cacheDir, "editor_baseline_${entry.id}.json")
+
+    private fun setBaseline(json: JSONObject) {
+        baseline = json.toString()
+        runCatching { baselineFile().writeText(baseline) }
+    }
+
+    /** Show the Apply/Cancel bar exactly while the layout differs from [baseline]. */
+    private fun updateDirty() {
+        dirty = runCatching {
+            // What a key page applied counts as a change here too; merely having OPENED a key (which stores
+            // it in the editor's long form) does not — hence the comparison by meaning, not by spelling.
+            EditorChrome.comparable(working) != EditorChrome.comparable(JSONObject(baseline))
+        }.getOrDefault(false)
+        if (::pendingPair.isInitialized) pendingPair.visibility = if (dirty) View.VISIBLE else View.GONE
+    }
+
+    /** Write the layout back as it stood at [baseline] — every change made on this screen since. */
+    private fun cancelChanges() {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.editor_cancel))
+            .setMessage(getString(R.string.editor_cancel_confirm))
+            .setPositiveButton(getString(R.string.editor_cancel_discard)) { _, _ ->
+                val back = runCatching { JSONObject(baseline) }.getOrNull() ?: return@setPositiveButton
+                working = back
+                topBarPending = false
+                if (mode !in modesPresent()) mode = modesPresent().firstOrNull() ?: "letters"
+                commit()
+            }
+            .setNegativeButton(getString(R.string.editor_cancel_keep), null)
+            .show()
+            .also { Pills.destructive(it) }
     }
 
     // ---- UI scaffold ----------------------------------------------------------------------------
@@ -232,10 +357,10 @@ class KeyboardEditorActivity : AppCompatActivity() {
         }
         rowsContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         altPagesContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        widthsContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        layoutContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         topBarField = EditText(this).apply {
             setTextColor(YELLOW)
-            setHintTextColor(0x80FFFF00.toInt())
+            setHintTextColor(ChromeColors.note)
             hint = getString(R.string.editor_topbar_hint)
             inputType = android.text.InputType.TYPE_CLASS_TEXT or
                 android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
@@ -243,6 +368,16 @@ class KeyboardEditorActivity : AppCompatActivity() {
             maxLines = 8
         }
 
+        topBarField.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                if (bindingTopBar) return
+                topBarPending = true
+                readTopBarIntoWorking()
+                updateDirty()
+            }
+        })
         val scrollInner = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(10), dp(8), dp(10), dp(16))
@@ -259,11 +394,10 @@ class KeyboardEditorActivity : AppCompatActivity() {
             })
             addView(sectionLabel(getString(R.string.editor_section_alt_pages)))
             addView(altPagesContainer)
-            addView(sectionLabel(getString(R.string.editor_section_widths)))
-            addView(widthsContainer)
+            addView(sectionLabel(getString(R.string.editor_section_layout)))
+            addView(layoutContainer)
             addView(sectionLabel(getString(R.string.editor_section_topbar)))
             addView(topBarField)
-            addView(buildActionRow())
         }
         val scroll = ScrollView(this).apply {
             isFillViewport = true
@@ -273,8 +407,12 @@ class KeyboardEditorActivity : AppCompatActivity() {
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.BLACK)
+            setBackgroundColor(ChromeColors.background)
             addView(toolbar)
+            // Pinned above the scroll, in ONE row: every button together on the left — Cancel first while a
+            // change waits, then the layout's actions — and Apply alone at the right end, always the rightmost
+            // (白い熊, 2026-11-20). Cancel and Apply are there only while a change is waiting.
+            addView(buildActionRow())
             addView(modeTabs)
             addView(scroll)
         }
@@ -287,25 +425,34 @@ class KeyboardEditorActivity : AppCompatActivity() {
     }
 
     private fun buildActionRow(): View {
-        val bar = LinearLayout(this).apply {
+        // Every button of the page next to the other, from the left, wrapping onto a second line on a narrow
+        // screen so none is ever out of sight. Cancel and Activate come last and only while a change waits;
+        // Activate is the rightmost of them all (白い熊, 2026-11-20).
+        val bar = SectionIndex.Flow(this, dp(6)).apply { setPadding(dp(8), dp(3), dp(8), dp(3)) }
+        fun add(textRes: Int, icon: ChromeIcons.Icon, does: ChromeIcons.Does, main: Boolean, opens: Boolean, onClick: () -> Unit) {
+            bar.addView(
+                Pills.iconPill(this, getString(textRes), icon, ChromeIcons.color(does), main = main, opens = opens, onClick = onClick)
+            )
+        }
+        add(R.string.editor_commit, ChromeIcons.Icon.BRANCH, ChromeIcons.Does.SHARE, main = false, opens = true) { promptCommit() }
+        add(R.string.editor_export_yaml, ChromeIcons.Icon.CODE, ChromeIcons.Does.SHARE, main = false, opens = true) { exportYaml() }
+        add(R.string.editor_apply_as_new, ChromeIcons.Icon.COPY, ChromeIcons.Does.SHARE, main = false, opens = false) { applyAsNew() }
+        // On this page the preferred button is Activate: it accepts the changes, makes the layout the active
+        // one for its language and leaves the editor. The two wrap to the next line TOGETHER, Cancel always
+        // at Activate's left.
+        pendingPair = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.START
-            setPadding(0, dp(16), 0, 0)
+            gravity = Gravity.CENTER_VERTICAL
+            addView(EditorChrome.cancelPill(this@KeyboardEditorActivity, getString(R.string.editor_cancel)) { cancelChanges() })
+            addView(
+                EditorChrome.applyPill(this@KeyboardEditorActivity, getString(R.string.editor_apply_active)) { applyActive() },
+                LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+                    .apply { marginStart = dp(6) }
+            )
+            visibility = View.GONE
         }
-        bar.addView(pillFilled(getString(R.string.editor_apply_active)) { applyActive() })
-        bar.addView(pill(getString(R.string.editor_commit)) { promptCommit() }
-            .apply { (layoutParams as LinearLayout.LayoutParams).marginStart = dp(6) })
-        bar.addView(pill(getString(R.string.editor_export_yaml)) { exportYaml() }
-            .apply { (layoutParams as LinearLayout.LayoutParams).marginStart = dp(6) })
-        bar.addView(pill(getString(R.string.editor_apply_as_new)) { applyAsNew() }
-            .apply { (layoutParams as LinearLayout.LayoutParams).marginStart = dp(6) })
-        bar.addView(pill(getString(R.string.editor_revert)) { revert() }
-            .apply { (layoutParams as LinearLayout.LayoutParams).marginStart = dp(6) })
-        // Wrap so the action pills can flow/scroll on narrow screens.
-        return android.widget.HorizontalScrollView(this).apply {
-            isHorizontalScrollBarEnabled = false
-            addView(bar)
-        }
+        bar.addView(pendingPair)
+        return bar
     }
 
     private fun renderModeTabs() {
@@ -315,8 +462,8 @@ class KeyboardEditorActivity : AppCompatActivity() {
             modeTabs.addView(
                 Button(this).apply {
                     text = modeLabel(m)
-                    setTextColor(if (selected) Color.BLACK else YELLOW)
-                    background = pillBg(filled = selected)
+                    Pills.style(this, main = selected, small = true)
+                    background = Pills.background(this@KeyboardEditorActivity, ChromeColors.accent, main = selected, selected = selected)
                     layoutParams = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
                     ).apply { marginEnd = dp(6) }
@@ -430,6 +577,7 @@ class KeyboardEditorActivity : AppCompatActivity() {
      * and re-renders when we come back.
      */
     private fun editKey(r: Int, c: Int) {
+        if (topBarPending) commitTopBar()
         startActivity(KeyEditActivity.intent(this, entry, mode, r, c))
     }
 
@@ -463,8 +611,7 @@ class KeyboardEditorActivity : AppCompatActivity() {
         })
         controls.addView(smallPill(getString(R.string.editor_row_dup)) { dupRow(r) })
         controls.addView(smallPill(getString(R.string.editor_row_add_key)) { addKey(r) })
-        controls.addView(smallPill(getString(R.string.editor_row_delete)) { deleteRow(r) }
-            .apply { setTextColor(RED); background = pillBg(filled = false, stroke = RED) })
+        controls.addView(smallPill(getString(R.string.editor_row_delete), RED) { deleteRow(r) })
         header.addView(controls)
 
         return LinearLayout(this).apply {
@@ -557,15 +704,21 @@ class KeyboardEditorActivity : AppCompatActivity() {
         }
         val whatItems = (presetLabels + cloneLabels).toTypedArray()
 
-        AlertDialog.Builder(this, R.style.Theme_Urik_Dialog)
-            .setTitle(getString(if (isColumn) R.string.editor_add_column else R.string.editor_add_row))
-            .setItems(whatItems) { _, which ->
-                showPositionDialog(isColumn, count) { pos ->
-                    if (isColumn) insertColumn(pos, which) else insertRow(pos, which)
-                }
+        val rows = whatItems.mapIndexed { i, label ->
+            // A preset adds something new (green); a clone copies what is there (orange).
+            if (i < presetCount) {
+                ChromeDialogs.Row(label, ChromeIcons.Icon.ADD, ChromeIcons.Does.CONNECT, opens = true)
+            } else {
+                ChromeDialogs.Row(label, ChromeIcons.Icon.COPY, ChromeIcons.Does.SHARE, opens = true)
             }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+        }
+        ChromeDialogs.actions(
+            this, getString(if (isColumn) R.string.editor_add_column else R.string.editor_add_row), rows
+        ) { which ->
+            showPositionDialog(isColumn, count) { pos ->
+                if (isColumn) insertColumn(pos, which) else insertRow(pos, which)
+            }
+        }
     }
 
     private fun showPositionDialog(isColumn: Boolean, count: Int, onPick: (Int) -> Unit) {
@@ -576,11 +729,10 @@ class KeyboardEditorActivity : AppCompatActivity() {
                 else -> getString(if (isColumn) R.string.editor_pos_after_col else R.string.editor_pos_after_row, i)
             }
         }.toTypedArray()
-        AlertDialog.Builder(this, R.style.Theme_Urik_Dialog)
-            .setTitle(getString(R.string.editor_insert_where))
-            .setItems(labels) { _, pos -> onPick(pos) }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+        ChromeDialogs.choices(
+            this, getString(R.string.editor_insert_where), labels.toList(),
+            if (isColumn) ChromeIcons.Icon.RIGHT else ChromeIcons.Icon.DOWN
+        ) { pos -> onPick(pos) }
     }
 
     /** [which] < preset count → that preset; otherwise clone the (which − presetCount)-th existing row. */
@@ -651,8 +803,7 @@ class KeyboardEditorActivity : AppCompatActivity() {
             })
             // "letters" is the base page and always stays; alt pages can be removed.
             if (m != "letters" && present.size > 1) {
-                row.addView(smallPill(getString(R.string.editor_alt_page_remove, modeLabel(m))) { removeAltPage(m) }
-                    .apply { setTextColor(RED); background = pillBg(filled = false, stroke = RED) })
+                row.addView(smallPill(getString(R.string.editor_alt_page_remove, modeLabel(m)), RED) { confirmRemoveAltPage(m) })
             }
             altPagesContainer.addView(row)
         }
@@ -668,10 +819,10 @@ class KeyboardEditorActivity : AppCompatActivity() {
 
     private fun addAltPageMenu(addable: List<String>) {
         val labels = addable.map { modeLabel(it) }.toTypedArray()
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.editor_alt_page_add))
-            .setItems(labels) { _, which -> addAltPage(addable[which]) }
-            .show()
+        ChromeDialogs.choices(
+            this, getString(R.string.editor_alt_page_add), labels.toList(), ChromeIcons.Icon.LAYERS,
+            ChromeIcons.Does.CONNECT
+        ) { which -> addAltPage(addable[which]) }
     }
 
     private fun addAltPage(m: String) {
@@ -682,58 +833,66 @@ class KeyboardEditorActivity : AppCompatActivity() {
         commit()
     }
 
+    /** A whole page of keys goes with one tap, so it asks first. */
+    private fun confirmRemoveAltPage(m: String) {
+        AlertDialog.Builder(this, R.style.Theme_Urik_Dialog)
+            .setTitle(getString(R.string.editor_alt_page_remove, modeLabel(m)))
+            .setMessage(getString(R.string.editor_remove_page_confirm, modeLabel(m)))
+            .setPositiveButton(getString(R.string.editor_alt_page_remove, modeLabel(m))) { _, _ -> removeAltPage(m) }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+            .also { Pills.destructive(it) }
+    }
+
     private fun removeAltPage(m: String) {
         working.getJSONObject("modes").remove(m)
         if (mode == m) mode = modesPresent().firstOrNull() ?: "letters"
         commit()
     }
 
-    // ---- Custom key widths ----------------------------------------------------------------------
+    // ---- Layout-wide options -------------------------------------------------------------------
 
-    private fun renderWidths() {
-        widthsContainer.removeAllViews()
-        val ow = working.optJSONObject("overrideWidths") ?: JSONObject().also { working.put("overrideWidths", it) }
-        for (i in 1..4) {
-            val key = "Custom$i"
-            val frac = if (ow.has(key)) ow.optDouble(key, DEFAULT_WIDTH) else DEFAULT_WIDTH
-            widthsContainer.addView(widthSlider(key, frac))
+    /**
+     * What belongs to the layout as a whole. Today that is one switch: whether compass and cluster keys show
+     * their slide characters at rest (`showFlickHints`, which the keyboard reads when it loads the layout).
+     */
+    private fun renderLayoutOptions() {
+        layoutContainer.removeAllViews()
+        val sw = KxkbSwitch(this).apply {
+            isChecked = working.optBoolean("showFlickHints", false)
+            setOnCheckedChangeListener { _, on ->
+                working.put("showFlickHints", on)
+                // Posted: commit() rebuilds this very row.
+                layoutContainer.post { commit() }
+            }
         }
-    }
-
-    /** A labelled slider for one Custom width fraction (0.02–1.0); writing commits and re-renders preview. */
-    private fun widthSlider(key: String, initial: Double): View {
-        val container = LinearLayout(this).apply {
+        val texts = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(0, dp(4), 0, dp(4))
-        }
-        val caption = TextView(this).apply {
-            setTextColor(YELLOW)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-        }
-        fun captionText(frac: Double) {
-            caption.text = "$key  ${"%.2f".format(frac)}"
-        }
-        captionText(initial)
-        val seek = SeekBar(this).apply {
-            max = 100
-            progress = (initial * 100).toInt().coerceIn(MIN_WIDTH_PCT, 100)
-            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(sb: SeekBar?, p: Int, fromUser: Boolean) {
-                    captionText(p.coerceAtLeast(MIN_WIDTH_PCT) / 100.0)
-                }
-                override fun onStartTrackingTouch(sb: SeekBar?) {}
-                override fun onStopTrackingTouch(sb: SeekBar?) {
-                    val frac = sb!!.progress.coerceAtLeast(MIN_WIDTH_PCT) / 100.0
-                    val ow = working.optJSONObject("overrideWidths")
-                        ?: JSONObject().also { working.put("overrideWidths", it) }
-                    ow.put(key, frac)
-                    commit()
-                }
+            addView(TextView(this@KeyboardEditorActivity).apply {
+                text = getString(R.string.editor_flick_hints)
+                setTextColor(YELLOW)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+                setTypeface(null, android.graphics.Typeface.BOLD)
+            })
+            addView(TextView(this@KeyboardEditorActivity).apply {
+                text = getString(R.string.editor_flick_hints_summary)
+                setTextColor(ChromeColors.note)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
             })
         }
-        container.addView(caption)
-        container.addView(seek)
-        return container
+        layoutContainer.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(2), 0, dp(2))
+            // The thin dim-gold rule of a row that carries an explanation.
+            addView(
+                View(this@KeyboardEditorActivity).apply { setBackgroundColor(ChromeColors.note) },
+                LinearLayout.LayoutParams(dp(2), ViewGroup.LayoutParams.MATCH_PARENT).apply { marginEnd = dp(10) }
+            )
+            addView(texts, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            addView(sw)
+            setOnClickListener { sw.toggle() }
+        })
     }
 
     // ---- Suggestion-bar candidates --------------------------------------------------------------
@@ -741,26 +900,45 @@ class KeyboardEditorActivity : AppCompatActivity() {
     private fun renderTopBar() {
         val arr = working.optJSONArray("topBar")
         val text = if (arr == null) "" else (0 until arr.length()).joinToString("\n") { arr.optString(it) }
+        bindingTopBar = true
         topBarField.setText(text)
+        bindingTopBar = false
         // Commit on focus loss (a passive bind that doesn't fight typing).
         topBarField.setOnFocusChangeListener { _, hasFocus -> if (!hasFocus) commitTopBar() }
     }
 
-    private fun commitTopBar() {
+    private fun readTopBarIntoWorking() {
         val lines = topBarField.text.toString().split("\n").map { it.trim() }.filter { it.isNotEmpty() }
         if (lines.isEmpty()) working.remove("topBar") else working.put("topBar", JSONArray(lines))
+    }
+
+    private fun commitTopBar() {
+        readTopBarIntoWorking()
+        topBarPending = false
         CustomLayoutStore.saveLayout(this, entry, working)
         keyboardRepository.invalidateLayoutCache()
+        updateDirty()
     }
 
     // ---- Action row ------------------------------------------------------------------------------
 
-    /** The editor already auto-saves; Apply just (re-)activates this layout for its language and confirms. */
+    /**
+     * Accept everything changed here (it is saved already), make this layout the active one for its language,
+     * and leave the editor.
+     */
     private fun applyActive() {
         commitTopBar()
+        activated = true
+        setBaseline(working)
+        updateDirty()
         lifecycleScope.launch {
             settingsRepository.setActiveLayoutForLanguage(entry.lang, entry.id)
+            // Every app that remembered this board's original, or another copy of it, now opens this one.
+            val family = withContext(Dispatchers.IO) { CustomLayoutStore.familyOf(this@KeyboardEditorActivity, entry) }
+            settingsRepository.rebindPerAppLayouts(entry.lang, family, entry.id)
+            keyboardRepository.invalidateLayoutCache()
             flash(getString(R.string.editor_applied_toast, entry.name))
+            finish()
         }
     }
 
@@ -897,22 +1075,6 @@ class KeyboardEditorActivity : AppCompatActivity() {
         flash(getString(R.string.editor_applied_new_toast, newEntry.name))
     }
 
-    /** Discard working edits: reload from the store/asset of THIS id and re-render. */
-    private fun revert() {
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.editor_revert))
-            .setMessage(getString(R.string.editor_revert_confirm))
-            .setPositiveButton(getString(R.string.editor_revert)) { _, _ ->
-                val reloaded = CustomLayoutStore.rawJson(this, entry.id) ?: return@setPositiveButton
-                working = reloaded
-                if (mode !in modesPresent()) mode = modesPresent().firstOrNull() ?: "letters"
-                renderAll()
-                flash(getString(R.string.editor_reverted_toast))
-            }
-            .setNegativeButton(getString(R.string.editor_cancel), null)
-            .show()
-    }
-
     // ---- persistence ----------------------------------------------------------------------------
 
     /** Auto-save the working JSON to the custom store, drop stale caches, and re-render everything. */
@@ -988,62 +1150,29 @@ class KeyboardEditorActivity : AppCompatActivity() {
 
     private fun captionView(text: String): TextView = TextView(this).apply {
         this.text = text
-        setTextColor(0xC0FFFF00.toInt())
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+        setTextColor(ChromeColors.note)
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
         setPadding(dp(2), dp(4), 0, dp(4))
     }
 
-    private fun sectionLabel(text: String): TextView = TextView(this).apply {
-        this.text = text
-        setTextColor(YELLOW)
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
-        setPadding(0, dp(18), 0, dp(4))
-    }
+    private fun sectionLabel(text: String): View = EditorChrome.heading(this, text)
 
-    private fun pill(text: String, onClick: () -> Unit): Button = Button(this).apply {
-        this.text = text
-        setTextColor(YELLOW)
-        background = pillBg(filled = false)
-        layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
-        )
-        setOnClickListener { onClick() }
-    }
-
-    private fun pillFilled(text: String, onClick: () -> Unit): Button = pill(text, onClick).apply {
-        setTextColor(Color.BLACK)
-        background = pillBg(filled = true)
-    }
+    private fun pill(text: String, onClick: () -> Unit): Button =
+        Pills.button(this, text, main = false, onClick = onClick)
 
     /** A compact pill for the dense per-row / per-page control clusters. */
-    private fun smallPill(text: String, onClick: () -> Unit): Button = Button(this).apply {
-        this.text = text
-        setTextColor(YELLOW)
-        background = pillBg(filled = false)
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
-        minWidth = dp(36)
-        minimumWidth = dp(36)
-        setPadding(dp(6), dp(2), dp(6), dp(2))
-        layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
-        ).apply { marginStart = dp(3) }
-        setOnClickListener { onClick() }
-    }
-
-    private fun pillBg(filled: Boolean, stroke: Int = YELLOW) =
-        android.graphics.drawable.GradientDrawable().apply {
-            setColor(if (filled) YELLOW else Color.BLACK)
-            setStroke(dp(2), stroke)
-            cornerRadius = dp(4).toFloat()
+    private fun smallPill(text: String, color: Int = YELLOW, onClick: () -> Unit): Button =
+        Pills.button(this, text, main = false, color = color, small = true, onClick = onClick).apply {
+            minWidth = dp(34)
+            minimumWidth = dp(34)
+            (layoutParams as LinearLayout.LayoutParams).marginStart = dp(4)
         }
 
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
 
     companion object {
-        private const val YELLOW = 0xFFFFFF00.toInt()
-        private const val RED = 0xFFFF5555.toInt()
-        private const val DEFAULT_WIDTH = 0.1
-        private const val MIN_WIDTH_PCT = 2
+        private val YELLOW: Int get() = ChromeColors.text
+        private val RED: Int get() = ChromeColors.delete
 
         private const val EXTRA_ID = "layout_id"
         private const val EXTRA_LANG = "layout_lang"
@@ -1051,6 +1180,7 @@ class KeyboardEditorActivity : AppCompatActivity() {
         private const val EXTRA_KIND = "layout_kind"
         private const val EXTRA_WIDTH = "layout_width"
         private const val EXTRA_EDIT_ACTIVE = "edit_active"
+        private const val STATE_CREATED_FROM = "created_from"
 
         private val MODE_ORDER = listOf("letters", "numbers", "symbols", "symbols_secondary", "numpad")
 

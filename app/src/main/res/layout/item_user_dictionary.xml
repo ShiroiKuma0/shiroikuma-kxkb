@@ -7,10 +7,9 @@
     android:clickable="true"
     android:focusable="true"
     android:gravity="center_vertical"
-    android:minHeight="48dp"
     android:orientation="horizontal"
     android:paddingHorizontal="16dp"
-    android:paddingVertical="4dp">
+    android:paddingVertical="2dp">
 
     <LinearLayout
         android:layout_width="0dp"
@@ -39,8 +38,8 @@
 
     <ImageButton
         android:id="@+id/user_dict_delete"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
+        android:layout_width="40dp"
+        android:layout_height="36dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:contentDescription="@string/remove_confirm"
         android:src="@drawable/ic_delete"

@@ -15,8 +15,6 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
-import android.widget.Spinner
-import android.widget.Switch
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -25,6 +23,11 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.appbar.MaterialToolbar
 import com.urik.keyboard.R
+import com.urik.keyboard.chrome.ChromeColors
+import com.urik.keyboard.chrome.ChromeDialogs
+import com.urik.keyboard.chrome.ChromeIcons
+import com.urik.keyboard.chrome.KxkbSwitch
+import com.urik.keyboard.chrome.Pills
 import com.urik.keyboard.data.CustomLayoutStore
 import com.urik.keyboard.data.KeyboardJsonCodec
 import com.urik.keyboard.data.KeyboardRepository
@@ -91,7 +94,17 @@ class KeyEditActivity : AppCompatActivity() {
 
     private lateinit var fieldsContainer: LinearLayout
     private lateinit var previewContainer: LinearLayout
-    private lateinit var typeSpinner: Spinner
+    private lateinit var typeValue: TextView
+    private lateinit var changeBar: LinearLayout
+
+    /** The key as it stood when this page last matched the store (canonical form); null until first built. */
+    private var baseline: String? = null
+
+    /** True while a change is waiting for Apply/Cancel — the bar under the toolbar is visible exactly then. */
+    private var dirty = false
+
+    /** True while [rebuildFields] is still registering collectors; a change noted then would read half a page. */
+    private var building = false
 
     // Live collectors registered by the per-section builders; Apply runs them all into [keyObj].
     private val collectors = mutableListOf<() -> Unit>()
@@ -111,8 +124,8 @@ class KeyEditActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.statusBarColor = Color.BLACK
-        window.navigationBarColor = Color.BLACK
+        window.statusBarColor = ChromeColors.background
+        window.navigationBarColor = ChromeColors.background
         entry = LayoutEntry(
             id = intent.getStringExtra(EXTRA_ID) ?: run { finish(); return },
             lang = intent.getStringExtra(EXTRA_LANG) ?: "",
@@ -203,26 +216,26 @@ class KeyEditActivity : AppCompatActivity() {
 
         val breadcrumb = TextView(this).apply {
             text = breadcrumbText()
-            setTextColor(YELLOW)
+            setTextColor(ChromeColors.note)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-            setPadding(dp(14), dp(2), dp(14), dp(8))
+            setPadding(dp(14), dp(2), dp(14), dp(6))
         }
 
-        typeSpinner = Spinner(this).apply {
-            adapter = simpleAdapter(TYPES.map { typeLabel(it) })
-            setSelection(TYPES.indexOf(currentType).coerceAtLeast(0))
-        }
-        typeSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(p: android.widget.AdapterView<*>?, v: View?, pos: Int, id: Long) {
-                val chosen = TYPES[pos]
+        // The key's type: a value that opens a picker. Choosing another rewrites the key in place.
+        val typeRow = EditorChrome.valueRow(this, getString(R.string.keyedit_type), typeLabel(currentType)) {
+            ChromeDialogs.choices(
+                this, getString(R.string.keyedit_type), TYPES.map { typeLabel(it) }, ChromeIcons.Icon.KEYCAP
+            ) { which ->
+                val chosen = TYPES[which]
                 if (chosen != currentType) {
                     convertType(chosen)
                     currentType = chosen
+                    typeValue.text = typeLabel(chosen)
                     rebuildFields()
                 }
             }
-            override fun onNothingSelected(p: android.widget.AdapterView<*>?) {}
         }
+        typeValue = typeRow.findViewWithTag(EditorChrome.VALUE_TAG)
 
         fieldsContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         previewContainer = LinearLayout(this).apply {
@@ -233,8 +246,7 @@ class KeyEditActivity : AppCompatActivity() {
         val scrollInner = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(14), dp(2), dp(14), dp(24))
-            addView(sectionLabel(getString(R.string.keyedit_type)))
-            addView(typeSpinner)
+            addView(typeRow)
             addView(fieldsContainer)
         }
         val scroll = ScrollView(this).apply {
@@ -243,24 +255,20 @@ class KeyEditActivity : AppCompatActivity() {
             addView(scrollInner)
         }
 
-        val applyBtn = pill(getString(R.string.keyedit_apply)) { applyAndFinish() }.apply {
-            background = pillBg(filled = true)
-            setTextColor(Color.BLACK)
-        }
-        val bottomBar = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.END
-            setPadding(dp(14), dp(6), dp(14), dp(6))
-            addView(applyBtn)
-        }
+        // Apply / Cancel sit pinned UNDER THE TOOLBAR, outside the scroll, and only while a change is
+        // waiting: a button at the page end was out of sight on every long key page.
+        changeBar = EditorChrome.changeBar(
+            this, getString(R.string.keyedit_apply), getString(R.string.keyedit_cancel),
+            onApply = { applyAndFinish() }, onCancel = { cancelChanges() }
+        )
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.BLACK)
+            setBackgroundColor(ChromeColors.background)
             addView(toolbar)
             addView(breadcrumb)
+            addView(changeBar)
             addView(scroll)
-            addView(bottomBar)
         }
         ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -325,6 +333,13 @@ class KeyEditActivity : AppCompatActivity() {
         }
         app?.let { rebuilt.put("appearance", emitAppearanceJson(it)) }
         attrs?.let { rebuilt.put("attributes", emitAttributesJson(it)) }
+        // What a key keeps whatever it becomes: its width, and — where the new type has them — its long-press
+        // list and character class.
+        if (keyObj.has("width")) rebuilt.put("width", keyObj.opt("width"))
+        if (type in setOf("base", "compass") && keyObj.has("longPressKeys")) {
+            rebuilt.put("longPressKeys", keyObj.opt("longPressKeys"))
+        }
+        if (keyObj.has("keyType") && rebuilt.has("keyType")) rebuilt.put("keyType", keyObj.opt("keyType"))
         replaceKeyObj(rebuilt)
     }
 
@@ -365,6 +380,7 @@ class KeyEditActivity : AppCompatActivity() {
     // ---- field panels ---------------------------------------------------------------------------
 
     private fun rebuildFields() {
+        building = true
         fieldsContainer.removeAllViews()
         collectors.clear()
         appearanceColors.clear()
@@ -386,6 +402,7 @@ class KeyEditActivity : AppCompatActivity() {
 
         buildAppearanceSection()
         buildAttributesSection()
+        building = false
         refreshPreview()
     }
 
@@ -397,24 +414,29 @@ class KeyEditActivity : AppCompatActivity() {
             orientation = LinearLayout.HORIZONTAL
             btns.forEach {
                 addView(it, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-                    .apply { marginEnd = dp(4); topMargin = dp(4) })
+                    .apply { marginEnd = dp(6); topMargin = dp(6) })
             }
         }
+        fun act(textRes: Int, icon: ChromeIcons.Icon, does: ChromeIcons.Does = ChromeIcons.Does.VIEW, onClick: () -> Unit) =
+            Pills.iconPill(this, getString(textRes), icon, ChromeIcons.color(does), fullWidth = true, onClick = onClick)
         grid.addView(row(
-            pill(getString(R.string.keyedit_move_left)) { moveKey(-1) },
-            pill(getString(R.string.keyedit_move_right)) { moveKey(1) }
+            act(R.string.keyedit_move_left, ChromeIcons.Icon.LEFT) { moveKey(-1) },
+            act(R.string.keyedit_move_right, ChromeIcons.Icon.RIGHT) { moveKey(1) }
         ))
         grid.addView(row(
-            pill(getString(R.string.keyedit_move_up)) { moveRow(-1) },
-            pill(getString(R.string.keyedit_move_down)) { moveRow(1) }
+            act(R.string.keyedit_move_up, ChromeIcons.Icon.UP) { moveRow(-1) },
+            act(R.string.keyedit_move_down, ChromeIcons.Icon.DOWN) { moveRow(1) }
         ))
         grid.addView(row(
-            pill(getString(R.string.keyedit_insert_left)) { insertSibling(0) },
-            pill(getString(R.string.keyedit_insert_right)) { insertSibling(1) }
+            act(R.string.keyedit_insert_left, ChromeIcons.Icon.ADD, ChromeIcons.Does.CONNECT) { insertSibling(0) },
+            act(R.string.keyedit_insert_right, ChromeIcons.Icon.ADD, ChromeIcons.Does.CONNECT) { insertSibling(1) }
         ))
         grid.addView(row(
-            pill(getString(R.string.keyedit_duplicate)) { duplicateKey() },
-            pill(getString(R.string.keyedit_delete)) { deleteKey() }.apply { setTextColor(RED); background = pillBg(filled = false, stroke = RED) }
+            act(R.string.keyedit_duplicate, ChromeIcons.Icon.COPY, ChromeIcons.Does.SHARE) { duplicateKey() },
+            Pills.iconPill(
+                this, getString(R.string.keyedit_delete), ChromeIcons.Icon.DELETE, ChromeColors.delete,
+                color = ChromeColors.delete, opens = true, fullWidth = true
+            ) { deleteKey() }
         ))
         fieldsContainer.addView(grid)
     }
@@ -437,52 +459,85 @@ class KeyEditActivity : AppCompatActivity() {
         }
         val pickRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            addView(pill(getString(R.string.keyedit_special_key)) { specialKeyPicker(specField) }
-                .apply { (layoutParams as? LinearLayout.LayoutParams)?.marginEnd = dp(6) })
-            addView(pill(getString(R.string.keyedit_icon)) { iconPicker(specField) })
+            setPadding(0, dp(4), 0, dp(2))
+            addView(Pills.iconPill(
+                this@KeyEditActivity, getString(R.string.keyedit_special_key), ChromeIcons.Icon.KEYCAP, opens = true
+            ) { specialKeyPicker(specField) }, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { marginEnd = dp(8) })
+            addView(Pills.iconPill(
+                this@KeyEditActivity, getString(R.string.keyedit_icon), ChromeIcons.Icon.SPARK, opens = true
+            ) { iconPicker(specField) })
         }
         fieldsContainer.addView(pickRow)
-        val hintField = labelledField(getString(R.string.keyedit_hint), keyObj.optString("hint"))
-        val codeField = labelledField(getString(R.string.keyedit_code_override), keyObj.optString("code"))
-        val moreKeys = labelledMultiline(getString(R.string.keyedit_morekeys), keyObj.optString("moreKeys"))
+        // A slide has no long-press strip of its own; only a real key carries the list.
+        val longPress = if (isFlickSlot()) null else longPressField(R.string.keyedit_long_press_keys) { keyObj }
 
         collectors += {
             val spec = specField.text.toString()
             // A spec beginning with "!action/" re-emits as an action key; otherwise it's a character.
             val label = bindingLabelField?.text?.toString().orEmpty()
             if (spec.startsWith("!action/")) {
-                replaceKeyObj(JSONObject().put("type", "action")
-                    .put("action", spec.removePrefix("!action/").ifEmpty { "dynamic_action" })
+                // Stored action names are lower case ("shift"); anything else reads as Enter.
+                replaceKeepingSize(JSONObject().put("type", "action")
+                    .put("action", spec.removePrefix("!action/").lowercase().ifEmpty { "dynamic_action" })
                     .apply { if (label.isNotEmpty()) put("label", label) })
             } else if (isFlickSlot() && spec.startsWith("!layer/") && spec.length > "!layer/".length) {
-                replaceKeyObj(JSONObject().put("type", "layer").put("layer", spec.removePrefix("!layer/"))
+                replaceKeepingSize(JSONObject().put("type", "layer").put("layer", spec.removePrefix("!layer/"))
                     .apply { if (label.isNotEmpty()) put("label", label) })
             } else {
                 keyObj.put("type", "character").remove("action")
                 keyObj.remove("layer")
                 keyObj.remove("label")
                 keyObj.put("char", spec)
-                if (!keyObj.has("keyType")) keyObj.put("keyType", "letter")
-                putOrRemove("hint", hintField.text.toString())
-                putOrRemove("code", codeField.text.toString())
-                putOrRemove("moreKeys", moreKeys.text.toString())
+                longPress?.invoke()
             }
         }
     }
 
     /**
-     * Special-key picker: a scrollable list of every [KeyboardKey.ActionType] with a friendly label. Picking
-     * one sets the spec field to `!action/<ENUM_NAME>`, so the base-key commit path re-emits an action key.
+     * Swap [keyObj] for [next] but keep the key's `width`: an action key rebuilt from its spec used to come
+     * back one cell wide, so Space, Shift, Enter and Backspace shrank on every Apply, Move or Duplicate.
+     */
+    private fun replaceKeepingSize(next: JSONObject) {
+        if (keyObj.has("width") && !next.has("width")) next.put("width", keyObj.opt("width"))
+        replaceKeyObj(next)
+    }
+
+    /**
+     * The long-press strip ("XK") of the key [target] resolves to: one line, entries separated by spaces,
+     * stored as the `longPressKeys` array the keyboard reads. Returns the collector that writes it back.
+     *
+     * A list an older build saved under `moreKeys` (one per line — a field the keyboard never read) is shown
+     * here and moves to `longPressKeys` on the next Apply.
+     */
+    private fun longPressField(labelRes: Int, target: () -> JSONObject?): () -> Unit {
+        val o = target()
+        val arr = o?.optJSONArray("longPressKeys")
+        val initial = if (arr != null) {
+            (0 until arr.length()).joinToString(" ") { arr.optString(it) }
+        } else {
+            o?.optString("moreKeys").orEmpty().split("\n").map { it.trim() }.filter { it.isNotEmpty() }
+                .joinToString(" ")
+        }
+        val field = labelledField(getString(labelRes), initial)
+        return {
+            target()?.let { t ->
+                val entries = field.text.toString().split(Regex("\\s+")).filter { it.isNotEmpty() }
+                if (entries.isEmpty()) t.remove("longPressKeys") else t.put("longPressKeys", JSONArray(entries))
+                t.remove("moreKeys")
+            }
+        }
+    }
+
+    /**
+     * Special-key picker: every action the keyboard knows, by the name a layout stores it under. Picking one
+     * sets the spec field to `!action/<name>`, so the base-key commit path re-emits an action key.
      */
     private fun specialKeyPicker(target: EditText) {
-        val labels = SPECIAL_KEYS.map { it.second }.toTypedArray()
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.keyedit_special_key))
-            .setItems(labels) { _, which ->
-                target.setText("!action/" + SPECIAL_KEYS[which].first.name)
-            }
-            .setNegativeButton(getString(R.string.keyedit_cancel), null)
-            .show()
+        ChromeDialogs.choices(
+            this, getString(R.string.keyedit_special_key), SPECIAL_KEYS.map { it.second }, ChromeIcons.Icon.KEYCAP
+        ) { which -> target.setText("!action/" + SPECIAL_KEYS[which].first) }
     }
 
     /**
@@ -528,30 +583,25 @@ class KeyEditActivity : AppCompatActivity() {
             )
             collectors += {
                 val band = bandField.text.toString()
-                // column stores the band in `main`; cluster/flick in `cluster`.
-                if (columnar) { keyObj.put("main", band); keyObj.remove("cluster") }
+                // A column keeps its band in `main`; a cluster in whichever of `main` / `cluster` it came with
+                // (the keyboard reads either), so opening a key does not rewrite it.
+                val inMain = columnar || (keyObj.has("main") && !keyObj.has("cluster"))
+                if (inMain) { keyObj.put("main", band); keyObj.remove("cluster") }
                 else { keyObj.put("cluster", band); keyObj.remove("main") }
                 if (keyObj.optString("char").isEmpty() && band.isNotEmpty()) {
                     keyObj.put("char", band[band.length / 2].toString())
                 }
             }
-        } else {
-            // compass: a `slide` compact-string convenience field rides ahead of the per-direction slots.
-            val slideField = labelledField(getString(R.string.keyedit_compass_slide), keyObj.optString("slide"))
-            collectors += { putOrRemove("slide", slideField.text.toString()) }
+        } else if (!isFlickSlot()) {
+            longPressField(R.string.keyedit_long_press_keys) { keyObj }.also { collectors += it }
         }
         // label (blank = primary) for compass; (blank = main) for cluster/column.
         val labelStr = if (cluster) R.string.keyedit_label_band else R.string.keyedit_label_compass
         val labelField = labelledField(getString(labelStr), keyObj.optString("char"))
         collectors += { putOrRemove("char", labelField.text.toString()) }
-        if (cluster) {
-            val iconField = labelledField(getString(R.string.keyedit_icon_field), keyObj.optString("icon"))
-            collectors += { putOrRemove("icon", iconField.text.toString()) }
-        }
 
         if (!cluster) {
             // primary (tap) row → drills into "center" (compass only; the band centre is the cluster tap).
-            fieldsContainer.addView(sectionSub(getString(R.string.keyedit_primary_tap)))
             fieldsContainer.addView(slotRow("center", getString(R.string.keyedit_primary_tap), allowEmptyAdd = false))
         }
 
@@ -562,6 +612,42 @@ class KeyEditActivity : AppCompatActivity() {
             else -> COMPASS_DIRS
         }
         for (dir in dirs) fieldsContainer.addView(slotRow(dir, dirLabel(dir)))
+
+        // The face the key shows while Shift is on. Without one the keyboard upper-cases the key by itself;
+        // with one, that face is a key of its own — character, slides and long-press list — edited on its own page.
+        if (!isFlickSlot() && path.last() != "shifted") {
+            fieldsContainer.addView(sectionLabel(getString(R.string.keyedit_shifted_face)))
+            fieldsContainer.addView(shiftedFaceRow())
+        }
+    }
+
+    private fun shiftedFaceRow(): View {
+        val face = keyObj.optJSONObject("shifted")
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(2), 0, dp(2))
+        }
+        container.addView(TextView(this).apply {
+            text = if (face == null) getString(R.string.keyedit_shifted_automatic) else typeSummary(face)
+            setTextColor(if (face == null) ChromeColors.note else ChromeColors.text)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        })
+        if (face == null) {
+            container.addView(pill(getString(R.string.keyedit_shifted_add)) {
+                commitFields()
+                // Start from the key as it is, so only what differs under Shift has to be changed.
+                keyObj.put("shifted", JSONObject(keyObj.toString()).apply { remove("shifted") })
+                saveWorking()
+                launchChild(path + "shifted")
+            })
+        } else {
+            container.addView(pill(getString(R.string.keyedit_edit)) { drillCase("shifted") }
+                .apply { (layoutParams as? LinearLayout.LayoutParams)?.marginEnd = dp(4) })
+            container.addView(pill("✕", ChromeColors.delete) { clearCase("shifted") })
+        }
+        return container
     }
 
     /**
@@ -574,7 +660,7 @@ class KeyEditActivity : AppCompatActivity() {
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(3), 0, dp(3))
+            setPadding(0, dp(2), 0, dp(2))
         }
         container.addView(TextView(this).apply {
             text = displayName
@@ -585,7 +671,7 @@ class KeyEditActivity : AppCompatActivity() {
         val summary = slotSummary(raw)
         container.addView(TextView(this).apply {
             text = summary ?: getString(R.string.keyedit_empty)
-            setTextColor(YELLOW)
+            setTextColor(if (summary == null) ChromeColors.note else YELLOW)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         })
@@ -594,7 +680,7 @@ class KeyEditActivity : AppCompatActivity() {
         } else {
             container.addView(pill(getString(R.string.keyedit_edit)) { drillSlot(token) }
                 .apply { (layoutParams as? LinearLayout.LayoutParams)?.marginEnd = dp(4) })
-            if (summary != null) container.addView(pill("✕") { clearSlot(token) })
+            if (summary != null) container.addView(pill("✕", ChromeColors.delete) { clearSlot(token) })
         }
         return container
     }
@@ -696,7 +782,7 @@ class KeyEditActivity : AppCompatActivity() {
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(4), 0, dp(4))
+            setPadding(0, dp(2), 0, dp(2))
         }
         container.addView(TextView(this).apply {
             text = state
@@ -713,7 +799,7 @@ class KeyEditActivity : AppCompatActivity() {
         })
         container.addView(pill(getString(R.string.keyedit_edit)) { drillCase(state) })
         if (summary != null && state != "normal") {
-            container.addView(pill("✕") { clearCase(state) }
+            container.addView(pill("✕", ChromeColors.delete) { clearCase(state) }
                 .apply { (layoutParams as? LinearLayout.LayoutParams)?.marginStart = dp(4) })
         }
         return container
@@ -752,27 +838,29 @@ class KeyEditActivity : AppCompatActivity() {
         val app = keyObj.optJSONObject("appearance") ?: JSONObject()
 
         colorRow(getString(R.string.keyedit_text_color), "color", app)
-        toggleRow(getString(R.string.keyedit_font_size), "fontScale", app)
-        toggleRow(getString(R.string.keyedit_hint_size), "hintScale", app)
+        toggleRow(getString(R.string.keyedit_font_size), "fontScale", app, 1.0)
+        toggleRow(getString(R.string.keyedit_hint_size), "hintScale", app, 1.0)
         colorRow(getString(R.string.keyedit_bg_color), "backgroundColor", app)
         colorRow(getString(R.string.keyedit_border_color), "borderColor", app)
-        toggleRow(getString(R.string.keyedit_h_offset), "labelOffsetX", app)
-        toggleRow(getString(R.string.keyedit_v_offset), "labelOffsetY", app)
+        toggleRow(getString(R.string.keyedit_h_offset), "labelOffsetX", app, 0.0)
+        toggleRow(getString(R.string.keyedit_v_offset), "labelOffsetY", app, 0.0)
         if (currentType == "cluster" || currentType == "column") {
-            toggleRow(getString(R.string.keyedit_cluster_left), "clusterLeftOffset", app)
-            toggleRow(getString(R.string.keyedit_cluster_right), "clusterRightOffset", app)
+            toggleRow(getString(R.string.keyedit_cluster_left), "clusterLeftOffset", app, 0.0)
+            toggleRow(getString(R.string.keyedit_cluster_right), "clusterRightOffset", app, 0.0)
         }
         if (currentType == "compass" || currentType == "cluster" || currentType == "column") {
-            toggleRow(getString(R.string.keyedit_sec_top), "flickTopOffset", app)
-            toggleRow(getString(R.string.keyedit_sec_bottom), "flickBottomOffset", app)
-            toggleRow(getString(R.string.keyedit_sec_left), "flickLeftOffset", app)
-            toggleRow(getString(R.string.keyedit_sec_right), "flickRightOffset", app)
+            toggleRow(getString(R.string.keyedit_sec_top), "flickTopOffset", app, 0.1)
+            toggleRow(getString(R.string.keyedit_sec_bottom), "flickBottomOffset", app, 0.1)
+            toggleRow(getString(R.string.keyedit_sec_left), "flickLeftOffset", app, 0.1)
+            toggleRow(getString(R.string.keyedit_sec_right), "flickRightOffset", app, 0.1)
         }
+        fieldsContainer.addView(note(getString(R.string.keyedit_appearance_note)))
 
         appearanceCollector = {
-            val o = JSONObject()
-            appearanceColors.forEach { (key, reader) -> reader()?.let { o.put(key, it) } }
-            appearanceToggles.forEach { (key, reader) -> reader()?.let { o.put(key, it) } }
+            // Start from what is stored, so a value this page has no row for rides through untouched.
+            val o = keyObj.optJSONObject("appearance")?.let { JSONObject(it.toString()) } ?: JSONObject()
+            appearanceColors.forEach { (key, reader) -> reader()?.let { o.put(key, it) } ?: o.remove(key) }
+            appearanceToggles.forEach { (key, reader) -> reader()?.let { o.put(key, it) } ?: o.remove(key) }
             if (o.length() > 0) keyObj.put("appearance", o) else keyObj.remove("appearance")
         }
     }
@@ -787,26 +875,21 @@ class KeyEditActivity : AppCompatActivity() {
         var current: Int? = parseHex(app.optString(jsonKey, ""))
 
         val caption = TextView(this).apply {
-            setTextColor(YELLOW)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
         }
         val swatch = View(this).apply {
             layoutParams = LinearLayout.LayoutParams(dp(40), dp(28)).apply { marginStart = dp(10) }
         }
-        val reset = TextView(this).apply {
-            text = "↺"
-            setTextColor(YELLOW)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
-            gravity = Gravity.CENTER
-            background = pillBg(false)
-            layoutParams = LinearLayout.LayoutParams(dp(34), dp(28)).apply { marginStart = dp(8) }
+        val reset = pill("↺") {}.apply {
+            (layoutParams as LinearLayout.LayoutParams).marginStart = dp(8)
             contentDescription = getString(R.string.keyedit_reset_inherited)
         }
         fun render() {
             caption.text = if (current == null) getString(R.string.keyedit_inherited) else hexOf(current!!)
+            caption.setTextColor(if (current == null) ChromeColors.note else YELLOW)
             swatch.background = swatchBg(current)
-            // Nothing to reset while inherited — dim the button so the state is readable at a glance.
-            reset.alpha = if (current == null) 0.35f else 1f
+            // Nothing to reset while inherited.
+            reset.isEnabled = current != null
         }
         render()
         swatch.setOnClickListener {
@@ -828,29 +911,61 @@ class KeyEditActivity : AppCompatActivity() {
     }
 
     /**
-     * A scalar appearance row: a `… — theme` label and a Switch on the right. Off = inherit the theme value;
-     * on = apply the stored override (default 0.0 when first turned on so the codec records a concrete number).
+     * A number of the key's own: a switch, and the value it applies while on. Off = the keyboard's look
+     * decides; switched on it starts at [whenOn] (a size of 1 = unchanged, an offset of 0 = unmoved) and the
+     * number can be typed — an on/off switch alone could keep or drop a value, never set one.
      */
-    private fun toggleRow(labelText: String, jsonKey: String, app: JSONObject) {
+    private fun toggleRow(labelText: String, jsonKey: String, app: JSONObject, whenOn: Double) {
         val initial: Double? = if (app.has(jsonKey)) app.optDouble(jsonKey) else null
-        var override = initial ?: 0.0
-        val sw = Switch(this).apply {
-            isChecked = initial != null
-            setOnCheckedChangeListener { _, _ -> refreshPreview() }
+        val field = EditText(this).apply {
+            setText(trimNum(initial ?: whenOn))
+            setTextColor(YELLOW)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+            setSingleLine()
+            gravity = Gravity.END
+            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL or
+                InputType.TYPE_NUMBER_FLAG_SIGNED
+            minWidth = dp(72)
+            isEnabled = initial != null
+            alpha = if (initial != null) 1f else 0.38f
+            setPadding(dp(4), 0, dp(4), dp(2))
+            addTextChangedListener(object : android.text.TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+                override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+                override fun afterTextChanged(s: android.text.Editable?) { if (!building) refreshPreview() }
+            })
         }
-        fieldsContainer.addView(appearanceRow(labelText, sw))
-        appearanceToggles[jsonKey] = { if (sw.isChecked) override else null }
+        val sw = KxkbSwitch(this).apply {
+            isChecked = initial != null
+            setOnCheckedChangeListener { _, on ->
+                field.isEnabled = on
+                field.alpha = if (on) 1f else 0.38f
+                refreshPreview()
+            }
+        }
+        val right = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(field)
+            addView(sw, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { marginStart = dp(8) })
+        }
+        fieldsContainer.addView(appearanceRow(labelText, right))
+        appearanceToggles[jsonKey] = {
+            if (sw.isChecked) field.text.toString().trim().replace(',', '.').toDoubleOrNull() ?: whenOn else null
+        }
     }
 
     /** Layout helper: a label filling the left and an arbitrary control pinned to the right. */
     private fun appearanceRow(labelText: String, right: View): View = LinearLayout(this).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
-        setPadding(0, dp(6), 0, dp(6))
+        setPadding(0, dp(2), 0, dp(2))
         addView(TextView(this@KeyEditActivity).apply {
             text = labelText
             setTextColor(YELLOW)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         })
         addView(right)
@@ -859,36 +974,75 @@ class KeyEditActivity : AppCompatActivity() {
     private fun swatchBg(color: Int?): GradientDrawable = GradientDrawable().apply {
         setColor(color ?: Color.BLACK)
         setStroke(dp(2), YELLOW)
-        cornerRadius = dp(4).toFloat()
+        cornerRadius = dp(6).toFloat()
     }
 
-    // -- attributes (blank/inherit = use row/keyboard default) --
+    // -- size and behaviour: what the keyboard actually reads --
     private var attributesCollector: (() -> Unit)? = null
+
+    /** Where the width the keyboard draws this key by is stored: a case key's `normal` face when it has one. */
+    private fun widthHolder(): JSONObject =
+        keyObj.optJSONObject("normal")?.takeIf { keyObj.optString("type") == "case" && it.has("width") } ?: keyObj
+
+    /** True for a key that has a character class of its own (an action key and a gap have none). */
+    private fun hasKeyType(): Boolean =
+        currentType !in setOf("gap", "case") && keyObj.optString("type") !in setOf("action", "layer")
 
     private fun buildAttributesSection() {
         fieldsContainer.addView(sectionLabel(getString(R.string.keyedit_attributes)))
         val a = keyObj.optJSONObject("attributes") ?: JSONObject()
 
-        val widthSel = optionDropdown(getString(R.string.keyedit_attr_width), WIDTH_OPTIONS,
-            a.optString("widthClass").ifEmpty { numStr(a, "width") })
-        val styleSel = optionDropdown(getString(R.string.keyedit_attr_style), STYLE_OPTIONS, a.optString("style"))
-        val moreModeSel = optionDropdown(getString(R.string.keyedit_attr_morekeymode), MOREKEY_OPTIONS,
-            a.optString("moreKeyMode"))
-        val heightF = labelledField(getString(R.string.keyedit_attr_heightrows), numStr(a, "heightRows"))
-
-        val tri = TRISTATE_ATTRS.associateWith { triState(it, a) }
+        // The key's width, in keys: the number the keyboard sizes it by. Only a key in a row has one — a
+        // slide and a shift-state face are as wide as the key they belong to.
+        val widthF = if (isTopLevel() && currentType != "gap") {
+            // A case key is drawn by the width of its `normal` face where that face has one.
+            labelledField(getString(R.string.keyedit_width), numStr(widthHolder(), "width")).apply {
+                inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+            }
+        } else {
+            null
+        }
+        val heightF = labelledField(getString(R.string.keyedit_attr_heightrows), numStr(a, "heightRows")).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+        }
+        val keyTypeSel = if (hasKeyType()) {
+            choiceRow(getString(R.string.keyedit_key_type), KEY_TYPES, keyObj.optString("keyType"),
+                getString(R.string.keyedit_key_type_auto))
+        } else {
+            null
+        }
+        val styleSel = choiceRow(getString(R.string.keyedit_attr_style), STYLE_OPTIONS, a.optString("style"))
+        val shiftableSel = if (currentType == "cluster" || currentType == "column") {
+            choiceRow(getString(R.string.keyedit_attr_shiftable), listOf("true", "false"),
+                if (a.has("shiftable")) a.optBoolean("shiftable").toString() else "")
+        } else {
+            null
+        }
 
         attributesCollector = {
-            val o = JSONObject()
-            widthSel()?.let { o.put("widthClass", it) }
-            styleSel()?.let { o.put("style", it) }
-            moreModeSel()?.let { o.put("moreKeyMode", it) }
+            if (widthF != null) {
+                val w = widthF.text.toString().trim().replace(',', '.').toDoubleOrNull()?.takeIf { it > 0.0 }
+                val holder = widthHolder()
+                if (w == null) holder.remove("width") else holder.put("width", w)
+                // The case's own number follows, so the two can never disagree again once edited.
+                if (holder !== keyObj && keyObj.has("width")) {
+                    if (w == null) keyObj.remove("width") else keyObj.put("width", w)
+                }
+            }
+            if (keyTypeSel != null && hasKeyType()) {
+                keyTypeSel()?.let { keyObj.put("keyType", it) } ?: keyObj.remove("keyType")
+            }
+            // Start from what is stored: the attributes the keyboard does not act on have no row here and
+            // ride through untouched.
+            val o = keyObj.optJSONObject("attributes")?.let { JSONObject(it.toString()) } ?: JSONObject()
+            styleSel()?.let { o.put("style", it) } ?: o.remove("style")
+            o.remove("heightRows")
             putNum(o, "heightRows", heightF)
-            tri.forEach { (name, spinner) ->
-                when (spinner.selectedItemPosition) {
-                    1 -> o.put(name, true)
-                    2 -> o.put(name, false)
-                    else -> {} // inherit
+            if (shiftableSel != null) {
+                when (shiftableSel()) {
+                    "true" -> o.put("shiftable", true)
+                    "false" -> o.put("shiftable", false)
+                    else -> o.remove("shiftable")
                 }
             }
             if (o.length() > 0) keyObj.put("attributes", o) else keyObj.remove("attributes")
@@ -896,32 +1050,33 @@ class KeyEditActivity : AppCompatActivity() {
     }
 
     /**
-     * An attribute value dropdown showing `(inherit)` first, then [options]. If [current] is set but not one
-     * of the options it's appended so an imported value round-trips. Returns a reader: null when inherit.
+     * A value that opens a picker: the label on the left, the chosen value and a ▾ on the right; the first
+     * choice is always "inherit". If [current] is set but not one of [options] it is offered too, so an
+     * imported value survives. Returns a reader: null while inheriting.
      */
-    private fun optionDropdown(labelText: String, options: List<String>, current: String): () -> String? {
-        fieldsContainer.addView(sectionSub(labelText))
-        val items = mutableListOf(getString(R.string.keyedit_inherit_paren))
+    private fun choiceRow(
+        labelText: String,
+        options: List<String>,
+        current: String,
+        inheritLabel: String = getString(R.string.keyedit_inherit_paren)
+    ): () -> String? {
+        val items = mutableListOf(inheritLabel)
         items += options
         if (current.isNotEmpty() && current !in options) items += current
-        val spinner = Spinner(this).apply {
-            adapter = simpleAdapter(items)
-            setSelection(if (current.isEmpty()) 0 else items.indexOf(current).coerceAtLeast(0))
-            fieldsContainer.addView(this)
+        var selected = if (current.isEmpty()) 0 else items.indexOf(current).coerceAtLeast(0)
+        lateinit var value: TextView
+        val row = EditorChrome.valueRow(this, labelText, items[selected]) {
+            ChromeDialogs.choices(this, labelText, items, ChromeIcons.Icon.LIST) { which ->
+                selected = which
+                value.text = items[which]
+                value.setTextColor(if (which == 0) ChromeColors.note else YELLOW)
+                refreshPreview()
+            }
         }
-        return { if (spinner.selectedItemPosition == 0) null else items[spinner.selectedItemPosition] }
-    }
-
-    private fun triState(name: String, a: JSONObject): Spinner {
-        fieldsContainer.addView(sectionSub(name))
-        val sel = if (!a.has(name)) 0 else if (a.optBoolean(name)) 1 else 2
-        return Spinner(this).apply {
-            adapter = simpleAdapter(listOf(
-                getString(R.string.keyedit_inherit_paren), getString(R.string.keyedit_on), getString(R.string.keyedit_off)
-            ))
-            setSelection(sel)
-            fieldsContainer.addView(this)
-        }
+        value = row.findViewWithTag(EditorChrome.VALUE_TAG)
+        value.setTextColor(if (selected == 0) ChromeColors.note else YELLOW)
+        fieldsContainer.addView(row)
+        return { if (selected == 0) null else items[selected] }
     }
 
     // ---- structural ops (top-level position) ----------------------------------------------------
@@ -999,6 +1154,7 @@ class KeyEditActivity : AppCompatActivity() {
             }
             .setNegativeButton(R.string.keyedit_cancel, null)
             .show()
+            .also { Pills.destructive(it) }
     }
 
     // ---- commit / persistence / preview ----------------------------------------------------------
@@ -1013,12 +1169,43 @@ class KeyEditActivity : AppCompatActivity() {
     private fun saveWorking() {
         CustomLayoutStore.saveLayout(this, entry, working)
         keyboardRepository.invalidateLayoutCache()
+        // What is on disk is the new reference: nothing is waiting any more.
+        baseline = EditorChrome.canonical(keyObj)
+        dirty = false
+        if (::changeBar.isInitialized) changeBar.visibility = View.GONE
     }
 
     private fun applyAndFinish() {
         commitFields()
         saveWorking()
+        dirty = false
         finish()
+    }
+
+    /** Throw this page's unsaved edits away and show the key as the store has it. */
+    private fun cancelChanges() {
+        dirty = false
+        reloadFromStore()
+    }
+
+    /**
+     * Fold the page into [keyObj] and show or hide the Apply/Cancel bar by whether the key now differs from
+     * [baseline]. Comparison-based on purpose: a field typed and typed back, or a spinner re-announcing the
+     * value it was built with, is no change.
+     */
+    private fun noteChange() {
+        if (building) return
+        commitFields()
+        val now = EditorChrome.canonical(keyObj)
+        if (baseline == null) baseline = now
+        dirty = now != baseline
+        if (::changeBar.isInitialized) changeBar.visibility = if (dirty) View.VISIBLE else View.GONE
+    }
+
+    private val changeOnText = object : android.text.TextWatcher {
+        override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+        override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+        override fun afterTextChanged(s: android.text.Editable?) = noteChange()
     }
 
     /** Re-launch this Activity for [newPath] in the same slice — used after a structural move/insert. */
@@ -1033,22 +1220,30 @@ class KeyEditActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        // Edits still waiting for Apply/Cancel stay on the page (coming back from another app, or from the
+        // lock screen, used to reload the store over them). Drilling into a slide saves first, so the page is
+        // never dirty when a child returns.
+        if (dirty) return
         // A child edit (slot/case drill-in) saved into the same file; reload so our view reflects it.
+        reloadFromStore()
+    }
+
+    /** Re-read the layout, rebuild the page on it and take the result as the new [baseline]. */
+    private fun reloadFromStore() {
         val reloaded = CustomLayoutStore.rawJson(this, entry.id) ?: return
         working = reloaded
         val resolved = resolveKey()
         if (resolved == null) { finish(); return }
         keyObj = resolved
         currentType = editorType(keyObj)
-        if (::typeSpinner.isInitialized) {
-            typeSpinner.setSelection(TYPES.indexOf(currentType).coerceAtLeast(0))
-        }
+        if (::typeValue.isInitialized) typeValue.text = typeLabel(currentType)
+        baseline = null
         rebuildFields()
     }
 
     /** Render the edited key alone through the real renderer (1×1 layout) for a true live preview. */
     private fun refreshPreview() {
-        commitFields()
+        noteChange()
         val parsed = parseSafely(keyObj) ?: KeyboardKey.Character("", KeyboardKey.KeyType.LETTER)
         lifecycleScope.launch {
             val settings = settingsRepository.settings.first()
@@ -1129,18 +1324,21 @@ class KeyEditActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun sectionLabel(text: String) = TextView(this).apply {
-        this.text = text
-        setTextColor(YELLOW)
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
-        setPadding(0, dp(16), 0, dp(4))
-    }
+    private fun sectionLabel(text: String): View = EditorChrome.heading(this, text)
 
     private fun sectionSub(text: String) = TextView(this).apply {
         this.text = text
         setTextColor(YELLOW)
         setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
-        setPadding(0, dp(8), 0, dp(1))
+        setPadding(0, dp(6), 0, 0)
+    }
+
+    /** A loose explanation under a group: dim gold, never grey. */
+    private fun note(text: String) = TextView(this).apply {
+        this.text = text
+        setTextColor(ChromeColors.note)
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+        setPadding(0, dp(4), 0, dp(2))
     }
 
     private fun labelledField(labelText: String, value: String): EditText {
@@ -1149,6 +1347,7 @@ class KeyEditActivity : AppCompatActivity() {
             setText(value)
             setTextColor(YELLOW)
             setSingleLine()
+            addTextChangedListener(changeOnText)
             fieldsContainer.addView(this)
         }
     }
@@ -1161,29 +1360,14 @@ class KeyEditActivity : AppCompatActivity() {
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
             setHorizontallyScrolling(false)
             maxLines = 6
+            addTextChangedListener(changeOnText)
             fieldsContainer.addView(this)
         }
     }
 
-    private fun simpleAdapter(items: List<String>): ArrayAdapter<String> =
-        ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, items)
-
-    private fun pill(text: String, onClick: () -> Unit): Button = Button(this).apply {
-        this.text = text
-        setTextColor(YELLOW)
-        background = pillBg(filled = false)
-        layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
-        )
-        setOnClickListener { onClick() }
-    }
-
-    private fun pillBg(filled: Boolean, stroke: Int = YELLOW) =
-        GradientDrawable().apply {
-            setColor(if (filled) YELLOW else Color.BLACK)
-            setStroke(dp(2), stroke)
-            cornerRadius = dp(4).toFloat()
-        }
+    /** A small regular pill for the dense rows of this page (Edit, Add, ✕, ↺). */
+    private fun pill(text: String, color: Int = YELLOW, onClick: () -> Unit): Button =
+        Pills.button(this, text, main = false, color = color, small = true, onClick = onClick)
 
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
 
@@ -1218,8 +1402,7 @@ class KeyEditActivity : AppCompatActivity() {
     }
 
     companion object {
-        private const val YELLOW = 0xFFFFFF00.toInt()
-        private const val RED = 0xFFFF5555.toInt()
+        private val YELLOW: Int get() = ChromeColors.text
 
         private const val EXTRA_ID = "layout_id"
         private const val EXTRA_LANG = "layout_lang"
@@ -1242,42 +1425,31 @@ class KeyEditActivity : AppCompatActivity() {
             listOf("normal", "shifted", "shiftedManually", "shiftLocked", "symbols", "symbolsShifted")
         private val CASE_BRANCHES = CASE_STATES // "normal" + the five shift states.
 
-        private val TRISTATE_ATTRS = listOf(
-            "showPopup", "longPressEnabled", "repeatableEnabled", "anchored",
-            "useKeySpecShortcut", "shiftable", "fastMoreKeys"
-        )
-
-        // futokxkb named-width / style / moreKeyMode value sets surfaced as dropdown options.
-        private val WIDTH_OPTIONS =
-            listOf("Regular", "FunctionalKey", "Grow", "Custom1", "Custom2", "Custom3", "Custom4")
+        // What the keyboard reads of a key's attributes: its style and its height in rows (and, for a
+        // band, whether Shift upper-cases it).
         private val STYLE_OPTIONS = listOf("Action", "Functional", "Spacebar")
-        private val MOREKEY_OPTIONS = listOf("OnlyExplicit", "All")
+        private val KEY_TYPES = listOf("letter", "number", "symbol", "punctuation")
 
-        // Special-key picker: every ActionType paired with a friendly label. Picking sets `!action/<NAME>`.
-        private val SPECIAL_KEYS: List<Pair<KeyboardKey.ActionType, String>> = listOf(
-            KeyboardKey.ActionType.SHIFT to "Shift",
-            KeyboardKey.ActionType.BACKSPACE to "Backspace",
-            KeyboardKey.ActionType.SPACE to "Space",
-            KeyboardKey.ActionType.ENTER to "Enter",
-            KeyboardKey.ActionType.SEARCH to "Search",
-            KeyboardKey.ActionType.SEND to "Send",
-            KeyboardKey.ActionType.DONE to "Done",
-            KeyboardKey.ActionType.GO to "Go",
-            KeyboardKey.ActionType.NEXT to "Next",
-            KeyboardKey.ActionType.PREVIOUS to "Previous",
-            KeyboardKey.ActionType.MODE_SWITCH_LETTERS to "To letters",
-            KeyboardKey.ActionType.MODE_SWITCH_NUMBERS to "To numbers",
-            KeyboardKey.ActionType.MODE_SWITCH_SYMBOLS to "To symbols",
-            KeyboardKey.ActionType.MODE_SWITCH_SYMBOLS_SECONDARY to "To symbols₂",
-            KeyboardKey.ActionType.CAPS_LOCK to "Caps lock",
-            KeyboardKey.ActionType.LANGUAGE_SWITCH to "Language switch",
-            KeyboardKey.ActionType.DAKUTEN to "Dakuten",
-            KeyboardKey.ActionType.SMALL_KANA to "Small kana",
-            KeyboardKey.ActionType.NEXT_CANDIDATE to "Next candidate",
-            KeyboardKey.ActionType.COMMIT_CANDIDATE to "Commit candidate",
-            KeyboardKey.ActionType.HANDAKUTEN to "Handakuten",
-            KeyboardKey.ActionType.EMOJI to "Emoji",
-            KeyboardKey.ActionType.TAB to "Tab"
+        // Special-key picker: every action by the name a layout stores it under, with a readable label.
+        private val SPECIAL_KEYS: List<Pair<String, String>> = listOf(
+            "shift" to "Shift",
+            "backspace" to "Backspace",
+            "space" to "Space",
+            "dynamic_action" to "Enter (follows the field: Search, Send, Done…)",
+            "tab" to "Tab",
+            "mode_switch_letters" to "To letters",
+            "mode_switch_numbers" to "To numbers",
+            "mode_switch_symbols" to "To symbols",
+            "mode_switch_symbols_secondary" to "To symbols₂",
+            "mode_switch_numpad" to "To number pad",
+            "caps_lock" to "Caps lock",
+            "language_switch" to "Language switch",
+            "emoji" to "Emoji",
+            "dakuten" to "Dakuten",
+            "handakuten" to "Handakuten",
+            "small_kana" to "Small kana",
+            "next_candidate" to "Next candidate",
+            "commit_candidate" to "Commit candidate"
         )
 
         // Icon picker glyphs — the converter's ICON_LABEL value set (gnu_yaml_to_json.py): renderable text

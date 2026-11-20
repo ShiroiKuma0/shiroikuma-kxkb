@@ -23,6 +23,7 @@
             android:textStyle="bold" />
 
         <View
+            android:id="@+id/kxkb_underline"
             android:layout_width="match_parent"
             android:layout_height="1.5dp"
             android:layout_marginTop="2dp"

@@ -1,5 +1,6 @@
 package com.urik.keyboard.settings.theme
 
+import com.urik.keyboard.chrome.ChromeColors
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -205,10 +206,10 @@ class ThemePickerAdapter(
             private const val VIEW_ID_FAVORITE_INDICATOR = 1005
             private const val CARD_MARGIN_DP = 12
 
-            private val ICON_COLOR = "#d4d2a5".toColorInt()
-            private val TEXT_COLOR = "#e9e6d5".toColorInt()
-            private val CARD_BG_COLOR = "#1f2230".toColorInt()
-            private val STROKE_COLOR = "#d4d2a5".toColorInt()
+            private val ICON_COLOR: Int get() = ChromeColors.accent
+            private val TEXT_COLOR: Int get() = ChromeColors.text
+            private val CARD_BG_COLOR: Int get() = ChromeColors.background
+            private val STROKE_COLOR: Int get() = ChromeColors.accent
 
             fun create(parent: ViewGroup): ThemeViewHolder {
                 val context = parent.context

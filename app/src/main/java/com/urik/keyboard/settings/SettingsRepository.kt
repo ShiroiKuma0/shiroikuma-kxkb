@@ -570,6 +570,32 @@ constructor(
         Result.failure(e)
     }
 
+    /**
+     * Point every per-app binding of [language] that names one of [fromIds] at [toId]. Activating a layout in
+     * the editor has to do this: each app remembers its board per fold state, and one that remembered the
+     * stock original (or an older copy) went straight back to it, so the activated edit never showed.
+     */
+    suspend fun rebindPerAppLayouts(language: String, fromIds: Set<String>, toId: String): Result<Int> = try {
+        var changed = 0
+        dataStore.edit { preferences ->
+            val current = preferences[PreferenceKeys.PER_APP_LAYOUT_BINDINGS]?.let { decodePerAppLayouts(it) }
+                ?: emptyMap()
+            val next = current.mapValues { (_, value) ->
+                val parts = value.split("|")
+                if (parts.size == 2 && parts[0] == language && parts[1] != toId && parts[1] in fromIds) {
+                    changed++
+                    "$language|$toId"
+                } else {
+                    value
+                }
+            }
+            if (changed > 0) preferences[PreferenceKeys.PER_APP_LAYOUT_BINDINGS] = encodePerAppLayouts(next)
+        }
+        Result.success(changed)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
     private fun appGeometryKey(packageName: String, geometry: String): String =
         "$packageName$APP_GEOMETRY_SEP$geometry"
 

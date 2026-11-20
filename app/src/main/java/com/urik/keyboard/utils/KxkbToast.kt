@@ -1,5 +1,6 @@
 package com.urik.keyboard.utils
 
+import com.urik.keyboard.chrome.ChromeColors
 import android.content.Context
 import android.util.TypedValue
 import android.view.Gravity
@@ -16,8 +17,6 @@ import android.graphics.drawable.GradientDrawable
  * our use (all flashes accompany a user action on a visible screen).
  */
 object KxkbToast {
-    private const val YELLOW = 0xFFFFFF00.toInt()
-    private const val BLACK = 0xFF000000.toInt()
 
     fun show(context: Context, message: CharSequence, duration: Int = Toast.LENGTH_SHORT) {
         val d = context.resources.displayMetrics.density
@@ -25,7 +24,7 @@ object KxkbToast {
         val tv =
             TextView(context).apply {
                 text = message
-                setTextColor(YELLOW)
+                setTextColor(ChromeColors.text)
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
                 gravity = Gravity.CENTER
                 setPadding(dp(20), dp(12), dp(20), dp(12))
@@ -33,8 +32,8 @@ object KxkbToast {
                     GradientDrawable().apply {
                         shape = GradientDrawable.RECTANGLE
                         cornerRadius = dp(18).toFloat()
-                        setColor(BLACK)
-                        setStroke(dp(2), YELLOW)
+                        setColor(ChromeColors.background)
+                        setStroke(dp(2), ChromeColors.accent)
                     }
             }
         @Suppress("DEPRECATION")

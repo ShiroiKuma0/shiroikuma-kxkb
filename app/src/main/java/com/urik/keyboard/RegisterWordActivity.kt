@@ -1,5 +1,7 @@
 package com.urik.keyboard
 
+import com.urik.keyboard.chrome.Pills
+import com.urik.keyboard.chrome.ChromeColors
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -68,6 +70,7 @@ class RegisterWordActivity : AppCompatActivity() {
         fun label(textRes: Int, topGap: Int = 0) = TextView(this).apply {
             setText(textRes)
             textSize = 13f
+            setTextColor(ChromeColors.note)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
@@ -99,13 +102,9 @@ class RegisterWordActivity : AppCompatActivity() {
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply { topMargin = gap }
         }
-        val cancel = Button(this).apply {
-            setText(R.string.ja_register_cancel)
-            setOnClickListener { finish() }
-        }
-        val save = Button(this).apply {
-            setText(R.string.ja_register_confirm)
-            setOnClickListener { onSave() }
+        val cancel: Button = Pills.button(this, getString(R.string.ja_register_cancel), main = false) { finish() }
+        val save: Button = Pills.button(this, getString(R.string.ja_register_confirm), main = true) { onSave() }.apply {
+            (layoutParams as LinearLayout.LayoutParams).marginStart = (8 * resources.displayMetrics.density).toInt()
         }
         buttons.addView(cancel)
         buttons.addView(save)

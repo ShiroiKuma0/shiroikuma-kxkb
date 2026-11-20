@@ -264,7 +264,19 @@ constructor(
      * Drop all cached parsed layouts so a layout that was just edited in the visual editor re-parses from
      * the custom store on the next [loadLayoutById] / active-layout load (id-keyed entries would be stale).
      */
-    fun invalidateLayoutCache() = layoutCache.invalidateAll()
+    fun invalidateLayoutCache() {
+        layoutCache.invalidateAll()
+        _layoutEdits.value = _layoutEdits.value + 1
+    }
+
+    private val _layoutEdits = kotlinx.coroutines.flow.MutableStateFlow(0)
+
+    /**
+     * Counts every edit the layout editor saves. The keyboard watches it and rebuilds: dropping the cache
+     * alone changed nothing on screen — the keys already built kept the old layout until something else
+     * (a language switch, a restart) happened to reload them.
+     */
+    val layoutEdits: kotlinx.coroutines.flow.StateFlow<Int> get() = _layoutEdits
 
     private suspend fun loadLayoutFromAssets(
         mode: KeyboardMode,

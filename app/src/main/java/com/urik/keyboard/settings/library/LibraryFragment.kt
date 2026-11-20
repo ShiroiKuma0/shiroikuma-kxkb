@@ -1,5 +1,9 @@
 package com.urik.keyboard.settings.library
 
+import com.urik.keyboard.chrome.ChromeDialogs
+import com.urik.keyboard.chrome.ChromeIcons
+import com.urik.keyboard.chrome.Pills
+import com.urik.keyboard.chrome.ChromeColors
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Paint
@@ -114,7 +118,7 @@ class LibraryFragment : Fragment() {
         }
         val content = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.BLACK)
+            setBackgroundColor(ChromeColors.background)
             addView(scroll)
             addView(previewContainer)
         }
@@ -132,12 +136,12 @@ class LibraryFragment : Fragment() {
         val root = rootFrame ?: return
         val tv = TextView(requireContext()).apply {
             text = message
-            setTextColor(0xFFFFFF00.toInt())
+            setTextColor(ChromeColors.text)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
             setPadding(dp(16), dp(10), dp(16), dp(10))
             background = android.graphics.drawable.GradientDrawable().apply {
-                setColor(0xFF000000.toInt())
-                setStroke(dp(2), 0xFFFFFF00.toInt())
+                setColor(ChromeColors.background)
+                setStroke(dp(2), ChromeColors.accent)
                 cornerRadius = dp(8).toFloat()
             }
             alpha = 0f
@@ -192,7 +196,7 @@ class LibraryFragment : Fragment() {
             }
             // A new language with its standard keyboard (built as a custom layout, fully editable).
             if (addableLanguages().isNotEmpty()) {
-                listContainer.addView(pillButton(getString(R.string.library_add_language)) { showAddLanguageDialog() })
+                listContainer.addView(pillRow(pillButton(getString(R.string.library_add_language), main = true, icon = ChromeIcons.Icon.ADD, does = ChromeIcons.Does.CONNECT) { showAddLanguageDialog() }))
             }
             // The git archive section sits at the END of the page (folded by default) — all its
             // (blocking) git work runs lazily off the main thread, only when this section builds,
@@ -241,7 +245,7 @@ class LibraryFragment : Fragment() {
             // All-files access is required to touch a real external directory.
             if (!hasAllFilesAccess()) {
                 container.addView(gitCaption(getString(R.string.library_git_need_access)))
-                container.addView(pillRow(pillButton(getString(R.string.library_git_grant_access)) {
+                container.addView(pillRow(pillButton(getString(R.string.library_git_grant_access), main = true, icon = ChromeIcons.Icon.PRIVACY, does = ChromeIcons.Does.VIEW) {
                     requestAllFilesAccess()
                 }))
                 return@launch
@@ -266,11 +270,11 @@ class LibraryFragment : Fragment() {
                         else R.string.library_git_not_a_repo
                     container.addView(gitCaption(getString(caption)))
                     val pills = LinearLayout(requireContext()).apply { orientation = LinearLayout.HORIZONTAL }
-                    pills.setPadding(0, dp(4), 0, dp(8))
-                    pills.addView(pillButton(getString(R.string.library_git_init)) { initRepo(dir) })
+                    pills.setPadding(0, dp(3), 0, dp(3))
+                    pills.addView(pillButton(getString(R.string.library_git_init), main = true, icon = ChromeIcons.Icon.ADD, does = ChromeIcons.Does.CONNECT) { initRepo(dir) })
                     // With a remote set, offer Clone into this (empty/non-repo) directory.
                     if (!remoteUrl.isNullOrBlank()) {
-                        pills.addView(pillButton(getString(R.string.library_git_clone)) {
+                        pills.addView(pillButton(getString(R.string.library_git_clone), icon = ChromeIcons.Icon.IMPORT, does = ChromeIcons.Does.CONNECT) {
                             cloneRepo(remoteUrl, dir)
                         })
                     }
@@ -281,14 +285,14 @@ class LibraryFragment : Fragment() {
                         container.addView(gitCaption(getString(R.string.library_git_pending, state.pending)))
                     }
                     val pills = LinearLayout(requireContext()).apply { orientation = LinearLayout.HORIZONTAL }
-                    pills.setPadding(0, dp(4), 0, dp(8))
-                    pills.addView(pillButton(getString(R.string.library_git_commit)) { promptCommitMessage(dir) })
+                    pills.setPadding(0, dp(3), 0, dp(3))
+                    pills.addView(pillButton(getString(R.string.library_git_commit), main = true, icon = ChromeIcons.Icon.BRANCH, does = ChromeIcons.Does.SHARE) { promptCommitMessage(dir) })
                     // Browse the archive's git log; view/restore a layout as it was at any commit.
-                    pills.addView(pillButton(getString(R.string.library_git_history)) { showHistory(dir) })
+                    pills.addView(pillButton(getString(R.string.library_git_history), icon = ChromeIcons.Icon.HISTORY, does = ChromeIcons.Does.VIEW) { showHistory(dir) })
                     // With a remote set, offer Pull / Push for the existing repo.
                     if (!remoteUrl.isNullOrBlank()) {
-                        pills.addView(pillButton(getString(R.string.library_git_pull)) { pullRepo(dir) })
-                        pills.addView(pillButton(getString(R.string.library_git_push)) { pushRepo(dir) })
+                        pills.addView(pillButton(getString(R.string.library_git_pull), icon = ChromeIcons.Icon.IMPORT, does = ChromeIcons.Does.CONNECT) { pullRepo(dir) })
+                        pills.addView(pillButton(getString(R.string.library_git_push), icon = ChromeIcons.Icon.EXPORT, does = ChromeIcons.Does.SHARE) { pushRepo(dir) })
                     }
                     container.addView(pills)
                     if (state.files.isEmpty()) {
@@ -313,21 +317,22 @@ class LibraryFragment : Fragment() {
     private fun gitPathRow(path: String?): View = LinearLayout(requireContext()).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
-        setPadding(dp(4), dp(8), dp(8), dp(8))
+        setPadding(dp(4), dp(2), dp(8), dp(2))
         isClickable = true
         isFocusable = true
         setOnClickListener { editRepoPath(path) }
+        addView(rowIcon(ChromeIcons.Icon.DIRECTORY, ChromeIcons.Does.VIEW))
         addView(
             TextView(requireContext()).apply {
                 text = getString(R.string.library_git_path_label)
-                setTextColor(0xFFFFFF00.toInt())
+                setTextColor(ChromeColors.text)
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
             }
         )
         addView(
             TextView(requireContext()).apply {
                 text = path?.takeIf { it.isNotBlank() } ?: getString(R.string.library_git_path_unset)
-                setTextColor(0xFFCCCC66.toInt())
+                setTextColor(ChromeColors.note)
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
                 setPadding(dp(10), 0, 0, 0)
                 layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
@@ -339,21 +344,22 @@ class LibraryFragment : Fragment() {
     private fun gitRemoteRow(url: String?): View = LinearLayout(requireContext()).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
-        setPadding(dp(4), dp(8), dp(8), dp(8))
+        setPadding(dp(4), dp(2), dp(8), dp(2))
         isClickable = true
         isFocusable = true
         setOnClickListener { editRemote() }
+        addView(rowIcon(ChromeIcons.Icon.GLOBE, ChromeIcons.Does.SHARE))
         addView(
             TextView(requireContext()).apply {
                 text = getString(R.string.library_git_remote_label)
-                setTextColor(0xFFFFFF00.toInt())
+                setTextColor(ChromeColors.text)
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
             }
         )
         addView(
             TextView(requireContext()).apply {
                 text = url?.takeIf { it.isNotBlank() } ?: getString(R.string.library_git_remote_unset)
-                setTextColor(0xFFCCCC66.toInt())
+                setTextColor(ChromeColors.note)
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
                 setPadding(dp(10), 0, 0, 0)
                 layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
@@ -363,15 +369,21 @@ class LibraryFragment : Fragment() {
 
     private fun gitCaption(text: String): TextView = TextView(requireContext()).apply {
         this.text = text
-        setTextColor(0xFFCCCC66.toInt())
+        setTextColor(ChromeColors.note)
         setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
         setPadding(dp(4), dp(2), dp(8), dp(6))
+    }
+
+    /** The leading icon of a value row — one icon column, coloured by what the row does. */
+    private fun rowIcon(icon: ChromeIcons.Icon, does: ChromeIcons.Does): View = View(requireContext()).apply {
+        background = ChromeIcons.drawable(requireContext(), icon, does)
+        layoutParams = LinearLayout.LayoutParams(dp(20), dp(20)).apply { marginEnd = dp(10) }
     }
 
     /** A left-aligned single-pill row, so a lone pill doesn't stretch full width. */
     private fun pillRow(pill: View): View = LinearLayout(requireContext()).apply {
         orientation = LinearLayout.HORIZONTAL
-        setPadding(0, dp(4), 0, dp(8))
+        setPadding(0, dp(3), 0, dp(3))
         addView(pill)
     }
 
@@ -379,16 +391,16 @@ class LibraryFragment : Fragment() {
     private fun gitFileRow(file: File, rel: String, dir: File): View = LinearLayout(requireContext()).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
-        setPadding(dp(8), dp(6), dp(8), dp(6))
+        setPadding(dp(8), dp(3), dp(8), dp(3))
         addView(
             TextView(requireContext()).apply {
                 text = rel
-                setTextColor(0xFFFFFFFF.toInt())
+                setTextColor(ChromeColors.text)
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
                 layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
             }
         )
-        addView(pillButton(getString(R.string.library_git_import)) { importFile(file, dir) })
+        addView(pillButton(getString(R.string.library_git_import), icon = ChromeIcons.Icon.IMPORT, does = ChromeIcons.Does.CONNECT) { importFile(file, dir) })
     }
 
     private fun editRepoPath(current: String?) {
@@ -538,11 +550,34 @@ class LibraryFragment : Fragment() {
             .sortedBy { it.name.lowercase(Locale.ROOT) }
         val labels = mutableListOf<String>()
         val targets = mutableListOf<File>()
+        val hasUp = dir.parentFile != null
         dir.parentFile?.let { labels.add(getString(R.string.library_git_up)); targets.add(it) }
-        subdirs.forEach { labels.add("📁  " + it.name); targets.add(it) }
-        AlertDialog.Builder(requireContext(), R.style.Theme_Urik_Dialog)
+        subdirs.forEach { labels.add(it.name); targets.add(it) }
+        // The places to go, as full-width pills; the dialog's own buttons stay the decisions.
+        var dialog: AlertDialog? = null
+        val column = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(8), dp(6), dp(8), dp(2))
+        }
+        labels.forEachIndexed { i, label ->
+            val up = hasUp && i == 0
+            column.addView(
+                Pills.iconPill(
+                    requireContext(), label,
+                    if (up) ChromeIcons.Icon.UP else ChromeIcons.Icon.DIRECTORY,
+                    ChromeIcons.color(ChromeIcons.Does.VIEW), opens = true, fullWidth = true
+                ) {
+                    dialog?.dismiss()
+                    browseForDirectory(targets[i], onPick)
+                },
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = dp(3); bottomMargin = dp(3) }
+            )
+        }
+        dialog = AlertDialog.Builder(requireContext(), R.style.Theme_Urik_Dialog)
             .setTitle(dir.absolutePath)
-            .setItems(labels.toTypedArray()) { _, which -> browseForDirectory(targets[which], onPick) }
+            .setView(ScrollView(requireContext()).apply { addView(column) })
             .setPositiveButton(R.string.library_git_select_directory) { _, _ -> onPick(dir) }
             .setNeutralButton(R.string.library_git_new_directory) { _, _ ->
                 val input = EditText(requireContext()).apply { setSingleLine() }
@@ -690,11 +725,11 @@ class LibraryFragment : Fragment() {
             val labels = commits.map { c ->
                 "${c.shortHash}  ·  ${relativeTime(c.timeMs)}\n${c.message}"
             }.toTypedArray()
-            AlertDialog.Builder(requireContext(), R.style.Theme_Urik_Dialog)
-                .setTitle(R.string.library_git_history_title)
-                .setItems(labels) { _, which -> showCommitLayouts(dir, commits[which]) }
-                .setNegativeButton(R.string.library_git_close, null)
-                .show()
+            ChromeDialogs.actions(
+                requireContext(), getString(R.string.library_git_history_title),
+                labels.map { ChromeDialogs.Row(it, ChromeIcons.Icon.HISTORY, ChromeIcons.Does.VIEW, opens = true) },
+                cancelText = getString(R.string.library_git_close)
+            ) { which -> showCommitLayouts(dir, commits[which]) }
         }
     }
 
@@ -732,17 +767,17 @@ class LibraryFragment : Fragment() {
     ): View = LinearLayout(requireContext()).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
-        setPadding(0, dp(6), 0, dp(6))
+        setPadding(0, dp(3), 0, dp(3))
         addView(
             TextView(requireContext()).apply {
                 text = path.removePrefix("layouts/")
-                setTextColor(0xFFFFFFFF.toInt())
+                setTextColor(ChromeColors.text)
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
                 layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
             }
         )
-        addView(pillButton(getString(R.string.library_git_history_preview)) { previewAtCommit(dir, commit, path) })
-        addView(pillButton(getString(R.string.library_git_history_restore)) {
+        addView(pillButton(getString(R.string.library_git_history_preview), icon = ChromeIcons.Icon.EYE, does = ChromeIcons.Does.VIEW) { previewAtCommit(dir, commit, path) })
+        addView(pillButton(getString(R.string.library_git_history_restore), main = true, icon = ChromeIcons.Icon.RESET, does = ChromeIcons.Does.CONNECT) {
             restoreAtCommit(dir, commit, path); onRestored()
         })
     }
@@ -843,11 +878,11 @@ class LibraryFragment : Fragment() {
             val spec = com.urik.keyboard.data.StandardLayouts.SPECS[lang]!!
             "${spec.nativeName} — ${spec.layoutName}"
         }.toTypedArray()
-        AlertDialog.Builder(requireContext(), R.style.Theme_Urik_Dialog)
-            .setTitle(R.string.library_add_language_title)
-            .setItems(labels) { _, which -> addLanguage(candidates[which]) }
-            .setNegativeButton(R.string.export_import_cancel, null)
-            .show()
+        ChromeDialogs.actions(
+            requireContext(), getString(R.string.library_add_language_title),
+            labels.map { ChromeDialogs.Row(it, ChromeIcons.Icon.GLOBE, ChromeIcons.Does.CONTACT) },
+            cancelText = getString(R.string.export_import_cancel)
+        ) { which -> addLanguage(candidates[which]) }
     }
 
     /**
@@ -898,18 +933,18 @@ class LibraryFragment : Fragment() {
         }
     }
 
-    /** The switcher-visibility pill: ⇄ filled = listed in the space-slide switcher, hollow = hidden. */
+    /** The switcher-visibility chip: ⇄ marked (tinted, bold) = listed in the space-slide switcher, dim = hidden. */
     private fun switcherPill(entry: LayoutEntry, inSwitcher: Boolean): View = TextView(requireContext()).apply {
         text = getString(R.string.library_pill_switcher)
         setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
         val px = dp(7)
         setPadding(px, dp(1), px, dp(1))
-        background = android.graphics.drawable.GradientDrawable().apply {
-            cornerRadius = dp(4).toFloat()
-            if (inSwitcher) setColor(0xFFFFFF00.toInt())
-            else { setColor(0xFF000000.toInt()); setStroke(dp(1), 0xFF8A8A00.toInt()) }
-        }
-        setTextColor(if (inSwitcher) 0xFF000000.toInt() else 0xFFB4B400.toInt())
+        background = Pills.background(
+            requireContext(), if (inSwitcher) ChromeColors.accent else ChromeColors.switchOff,
+            main = inSwitcher, selected = inSwitcher
+        )
+        setTextColor(if (inSwitcher) ChromeColors.text else ChromeColors.note)
+        setTypeface(null, if (inSwitcher) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
         layoutParams = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
         ).apply { marginEnd = dp(10) }
@@ -927,6 +962,23 @@ class LibraryFragment : Fragment() {
             isClickable = true
             isFocusable = true
             setOnClickListener { preview(entry) }
+        }
+        // The row's icon sits in the indent, so the names keep their edge: a green tick on the layout that is
+        // active for its language, a keyboard on every other.
+        val indentPx = dp(look.indentDp ?: LibraryLook.DEF_INDENT)
+        val iconPx = dp(18)
+        if (indentPx >= iconPx + dp(8)) {
+            row.setPadding(indentPx - iconPx - dp(8), row.paddingTop, row.paddingRight, row.paddingBottom)
+            row.addView(
+                View(requireContext()).apply {
+                    background = if (isActive) {
+                        ChromeIcons.drawable(requireContext(), ChromeIcons.Icon.CHECK, ChromeIcons.Does.CONNECT, 18f)
+                    } else {
+                        ChromeIcons.drawable(requireContext(), ChromeIcons.Icon.KEYBOARD, ChromeIcons.Does.CONTACT, 18f)
+                    }
+                },
+                LinearLayout.LayoutParams(iconPx, iconPx).apply { marginEnd = dp(8) }
+            )
         }
         val nameWeight = look.nameWeight ?: LibraryLook.DEF_NAME_WEIGHT
         val name = TextView(requireContext()).apply {
@@ -953,7 +1005,10 @@ class LibraryFragment : Fragment() {
         return row
     }
 
-    /** A small "stock"/"custom" tag so the two kinds of layout are unmistakable at a glance (custom = filled). */
+    /**
+     * A small "stock"/"custom" tag so the two kinds of layout are unmistakable at a glance (custom = bright
+     * and bold). Square-cornered on purpose: it is a label, and only something pressable is a pill.
+     */
     private fun statusPill(isCustom: Boolean): View = TextView(requireContext()).apply {
         text = getString(if (isCustom) R.string.library_pill_custom else R.string.library_pill_stock)
         setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
@@ -961,10 +1016,11 @@ class LibraryFragment : Fragment() {
         setPadding(px, dp(1), px, dp(1))
         background = android.graphics.drawable.GradientDrawable().apply {
             cornerRadius = dp(4).toFloat()
-            if (isCustom) setColor(0xFFFFFF00.toInt())
-            else { setColor(0xFF000000.toInt()); setStroke(dp(1), 0xFF8A8A00.toInt()) }
+            setColor(Color.TRANSPARENT)
+            setStroke(dp(1), if (isCustom) ChromeColors.accent else ChromeColors.switchOff)
         }
-        setTextColor(if (isCustom) 0xFF000000.toInt() else 0xFFB4B400.toInt())
+        setTextColor(if (isCustom) ChromeColors.text else ChromeColors.note)
+        setTypeface(null, if (isCustom) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
         layoutParams = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
         ).apply { marginEnd = dp(10) }
@@ -1044,7 +1100,7 @@ class LibraryFragment : Fragment() {
         addView(
             TextView(requireContext()).apply {
                 text = title
-                setTextColor(0xFFFFFF00.toInt())
+                setTextColor(ChromeColors.text)
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
                 setTypeface(typeface, android.graphics.Typeface.BOLD)
                 layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
@@ -1061,41 +1117,42 @@ class LibraryFragment : Fragment() {
         addView(
             TextView(requireContext()).apply {
                 text = "${entry.name} · ${langDisplay(entry.lang)}"
-                setTextColor(0xFFFFFF00.toInt())
+                setTextColor(ChromeColors.text)
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
                 setTypeface(typeface, android.graphics.Typeface.BOLD)
                 layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
             }
         )
-        addView(pillButton(getString(R.string.library_duplicate)) { duplicate(entry) })
+        addView(pillButton(getString(R.string.library_duplicate), icon = ChromeIcons.Icon.COPY, does = ChromeIcons.Does.SHARE) { duplicate(entry) })
         // Rename works on stock too (via a name override) — stock asset stays read-only.
-        addView(pillButton(getString(R.string.library_rename)) { renameDialog(entry) })
+        addView(pillButton(getString(R.string.library_rename), icon = ChromeIcons.Icon.EDIT, does = ChromeIcons.Does.MESSAGE) { renameDialog(entry) })
         if (CustomLayoutStore.hasLayout(requireContext(), entry.id)) {
-            addView(pillButton(getString(R.string.library_edit)) {
+            addView(pillButton(getString(R.string.library_edit), icon = ChromeIcons.Icon.KEYBOARD, does = ChromeIcons.Does.CONTACT) {
                 startActivity(KeyboardEditorActivity.intent(requireContext(), entry))
             })
             // An edited stock (shadow) can pull in later bundled-asset changes without losing the user's edits.
             if (entry.derivedFrom != null) {
-                addView(pillButton(getString(R.string.library_resync)) { resync(entry) })
+                addView(pillButton(getString(R.string.library_resync), icon = ChromeIcons.Icon.RESET, does = ChromeIcons.Does.CONNECT) { resync(entry) })
             }
-            addView(pillButton(getString(R.string.library_delete)) { delete(entry) })
+            addView(pillButton(getString(R.string.library_delete), color = ChromeColors.delete, icon = ChromeIcons.Icon.DELETE, does = ChromeIcons.Does.DELETE) { delete(entry) })
         }
-        addView(pillButton(getString(R.string.library_activate)) { activate(entry) })
+        addView(pillButton(getString(R.string.library_activate), main = true, icon = ChromeIcons.Icon.CHECK, does = ChromeIcons.Does.CONNECT) { activate(entry) })
     }
 
-    /** A black-box, yellow-text, yellow-border action button (matches 白い熊's look). */
-    private fun pillButton(label: String, onClick: () -> Unit): Button = Button(requireContext()).apply {
-        text = label
-        setTextColor(0xFFFFFF00.toInt())
-        background = android.graphics.drawable.GradientDrawable().apply {
-            setColor(0xFF000000.toInt())
-            setStroke(dp(2), 0xFFFFFF00.toInt())
-            cornerRadius = dp(4).toFloat()
-        }
+    /** An outlined pill: [main] is the one action its block is for, a deleting one passes the delete red. */
+    private fun pillButton(
+        label: String,
+        main: Boolean = false,
+        color: Int = ChromeColors.accent,
+        icon: ChromeIcons.Icon? = null,
+        does: ChromeIcons.Does = ChromeIcons.Does.VIEW,
+        onClick: () -> Unit
+    ): Button = Pills.button(
+        requireContext(), label, main = main, color = color, icon = icon, does = does, onClick = onClick
+    ).apply {
         layoutParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
         ).apply { marginStart = dp(6) }
-        setOnClickListener { onClick() }
     }
 
     /** Copy a layout into the editable custom store (it then appears in the Library and is activatable). */
@@ -1206,6 +1263,13 @@ class LibraryFragment : Fragment() {
         lifecycleScope.launch {
             val result = settingsRepository.setActiveLayoutForLanguage(entry.lang, entry.id)
             if (result.isSuccess) {
+                // Every app that remembered this board's original, or another copy of it, now opens this one;
+                // and the keyboard rebuilds.
+                val family = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    CustomLayoutStore.familyOf(requireContext(), entry)
+                }
+                settingsRepository.rebindPerAppLayouts(entry.lang, family, entry.id)
+                keyboardRepository.invalidateLayoutCache()
                 rebuild()
                 flash(getString(R.string.library_applied_toast, entry.name, langDisplay(entry.lang)))
             } else {
@@ -1219,6 +1283,8 @@ class LibraryFragment : Fragment() {
             .filter { it.isNotBlank() }
             .map { it.replaceFirstChar { c -> c.uppercase() } }
             .toMutableList()
+        // Copies of one board share its name; the tail of the id ("copy2") is what tells them apart.
+        entry.id.substringAfterLast('_').takeIf { it.startsWith("copy") }?.let { parts.add(it) }
         if (isActive) parts.add(getString(R.string.library_active_word))
         return parts.joinToString(" · ")
     }

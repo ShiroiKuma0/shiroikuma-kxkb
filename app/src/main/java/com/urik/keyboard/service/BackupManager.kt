@@ -248,7 +248,13 @@ constructor(
             val raw = settingsRepository.exportRawBackupValues(
                 setOf(SettingsRepository.RAW_KEY_PER_GEOMETRY_LOOK, SettingsRepository.RAW_KEY_LIBRARY_LOOK)
             )
-            JSONObject().put("raw", JSONObject(raw)) to raw.size
+            // The colour roles of the app's own pages and the arrangement of the UI page (section order,
+            // which sections are open) live in device-protected preferences, outside DataStore.
+            val chrome = JSONObject()
+            com.urik.keyboard.chrome.ChromeColors.prefs(context)?.all?.forEach { (k, v) ->
+                if (v is Int || v is String) chrome.put(k, v)
+            }
+            JSONObject().put("raw", JSONObject(raw)).put("chrome", chrome) to raw.size
         }
 
         BackupPart.SETTINGS -> {
@@ -393,6 +399,21 @@ constructor(
         BackupPart.APPEARANCE -> {
             val raw = json.optJSONObject("raw").toStringMap()
             settingsRepository.importRawBackupValues(raw)
+            json.optJSONObject("chrome")?.let { chrome ->
+                // commit(), not apply(): a sister app force-stops this one the moment an import reports success.
+                com.urik.keyboard.chrome.ChromeColors.prefs(context)?.edit()?.apply {
+                    clear()
+                    chrome.keys().forEach { k ->
+                        when (val v = chrome.opt(k)) {
+                            is Int -> putInt(k, v)
+                            is Long -> putInt(k, v.toInt())
+                            is String -> putString(k, v)
+                        }
+                    }
+                    commit()
+                }
+                com.urik.keyboard.chrome.ChromeColors.load(context)
+            }
             raw.size
         }
 
