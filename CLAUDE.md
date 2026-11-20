@@ -888,7 +888,35 @@ and label when the editor opens it; **the kxkb UI page in the black-yellow setti
 (`KxkbActionPreference` pills, 2 dp rows, bold label + dim-gold left rule on explained rows via an
 `onCreateAdapter` bind hook). Suite green.
 
-**Released `0.23.1+368`** (2026-11-10; the `+362`–`+368` work above). **Released `0.23.1+362`** (2026-10-29;
+**Shipped since `+368`** (the `+381` line): **the layout editor edits what the keyboard reads** — the
+long-press (XK) list (`longPressKeys`) on compass and flat keys, a real numeric `width` field (the dead
+`widthClass` dropdown and `overrideWidths` sliders removed; an action key no longer loses its width when its
+key object is rebuilt — `replaceKeepingSize`), the compass `shifted` face as a page of its own, appearance
+numbers as switch + typed value, `keyType`, the layout's `showFlickHints`, and the special-key picker storing
+the lower-case action names the codec reads (every pick used to parse as Enter); fields the engine ignores
+are off the page and ride through untouched. The renderer now honours per-key `hintScale`,
+`labelOffsetX/Y`, `clusterLeft/RightOffset` and `flickTop/Bottom/Left/RightOffset` (fractions of the key's
+size, as in futokxkb); a `case` key takes its own `width` only where its `normal` face has none (the two
+DISAGREE on 141 bundled keys — the face's is what is drawn). **Pending changes**: the key page shows Cancel +
+Apply on top only while dirty (`EditorChrome`, order-insensitive `canonical` + `comparable`, which reads a
+key the editor merely opened as unchanged); the main page shows Cancel + Activate only while dirty, and
+Activate applies, activates and leaves. **An edit reaches every app**: each app remembers its board per fold
+state (`per_app_layout_bindings`), and an app bound to the STOCK layout switched back to it on every focus
+while the editor made a new copy on every open (twelve “GNU 15c” copies on 2026-11-20) — leaving the editor
+now settles it (`settleOnExit`: a changed stock's copy replaces it in every binding via
+`SettingsRepository.rebindPerAppLayouts` + `CustomLayoutStore.familyOf`; an unchanged copy is deleted again),
+the Library's Activate rebinds too, `restoreLayoutForApp` resolves a bound stock to the active copy of that
+board, and the IME rebuilds on `KeyboardRepository.layoutEdits`. **Diagnosis recipe:** the app-private store
+is readable over adb through the automation export (`am broadcast -a shiroikuma.kxkb.action.EXPORT_STATE
+--es path /sdcard/tmp/… --es items layouts,per_app`). **The black-yellow theme, whole app** (`chrome/`):
+settable colour roles in device-protected prefs (`ChromeColors`), `Pills`, `KxkbSwitch` (a `SwitchCompat`
+that draws itself), `ChromeIcons` (drawn in code), `KxkbViewInflater` (the theme's `viewInflaterClass` —
+inflated buttons, dialog button bars, switches), `ChromeDialogs`, `PillMenuItemView` + `MenuPills`,
+`ChromePreferences` (icons + tight rows on the plain preference pages), and the kxkb UI page as a folding
+accordion with a draggable chip index (`SectionIndex`, `ChromePageState`; **a preference's root view loses
+its id on bind — look the row up as `holder.itemView`**). Suite 2 304 green.
+
+**Released `0.23.1+381`** (2026-11-20; the work above). **Released `0.23.1+368`** (2026-11-10; the `+362`–`+368` work above). **Released `0.23.1+362`** (2026-10-29;
 tagged `0.23.1+362` — the word the taps spell in full leads the
 candidate row; APK attached, on the fork's GitHub; default branch `custom`; README badge +
 `CHANGELOG.md` track it). **Release tags carry NO `v` prefix** (白い熊,
@@ -903,7 +931,7 @@ older tag object. `publishedAt` is untouched and the `releases/latest` API staye
 looked wrong until `0.23.1+320`'s tag was force-recreated so its object was the newest again. Retag oldest
 first, or re-cut the newest tag last. Recent fork releases:
 `+320`, `+321`, `+324`, `+335`, `+337`, `+338`, `+343`, `+347`, `+348`, `+349`, `+350`, `+354`,
-`+355`, `+361`, `+362`, `+368` (earlier: `+316`, `+313`, `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`,
+`+355`, `+361`, `+362`, `+368`, `+381` (earlier: `+316`, `+313`, `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`,
 `+211`, `+213`,
 `+214`, `+215`, `+217`, `+222`, `+230`, `+250`, `+287`, `+292`, `+295`, `+296`, `+298`, `+299`, `+300`,
 `+301`, `+302`, `+304`, `+305`, `+306`, `+309`, `+312`). Remaining M5 tail (low priority): number/arrow
