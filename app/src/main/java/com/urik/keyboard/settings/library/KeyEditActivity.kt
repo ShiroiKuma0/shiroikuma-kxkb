@@ -654,13 +654,22 @@ class KeyEditActivity : AppCompatActivity() {
      * A single slide-slot row: dir name + the current-value summary (e.g. `chord: C-e` or `(empty)`) + the
      * [Edit][✕] pills, or `(empty)` + a single `Add key` pill when the slot is empty.
      */
-    private fun slotRow(token: String, displayName: String, allowEmptyAdd: Boolean = true): View {
-        val flick = keyObj.optJSONObject("flick")
+    private fun slotRow(
+        token: String,
+        displayName: String,
+        allowEmptyAdd: Boolean = true,
+        // The key whose slide this is, and the path tokens leading from the edited key down to it. A `case`
+        // key lists the slides of each of its shift states on its own page, so they are found without
+        // opening the state first; there the holder is that state's key and the prefix its name.
+        holder: JSONObject = keyObj,
+        prefix: List<String> = emptyList()
+    ): View {
+        val flick = holder.optJSONObject("flick")
         val raw = flick?.opt(token)
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(2), 0, dp(2))
+            setPadding(if (prefix.isEmpty()) 0 else dp(16), dp(2), 0, dp(2))
         }
         container.addView(TextView(this).apply {
             text = displayName
@@ -676,11 +685,13 @@ class KeyEditActivity : AppCompatActivity() {
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         })
         if (summary == null && allowEmptyAdd) {
-            container.addView(pill(getString(R.string.keyedit_add_key)) { addSlot(token) })
+            container.addView(pill(getString(R.string.keyedit_add_key)) { addSlot(token, holder, prefix) })
         } else {
-            container.addView(pill(getString(R.string.keyedit_edit)) { drillSlot(token) }
+            container.addView(pill(getString(R.string.keyedit_edit)) { drillSlot(token, prefix) }
                 .apply { (layoutParams as? LinearLayout.LayoutParams)?.marginEnd = dp(4) })
-            if (summary != null) container.addView(pill("✕", ChromeColors.delete) { clearSlot(token) })
+            if (summary != null) {
+                container.addView(pill("✕", ChromeColors.delete) { clearSlot(token, holder) })
+            }
         }
         return container
     }
@@ -714,23 +725,23 @@ class KeyEditActivity : AppCompatActivity() {
         return if (detail.isEmpty()) t else "$t: $detail"
     }
 
-    private fun addSlot(token: String) {
+    private fun addSlot(token: String, holder: JSONObject = keyObj, prefix: List<String> = emptyList()) {
         commitFields()
-        val flick = keyObj.optJSONObject("flick") ?: JSONObject().also { keyObj.put("flick", it) }
+        val flick = holder.optJSONObject("flick") ?: JSONObject().also { holder.put("flick", it) }
         flick.put(token, JSONObject().put("type", "character").put("char", ""))
         saveWorking()
-        drillSlot(token)
+        drillSlot(token, prefix)
     }
 
-    private fun drillSlot(token: String) {
+    private fun drillSlot(token: String, prefix: List<String> = emptyList()) {
         commitFields()
         saveWorking()
-        launchChild(path + token)
+        launchChild(path + prefix + token)
     }
 
-    private fun clearSlot(token: String) {
+    private fun clearSlot(token: String, holder: JSONObject = keyObj) {
         commitFields()
-        keyObj.optJSONObject("flick")?.remove(token)
+        holder.optJSONObject("flick")?.remove(token)
         saveWorking()
         rebuildFields()
     }
@@ -772,8 +783,24 @@ class KeyEditActivity : AppCompatActivity() {
     // -- case --
     private fun buildCaseFields() {
         fieldsContainer.addView(sectionLabel(getString(R.string.keyedit_case_states)))
+        fieldsContainer.addView(note(getString(R.string.keyedit_case_states_note)))
         for (state in CASE_BRANCHES) {
             fieldsContainer.addView(caseRow(state))
+            // What the state's key holds beyond its face — the slides — is listed right under it, each
+            // with its own Edit / Add key, so nothing of the key is hidden a page further down.
+            val face = keyObj.opt(state) as? JSONObject ?: continue
+            val dirs = when (editorType(face)) {
+                "compass" -> listOf("center") + COMPASS_DIRS
+                "cluster" -> CLUSTER_DIRS
+                "column" -> COLUMN_DIRS
+                else -> continue
+            }
+            for (dir in dirs) {
+                val name = if (dir == "center") getString(R.string.keyedit_primary_tap) else dirLabel(dir)
+                fieldsContainer.addView(
+                    slotRow(dir, name, allowEmptyAdd = dir != "center", holder = face, prefix = listOf(state))
+                )
+            }
         }
     }
 

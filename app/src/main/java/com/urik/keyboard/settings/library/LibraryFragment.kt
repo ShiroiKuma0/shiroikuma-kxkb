@@ -76,6 +76,7 @@ class LibraryFragment : Fragment() {
 
     private lateinit var registry: LayoutRegistry
     private lateinit var listContainer: LinearLayout
+    private var listScroll: ScrollView? = null
     private lateinit var previewContainer: LinearLayout
     private var rootFrame: android.widget.FrameLayout? = null
     private var look = LibraryLook()
@@ -102,6 +103,7 @@ class LibraryFragment : Fragment() {
             setPadding(p, p, p, p)
         }
         val scroll = ScrollView(requireContext()).apply {
+            listScroll = this
             isFillViewport = true
             layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f)
             addView(
@@ -179,9 +181,16 @@ class LibraryFragment : Fragment() {
             val active = langs.associateWith { lang ->
                 settingsRepository.getActiveLayoutForLanguage(lang) ?: registry.defaultFor(lang)
             }
-            listContainer.removeAllViews()
             val customIds = CustomLayoutStore.customEntries(requireContext()).map { it.id }.toSet()
             val visibleByLang = settingsRepository.getVisibleLayoutsByLanguage()
+            // The list is rebuilt from scratch, so the page would jump back to the top: a layout pass
+            // over a momentarily shorter list clamps the scroll offset. Everything suspending is read
+            // BEFORE the rows are torn down, the list is held at its present height until the (async)
+            // git section has been built too, and the offset is put back — a toggle leaves the page
+            // exactly where it was.
+            val keepScrollY = listScroll?.scrollY ?: 0
+            listContainer.minimumHeight = listContainer.height
+            listContainer.removeAllViews()
             for (lang in langs) {
                 listContainer.addView(heading(langDisplay(lang)))
                 val entries = registry.forLanguage(lang)
@@ -203,7 +212,12 @@ class LibraryFragment : Fragment() {
             // never on the keyboard hot path or boot.
             val gitSection = LinearLayout(requireContext()).apply { orientation = LinearLayout.VERTICAL }
             listContainer.addView(gitSection)
-            buildGitSection(gitSection)
+            try {
+                buildGitSection(gitSection).join()
+            } finally {
+                listContainer.minimumHeight = 0
+            }
+            listScroll?.let { sv -> if (sv.scrollY != keepScrollY) sv.post { sv.scrollTo(0, keepScrollY) } }
         }
     }
 
@@ -213,8 +227,8 @@ class LibraryFragment : Fragment() {
      * through [Dispatchers.IO]; failures (missing dir, not-a-repo, no permission) degrade gracefully and
      * never crash.
      */
-    private fun buildGitSection(container: LinearLayout) {
-        lifecycleScope.launch {
+    private fun buildGitSection(container: LinearLayout): kotlinx.coroutines.Job {
+        return lifecycleScope.launch {
             container.removeAllViews()
             // Foldable + persistent: tapping the heading collapses/expands the section, and the state survives
             // exit/re-open (stored in settings). Collapsed → only the heading shows.

@@ -298,6 +298,7 @@
     <string name="keyedit_cycle_label">label</string>
     <!-- case -->
     <string name="keyedit_case_states">Shift states — each is a key of its own</string>
+    <string name="keyedit_case_states_note">Edit opens a state\u2019s whole key — its letters, slides and long-press list. The slides (up, down and the diagonals) are also listed under each state and can be edited from here.</string>
     <!-- gap -->
     <string name="keyedit_gap_note">A gap takes a slot but emits nothing.</string>
     <!-- appearance -->
