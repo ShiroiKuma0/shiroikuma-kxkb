@@ -916,7 +916,17 @@ inflated buttons, dialog button bars, switches), `ChromeDialogs`, `PillMenuItemV
 accordion with a draggable chip index (`SectionIndex`, `ChromePageState`; **a preference's root view loses
 its id on bind — look the row up as `holder.itemView`**). Suite 2 304 green.
 
-**Released `0.23.1+381`** (2026-11-20; the work above). **Released `0.23.1+368`** (2026-11-10; the `+362`–`+368` work above). **Released `0.23.1+362`** (2026-10-29;
+**Shipped since `+381`** (the `+382` line): **the Library list keeps its scroll position** — a
+switcher toggle rebuilt the list and sometimes threw the page to the top: `rebuild()` emptied the list
+BEFORE a suspending store read, so a frame drawn in that gap saw a list shorter than the screen and
+the `ScrollView` clamped its offset to zero (a race, hence "only sometimes"); every suspending read
+now comes first, the list is held at its height (`minimumHeight`) until the async git section has
+been built too (`buildGitSection` returns its `Job`), and the offset is restored. **A `case` key's
+page lists each shift state's slides** — under every state holding a cluster/compass/column key, its
+slide rows (Edit / Add key / ✕) drill straight to `path + state + dir` (`slotRow` takes a `holder` +
+`prefix`), with a note that "Edit" on the state opens the whole key; the band letters stay behind it.
+
+**Released `0.23.1+382`** (2026-11-22; the work above). **Released `0.23.1+381`** (2026-11-20; the `+368`–`+381` work above). **Released `0.23.1+368`** (2026-11-10; the `+362`–`+368` work above). **Released `0.23.1+362`** (2026-10-29;
 tagged `0.23.1+362` — the word the taps spell in full leads the
 candidate row; APK attached, on the fork's GitHub; default branch `custom`; README badge +
 `CHANGELOG.md` track it). **Release tags carry NO `v` prefix** (白い熊,
@@ -931,7 +941,7 @@ older tag object. `publishedAt` is untouched and the `releases/latest` API staye
 looked wrong until `0.23.1+320`'s tag was force-recreated so its object was the newest again. Retag oldest
 first, or re-cut the newest tag last. Recent fork releases:
 `+320`, `+321`, `+324`, `+335`, `+337`, `+338`, `+343`, `+347`, `+348`, `+349`, `+350`, `+354`,
-`+355`, `+361`, `+362`, `+368`, `+381` (earlier: `+316`, `+313`, `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`,
+`+355`, `+361`, `+362`, `+368`, `+381`, `+382` (earlier: `+316`, `+313`, `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`,
 `+211`, `+213`,
 `+214`, `+215`, `+217`, `+222`, `+230`, `+250`, `+287`, `+292`, `+295`, `+296`, `+298`, `+299`, `+300`,
 `+301`, `+302`, `+304`, `+305`, `+306`, `+309`, `+312`). Remaining M5 tail (low priority): number/arrow
