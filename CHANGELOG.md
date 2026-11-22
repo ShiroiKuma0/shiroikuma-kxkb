@@ -4,7 +4,27 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+381 — current
+## 0.23.1+382 — current
+
+Built on Urik `0.23.1-beta`.
+
+### 📚 Layout library
+
+- **The list stays where it is.** Showing or hiding a layout in the switcher sometimes threw the
+  page back to the top. The list is rebuilt after every change, and whenever a frame was drawn while
+  it stood empty the scroll position was lost. The list now keeps its height through the rebuild and
+  the position is put back, so a toggle — or a return from the editor — leaves the page untouched.
+
+### ✏ Keyboard editor
+
+- **The slides of a shift-state key are on its page.** A key with shift states (“case”) listed only
+  the states, and what each one holds was a page further down behind “Edit”. Each state that holds a
+  cluster, compass or column key now lists its slides — up, down and the diagonals — directly under
+  it, each with its own Edit, Add key and ✕.
+- **A note says where the rest is.** “Edit” on a state opens its whole key: the letters, the slides
+  and the long-press list.
+
+## 0.23.1+381
 
 Built on Urik `0.23.1-beta`.
 
