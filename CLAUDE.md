@@ -926,7 +926,26 @@ page lists each shift state's slides** — under every state holding a cluster/c
 slide rows (Edit / Add key / ✕) drill straight to `path + state + dir` (`slotRow` takes a `holder` +
 `prefix`), with a note that "Edit" on the state opens the whole key; the band letters stay behind it.
 
-**Released `0.23.1+382`** (2026-11-22; the work above). **Released `0.23.1+381`** (2026-11-20; the `+368`–`+381` work above). **Released `0.23.1+368`** (2026-11-10; the `+362`–`+368` work above). **Released `0.23.1+362`** (2026-10-29;
+**Shipped since `+382`** (the `+383` line): **each fold state keeps its own board** — the per-app
+bindings (`per_app_layout_bindings`) were distinct per fold state all along, but an app·geometry never
+bound fell back to the ONE global `active_layout_by_language` cell, so a pick semi-folded showed up
+folded in every app not set up there by hand (most apps hold one binding). New store
+`geometry_layouts` (key `<geometry>` + U+001F + `<language>` → layout id; written by
+`rememberLayoutForApp` and by the Library's Activate for the geometry in `currentSizeTarget`; until a
+pick exists, `getGeometryLayout` answers the board MOST per-app bindings of that geometry·language
+name); `layoutForGeometry` is the one resolver — the app's binding when it is for that language →
+the geometry's board → the global cell — used by `restoreLayoutForApp` (which now also serves an app
+with no language memory, in the language it is shown in) and by `handleLanguageSwitch`, which used
+to load the board the language had in ANOTHER fold state and then bind it to this one. Restores run
+under `restoreLayoutMutex` and read the geometry INSIDE the lock (two interleaved restores let the
+old fold state write last). `CustomLayoutStore.standInFor` (pure) replaces the `+381` family rule on
+the read path: an existing copy opens itself, a stock opens the active copy of it or the one copy the
+switcher offers in its place; `supersededBy` (family minus other existing copies) is what a rebind
+moves — two copies of one board are two boards. `rebindPerAppLayouts` moves the geometry boards too;
+the key rides in the **Per-app** backup part. The on-device fault was NOT reproduced — these are the
+crossings found in the code. Suite 2 308 green.
+
+**Released `0.23.1+383`** (2026-11-26; the work above). **Released `0.23.1+382`** (2026-11-22; the `+381`–`+382` work above). **Released `0.23.1+381`** (2026-11-20; the `+368`–`+381` work above). **Released `0.23.1+368`** (2026-11-10; the `+362`–`+368` work above). **Released `0.23.1+362`** (2026-10-29;
 tagged `0.23.1+362` — the word the taps spell in full leads the
 candidate row; APK attached, on the fork's GitHub; default branch `custom`; README badge +
 `CHANGELOG.md` track it). **Release tags carry NO `v` prefix** (白い熊,
@@ -941,7 +960,7 @@ older tag object. `publishedAt` is untouched and the `releases/latest` API staye
 looked wrong until `0.23.1+320`'s tag was force-recreated so its object was the newest again. Retag oldest
 first, or re-cut the newest tag last. Recent fork releases:
 `+320`, `+321`, `+324`, `+335`, `+337`, `+338`, `+343`, `+347`, `+348`, `+349`, `+350`, `+354`,
-`+355`, `+361`, `+362`, `+368`, `+381`, `+382` (earlier: `+316`, `+313`, `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`,
+`+355`, `+361`, `+362`, `+368`, `+381`, `+382`, `+383` (earlier: `+316`, `+313`, `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`,
 `+211`, `+213`,
 `+214`, `+215`, `+217`, `+222`, `+230`, `+250`, `+287`, `+292`, `+295`, `+296`, `+298`, `+299`, `+300`,
 `+301`, `+302`, `+304`, `+305`, `+306`, `+309`, `+312`). Remaining M5 tail (low priority): number/arrow
