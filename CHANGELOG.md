@@ -4,7 +4,33 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+382 — current
+## 0.23.1+383 — current
+
+Built on Urik `0.23.1-beta`.
+
+### 📱 Fold states
+
+- **Each fold state keeps its own board.** The keyboard remembered a board per app and fold state,
+  but an app that had never been given one in a fold state fell back to a single shared choice per
+  language — so the board picked semi-folded turned up folded in every app not set up there by hand,
+  and the other way round. Each fold state and orientation now remembers the board last picked in it
+  for each language, across all apps; an app's own choice there still wins.
+- **Apart from the first start.** Until a board is picked in a fold state, it opens the one most of
+  your apps already use there.
+- **A language switch stays in its fold state.** Switching language loaded the board that language
+  was last given in another fold state, and then remembered it for the current one. It now opens the
+  board the language has in this app and this fold state.
+- **Folding can no longer land on the old board.** Two restores started by one fold could run
+  interleaved, and the one for the fold state just left could finish last. They now run one after
+  the other and read the fold state at the moment they run.
+- **Two copies of one board are two boards.** One copy tuned for the folded screen and another for
+  the semi-folded were treated as the same board, so every fold state opened whichever was activated
+  last. A copy now opens itself; only the stock original follows its edited copy.
+- **Activate in the Library is a choice for one fold state** — the one the keyboard was last shown
+  in. The others keep theirs.
+- **In the backup.** The fold-state boards ride in the “Per-app layout memory” part.
+
+## 0.23.1+382
 
 Built on Urik `0.23.1-beta`.
 
