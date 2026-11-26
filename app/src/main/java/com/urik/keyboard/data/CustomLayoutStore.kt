@@ -82,6 +82,43 @@ object CustomLayoutStore {
         return family
     }
 
+    /**
+     * The ids a binding may name that [entry] now stands in for: its stock original and copies of that board
+     * that no longer exist — but never ANOTHER copy that is still there. Two copies of one board are two
+     * boards (one tuned for the folded screen, one for the semi-folded), and treating them as one made every
+     * fold state open whichever copy was activated last.
+     */
+    fun supersededBy(context: Context, entry: LayoutEntry): Set<String> {
+        val others = try {
+            customEntries(context).map { it.id }.filter { it != entry.id }.toSet()
+        } catch (_: Exception) {
+            emptySet()
+        }
+        return familyOf(context, entry) - others
+    }
+
+    /**
+     * What a remembered [layoutId] opens. A copy that still exists is a board of its own and opens itself. A
+     * stock layout opens its edited copy where that copy stands in for it: the copy ACTIVE for the language,
+     * or — when the switcher no longer offers the stock ([visible] set and without it) — the one copy of it
+     * the switcher does offer. Otherwise [layoutId] itself. Pure, so the rule can be tested.
+     */
+    fun standInFor(
+        layoutId: String,
+        language: String,
+        active: String?,
+        entries: List<LayoutEntry>,
+        visible: Set<String>?
+    ): String {
+        if (entries.any { it.id == layoutId }) return layoutId
+        val copies = entries.filter { it.lang == language && it.derivedFrom == layoutId }
+        copies.firstOrNull { it.id == active }?.let { return it.id }
+        if (visible != null && layoutId !in visible) {
+            copies.filter { it.id in visible }.singleOrNull()?.let { return it.id }
+        }
+        return layoutId
+    }
+
     /** The custom registry entries (empty if none / unreadable). */
     fun customEntries(context: Context): List<LayoutEntry> = try {
         if (!context.isUserUnlocked) return emptyList()

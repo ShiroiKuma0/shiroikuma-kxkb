@@ -170,4 +170,76 @@ class PerAppLayoutBindingTest {
         assertEquals("gnu" to "gnu_5r10c", repository.getPerAppLayoutBinding("com.termux", "folded_port"))
         assertEquals("cs" to "cs_3p2_5r9c", repository.getPerAppLayoutBinding("com.termux", "semi_port"))
     }
+
+    @Test
+    fun `each fold state keeps its own board for a language, whatever the app`() = runTest {
+        repository.setGeometryLayout("semi_port", "cs", "cs_3p2_5r9c_copy")
+        repository.setGeometryLayout("folded_port", "cs", "cs_3p2_5r4c")
+        repository.setGeometryLayout("folded_port", "en", "en_5r10c")
+
+        assertEquals("cs_3p2_5r9c_copy", repository.getGeometryLayout("semi_port", "cs"))
+        assertEquals("cs_3p2_5r4c", repository.getGeometryLayout("folded_port", "cs"))
+        assertEquals("en_5r10c", repository.getGeometryLayout("folded_port", "en"))
+        assertEquals(null, repository.getGeometryLayout("unfolded_port", "cs"))
+    }
+
+    @Test
+    fun `a fold state never picked in takes the board most apps use there`() = runTest {
+        repository.setPerAppLayoutBinding("a.one", "folded_port", "cs", "cs_3p2_5r4c")
+        repository.setPerAppLayoutBinding("a.two", "folded_port", "cs", "cs_3p2_5r4c")
+        repository.setPerAppLayoutBinding("a.three", "folded_port", "cs", "cs_5r10c")
+        repository.setPerAppLayoutBinding("a.one", "semi_port", "cs", "cs_3p2_5r9c")
+        repository.setPerAppLayoutBinding("a.one", "folded_port_x", "cs", "cs_wrong")
+
+        assertEquals("cs_3p2_5r4c", repository.getGeometryLayout("folded_port", "cs"))
+        assertEquals("cs_3p2_5r9c", repository.getGeometryLayout("semi_port", "cs"))
+        assertEquals(null, repository.getGeometryLayout("folded_port", "en"))
+
+        repository.setGeometryLayout("folded_port", "cs", "cs_5r10c")
+        assertEquals("cs_5r10c", repository.getGeometryLayout("folded_port", "cs"))
+    }
+
+    @Test
+    fun `a rebind moves the fold-state boards of that language only`() = runTest {
+        repository.setGeometryLayout("semi_port", "cs", "cs_3p2_5r9c")
+        repository.setGeometryLayout("folded_port", "cs", "cs_3p2_5r4c")
+        repository.setGeometryLayout("semi_port", "en", "cs_3p2_5r9c")
+
+        repository.rebindPerAppLayouts("cs", setOf("cs_3p2_5r9c"), "cs_3p2_5r9c_copy")
+
+        assertEquals("cs_3p2_5r9c_copy", repository.getGeometryLayout("semi_port", "cs"))
+        assertEquals("cs_3p2_5r4c", repository.getGeometryLayout("folded_port", "cs"))
+        assertEquals("cs_3p2_5r9c", repository.getGeometryLayout("semi_port", "en"))
+    }
+
+    @Test
+    fun `a remembered stock opens its copy, and a copy that exists opens itself`() {
+        fun entry(id: String, from: String?) = com.urik.keyboard.data.LayoutEntry(
+            id = id, lang = "gnu", name = "GNU 15c", kind = "", width = "", derivedFrom = from
+        )
+        val entries = listOf(entry("gnu_5r15c_copy", "gnu_5r15c"), entry("gnu_5r15c_copy2", "gnu_5r15c"))
+        val store = com.urik.keyboard.data.CustomLayoutStore
+
+        // Two copies of one board are two boards: the folded one is not replaced by the active semi one.
+        assertEquals(
+            "gnu_5r15c_copy",
+            store.standInFor("gnu_5r15c_copy", "gnu", "gnu_5r15c_copy2", entries, null)
+        )
+        // The stock follows the active copy of it…
+        assertEquals(
+            "gnu_5r15c_copy2",
+            store.standInFor("gnu_5r15c", "gnu", "gnu_5r15c_copy2", entries, null)
+        )
+        // …or, with another board active, the one copy the switcher offers in its place.
+        assertEquals(
+            "gnu_5r15c_copy",
+            store.standInFor("gnu_5r15c", "gnu", "gnu_5r10c", entries, setOf("gnu_5r15c_copy", "gnu_5r10c"))
+        )
+        // A stock the switcher still offers, or with no copy, stays itself.
+        assertEquals(
+            "gnu_5r15c",
+            store.standInFor("gnu_5r15c", "gnu", "gnu_5r10c", entries, setOf("gnu_5r15c", "gnu_5r15c_copy"))
+        )
+        assertEquals("gnu_5r10c", store.standInFor("gnu_5r10c", "gnu", "gnu_5r15c_copy", entries, null))
+    }
 }

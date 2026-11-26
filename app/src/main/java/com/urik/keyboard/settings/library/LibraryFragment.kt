@@ -1280,9 +1280,15 @@ class LibraryFragment : Fragment() {
                 // Every app that remembered this board's original, or another copy of it, now opens this one;
                 // and the keyboard rebuilds.
                 val family = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    CustomLayoutStore.familyOf(requireContext(), entry)
+                    CustomLayoutStore.supersededBy(requireContext(), entry)
                 }
                 settingsRepository.rebindPerAppLayouts(entry.lang, family, entry.id)
+                // Activating here is a pick for the fold state the keyboard was last shown in — the others
+                // keep their own board.
+                settingsRepository.currentSizeTarget.first()
+                    ?.substringAfterLast('|', "")
+                    ?.takeIf { com.urik.keyboard.service.GeometryBucket.fromKey(it) != null }
+                    ?.let { settingsRepository.setGeometryLayout(it, entry.lang, entry.id) }
                 keyboardRepository.invalidateLayoutCache()
                 rebuild()
                 flash(getString(R.string.library_applied_toast, entry.name, langDisplay(entry.lang)))

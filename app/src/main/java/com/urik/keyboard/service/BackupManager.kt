@@ -386,7 +386,9 @@ constructor(
                     SettingsRepository.RAW_KEY_PER_APP_LAYOUT_LANGUAGES,
                     // The per-(app · fold-state · orientation) layout bindings live alongside the
                     // geometry-less language memory — both are "what this app types in".
-                    SettingsRepository.RAW_KEY_PER_APP_LAYOUT_BINDINGS
+                    SettingsRepository.RAW_KEY_PER_APP_LAYOUT_BINDINGS,
+                    // …and the board each fold state falls back to where an app has none of its own.
+                    SettingsRepository.RAW_KEY_GEOMETRY_LAYOUTS
                 )
             )
             JSONObject().put("raw", JSONObject(raw)) to raw.size

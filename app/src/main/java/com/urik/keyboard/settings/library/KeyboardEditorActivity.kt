@@ -278,7 +278,7 @@ class KeyboardEditorActivity : AppCompatActivity() {
             settingsRepository.setActiveLayoutForLanguage(entry.lang, origin)
             settingsRepository.rebindPerAppLayouts(entry.lang, setOf(entry.id), origin)
         } else if (settingsRepository.getActiveLayoutForLanguage(entry.lang) == entry.id) {
-            val family = withContext(Dispatchers.IO) { CustomLayoutStore.familyOf(this@KeyboardEditorActivity, entry) }
+            val family = withContext(Dispatchers.IO) { CustomLayoutStore.supersededBy(this@KeyboardEditorActivity, entry) }
             settingsRepository.rebindPerAppLayouts(entry.lang, family, entry.id)
         }
         keyboardRepository.invalidateLayoutCache()
@@ -934,7 +934,7 @@ class KeyboardEditorActivity : AppCompatActivity() {
         lifecycleScope.launch {
             settingsRepository.setActiveLayoutForLanguage(entry.lang, entry.id)
             // Every app that remembered this board's original, or another copy of it, now opens this one.
-            val family = withContext(Dispatchers.IO) { CustomLayoutStore.familyOf(this@KeyboardEditorActivity, entry) }
+            val family = withContext(Dispatchers.IO) { CustomLayoutStore.supersededBy(this@KeyboardEditorActivity, entry) }
             settingsRepository.rebindPerAppLayouts(entry.lang, family, entry.id)
             keyboardRepository.invalidateLayoutCache()
             flash(getString(R.string.editor_applied_toast, entry.name))

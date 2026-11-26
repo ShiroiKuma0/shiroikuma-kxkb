@@ -85,6 +85,7 @@ constructor(
         val PRIMARY_LAYOUT_LANGUAGE = stringPreferencesKey("primary_layout_language")
         val PER_APP_LAYOUT_LANGUAGES = stringPreferencesKey("per_app_layout_languages")
         val PER_APP_LAYOUT_BINDINGS = stringPreferencesKey("per_app_layout_bindings")
+        val GEOMETRY_LAYOUTS = stringPreferencesKey("geometry_layouts")
         val ACTIVE_LAYOUT_BY_LANGUAGE = stringPreferencesKey("active_layout_by_language")
         val VISIBLE_LAYOUTS_BY_LANGUAGE = stringPreferencesKey("visible_layouts_by_language")
         val LAYOUT_DEFAULTS_MIGRATED = booleanPreferencesKey("layout_defaults_migrated")
@@ -571,9 +572,61 @@ constructor(
     }
 
     /**
-     * Point every per-app binding of [language] that names one of [fromIds] at [toId]. Activating a layout in
-     * the editor has to do this: each app remembers its board per fold state, and one that remembered the
-     * stock original (or an older copy) went straight back to it, so the activated edit never showed.
+     * The layout each fold-state·orientation uses for a language when the app being typed in has no binding
+     * of its own there: the board last PICKED in that geometry for that language, in any app. Without it an
+     * app·geometry never bound yet fell back to the one global active-layout cell — so the board picked
+     * semi-folded showed up folded in every app that had not been set up there by hand, and the reverse.
+     *
+     * Nothing stored yet for [geometry]·[language] → the board most of the per-app bindings of that geometry
+     * and language name, so the fold states are apart from the first start after an update.
+     */
+    suspend fun getGeometryLayout(geometry: String, language: String): String? = try {
+        if (geometry.isBlank() || language.isBlank()) {
+            null
+        } else {
+            val prefs = dataStore.data.first()
+            prefs[PreferenceKeys.GEOMETRY_LAYOUTS]
+                ?.let { decodePerAppLayouts(it)[geometryLanguageKey(geometry, language)] }
+                ?.takeIf { it.isNotEmpty() }
+                ?: prefs[PreferenceKeys.PER_APP_LAYOUT_BINDINGS]
+                    ?.let { decodePerAppLayouts(it) }
+                    ?.filterKeys { it.endsWith("$APP_GEOMETRY_SEP$geometry") }
+                    ?.values
+                    ?.mapNotNull { v -> v.split("|").takeIf { it.size == 2 && it[0] == language }?.get(1) }
+                    ?.filter { it.isNotEmpty() }
+                    ?.groupingBy { it }
+                    ?.eachCount()
+                    ?.entries
+                    ?.sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })
+                    ?.firstOrNull()
+                    ?.key
+        }
+    } catch (e: Exception) {
+        null
+    }
+
+    suspend fun setGeometryLayout(geometry: String, language: String, layoutId: String): Result<Unit> = try {
+        if (geometry.isNotBlank() && language.isNotBlank() && layoutId.isNotBlank()) {
+            dataStore.edit { preferences ->
+                val current = preferences[PreferenceKeys.GEOMETRY_LAYOUTS]
+                    ?.let { decodePerAppLayouts(it) } ?: emptyMap()
+                val key = geometryLanguageKey(geometry, language)
+                if (current[key] != layoutId) {
+                    preferences[PreferenceKeys.GEOMETRY_LAYOUTS] =
+                        encodePerAppLayouts(current.toMutableMap().apply { this[key] = layoutId })
+                }
+            }
+        }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    /**
+     * Point every per-app binding of [language] that names one of [fromIds] at [toId] — and every
+     * fold-state default ([getGeometryLayout]) of that language likewise. Activating a layout in the editor
+     * has to do this: each app remembers its board per fold state, and one that remembered the stock
+     * original (or a copy that is gone) went straight back to it, so the activated edit never showed.
      */
     suspend fun rebindPerAppLayouts(language: String, fromIds: Set<String>, toId: String): Result<Int> = try {
         var changed = 0
@@ -590,11 +643,27 @@ constructor(
                 }
             }
             if (changed > 0) preferences[PreferenceKeys.PER_APP_LAYOUT_BINDINGS] = encodePerAppLayouts(next)
+
+            val defaults = preferences[PreferenceKeys.GEOMETRY_LAYOUTS]?.let { decodePerAppLayouts(it) }
+                ?: emptyMap()
+            var defaultsChanged = false
+            val nextDefaults = defaults.mapValues { (key, value) ->
+                if (key.endsWith("$APP_GEOMETRY_SEP$language") && value != toId && value in fromIds) {
+                    defaultsChanged = true
+                    toId
+                } else {
+                    value
+                }
+            }
+            if (defaultsChanged) preferences[PreferenceKeys.GEOMETRY_LAYOUTS] = encodePerAppLayouts(nextDefaults)
         }
         Result.success(changed)
     } catch (e: Exception) {
         Result.failure(e)
     }
+
+    private fun geometryLanguageKey(geometry: String, language: String): String =
+        "$geometry$APP_GEOMETRY_SEP$language"
 
     private fun appGeometryKey(packageName: String, geometry: String): String =
         "$packageName$APP_GEOMETRY_SEP$geometry"
@@ -933,6 +1002,7 @@ constructor(
         RAW_KEY_VISIBLE_LAYOUTS_BY_LANGUAGE to PreferenceKeys.VISIBLE_LAYOUTS_BY_LANGUAGE,
         RAW_KEY_PER_APP_LAYOUT_LANGUAGES to PreferenceKeys.PER_APP_LAYOUT_LANGUAGES,
         RAW_KEY_PER_APP_LAYOUT_BINDINGS to PreferenceKeys.PER_APP_LAYOUT_BINDINGS,
+        RAW_KEY_GEOMETRY_LAYOUTS to PreferenceKeys.GEOMETRY_LAYOUTS,
         RAW_KEY_CUSTOM_SUGGESTIONS to PreferenceKeys.CUSTOM_SUGGESTIONS,
         RAW_KEY_CUSTOM_SUGGESTIONS_BY_LANG to PreferenceKeys.CUSTOM_SUGGESTIONS_BY_LANG
     )
@@ -1690,6 +1760,7 @@ constructor(
         const val RAW_KEY_VISIBLE_LAYOUTS_BY_LANGUAGE = "visible_layouts_by_language"
         const val RAW_KEY_PER_APP_LAYOUT_LANGUAGES = "per_app_layout_languages"
         const val RAW_KEY_PER_APP_LAYOUT_BINDINGS = "per_app_layout_bindings"
+        const val RAW_KEY_GEOMETRY_LAYOUTS = "geometry_layouts"
         const val RAW_KEY_CUSTOM_SUGGESTIONS = "custom_suggestions"
         const val RAW_KEY_CUSTOM_SUGGESTIONS_BY_LANG = "custom_suggestions_by_lang"
 
