@@ -945,7 +945,18 @@ moves — two copies of one board are two boards. `rebindPerAppLayouts` moves th
 the key rides in the **Per-app** backup part. The on-device fault was NOT reproduced — these are the
 crossings found in the code. Suite 2 308 green.
 
-**Released `0.23.1+383`** (2026-11-26; the work above). **Released `0.23.1+382`** (2026-11-22; the `+381`–`+382` work above). **Released `0.23.1+381`** (2026-11-20; the `+368`–`+381` work above). **Released `0.23.1+368`** (2026-11-10; the `+362`–`+368` work above). **Released `0.23.1+362`** (2026-10-29;
+**Shipped since `+383`** (the `+384` line): **an edited copy takes its stock's place in the
+switcher** — the editor made the copy of a stock layout active but never touched the switcher's visible
+set (`visible_layouts_by_language`, explicit since the defaults migration), so the switcher kept
+offering the STOCK under the same name; switching away and back picked the unedited stock by its id,
+and `switchToLayout` bound the app and the fold state to it (the Library showed exactly that: stock
+displayed, copy not). `SettingsRepository.replaceInSwitcher` (pure rule: `swapInSwitcher`) now swaps
+the ids — on `settleOnExit` for a changed copy (a copy made just now always; an existing one only when
+hidden), on the Library's Activate of a hidden copy whose stock is offered, and in reverse on delete.
+The editor's rule is unchanged: an active COPY is edited in place, only an active stock is copied.
+Suite 2 312 green.
+
+**Released `0.23.1+384`** (2026-11-28; the work above). **Released `0.23.1+383`** (2026-11-26; the `+383` work above). **Released `0.23.1+382`** (2026-11-22; the `+381`–`+382` work above). **Released `0.23.1+381`** (2026-11-20; the `+368`–`+381` work above). **Released `0.23.1+368`** (2026-11-10; the `+362`–`+368` work above). **Released `0.23.1+362`** (2026-10-29;
 tagged `0.23.1+362` — the word the taps spell in full leads the
 candidate row; APK attached, on the fork's GitHub; default branch `custom`; README badge +
 `CHANGELOG.md` track it). **Release tags carry NO `v` prefix** (白い熊,
@@ -960,7 +971,7 @@ older tag object. `publishedAt` is untouched and the `releases/latest` API staye
 looked wrong until `0.23.1+320`'s tag was force-recreated so its object was the newest again. Retag oldest
 first, or re-cut the newest tag last. Recent fork releases:
 `+320`, `+321`, `+324`, `+335`, `+337`, `+338`, `+343`, `+347`, `+348`, `+349`, `+350`, `+354`,
-`+355`, `+361`, `+362`, `+368`, `+381`, `+382`, `+383` (earlier: `+316`, `+313`, `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`,
+`+355`, `+361`, `+362`, `+368`, `+381`, `+382`, `+383`, `+384` (earlier: `+316`, `+313`, `+72`, `+147`, `+156`, `+164`, `+172`, `+198`, `+204`,
 `+211`, `+213`,
 `+214`, `+215`, `+217`, `+222`, `+230`, `+250`, `+287`, `+292`, `+295`, `+296`, `+298`, `+299`, `+300`,
 `+301`, `+302`, `+304`, `+305`, `+306`, `+309`, `+312`). Remaining M5 tail (low priority): number/arrow
