@@ -4,7 +4,25 @@ Everything **白い熊 kxkb** adds on top of stock [Urik](https://github.com/uri
 version is `<urik-version>+<our-build-number>`; the build number increments on every release and
 resets to 1 on each new upstream Urik version.
 
-## 0.23.1+383 — current
+## 0.23.1+384 — current
+
+Built on Urik `0.23.1-beta`.
+
+### 🎛 Switcher and editor
+
+- **An edited layout stays the one you switch back to.** Editing a stock layout makes a copy of it
+  and activates that copy — but the copy never entered the switcher, which went on offering the
+  stock original under the same name. Switching to another layout and back therefore picked the
+  unedited original, and remembered it for the app and the fold state. Leaving the editor with a
+  changed copy now puts the copy into the switcher in the stock's place.
+- **Activating a hidden copy in the Library shows it.** A copy the switcher does not offer, while it
+  offers the stock it was made from, takes that slot when it is activated — so copies left hidden by
+  earlier builds are repaired with one tap.
+- **Deleting a copy brings its stock back** into the switcher in the copy's place.
+- **Boards shown side by side stay.** A stock layout and its copy that are both offered in the
+  switcher on purpose are left as they are.
+
+## 0.23.1+383
 
 Built on Urik `0.23.1-beta`.
 
