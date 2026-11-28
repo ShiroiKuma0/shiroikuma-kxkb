@@ -280,6 +280,16 @@ class KeyboardEditorActivity : AppCompatActivity() {
         } else if (settingsRepository.getActiveLayoutForLanguage(entry.lang) == entry.id) {
             val family = withContext(Dispatchers.IO) { CustomLayoutStore.supersededBy(this@KeyboardEditorActivity, entry) }
             settingsRepository.rebindPerAppLayouts(entry.lang, family, entry.id)
+            // …and the switcher offers the copy where it offered the stock. A copy made just now always takes
+            // the slot; one that existed already only when it is not offered itself (a copy left hidden behind
+            // its stock by an older build).
+            val stock = origin ?: entry.derivedFrom
+            if (stock != null) {
+                val all = withContext(Dispatchers.IO) {
+                    LayoutRegistry.load(this@KeyboardEditorActivity).forLanguage(entry.lang).map { it.id }.toSet()
+                }
+                settingsRepository.replaceInSwitcher(entry.lang, stock, entry.id, all, onlyIfHidden = origin == null)
+            }
         }
         keyboardRepository.invalidateLayoutCache()
     }

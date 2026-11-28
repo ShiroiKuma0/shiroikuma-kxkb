@@ -780,6 +780,37 @@ constructor(
         Result.failure(e)
     }
 
+    /**
+     * [toId] takes [fromId]'s place in the switcher of [language]: where the switcher offers [fromId], it
+     * offers [toId] instead. An edited copy of a stock layout has to do this — the copy carries the stock's
+     * name, and while the switcher went on listing the stock, picking "the same layout" again there picked
+     * the unedited original by its id and bound the app to it. [all] is every layout of the language (what
+     * an absent stored set means). With [onlyIfHidden] nothing changes when [toId] is offered already — two
+     * boards shown side by side on purpose stay that way.
+     */
+    suspend fun replaceInSwitcher(
+        language: String,
+        fromId: String,
+        toId: String,
+        all: Set<String>,
+        onlyIfHidden: Boolean = false
+    ): Result<Boolean> = try {
+        var replaced = false
+        if (language.isNotBlank() && fromId != toId) {
+            dataStore.edit { preferences ->
+                val current = preferences[PreferenceKeys.VISIBLE_LAYOUTS_BY_LANGUAGE]
+                    ?.let { decodeVisibleLayouts(it) } ?: emptyMap()
+                val next = swapInSwitcher(current[language] ?: all, fromId, toId, onlyIfHidden) ?: return@edit
+                preferences[PreferenceKeys.VISIBLE_LAYOUTS_BY_LANGUAGE] =
+                    encodeVisibleLayouts(current.toMutableMap().apply { this[language] = next })
+                replaced = true
+            }
+        }
+        Result.success(replaced)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
     private fun encodeVisibleLayouts(map: Map<String, Set<String>>): String =
         map.entries.joinToString("\n") { "${it.key}\t${it.value.joinToString(",")}" }
 
@@ -1720,6 +1751,16 @@ constructor(
         // Public names for the raw backup-state DataStore values (see exportRawBackupValues). Stable strings —
         // they appear verbatim in exported backups, so do not rename.
         /** Fresh-install switcher sets: the standard-arrangement layouts newcomers expect. */
+
+        /**
+         * The switcher set after [toId] takes [fromId]'s place in [shown], or null when nothing changes:
+         * [fromId] is not offered, or ([onlyIfHidden]) [toId] is offered already. Pure, so it can be tested.
+         */
+        fun swapInSwitcher(shown: Set<String>, fromId: String, toId: String, onlyIfHidden: Boolean): Set<String>? {
+            if (fromId == toId || fromId !in shown) return null
+            if (onlyIfHidden && toId in shown) return null
+            return shown - fromId + toId
+        }
         private val FRESH_VISIBLE_LAYOUTS = mapOf(
             "en" to setOf("en_qwerty_5r10c", "en_qcluster_5r4c", "en_qcluster_5r9c"),
             "cs" to setOf(

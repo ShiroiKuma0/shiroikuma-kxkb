@@ -1193,6 +1193,13 @@ class LibraryFragment : Fragment() {
     private fun delete(entry: LayoutEntry) {
         lifecycleScope.launch {
             CustomLayoutStore.deleteLayout(requireContext(), entry.id)
+            // The stock a deleted copy stood in for comes back into the switcher in its place.
+            entry.derivedFrom?.let { stock ->
+                settingsRepository.replaceInSwitcher(
+                    entry.lang, entry.id, stock, registry.forLanguage(entry.lang).map { it.id }.toSet(),
+                    onlyIfHidden = true
+                )
+            }
             if (settingsRepository.getActiveLayoutForLanguage(entry.lang) == entry.id) {
                 registry = LayoutRegistry.load(requireContext())
                 val reinstate = entry.derivedFrom ?: registry.defaultFor(entry.lang)
@@ -1283,6 +1290,15 @@ class LibraryFragment : Fragment() {
                     CustomLayoutStore.supersededBy(requireContext(), entry)
                 }
                 settingsRepository.rebindPerAppLayouts(entry.lang, family, entry.id)
+                // An edited copy that the switcher does not offer, while it offers the stock it was made
+                // from, takes the stock's slot there — otherwise the board just activated could never be
+                // switched back to, and its name in the switcher opened the unedited original.
+                entry.derivedFrom?.let { stock ->
+                    settingsRepository.replaceInSwitcher(
+                        entry.lang, stock, entry.id, registry.forLanguage(entry.lang).map { it.id }.toSet(),
+                        onlyIfHidden = true
+                    )
+                }
                 // Activating here is a pick for the fold state the keyboard was last shown in — the others
                 // keep their own board.
                 settingsRepository.currentSizeTarget.first()

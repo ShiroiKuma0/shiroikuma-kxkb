@@ -242,4 +242,47 @@ class PerAppLayoutBindingTest {
         )
         assertEquals("gnu_5r10c", store.standInFor("gnu_5r10c", "gnu", "gnu_5r15c_copy", entries, null))
     }
+
+    // ---- The switcher slot: an edited copy takes its stock's place ----
+
+    @Test
+    fun `a copy takes the stock's slot in the switcher`() = runTest {
+        repository.setVisibleLayoutsForLanguage("ru", setOf("ru_5r12c", "ru_5r10c"))
+        val all = setOf("ru_5r12c", "ru_5r10c", "ru_5r12c_copy")
+
+        assertTrue(repository.replaceInSwitcher("ru", "ru_5r12c", "ru_5r12c_copy", all).getOrThrow())
+
+        assertEquals(setOf("ru_5r12c_copy", "ru_5r10c"), repository.getVisibleLayoutsByLanguage()["ru"])
+    }
+
+    @Test
+    fun `with no stored set the stock still leaves the switcher`() = runTest {
+        val all = setOf("ru_5r12c", "ru_5r10c", "ru_5r12c_copy")
+
+        assertTrue(repository.replaceInSwitcher("ru", "ru_5r12c", "ru_5r12c_copy", all).getOrThrow())
+
+        assertEquals(setOf("ru_5r12c_copy", "ru_5r10c"), repository.getVisibleLayoutsByLanguage()["ru"])
+    }
+
+    @Test
+    fun `a stock the switcher does not offer hands nothing over`() = runTest {
+        repository.setVisibleLayoutsForLanguage("ru", setOf("ru_5r10c"))
+
+        val replaced = repository.replaceInSwitcher(
+            "ru", "ru_5r12c", "ru_5r12c_copy", setOf("ru_5r12c", "ru_5r10c", "ru_5r12c_copy")
+        ).getOrThrow()
+
+        assertTrue(!replaced)
+        assertEquals(setOf("ru_5r10c"), repository.getVisibleLayoutsByLanguage()["ru"])
+    }
+
+    @Test
+    fun `two boards shown side by side stay when only a hidden copy may take the slot`() {
+        val shown = setOf("ru_5r12c", "ru_5r12c_copy")
+        assertNull(SettingsRepository.swapInSwitcher(shown, "ru_5r12c", "ru_5r12c_copy", onlyIfHidden = true))
+        assertEquals(
+            setOf("ru_5r12c_copy"),
+            SettingsRepository.swapInSwitcher(setOf("ru_5r12c"), "ru_5r12c", "ru_5r12c_copy", onlyIfHidden = true)
+        )
+    }
 }
